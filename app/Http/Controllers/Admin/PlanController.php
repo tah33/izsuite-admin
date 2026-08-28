@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\SavePlanRequest;
-use App\Repositories\PaymentMethodRepository;
-use App\Services\ActivityLogService;
+use App\Repositories\Admin\PaymentMethodRepository;
+use App\Services\Shared\ActivityLogService;
 use App\Services\Admin\PlanService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;

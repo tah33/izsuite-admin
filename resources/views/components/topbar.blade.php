@@ -1,7 +1,7 @@
 @php
     $activeLocale = session('admin_locale', setting('default_language', 'en'));
     $activeCurrency = session('admin_currency', setting('default_currency', 'USD'));
-    $activeCurrModel = \App\Models\Currency::where('code', $activeCurrency)->first();
+    $activeCurrModel = \App\Models\Admin\Currency::where('code', $activeCurrency)->first();
     $perPageOptions = [10, 15, 25, 50, 100];
     $currentPerPage = (int) request()->integer('per_page', 15);
     if (! in_array($currentPerPage, $perPageOptions, true)) {
@@ -46,7 +46,7 @@
                 <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
             </button>
             <div id="lang-dropdown-menu" class="hidden absolute end-0 mt-2 w-48 bg-white rounded-lg shadow-lg border py-1 z-50 border-[var(--card-border)]">
-                @foreach(\App\Models\Language::where('is_active', true)->get() as $lang)
+                @foreach(\App\Models\Admin\Language::where('is_active', true)->get() as $lang)
                     <form method="POST" action="{{ route('admin.switch-language') }}">
                         @csrf
                         <input type="hidden" name="locale" value="{{ $lang->code }}">
@@ -64,7 +64,7 @@
                 <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
             </button>
             <div id="curr-dropdown-menu" class="hidden absolute end-0 mt-2 w-48 bg-white rounded-lg shadow-lg border py-1 z-50 border-[var(--card-border)]">
-                @foreach(\App\Models\Currency::where('is_active', true)->get() as $curr)
+                @foreach(\App\Models\Admin\Currency::where('is_active', true)->get() as $curr)
                     <form method="POST" action="{{ route('admin.switch-currency') }}">
                         @csrf
                         <input type="hidden" name="currency" value="{{ $curr->code }}">

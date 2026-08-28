@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\SaveFaqRequest;
-use App\Services\ActivityLogService;
+use App\Services\Shared\ActivityLogService;
 use App\Services\Admin\FaqService;
 
 class FaqController extends Controller

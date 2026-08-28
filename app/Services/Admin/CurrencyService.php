@@ -2,8 +2,8 @@
 
 namespace App\Services\Admin;
 
-use App\Models\Currency;
-use App\Repositories\CurrencyRepository;
+use App\Models\Admin\Currency;
+use App\Repositories\Admin\CurrencyRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class CurrencyService

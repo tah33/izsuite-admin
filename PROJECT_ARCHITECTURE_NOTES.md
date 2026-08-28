@@ -9,7 +9,7 @@
 
 ## 1. Project purpose
 
-Project-এর code role/domain ভিত্তিকভাবে organise করা হবে:
+শুধু নিচের ৪টি layer-এর code role/domain ভিত্তিকভাবে organise করা হবে:
 
 - Admin
 - User
@@ -17,7 +17,7 @@ Project-এর code role/domain ভিত্তিকভাবে organise ক�
 - Billing
 - Accounting
 
-Shared code আলাদা Shared, Common, Support অথবা existing Laravel infrastructure folder-এ থাকবে।
+Shared code আলাদা Shared, Common, Support অথবা existing Laravel infrastructure folder-এ থাকবে। অন্য সব folder-এর বর্তমান structure অপরিবর্তিত থাকবে।
 
 ## 2. Project snapshot
 
@@ -29,7 +29,7 @@ Shared code আলাদা Shared, Common, Support অথবা existing Larave
 | Frontend build | Vite / npm |
 | Authentication/API | Laravel Sanctum; auth, web, api এবং admin route files |
 | Major packages | Octane, Dompdf, Sanctum, Pusher, PDF parser |
-| Database folders | database/migrations, database/factories, database/seeders |
+| Other folders | Migration, Database, Seeder, Request, Resource, View ইত্যাদি বর্তমান structure-এই থাকবে |
 
 ## 3. Current structure observed
 
@@ -58,9 +58,7 @@ Shared code আলাদা Shared, Common, Support অথবা existing Larave
 | Services | app/Services/{Admin|User|Frontend|Billing|Accounting}/ |
 | Requests | app/Http/Requests/{Admin|User|Frontend|Billing|Accounting}/ |
 | Resources | app/Http/Resources/{Admin|User|Frontend|Billing|Accounting}/ |
-| Migrations | database/migrations/{Admin|User|Frontend|Billing|Accounting}/ |
-| Seeders | database/seeders/{Admin|User|Frontend|Billing|Accounting}/ |
-| Views | resources/views/{admin|user|frontend|billing|accounting}/ |
+| Other areas | Migration, Database, Seeder, Request, Resource, View ইত্যাদিতে domain pattern ব্যবহার করা হবে না |
 
 ## 5. Proposed structure
 
@@ -72,18 +70,8 @@ Shared code আলাদা Shared, Common, Support অথবা existing Larave
     ├── Repositories/Admin, User, Frontend, Billing, Accounting, Shared
     └── Services/Admin, User, Frontend, Billing, Accounting, Shared
 
-    database/
-    ├── migrations/Admin, User, Frontend, Billing, Accounting
-    └── seeders/Admin, User, Frontend, Billing, Accounting
-
-    resources/views/
-    ├── admin
-    ├── user
-    ├── frontend
-    ├── billing
-    ├── accounting
-    ├── components
-    └── layouts
+    database/                 # বর্তমান structure অপরিবর্তিত
+    resources/views/          # বর্তমান structure অপরিবর্তিত
 
 ## 6. Example
 
@@ -95,11 +83,8 @@ Shared code আলাদা Shared, Common, Support অথবা existing Larave
     app/Models/Billing/Invoice.php
     app/Repositories/Admin/TicketRepository.php
     app/Services/Accounting/TransactionService.php
-    app/Http/Requests/Admin/Ticket/StoreTicketRequest.php
-    database/migrations/Billing/2025_..._create_invoices_table.php
-    database/seeders/Admin/AdminSeeder.php
-    resources/views/admin/tickets/index.blade.php
-    resources/views/billing/invoices/index.blade.php
+    app/Http/Requests/Admin/Ticket/StoreTicketRequest.php  # এই layer pattern-এর বাইরে
+    # Migration, Seeder, Request, Resource, View ইত্যাদি বর্তমান structure-এই থাকবে
 
 ## 7. Initial mapping from current code
 
@@ -123,10 +108,9 @@ Shared code আলাদা Shared, Common, Support অথবা existing Larave
 4. Shared code জোর করে Admin/User folder-এ রাখা যাবে না।
 5. শুধু controller Admin হওয়ার কারণে model-কে Admin-এ move করা যাবে না; User, API বা Frontend dependency check করতে হবে।
 6. Move করার সময় namespace, imports, routes, policies, service bindings, factories, seeders এবং tests update করতে হবে।
-7. Migration subdirectory ব্যবহার করলে Laravel migration discovery এবং migration order ঠিক আছে কিনা verify করতে হবে।
-8. DatabaseSeeder single orchestration entry point থাকবে এবং domain seeders dependency order-এ call করবে।
-9. Canonical spelling হলো **Billing**, **Belling নয়**।
-10. নতুন domain বা shared dependency যোগ হলে এই document update করতে হবে।
+7. Migration, Database, Seeder, Request, Resource এবং View-এর বর্তমান structure এই refactor-এ অপরিবর্তিত থাকবে।
+8. Canonical spelling হলো **Billing**, **Belling নয়**।
+9. নতুন domain বা shared dependency যোগ হলে এই document update করতে হবে।
 
 ## 9. Refactor checklist
 
@@ -137,16 +121,16 @@ Shared code আলাদা Shared, Common, Support অথবা existing Larave
 - [ ] Routes ও middleware grouping update করা
 - [ ] Composer autoload/cache update করা, যদি প্রয়োজন হয়
 - [ ] Formatting, static checks এবং tests চালানো
-- [ ] Safe environment-এ migration/seeding যাচাই করা
 - [ ] Admin, User, Frontend, Billing এবং Accounting flow manually verify করা
 - [ ] Final structure এখানে update করা
 
 ## 10. Important status
 
-এই document তৈরি করার সময় project-এর কোনো file বা folder move/change করা হয়নি। এটি architecture planning এবং future refactor reference হিসেবে তৈরি করা হয়েছে।
+এই document অনুযায়ী Controller, Model, Repository এবং Service layer refactor করা হয়েছে। Migration, Database, Seeder, Request, Resource এবং View layer এই কাজের scope-এর বাইরে এবং অপরিবর্তিত রাখা হয়েছে।
 
 ## 11. Update log
 
 | Date | Change | Status |
 |---|---|---|
 | 31 July 2026 | Initial architecture notes created from current project snapshot | Baseline |
+| 28 August 2026 | Controller, Model, Repository এবং Service domain folders added; other layers unchanged | Refactored |

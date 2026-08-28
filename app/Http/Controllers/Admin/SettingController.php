@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateSettingRequest;
-use App\Services\ActivityLogService;
+use App\Services\Shared\ActivityLogService;
 use App\Services\Admin\SettingService;
 use App\Services\Support\ImageService;
 use Illuminate\Http\Request;

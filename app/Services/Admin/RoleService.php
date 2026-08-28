@@ -2,8 +2,8 @@
 
 namespace App\Services\Admin;
 
-use App\Models\Role;
-use App\Repositories\RoleRepository;
+use App\Models\Admin\Role;
+use App\Repositories\Admin\RoleRepository;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 

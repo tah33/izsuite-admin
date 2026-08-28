@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreLanguageRequest;
 use App\Http\Requests\Admin\UpdateLanguageRequest;
-use App\Services\ActivityLogService;
+use App\Services\Shared\ActivityLogService;
 use App\Services\Admin\LanguageService;
 use Illuminate\Http\Request;
 

@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreDepartmentRequest;
-use App\Models\User;
-use App\Services\ActivityLogService;
+use App\Models\User\User;
+use App\Services\Shared\ActivityLogService;
 use App\Services\Admin\DepartmentService;
 use Illuminate\Http\Request;
 

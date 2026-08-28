@@ -2,8 +2,8 @@
 
 namespace App\Services\Admin;
 
-use App\Models\Setting;
-use App\Repositories\SettingRepository;
+use App\Models\Admin\Setting;
+use App\Repositories\Admin\SettingRepository;
 use Illuminate\Database\Eloquent\Collection;
 
 class SettingService

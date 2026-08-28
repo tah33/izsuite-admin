@@ -2,10 +2,10 @@
 
 namespace App\Services\Api\ContactMessages;
 
-use App\Models\ContactMessage;
-use App\Models\User;
-use App\Repositories\ContactMessageRepository;
-use App\Services\ActivityLogService;
+use App\Models\Admin\ContactMessage;
+use App\Models\User\User;
+use App\Repositories\Admin\ContactMessageRepository;
+use App\Services\Shared\ActivityLogService;
 
 class ContactMessageService
 {

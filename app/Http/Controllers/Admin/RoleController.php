@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreRoleRequest;
 use App\Http\Requests\Admin\UpdateRoleRequest;
-use App\Models\Role;
-use App\Services\ActivityLogService;
+use App\Models\Admin\Role;
+use App\Services\Shared\ActivityLogService;
 use App\Services\Admin\RoleService;
 use Illuminate\Support\Facades\Route;
 

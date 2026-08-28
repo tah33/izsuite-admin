@@ -1,4 +1,4 @@
-@php($currentLangInfo = \App\Models\Language::where('code', app()->getLocale())->first())
+@php($currentLangInfo = \App\Models\Admin\Language::where('code', app()->getLocale())->first())
 @php($htmlDir = $currentLangInfo?->direction === 'rtl' ? 'rtl' : 'ltr')
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ $htmlDir }}">

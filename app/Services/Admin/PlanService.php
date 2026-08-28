@@ -2,8 +2,8 @@
 
 namespace App\Services\Admin;
 
-use App\Models\Plan;
-use App\Repositories\PlanRepository;
+use App\Models\Billing\Plan;
+use App\Repositories\Admin\PlanRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 

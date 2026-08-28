@@ -1,7 +1,7 @@
 <?php
 
-use App\Models\Currency;
-use App\Models\Setting;
+use App\Models\Admin\Currency;
+use App\Models\Admin\Setting;
 use App\Support\Timezone;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;

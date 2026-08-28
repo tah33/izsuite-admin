@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\ContentItem;
-use App\Models\Setting;
+use App\Models\Frontend\ContentItem;
+use App\Models\Admin\Setting;
 use Illuminate\Database\Seeder;
 
 class ContentSeeder extends Seeder

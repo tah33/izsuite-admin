@@ -3,9 +3,9 @@
 namespace App\Services\Admin;
 
 use App\Mail\ContactMessageReplied;
-use App\Models\ContactMessage;
-use App\Repositories\ContactMessageRepository;
-use App\Services\ActivityLogService;
+use App\Models\Admin\ContactMessage;
+use App\Repositories\Admin\ContactMessageRepository;
+use App\Services\Shared\ActivityLogService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;

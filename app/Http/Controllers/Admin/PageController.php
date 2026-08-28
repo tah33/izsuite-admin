@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StorePageRequest;
 use App\Http\Requests\Admin\UpdatePageRequest;
-use App\Services\ActivityLogService;
+use App\Services\Shared\ActivityLogService;
 use App\Services\Admin\PageService;
 
 class PageController extends Controller

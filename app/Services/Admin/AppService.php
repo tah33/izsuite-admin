@@ -2,8 +2,8 @@
 
 namespace App\Services\Admin;
 
-use App\Models\Application;
-use App\Repositories\AppRepository;
+use App\Models\Frontend\Application;
+use App\Repositories\Admin\AppRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class AppService

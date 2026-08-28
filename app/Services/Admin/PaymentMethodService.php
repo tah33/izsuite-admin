@@ -2,8 +2,8 @@
 
 namespace App\Services\Admin;
 
-use App\Models\PaymentMethod;
-use App\Repositories\PaymentMethodRepository;
+use App\Models\Billing\PaymentMethod;
+use App\Repositories\Admin\PaymentMethodRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 

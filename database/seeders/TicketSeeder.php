@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Models\Ticket;
-use App\Models\TicketMessage;
-use App\Models\User;
+use App\Models\User\Ticket;
+use App\Models\User\TicketMessage;
+use App\Models\User\User;
 use Illuminate\Database\Seeder;
 
 class TicketSeeder extends Seeder

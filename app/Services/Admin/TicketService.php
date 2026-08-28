@@ -2,10 +2,10 @@
 
 namespace App\Services\Admin;
 
-use App\Models\Ticket;
-use App\Models\TicketMessage;
-use App\Repositories\TicketRepository;
-use App\Services\ActivityLogService;
+use App\Models\User\Ticket;
+use App\Models\User\TicketMessage;
+use App\Repositories\User\TicketRepository;
+use App\Services\Shared\ActivityLogService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 

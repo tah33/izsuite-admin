@@ -2,8 +2,8 @@
 
 namespace App\Services\Admin;
 
-use App\Models\User;
-use App\Repositories\StaffRepository;
+use App\Models\User\User;
+use App\Repositories\Admin\StaffRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class StaffService

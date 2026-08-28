@@ -2,8 +2,8 @@
 
 namespace App\Services\Admin;
 
-use App\Models\AppCategory;
-use App\Repositories\AppCategoryRepository;
+use App\Models\Frontend\AppCategory;
+use App\Repositories\Admin\AppCategoryRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class AppCategoryService

@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\SaveCurrencyFormattingRequest;
 use App\Http\Requests\Admin\StoreCurrencyRequest;
 use App\Http\Requests\Admin\UpdateCurrencyRequest;
-use App\Services\ActivityLogService;
+use App\Services\Shared\ActivityLogService;
 use App\Services\Admin\CurrencyService;
 use Illuminate\Http\Request;
 

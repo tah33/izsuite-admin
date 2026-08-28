@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Models\Category;
-use App\Models\Subscription;
-use App\Models\User;
+use App\Models\Frontend\Category;
+use App\Models\Billing\Subscription;
+use App\Models\User\User;
 use Illuminate\Database\Seeder;
 
 class SubscriptionSeeder extends Seeder

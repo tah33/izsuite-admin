@@ -2,8 +2,8 @@
 
 namespace App\Services\Admin;
 
-use App\Models\ContactMessage;
-use App\Repositories\UserRepository;
+use App\Models\Admin\ContactMessage;
+use App\Repositories\User\UserRepository;
 
 class OverviewService
 {

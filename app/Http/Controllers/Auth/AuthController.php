@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\AdminLoginRequest;
-use App\Models\User;
-use App\Services\ActivityLogService;
+use App\Models\User\User;
+use App\Services\Shared\ActivityLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;

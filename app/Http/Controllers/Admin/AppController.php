@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreAppRequest;
-use App\Models\AppCategory;
-use App\Models\Application;
-use App\Services\ActivityLogService;
+use App\Models\Frontend\AppCategory;
+use App\Models\Frontend\Application;
+use App\Services\Shared\ActivityLogService;
 use App\Services\Admin\AppService;
 use App\Services\Support\ImageService;
 use Illuminate\Http\Request;

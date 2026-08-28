@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\Role;
-use App\Models\User;
+use App\Models\Admin\Role;
+use App\Models\User\User;
 use App\Notifications\SystemAlertNotification;
 use Illuminate\Database\Seeder;
 

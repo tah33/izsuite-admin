@@ -2,8 +2,8 @@
 
 namespace App\Services\Admin;
 
-use App\Models\Faq;
-use App\Repositories\FaqRepository;
+use App\Models\Admin\Faq;
+use App\Repositories\Admin\FaqRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 

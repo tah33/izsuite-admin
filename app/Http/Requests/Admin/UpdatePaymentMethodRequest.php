@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Models\PaymentMethod;
+use App\Models\Billing\PaymentMethod;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdatePaymentMethodRequest extends FormRequest

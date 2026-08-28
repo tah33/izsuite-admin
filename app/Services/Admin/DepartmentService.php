@@ -2,8 +2,8 @@
 
 namespace App\Services\Admin;
 
-use App\Models\Department;
-use App\Repositories\DepartmentRepository;
+use App\Models\Admin\Department;
+use App\Repositories\Admin\DepartmentRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class DepartmentService

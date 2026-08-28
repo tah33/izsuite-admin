@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\PageController;
+use App\Http\Controllers\Frontend\PageController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/welcome', fn () => view('welcome'));

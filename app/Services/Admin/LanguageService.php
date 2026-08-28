@@ -2,8 +2,8 @@
 
 namespace App\Services\Admin;
 
-use App\Models\Language;
-use App\Repositories\LanguageRepository;
+use App\Models\Admin\Language;
+use App\Repositories\Admin\LanguageRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class LanguageService

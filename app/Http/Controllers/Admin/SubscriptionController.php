@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreSubscriptionRequest;
-use App\Models\Plan;
-use App\Models\User;
-use App\Repositories\InvoiceRepository;
-use App\Repositories\SubscriptionRepository;
-use App\Services\ActivityLogService;
+use App\Models\Billing\Plan;
+use App\Models\User\User;
+use App\Repositories\Billing\InvoiceRepository;
+use App\Repositories\Billing\SubscriptionRepository;
+use App\Services\Shared\ActivityLogService;
 use App\Services\Invoices\InvoicePdfService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;

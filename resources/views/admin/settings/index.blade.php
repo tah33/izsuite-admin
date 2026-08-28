@@ -82,7 +82,7 @@
 
                                 @if($setting['key'] === 'default_currency')
                                     <select name="settings[{{ $setting['key'] }}]" id="setting_{{ $setting['key'] }}" class="form-input {{ $fieldError ? 'form-input-error' : '' }}">
-                                        @foreach(\App\Models\Currency::active()->orderBy('name')->get() as $curr)
+                                        @foreach(\App\Models\Admin\Currency::active()->orderBy('name')->get() as $curr)
                                             <option value="{{ $curr->code }}" {{ $fieldValue === $curr->code ? 'selected' : '' }}>
                                                 {{ $curr->name }} ({{ $curr->symbol }} / {{ $curr->code }})
                                             </option>
@@ -90,7 +90,7 @@
                                     </select>
                                 @elseif($setting['key'] === 'default_language')
                                     <select name="settings[{{ $setting['key'] }}]" id="setting_{{ $setting['key'] }}" class="form-input {{ $fieldError ? 'form-input-error' : '' }}">
-                                        @foreach(\App\Models\Language::active()->orderBy('name')->get() as $lang)
+                                        @foreach(\App\Models\Admin\Language::active()->orderBy('name')->get() as $lang)
                                             <option value="{{ $lang->code }}" {{ $fieldValue === $lang->code ? 'selected' : '' }}>
                                                 {{ $lang->name }} ({{ $lang->code }})
                                             </option>
@@ -243,6 +243,4 @@
     syncAiSettingsVisibility();
 </script>
 @endpush
-
-
 

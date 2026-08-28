@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\SwitchAdminCurrencyRequest;
 use App\Http\Requests\Admin\SwitchAdminLanguageRequest;
-use App\Models\Currency;
-use App\Models\Language;
+use App\Models\Admin\Currency;
+use App\Models\Admin\Language;
 use App\Services\Admin\OverviewService;
 use Illuminate\Support\Facades\Artisan;
 

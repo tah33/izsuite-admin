@@ -2,8 +2,8 @@
 
 namespace App\Services\Admin;
 
-use App\Models\Page;
-use App\Repositories\PageRepository;
+use App\Models\Frontend\Page;
+use App\Repositories\Admin\PageRepository;
 use Illuminate\Support\Str;
 
 class PageService
