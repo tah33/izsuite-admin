@@ -20,7 +20,7 @@ class SettingRepository
      */
     public function getGrouped(): array
     {
-        return Setting::whereIn('group', ['general', 'branding', 'smtp', 'currency', 'notifications', 'ai', 'social'])
+        return Setting::whereIn('group', ['general', 'branding', 'currency', 'notifications', 'ai', 'social', 'mail'])
             ->orderBy('key')
             ->get()
             ->groupBy('group')
@@ -80,7 +80,7 @@ class SettingRepository
                 } elseif (str_starts_with($key, 'site_') || in_array($key, ['primary_color', 'footer_text'])) {
                     $group = 'branding';
                 } elseif (str_starts_with($key, 'smtp_')) {
-                    $group = 'smtp';
+                    $group = 'mail';
                 }
             }
 

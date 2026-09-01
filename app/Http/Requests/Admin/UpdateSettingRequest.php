@@ -21,6 +21,13 @@ class UpdateSettingRequest extends FormRequest
             'settings.ai_gemini_model'        => ['nullable', 'string', 'max:255'],
             'settings.ai_temperature'         => ['nullable', 'numeric', 'min:0', 'max:2'],
             'settings.ai_max_tokens'          => ['nullable', 'integer', 'min:1', 'max:200000'],
+            'settings.smtp_host'              => ['nullable', 'string', 'max:255'],
+            'settings.smtp_port'              => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'settings.smtp_encryption'        => ['nullable', 'in:tls,ssl,none'],
+            'settings.smtp_username'          => ['nullable', 'string', 'max:255'],
+            'settings.smtp_password'          => ['nullable', 'string', 'max:255'],
+            'settings.smtp_from_address'      => ['nullable', 'email', 'max:255'],
+            'settings.smtp_from_name'         => ['nullable', 'string', 'max:255'],
             'settings.google_client_id'       => ['nullable', 'string', 'max:255'],
             'settings.google_client_secret'   => ['nullable', 'string', 'max:255'],
             'settings.linkedin_client_id'     => ['nullable', 'string', 'max:255'],
@@ -34,5 +41,18 @@ class UpdateSettingRequest extends FormRequest
         return array_filter($rules, function ($key) {
             return $this->has($key) || $this->hasFile($key);
         }, ARRAY_FILTER_USE_KEY);
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'settings.smtp_host'         => 'SMTP host',
+            'settings.smtp_port'         => 'SMTP port',
+            'settings.smtp_encryption'   => 'SMTP encryption',
+            'settings.smtp_username'     => 'SMTP username',
+            'settings.smtp_password'     => 'SMTP password',
+            'settings.smtp_from_address' => 'from address',
+            'settings.smtp_from_name'    => 'from name',
+        ];
     }
 }

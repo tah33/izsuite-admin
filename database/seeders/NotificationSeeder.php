@@ -27,7 +27,7 @@ class NotificationSeeder extends Seeder
             $superAdmin->notify(new SystemAlertNotification(
                 'System Warning',
                 'Your SMTP configuration seems to be failing.',
-                route('admin.smtp.index'),
+                route('admin.settings.index', ['tab' => 'mail']),
                 'warning'
             ));
 

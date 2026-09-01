@@ -1,0 +1,936 @@
+{
+  "info": {
+    "_postman_id": "b7c1e5a4-3f2d-4a18-9c6b-2d0f5e8a1c34",
+    "name": "IZSuite - Public API",
+    "description": "Read-only list endpoints for apps, app categories and plans.\n\n**Base URL**\nIIS holds port 80 on this machine, so Laragon nginx serves the vhost on port **8080**. The `:8080` is required - without it the request hits IIS and comes back as a 404 HTML page.\n\n- Laragon vhost: `http://izsuite-admin.test:8080/api/v1` (default)\n- artisan serve: `http://127.0.0.1:8000/api/v1`\n\n**Auth**\nBoth endpoints are public - no token required.\n\n**Response shape**\n```json\n{\n  \"data\": [ ... ],\n  \"pagination\": {\n    \"current_page\": 1,\n    \"last_page\": 1,\n    \"per_page\": 15,\n    \"total\": 3,\n    \"from\": 1,\n    \"to\": 3,\n    \"has_prev_page\": false,\n    \"has_next_page\": false\n  }\n}\n```\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "App Categories",
+      "description": "Public list of active app categories.\n\nOnly rows with is_active = true are returned, sorted by name.",
+      "item": [
+        {
+          "name": "List App Categories",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app-categories",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app-categories"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Partial match on category name.",
+                  "disabled": true
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Rows per page. Allowed: 10, 15, 25, 50, 100 (default 15). Anything else returns 422.",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1).",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Returns every active app category, 15 per page."
+          },
+          "response": []
+        },
+        {
+          "name": "List App Categories - search",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app-categories?search=fin",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app-categories"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "fin",
+                  "description": "Partial match on category name."
+                }
+              ]
+            },
+            "description": "Filters categories by a partial name match (case-insensitive LIKE)."
+          },
+          "response": []
+        },
+        {
+          "name": "List App Categories - paginated",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app-categories?per_page=10&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app-categories"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "10",
+                  "description": "Rows per page. Allowed: 10, 15, 25, 50, 100 (default 15). Anything else returns 422."
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)."
+                }
+              ]
+            },
+            "description": "Shows how pagination is driven by per_page + page."
+          },
+          "response": []
+        },
+        {
+          "name": "List App Categories - invalid per_page (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"per_page error is returned\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.errors).to.have.property('per_page');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app-categories?per_page=7",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app-categories"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "7",
+                  "description": "7 is not in the allowed list, so this returns 422."
+                }
+              ]
+            },
+            "description": "Confirms per_page is validated instead of silently falling back."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Apps",
+      "description": "Public list of active apps.\n\nOnly rows with is_active = true are returned, sorted by name. logo_url comes back as an absolute URL, or null when no logo is set.",
+      "item": [
+        {
+          "name": "List Apps",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/apps",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "apps"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Partial match on name, description or category.",
+                  "disabled": true
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "description": "Exact category name, e.g. Productivity.",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Exact status, e.g. recommended or active.",
+                  "disabled": true
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Rows per page. Allowed: 10, 15, 25, 50, 100 (default 15). Anything else returns 422.",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1).",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Returns every active app, 15 per page."
+          },
+          "response": []
+        },
+        {
+          "name": "List Apps - search",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/apps?search=test",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "apps"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "test",
+                  "description": "Partial match on name, description or category."
+                }
+              ]
+            },
+            "description": "Searches across name, description and category in one query."
+          },
+          "response": []
+        },
+        {
+          "name": "List Apps - filter by category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/apps?category=Productivity",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "apps"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "Productivity",
+                  "description": "Exact category name. Pull valid values from GET /app-categories."
+                }
+              ]
+            },
+            "description": "Exact-match category filter. Use the names returned by the App Categories endpoint."
+          },
+          "response": []
+        },
+        {
+          "name": "List Apps - filter by status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/apps?status=active",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "apps"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "active",
+                  "description": "Exact status match."
+                }
+              ]
+            },
+            "description": "Exact-match status filter."
+          },
+          "response": []
+        },
+        {
+          "name": "List Apps - paginated",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/apps?per_page=10&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "apps"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "10",
+                  "description": "Rows per page. Allowed: 10, 15, 25, 50, 100 (default 15). Anything else returns 422."
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)."
+                }
+              ]
+            },
+            "description": "Shows how pagination is driven by per_page + page."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Plans",
+      "description": "Public list of active subscription plans.\n\nOnly rows with is_active = true are returned, ordered by sort_order then id - the same sequence the admin panel shows.\n\n**Limits**: a null value under `limits` means unlimited. `limits_label` carries the ready-to-print string (\"Unlimited\" or the number), so you do not have to re-derive it.",
+      "item": [
+        {
+          "name": "List Plans",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plans",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "plans"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Partial match on plan name or description.",
+                  "disabled": true
+                },
+                {
+                  "key": "billing_type",
+                  "value": "",
+                  "description": "monthly or yearly. Anything else returns 422.",
+                  "disabled": true
+                },
+                {
+                  "key": "plan_for",
+                  "value": "",
+                  "description": "Audience, e.g. recruiter or candidate.",
+                  "disabled": true
+                },
+                {
+                  "key": "featured",
+                  "value": "",
+                  "description": "true / false / 1 / 0. Leave blank for no filter.",
+                  "disabled": true
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Rows per page. Allowed: 10, 15, 25, 50, 100 (default 15). Anything else returns 422.",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1).",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Returns every active plan, 15 per page."
+          },
+          "response": []
+        },
+        {
+          "name": "List Plans - featured only",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plans?featured=true",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "plans"
+              ],
+              "query": [
+                {
+                  "key": "featured",
+                  "value": "true",
+                  "description": "true / false / 1 / 0. Leave blank for no filter."
+                }
+              ]
+            },
+            "description": "Only plans flagged as featured. Pass featured=false to get the rest."
+          },
+          "response": []
+        },
+        {
+          "name": "List Plans - monthly",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plans?billing_type=monthly",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "plans"
+              ],
+              "query": [
+                {
+                  "key": "billing_type",
+                  "value": "monthly",
+                  "description": "monthly or yearly. Anything else returns 422."
+                }
+              ]
+            },
+            "description": "Filters by billing type."
+          },
+          "response": []
+        },
+        {
+          "name": "List Plans - by audience",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plans?plan_for=recruiter",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "plans"
+              ],
+              "query": [
+                {
+                  "key": "plan_for",
+                  "value": "recruiter",
+                  "description": "Audience, e.g. recruiter or candidate."
+                }
+              ]
+            },
+            "description": "Filters by the plan_for column."
+          },
+          "response": []
+        },
+        {
+          "name": "List Plans - search",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plans?search=team",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "plans"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "team",
+                  "description": "Partial match on plan name or description."
+                }
+              ]
+            },
+            "description": "Searches plan name and description."
+          },
+          "response": []
+        },
+        {
+          "name": "List Plans - paginated",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plans?per_page=10&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "plans"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "10",
+                  "description": "Rows per page. Allowed: 10, 15, 25, 50, 100 (default 15). Anything else returns 422."
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)."
+                }
+              ]
+            },
+            "description": "Shows how pagination is driven by per_page + page."
+          },
+          "response": []
+        },
+        {
+          "name": "List Plans - invalid billing_type (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"billing_type error is returned\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.errors).to.have.property('billing_type');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plans?billing_type=weekly",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "plans"
+              ],
+              "query": [
+                {
+                  "key": "billing_type",
+                  "value": "weekly",
+                  "description": "Only monthly and yearly are accepted."
+                }
+              ]
+            },
+            "description": "Confirms billing_type is validated rather than silently ignored."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://izsuite-admin.test:8080/api/v1",
+      "type": "string",
+      "description": "Laragon nginx vhost. Port 8080 because IIS occupies port 80 - drop the port and you get an IIS 404 instead of the API."
+    },
+    {
+      "key": "artisan_url",
+      "value": "http://127.0.0.1:8000/api/v1",
+      "type": "string",
+      "description": "Alternative base URL when running: php artisan serve --port=8000"
+    }
+  ]
+}

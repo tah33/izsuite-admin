@@ -19,6 +19,16 @@ class SettingService
         'ai_temperature'         => ['value' => '0.7', 'group' => 'ai'],
         'ai_max_tokens'          => ['value' => '1000', 'group' => 'ai'],
 
+        // Mail / SMTP
+        'smtp_enabled'           => ['value' => '0', 'group' => 'mail'],
+        'smtp_host'              => ['value' => '', 'group' => 'mail'],
+        'smtp_port'              => ['value' => '587', 'group' => 'mail'],
+        'smtp_encryption'        => ['value' => 'tls', 'group' => 'mail'],
+        'smtp_username'          => ['value' => '', 'group' => 'mail'],
+        'smtp_password'          => ['value' => '', 'group' => 'mail'],
+        'smtp_from_address'      => ['value' => '', 'group' => 'mail'],
+        'smtp_from_name'         => ['value' => '', 'group' => 'mail'],
+
         // Social Login
         'google_login_enabled'   => ['value' => '0', 'group' => 'social'],
         'google_client_id'       => ['value' => '', 'group' => 'social'],
@@ -53,11 +63,29 @@ class SettingService
     }
 
     /**
-     * Get all settings grouped.
+     * Get all settings grouped, with fields ordered the way they are declared
+     * in self::DEFAULTS (keys we do not declare stay alphabetical, at the end).
      */
     public function getGrouped(): array
     {
-        return $this->settingRepo->getGrouped();
+        $grouped = $this->settingRepo->getGrouped();
+
+        $declaredOrder = array_flip(array_keys(self::DEFAULTS));
+
+        foreach ($grouped as $group => $settings) {
+            usort($settings, function ($a, $b) use ($declaredOrder) {
+                $posA = $declaredOrder[$a['key']] ?? PHP_INT_MAX;
+                $posB = $declaredOrder[$b['key']] ?? PHP_INT_MAX;
+
+                return $posA === $posB
+                    ? strcmp($a['key'], $b['key'])
+                    : $posA <=> $posB;
+            });
+
+            $grouped[$group] = $settings;
+        }
+
+        return $grouped;
     }
 
     /**

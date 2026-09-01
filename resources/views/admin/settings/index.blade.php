@@ -25,7 +25,32 @@
             }
         }
         
-        $activeTab = $firstErrorGroup ?: request('tab', $groups[0] ?? 'general');
+        $activeTab = $firstErrorGroup ?: request('tab', session('active_tab', $groups[0] ?? 'general'));
+
+        // Auto-generated labels read badly for the SMTP keys ("Smtp from address"),
+        // so anything listed here overrides the humanised key.
+        $labels = [
+            'smtp_enabled'      => __('Use custom SMTP'),
+            'smtp_host'         => __('SMTP host'),
+            'smtp_port'         => __('SMTP port'),
+            'smtp_encryption'   => __('Encryption'),
+            'smtp_username'     => __('SMTP username'),
+            'smtp_password'     => __('SMTP password'),
+            'smtp_from_address' => __('From address'),
+            'smtp_from_name'    => __('From name'),
+        ];
+
+        $helpTexts = [
+            'smtp_enabled'      => __('When off, the app falls back to the mailer configured in .env. Your credentials below are kept either way.'),
+            'smtp_host'         => __('e.g. smtp.gmail.com, smtp.mailgun.org, smtp-relay.brevo.com'),
+            'smtp_port'         => __('587 for TLS, 465 for SSL, 25 for unencrypted.'),
+            'smtp_username'     => __('Usually the full email address of the sending account.'),
+            'smtp_password'     => __('Leave blank to keep the saved password. Gmail requires an App Password, not your account password.'),
+            'smtp_from_address' => __('The address recipients will see in the From field.'),
+            'smtp_from_name'    => __('The name recipients will see, e.g. your site name.'),
+        ];
+
+        $requiredKeys = ['ai_active_provider', 'ai_temperature', 'ai_max_tokens', 'smtp_host', 'smtp_port', 'smtp_from_address'];
     @endphp
 
     <div class="flex items-center gap-1 mb-4 border-b border-[var(--card-border)] overflow-x-auto">
@@ -76,8 +101,8 @@
 
                             <div class="form-group {{ $providerScope ? 'ai-provider-field' : '' }}" @if($providerScope) data-provider="{{ $providerScope }}" @endif>
                                 <label for="setting_{{ $setting['key'] }}" class="form-label">
-                                    {{ str_replace('_', ' ', ucfirst(str_replace($group . '_', '', $setting['key']))) }}
-                                    @if(in_array($setting['key'], ['ai_active_provider', 'ai_temperature', 'ai_max_tokens'])) <span class="text-[var(--danger)]">*</span> @endif
+                                    {{ $labels[$setting['key']] ?? str_replace('_', ' ', ucfirst(str_replace($group . '_', '', $setting['key']))) }}
+                                    @if(in_array($setting['key'], $requiredKeys)) <span class="text-[var(--danger)]">*</span> @endif
                                 </label>
 
                                 @if($setting['key'] === 'default_currency')
@@ -101,6 +126,42 @@
                                         <option value="openai" {{ $fieldValue === 'openai' ? 'selected' : '' }}>OpenAI</option>
                                         <option value="gemini" {{ $fieldValue === 'gemini' ? 'selected' : '' }}>Gemini</option>
                                     </select>
+                                @elseif($setting['key'] === 'smtp_encryption')
+                                    <select name="settings[{{ $setting['key'] }}]" id="setting_{{ $setting['key'] }}" class="form-input {{ $fieldError ? 'form-input-error' : '' }}">
+                                        <option value="tls" {{ $fieldValue === 'tls' ? 'selected' : '' }}>{{ __('TLS / STARTTLS') }}</option>
+                                        <option value="ssl" {{ $fieldValue === 'ssl' ? 'selected' : '' }}>{{ __('SSL') }}</option>
+                                        <option value="none" {{ $fieldValue === 'none' ? 'selected' : '' }}>{{ __('None') }}</option>
+                                    </select>
+                                @elseif($setting['key'] === 'smtp_password')
+                                    {{-- Rendered empty on purpose so the stored password never reaches the browser. --}}
+                                    <input
+                                        type="password"
+                                        name="settings[{{ $setting['key'] }}]"
+                                        id="setting_{{ $setting['key'] }}"
+                                        class="form-input {{ $fieldError ? 'form-input-error' : '' }}"
+                                        value=""
+                                        placeholder="{{ $setting['value'] ? str_repeat(chr(0xE2).chr(0x80).chr(0xA2), 8).'  '.__('saved') : '' }}"
+                                        autocomplete="new-password"
+                                    >
+                                @elseif($setting['key'] === 'smtp_port')
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="65535"
+                                        name="settings[{{ $setting['key'] }}]"
+                                        id="setting_{{ $setting['key'] }}"
+                                        class="form-input {{ $fieldError ? 'form-input-error' : '' }}"
+                                        value="{{ $fieldValue }}"
+                                    >
+                                @elseif($setting['key'] === 'smtp_from_address')
+                                    <input
+                                        type="email"
+                                        name="settings[{{ $setting['key'] }}]"
+                                        id="setting_{{ $setting['key'] }}"
+                                        class="form-input {{ $fieldError ? 'form-input-error' : '' }}"
+                                        value="{{ $fieldValue }}"
+                                        placeholder="no-reply@example.com"
+                                    >
                                 @elseif(str_ends_with($setting['key'], '_enabled'))
                                     <label class="flex items-center gap-3 cursor-pointer">
                                         <input type="hidden" name="settings[{{ $setting['key'] }}]" value="0">
@@ -188,6 +249,10 @@
                                     >
                                 @endif
 
+                                @if(isset($helpTexts[$setting['key']]))
+                                    <p class="text-xs text-[var(--text-muted)] mt-1">{{ $helpTexts[$setting['key']] }}</p>
+                                @endif
+
                                 @if($fieldError)
                                     <p class="form-error" style="color: #ef4444; display: flex; align-items: center; gap: 4px;">
                                         <i data-lucide="alert-circle" class="w-3.5 h-3.5" style="color: #ef4444; margin: 0;"></i>
@@ -206,6 +271,57 @@
                     </div>
                 </div>
             </form>
+
+            {{-- Sits outside the settings form on purpose: nesting forms is invalid HTML.
+                 The panel toggle keys off data-tab, so both panels show together. --}}
+            @if($group === 'mail')
+                <form action="{{ route('admin.settings.test-mail') }}" method="POST" novalidate>
+                    @csrf
+
+                    <div class="settings-panel card p-6 mb-4 {{ $group !== $activeTab ? 'hidden' : '' }}" data-tab="{{ $group }}">
+                        <h2 class="text-lg font-semibold mb-1 text-[var(--text-primary)]">{{ __('Send a test email') }}</h2>
+                        <p class="text-sm text-[var(--text-muted)] mb-4">
+                            {{ __('Save your settings first, then send a test message to confirm the credentials work.') }}
+                        </p>
+
+                        <div class="flex items-center gap-2 mb-4 text-xs">
+                            <span class="text-[var(--text-muted)]">{{ __('Active mailer') }}:</span>
+                            <span class="px-2 py-0.5 rounded-full font-mono font-medium {{ config('mail.default') === 'smtp' ? 'bg-[var(--success-light)] text-[var(--primary-dark)]' : 'bg-[var(--danger-light)] text-[var(--danger)]' }}">
+                                {{ config('mail.default') }}
+                            </span>
+                            @if(config('mail.default') !== 'smtp')
+                                <span class="text-[var(--text-muted)]">{{ __('- turn on "Use custom SMTP" above to send through your own server.') }}</span>
+                            @endif
+                        </div>
+
+                        <div class="form-group">
+                            <label for="test_email" class="form-label">{{ __('Send to') }} <span class="text-[var(--danger)]">*</span></label>
+                            <div class="flex flex-col sm:flex-row gap-3">
+                                <input
+                                    type="email"
+                                    name="test_email"
+                                    id="test_email"
+                                    class="form-input flex-1 {{ $errors->first('test_email') ? 'form-input-error' : '' }}"
+                                    value="{{ old('test_email', auth()->user()?->email) }}"
+                                    placeholder="you@example.com"
+                                    required
+                                >
+                                <button type="submit" class="btn btn-primary whitespace-nowrap">
+                                    <i data-lucide="send" class="w-4 h-4"></i>
+                                    {{ __('Send Test Email') }}
+                                </button>
+                            </div>
+
+                            @if($errors->first('test_email'))
+                                <p class="form-error" style="color: #ef4444; display: flex; align-items: center; gap: 4px;">
+                                    <i data-lucide="alert-circle" class="w-3.5 h-3.5" style="color: #ef4444; margin: 0;"></i>
+                                    <span style="font-size: 0.7rem; font-weight: 500;">{{ $errors->first('test_email') }}</span>
+                                </p>
+                            @endif
+                        </div>
+                    </div>
+                </form>
+            @endif
         @endforeach
 @endsection
 

@@ -73,17 +73,34 @@ class ConfigServiceProvider extends ServiceProvider
     private function setMailConfigs(): void
     {
         $smtpHost = setting('smtp_host');
-        if ($smtpHost) {
-            Config::set('mail.default', 'smtp');
-            Config::set('mail.mailers.smtp.host', $smtpHost);
-            Config::set('mail.mailers.smtp.port', (int) setting('smtp_port', 587));
-            Config::set('mail.mailers.smtp.username', setting('smtp_username'));
-            Config::set('mail.mailers.smtp.password', setting('smtp_password'));
 
-            $encryption = setting('smtp_encryption');
-            Config::set('mail.mailers.smtp.encryption', $encryption === 'none' ? null : $encryption);
-            Config::set('mail.from.address', setting('smtp_from_address', config('mail.from.address')));
-            Config::set('mail.from.name', setting('smtp_from_name', config('mail.from.name')));
+        // Admin can keep the credentials on file but fall back to the .env
+        // mailer by simply switching the toggle off.
+        if (setting('smtp_enabled', '0') !== '1' || blank($smtpHost)) {
+            return;
+        }
+
+        $port       = (int) setting('smtp_port', 587);
+        $encryption = setting('smtp_encryption', 'tls');
+
+        Config::set('mail.default', 'smtp');
+        Config::set('mail.mailers.smtp.host', $smtpHost);
+        Config::set('mail.mailers.smtp.port', $port);
+        Config::set('mail.mailers.smtp.username', setting('smtp_username') ?: null);
+        Config::set('mail.mailers.smtp.password', setting('smtp_password') ?: null);
+        Config::set('mail.mailers.smtp.encryption', $encryption === 'none' ? null : $encryption);
+
+        // Laravel 12 builds the transport from the DSN scheme and ignores the
+        // legacy "encryption" key, so it has to be translated explicitly:
+        // ssl => implicit TLS (smtps, usually 465), anything else => STARTTLS.
+        Config::set('mail.mailers.smtp.scheme', $encryption === 'ssl' || $port === 465 ? 'smtps' : 'smtp');
+
+        if ($fromAddress = setting('smtp_from_address')) {
+            Config::set('mail.from.address', $fromAddress);
+        }
+
+        if ($fromName = setting('smtp_from_name')) {
+            Config::set('mail.from.name', $fromName);
         }
     }
 

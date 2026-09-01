@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateSettingRequest;
+use App\Mail\TestMail;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Admin\SettingService;
 use App\Services\Support\ImageService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
 class SettingController extends Controller
@@ -47,6 +49,10 @@ class SettingController extends Controller
 
             if ($group === 'ai') {
                 $this->ensureActiveProviderRequirements($settings);
+            }
+
+            if ($group === 'mail') {
+                $this->handleMailSettings($settings);
             }
 
             if ($group === 'branding') {
@@ -99,6 +105,7 @@ class SettingController extends Controller
     {
         $keys = [
             'ai'     => ['ai_openai_enabled', 'ai_gemini_enabled'],
+            'mail'   => ['smtp_enabled'],
             'social' => ['google_login_enabled', 'linkedin_login_enabled'],
         ];
 
@@ -115,6 +122,76 @@ class SettingController extends Controller
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Send a test email using the saved mail settings.
+     */
+    public function testMail(Request $request)
+    {
+        $validated = $request->validate([
+            'test_email' => ['required', 'email', 'max:255'],
+        ]);
+
+        try {
+            Mail::to($validated['test_email'])->send(new TestMail);
+
+            ActivityLogService::record('updated', "Sent a test email to {$validated['test_email']}");
+
+            $mailer  = config('mail.default');
+            $message = "Test email sent to {$validated['test_email']} using the \"{$mailer}\" mailer.";
+
+            if ($mailer !== 'smtp') {
+                $message .= ' SMTP is currently disabled, so the message did not actually leave the server.';
+            }
+
+            return back()->with('success', $message)->with('active_tab', 'mail');
+
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'Could not send the test email: '.$e->getMessage())
+                ->with('active_tab', 'mail');
+        }
+    }
+
+    /**
+     * Validate the mail group and keep secrets that were submitted blank.
+     */
+    private function handleMailSettings(array &$settings): void
+    {
+        // The password input is rendered empty on purpose, so an empty submit
+        // means "keep the stored one" rather than "clear it".
+        if (blank($settings['smtp_password'] ?? null)) {
+            unset($settings['smtp_password']);
+        }
+
+        if (($settings['smtp_enabled'] ?? setting('smtp_enabled')) !== '1') {
+            return;
+        }
+
+        $required = [
+            'smtp_host'         => 'SMTP host is required when SMTP is enabled.',
+            'smtp_port'         => 'SMTP port is required when SMTP is enabled.',
+            'smtp_from_address' => 'From address is required when SMTP is enabled.',
+        ];
+
+        $errors = [];
+
+        foreach ($required as $key => $message) {
+            if (blank($settings[$key] ?? setting($key))) {
+                $errors["settings.$key"] = $message;
+            }
+        }
+
+        if (filled($settings['smtp_username'] ?? setting('smtp_username'))
+            && blank($settings['smtp_password'] ?? setting('smtp_password'))) {
+            $errors['settings.smtp_password'] = 'SMTP password is required when a username is set.';
+        }
+
+        if ($errors) {
+            throw ValidationException::withMessages($errors);
         }
     }
 

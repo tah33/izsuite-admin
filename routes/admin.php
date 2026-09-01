@@ -70,6 +70,7 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
 
     Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
     Route::put('/settings', [SettingController::class, 'update'])->name('settings.update');
+    Route::post('/settings/test-mail', [SettingController::class, 'testMail'])->name('settings.test-mail');
 
     Route::post('/switch-language', [OverviewController::class, 'switchLanguage'])->name('switch-language');
     Route::post('/switch-currency', [OverviewController::class, 'switchCurrency'])->name('switch-currency');

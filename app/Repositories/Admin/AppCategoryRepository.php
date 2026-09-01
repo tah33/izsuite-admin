@@ -21,6 +21,20 @@ class AppCategoryRepository
         return $query->latest()->paginate($perPage)->withQueryString();
     }
 
+    /**
+     * Public listing: active categories only, optionally filtered.
+     */
+    public function getActivePaginated(?string $search = null, int $perPage = 15): LengthAwarePaginator
+    {
+        $query = AppCategory::query()->where('is_active', true);
+
+        if (! empty($search)) {
+            $query->where('name', 'like', "%{$search}%");
+        }
+
+        return $query->orderBy('name')->paginate($perPage)->withQueryString();
+    }
+
     public function find(int $id): ?AppCategory
     {
         return AppCategory::find($id);
