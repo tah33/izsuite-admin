@@ -11,11 +11,11 @@ class SettingSeeder extends Seeder
     {
         $settings = [
             // General
-            ['group' => 'general', 'key' => 'site_name',        'value' => 'Resumist'],
-            ['group' => 'general', 'key' => 'site_description', 'value' => 'Find and eliminate wasted subscriptions.'],
+            ['group' => 'general', 'key' => 'site_name',        'value' => config('brand.name')],
+            ['group' => 'general', 'key' => 'site_description', 'value' => config('brand.tagline')],
             ['group' => 'general', 'key' => 'site_url',         'value' => 'http://localhost'],
             ['group' => 'general', 'key' => 'timezone',         'value' => 'UTC'],
-            ['group' => 'general', 'key' => 'support_email',    'value' => 'support@resumist.test'],
+            ['group' => 'general', 'key' => 'support_email',    'value' => 'support@izsuite.test'],
             ['group' => 'general', 'key' => 'default_currency', 'value' => 'USD'],
             ['group' => 'general', 'key' => 'default_language', 'value' => 'en'],
             ['group' => 'currency', 'key' => 'symbol_position',      'value' => 'left'],
@@ -26,8 +26,8 @@ class SettingSeeder extends Seeder
             // Appearance
             ['group' => 'appearance', 'key' => 'logo_url',        'value' => null],
             ['group' => 'appearance', 'key' => 'favicon_url',     'value' => null],
-            ['group' => 'appearance', 'key' => 'primary_color',   'value' => '#2A8BED'],
-            ['group' => 'appearance', 'key' => 'footer_text',     'value' => '(c) 2026 Resumist'],
+            ['group' => 'appearance', 'key' => 'primary_color',   'value' => config('brand.colors.primary')],
+            ['group' => 'appearance', 'key' => 'footer_text',     'value' => '(c) '.date('Y').' '.config('brand.name')],
 
             // Notifications
             ['group' => 'notifications', 'key' => 'renewal_reminder_days', 'value' => '7'],

@@ -26,7 +26,7 @@ class PageController extends Controller
 
         return view('page', [
             'page'     => $page,
-            'siteName' => setting('site_name', 'Resumist'),
+            'siteName' => setting('site_name', config('brand.name')),
         ]);
     }
 }

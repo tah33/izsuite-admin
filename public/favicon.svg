@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="izSuite">
+  <title>izSuite</title>
+  <rect width="64" height="64" rx="14" fill="#FFFFFF"/>
+  <g transform="translate(-0.05 -0.05) scale(1)"><rect x="15.5" y="26" width="7" height="22" fill="#101F38"/><circle cx="19" cy="20" r="3.9" fill="#101F38"/><path d="M27 26H49v6.5L37.8 41.5H49V48H27v-6.5L38.2 32.5H27Z" fill="#1769E8"/></g>
+</svg>

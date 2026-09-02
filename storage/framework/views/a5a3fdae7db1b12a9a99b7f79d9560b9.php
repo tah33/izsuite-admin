@@ -76,7 +76,7 @@ $(document).ready(function () {
             datasets: [{
                 label: '<?php echo e(__("New Users")); ?>',
                 data: chartData.map(function(d) { return d.value; }),
-                backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#137fec',
+                backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#2563EB',
                 borderRadius: 6,
                 barThickness: 40,
             }]

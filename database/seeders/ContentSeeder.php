@@ -32,7 +32,7 @@ class ContentSeeder extends Seeder
 
             // Footer
             ['group' => 'frontend', 'key' => 'footer_description',     'value' => 'Find and eliminate wasted subscriptions. Save money effortlessly with smart detection and analytics.'],
-            ['group' => 'frontend', 'key' => 'footer_copyright',       'value' => '© 2026 Resumist. All rights reserved.'],
+            ['group' => 'frontend', 'key' => 'footer_copyright',       'value' => '© '.date('Y').' '.config('brand.name').'. All rights reserved.'],
         ];
 
         foreach ($settings as $data) {
@@ -66,9 +66,9 @@ class ContentSeeder extends Seeder
             ['section' => 'testimonials', 'sort_order' => 2, 'data' => ['name' => 'Emily Rodriguez', 'role' => 'Marketing Director',     'quote' => 'The cancel assistant walked me through cancelling 4 services in under 10 minutes. Such a time saver!', 'avatar' => '']],
 
             // Social Links
-            ['section' => 'social_links', 'sort_order' => 0, 'data' => ['platform' => 'X (Twitter)', 'url' => 'https://x.com/resumist',                 'icon' => 'twitter']],
-            ['section' => 'social_links', 'sort_order' => 1, 'data' => ['platform' => 'GitHub',      'url' => 'https://github.com/resumist',              'icon' => 'github']],
-            ['section' => 'social_links', 'sort_order' => 2, 'data' => ['platform' => 'LinkedIn',    'url' => 'https://linkedin.com/company/resumist',    'icon' => 'linkedin']],
+            ['section' => 'social_links', 'sort_order' => 0, 'data' => ['platform' => 'X (Twitter)', 'url' => 'https://x.com/izsuite',                 'icon' => 'twitter']],
+            ['section' => 'social_links', 'sort_order' => 1, 'data' => ['platform' => 'GitHub',      'url' => 'https://github.com/izsuite',              'icon' => 'github']],
+            ['section' => 'social_links', 'sort_order' => 2, 'data' => ['platform' => 'LinkedIn',    'url' => 'https://linkedin.com/company/izsuite',    'icon' => 'linkedin']],
 
             // Footer Columns (each item = one column with nested links)
             ['section' => 'footer_columns', 'sort_order' => 0, 'data' => [

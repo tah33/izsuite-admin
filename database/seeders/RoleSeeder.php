@@ -188,5 +188,16 @@ class RoleSeeder extends Seeder
                 'permissions' => null,
             ]
         );
+
+        // Frontend workspace owner. Carries no admin-panel permissions, which
+        // is what keeps isAdmin() false and lets the account use the
+        // /api/v1/auth/login endpoint.
+        Role::firstOrCreate(
+            ['slug' => 'user'],
+            [
+                'name'        => 'User',
+                'permissions' => null,
+            ]
+        );
     }
 }

@@ -11,11 +11,7 @@
             <td align="center">
                 <table role="presentation" width="560" cellspacing="0" cellpadding="0" style="background-color:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
                     <!-- Header -->
-                    <tr>
-                        <td style="background: linear-gradient(135deg, #6366f1, #8b5cf6); padding:32px 40px; text-align:center;">
-                            <h1 style="margin:0; color:#ffffff; font-size:24px; font-weight:700;">Resumist</h1>
-                        </td>
-                    </tr>
+                    @include('emails.partials.brand-header')
 
                     <!-- Body -->
                     <tr>
@@ -27,8 +23,8 @@
 
                             <!-- OTP Box -->
                             <div style="text-align:center; margin:32px 0;">
-                                <div style="display:inline-block; background-color:#f4f4f7; border:2px dashed #6366f1; border-radius:8px; padding:20px 40px;">
-                                    <span style="font-size:36px; font-weight:700; letter-spacing:8px; color:#6366f1;">{{ $otp }}</span>
+                                <div style="display:inline-block; background-color:#f4f4f7; border:2px dashed {{ config('brand.colors.primary') }}; border-radius:8px; padding:20px 40px;">
+                                    <span style="font-size:36px; font-weight:700; letter-spacing:8px; color:{{ config('brand.colors.primary') }};">{{ $otp }}</span>
                                 </div>
                             </div>
 
@@ -42,7 +38,7 @@
                     <tr>
                         <td style="padding:24px 40px; background-color:#f4f4f7; text-align:center;">
                             <p style="margin:0; color:#9a9ea6; font-size:13px;">
-                                &copy; {{ date('Y') }} Resumist. All rights reserved.
+                                &copy; {{ date('Y') }} {{ setting('site_name', config('brand.name')) }}. All rights reserved.
                             </p>
                         </td>
                     </tr>

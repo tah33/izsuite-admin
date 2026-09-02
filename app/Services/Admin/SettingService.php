@@ -40,7 +40,7 @@ class SettingService
         // Branding
         'site_logo'              => ['value' => '', 'group' => 'branding'],
         'site_favicon'           => ['value' => '', 'group' => 'branding'],
-        'primary_color'          => ['value' => '#137fec', 'group' => 'branding'],
+        'primary_color'          => ['value' => '#1769E8', 'group' => 'branding'],
         'footer_text'            => ['value' => '', 'group' => 'branding'],
     ];
 
