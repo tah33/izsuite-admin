@@ -11,14 +11,7 @@
             <td align="center">
                 <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
                     <!-- Header -->
-                    <tr>
-                        <td style="background-color: #137fec; padding:40px; text-align:center;">
-                            @if(setting('site_logo'))
-                                <img src="{{ asset('storage/' . setting('site_logo')) }}" alt="Resumist" style="max-height: 48px; margin-bottom: 12px; display: inline-block;">
-                            @endif
-                            <h1 style="margin:0; color:#ffffff; font-size:28px; font-weight:800; letter-spacing:-0.5px;">Resumist</h1>
-                        </td>
-                    </tr>
+                    @include('emails.partials.brand-header')
 
                     <!-- Body -->
                     <tr>
@@ -29,7 +22,7 @@
                             </p>
 
                             <!-- Response Box -->
-                            <div style="background-color:#f9fafb; border-left:4px solid #137fec; padding:24px; margin:32px 0; border-radius:0 8px 8px 0;">
+                            <div style="background-color:#f9fafb; border-left:4px solid {{ config('brand.colors.primary') }}; padding:24px; margin:32px 0; border-radius:0 8px 8px 0;">
                                 <div style="color:#1f2937; font-size:15px; line-height:1.8;">
                                     {!! $contactMessage->admin_reply !!}
                                 </div>
@@ -41,7 +34,7 @@
                             
                             <div style="margin-top:32px; padding-top:24px; border-t:1px solid #e5e7eb;">
                                 <p style="margin:0; color:#1a1a2e; font-size:15px; font-weight:600;">{{ __('Best regards,') }}</p>
-                                <p style="margin:4px 0 0; color:#137fec; font-size:15px; font-weight:700;">{{ __('Resumist Team') }}</p>
+                                <p style="margin:4px 0 0; color:{{ config('brand.colors.primary') }}; font-size:15px; font-weight:700;">{{ setting('site_name', config('brand.name')) }} {{ __('Team') }}</p>
                             </div>
                         </td>
                     </tr>
@@ -50,7 +43,7 @@
                     <tr>
                         <td style="padding:32px 40px; background-color:#f8fafc; text-align:center;">
                             <p style="margin:0; color:#94a3b8; font-size:12px; line-height:1.5;">
-                                &copy; {{ date('Y') }} Resumist. {{ __('Helping you build your future.') }}<br>
+                                &copy; {{ date('Y') }} {{ setting('site_name', config('brand.name')) }} &mdash; {{ config('brand.tagline') }}<br>
                                 {{ __('This is an automated notification from our support desk.') }}
                             </p>
                         </td>

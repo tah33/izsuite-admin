@@ -11,11 +11,7 @@
             <td align="center">
                 <table role="presentation" width="560" cellspacing="0" cellpadding="0" style="background-color:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
                     <!-- Header -->
-                    <tr>
-                        <td style="background: linear-gradient(135deg, #6366f1, #8b5cf6); padding:32px 40px; text-align:center;">
-                            <h1 style="margin:0; color:#ffffff; font-size:24px; font-weight:700;">{{ $siteName }}</h1>
-                        </td>
-                    </tr>
+                    @include('emails.partials.brand-header')
 
                     <!-- Body -->
                     <tr>

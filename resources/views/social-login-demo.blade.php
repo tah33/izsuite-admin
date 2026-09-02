@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Social Login Demo — Resumist</title>
+    <title>Social Login Demo — {{ config('brand.name') }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -13,8 +13,8 @@
             --border: #2a2e3e;
             --text: #e4e6ef;
             --text-muted: #8b8fa3;
-            --accent: #2A8BED;
-            --accent-glow: rgba(42, 139, 237, 0.25);
+            --accent: #2563EB;
+            --accent-glow: rgba(37, 99, 235, 0.25);
             --google: #4285F4;
             --linkedin: #0a66c2;
             --success: #00b894;
@@ -320,7 +320,10 @@
 
 <div class="container">
     <div class="card">
-        <div class="logo"><h1>Resumist</h1></div>
+        <div class="logo">
+            <img src="{{ asset(config('brand.assets.wordmark')) }}"
+                 alt="{{ config('brand.name') }}" style="height:34px;width:auto;display:inline-block;">
+        </div>
         <p class="subtitle">Social Login Demo — Obtain tokens &amp; test the API</p>
 
         @if(empty(config('services.google.client_id')) && empty(config('services.linkedin.client_id')))

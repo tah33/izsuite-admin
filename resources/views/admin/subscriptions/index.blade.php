@@ -234,7 +234,7 @@
         }
 
         toast.textContent = message;
-        toast.style.background = isError ? '#ef4444' : '#137fec';
+        toast.style.background = isError ? '#ef4444' : getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#2563EB';
         toast.style.opacity = '1';
         toast.style.transform = 'translateY(0)';
 

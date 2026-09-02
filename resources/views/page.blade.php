@@ -1,6 +1,5 @@
 @php
-    $primaryColor = setting('primary_color', '#137fec');
-    $favicon      = setting('site_favicon');
+    $primaryColor = setting('primary_color', config('brand.colors.primary'));
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="page-frontend">
@@ -14,9 +13,7 @@
         <title>{{ $page->title }} - {{ $siteName }}</title>
     @endif
 
-    @if($favicon)
-        <link rel="icon" href="{{ app(\App\Services\Support\ImageService::class)->publicUrl($favicon) }}">
-    @endif
+    <x-brand-head :root-vars="false" />
 
     @if($page->meta_description)
         <meta name="description" content="{{ $page->meta_description }}">
@@ -27,6 +24,10 @@
 
     <meta property="og:title" content="{{ $page->meta_title ?: $page->title }}">
     <meta property="og:type" content="article">
+    <meta property="og:site_name" content="{{ $siteName }}">
+    <meta property="og:image" content="{{ asset(config('brand.assets.og_image')) }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="{{ asset(config('brand.assets.og_image')) }}">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

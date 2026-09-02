@@ -1,9 +1,14 @@
 <aside id="sidebar" class="sidebar fixed top-0 start-0 flex flex-col z-40">
-    <div class="sidebar-logo flex items-center gap-3">
-        <x-site-logo class="w-8 h-8 text-[var(--primary)]" />
-        <div>
-            <span class="logo-text block leading-tight">{{ setting('site_name', 'Resumist') }}</span>
-        </div>
+    <div class="sidebar-logo">
+        <a href="{{ route('admin.overview') }}" class="flex items-center justify-center gap-2.5">
+            @if(setting('site_logo'))
+                <x-site-logo class="w-7 h-7" />
+                <span class="logo-text block leading-tight">{{ setting('site_name', config('brand.name')) }}</span>
+            @else
+                {{-- Reversed wordmark: the sidebar is a dark surface, and the mark already reads as the name --}}
+                <x-site-logo variant="wordmark" tone="light" class="h-[22px] w-auto" />
+            @endif
+        </a>
     </div>
 
     <nav id="sidebar-nav" class="flex-1 py-4 overflow-y-auto">

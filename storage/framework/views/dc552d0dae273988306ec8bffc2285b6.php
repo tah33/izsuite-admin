@@ -1,15 +1,17 @@
 <aside id="sidebar" class="sidebar fixed top-0 start-0 flex flex-col z-40">
-    <div class="sidebar-logo flex items-center gap-3">
-        <?php if (isset($component)) { $__componentOriginal0e3e854f1972cb532cc8b5bc0ace80b0 = $component; } ?>
+    <div class="sidebar-logo">
+        <a href="<?php echo e(route('admin.overview')); ?>" class="flex items-center justify-center gap-2.5">
+            <?php if(setting('site_logo')): ?>
+                <?php if (isset($component)) { $__componentOriginal0e3e854f1972cb532cc8b5bc0ace80b0 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal0e3e854f1972cb532cc8b5bc0ace80b0 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.site-logo','data' => ['class' => 'w-8 h-8 text-[var(--primary)]']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.site-logo','data' => ['class' => 'w-7 h-7']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('site-logo'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['class' => 'w-8 h-8 text-[var(--primary)]']); ?>
+<?php $component->withAttributes(['class' => 'w-7 h-7']); ?>
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal0e3e854f1972cb532cc8b5bc0ace80b0)): ?>
@@ -20,9 +22,31 @@
 <?php $component = $__componentOriginal0e3e854f1972cb532cc8b5bc0ace80b0; ?>
 <?php unset($__componentOriginal0e3e854f1972cb532cc8b5bc0ace80b0); ?>
 <?php endif; ?>
-        <div>
-            <span class="logo-text block leading-tight"><?php echo e(setting('site_name', 'Resumist')); ?></span>
-        </div>
+                <span class="logo-text block leading-tight"><?php echo e(setting('site_name', config('brand.name'))); ?></span>
+            <?php else: ?>
+                
+                <?php if (isset($component)) { $__componentOriginal0e3e854f1972cb532cc8b5bc0ace80b0 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal0e3e854f1972cb532cc8b5bc0ace80b0 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.site-logo','data' => ['variant' => 'wordmark','tone' => 'light','class' => 'h-[22px] w-auto']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('site-logo'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['variant' => 'wordmark','tone' => 'light','class' => 'h-[22px] w-auto']); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal0e3e854f1972cb532cc8b5bc0ace80b0)): ?>
+<?php $attributes = $__attributesOriginal0e3e854f1972cb532cc8b5bc0ace80b0; ?>
+<?php unset($__attributesOriginal0e3e854f1972cb532cc8b5bc0ace80b0); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal0e3e854f1972cb532cc8b5bc0ace80b0)): ?>
+<?php $component = $__componentOriginal0e3e854f1972cb532cc8b5bc0ace80b0; ?>
+<?php unset($__componentOriginal0e3e854f1972cb532cc8b5bc0ace80b0); ?>
+<?php endif; ?>
+            <?php endif; ?>
+        </a>
     </div>
 
     <nav id="sidebar-nav" class="flex-1 py-4 overflow-y-auto">
