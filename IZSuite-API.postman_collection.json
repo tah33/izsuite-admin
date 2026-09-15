@@ -1,0 +1,1774 @@
+{
+  "info": {
+    "_postman_id": "b7c1e5a4-3f2d-4a18-9c6b-2d0f5e8a1c34",
+    "name": "IZSuite - API",
+    "description": "Every endpoint the izSuite Nuxt frontend talks to: user authentication plus the public read-only lists.\n\n**Base URL**\nIIS holds port 80 on this machine, so Laragon nginx serves the vhost on port **8080**. The `:8080` is required - without it the request hits IIS and comes back as a 404 HTML page.\n\n- Laragon vhost: `http://izsuite-admin.test:8080/api/v1` (default)\n- artisan serve: `http://127.0.0.1:8000/api/v1`\n\n---\n\n## Auth\n\nSanctum personal access tokens, not session cookies. `POST /auth/login` returns a plain-text token; send it back as `Authorization: Bearer <token>`.\n\n**Run \"Login\" first.** Its test script writes the token into the `token` variable, and the two requests that need it (`Me`, `Logout`) read it from there, so they just work afterwards.\n\nToken lifetime is driven by `remember`:\n- `remember: true` -> 30 days\n- `remember: false` or absent -> 12 hours\n\n**Two ways to sign out**\n\n| Endpoint | Revokes | Response |\n|---|---|---|\n| `POST /auth/logout` | Only the token that made the request - other devices stay signed in | `{ message }` |\n| `POST /auth/logout-all` | Every token the user holds, this one included | `{ message, revoked_tokens }` |\n\nBoth are token-level. Neither touches the **admin panel** session at `/login` - that is separate, cookie-based auth on the `web` guard, and it signs out via `POST /logout`.\n\n**Credentials go in the body, never the URL.** `POST /auth/login?email=..&password=..` is refused with 400 even when the values are correct, because a query string is recorded in access logs, browser history and `Referer` headers.\n\n`device_name` is optional and only labels the token, so a user can tell their sessions apart in a future \"active devices\" screen.\n\n**Re-running the whole collection**\nOne full run makes 9 login attempts, and login is throttled at 10 per minute per IP - so there is almost no headroom. A second run started inside the same minute fails with 429s, and so will the first run if you have been clicking Send by hand. Wait a minute, or clear the counter:\n\n```\nphp artisan cache:clear\n```\n\n**Who may sign in here**\nFrontend users only, and only fully set-up ones. Three separate 403s:\n\n| Condition | Message | `action` |\n|---|---|---|\n| Admin, staff or super-admin role | Sign in through the admin panel at `/login` | - |\n| `status` is not `active` | Account is not active, contact support | - |\n| `email_verified_at` is null | Verify your email first | `verification_required` |\n\nThe password is always checked first, so all three are only reachable by someone who already knows the credentials - the endpoint never reveals *why* an account it does not own would be refused.\n\nSeeded accounts for these: `admin@izsuite.io` (admin) and `unverified@izsuite.io` (unverified).\n\n**Seeded demo account**\n`user@izsuite.io` / `123456`. If it is missing, run `php artisan db:seed --class=RoleSeeder` then `php artisan db:seed --class=UserSeeder`.\n\n**Login response**\n```json\n{\n  \"message\": \"Signed in successfully.\",\n  \"token\": \"1|xxxxxxxx\",\n  \"token_type\": \"Bearer\",\n  \"expires_at\": \"2026-10-09T14:43:16+00:00\",\n  \"user\": {\n    \"id\": 10,\n    \"name\": \"izSuite User\",\n    \"email\": \"user@izsuite.io\",\n    \"phone\": null,\n    \"headline\": null,\n    \"bio\": null,\n    \"avatar_url\": null,\n    \"role\": { \"id\": 105, \"name\": \"User\", \"slug\": \"user\" },\n    \"status\": \"active\",\n    \"timezone\": \"UTC\",\n    \"currency\": \"USD\",\n    \"is_email_verified\": true,\n    \"email_verified_at\": \"2026-09-09T14:42:51+00:00\",\n    \"last_login_at\": \"2026-09-09T14:43:16+00:00\",\n    \"created_at\": \"2026-09-09T14:42:52+00:00\"\n  }\n}\n```\n\n---\n\n## Public lists\n\nApp categories, apps and plans. No token required.\n\n```json\n{\n  \"data\": [ ... ],\n  \"pagination\": {\n    \"current_page\": 1,\n    \"last_page\": 1,\n    \"per_page\": 15,\n    \"total\": 3,\n    \"from\": 1,\n    \"to\": 3,\n    \"has_prev_page\": false,\n    \"has_next_page\": false\n  }\n}\n```\n\n---\n\n## Status codes\n\n| Code | Meaning |\n|---|---|\n| 200 | OK |\n| 201 | Contact message created |\n| 400 | Credentials were sent in the query string instead of the body |\n| 401 | Credentials do not match, or token missing, expired or revoked |\n| 403 | Admin account, inactive account, or unverified email |\n| 422 | Request body or query string failed validation |\n| 429 | More than 10 login attempts from one IP in a minute |\n\nFailures answer with `{ \"message\": \"...\" }`; validation failures add an `errors` object keyed by field name.\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "description": "The login session trio: sign in, read the session, sign out.\n\nRun them top to bottom - Login stores the token that Me and Logout consume.",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body carries a bearer token and the user\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('token').that.is.a('string').and.is.not.empty;",
+                  "    pm.expect(b.token_type).to.eql('Bearer');",
+                  "    pm.expect(b).to.have.property('expires_at').that.is.a('string');",
+                  "    pm.expect(b).to.have.property('user');",
+                  "    pm.expect(b.user).to.have.property('id');",
+                  "    pm.expect(b.user.email).to.eql(pm.collectionVariables.get('user_email'));",
+                  "});",
+                  "",
+                  "pm.test(\"password is never echoed back\", function () {",
+                  "    pm.expect(pm.response.text()).to.not.include(pm.collectionVariables.get('user_password'));",
+                  "});",
+                  "",
+                  "// Hand the token to every other request in this collection.",
+                  "if (pm.response.code === 200) {",
+                  "    pm.collectionVariables.set('token', pm.response.json().token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{user_email}}\",\n  \"password\": \"{{user_password}}\",\n  \"remember\": true,\n  \"device_name\": \"postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Exchange email + password for a bearer token.\n\n`remember: true` issues a 30-day token. On success the test script stores the token in the `token` collection variable, so run this request first."
+          },
+          "response": []
+        },
+        {
+          "name": "Login - remember off (short-lived token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"token expires within 13 hours\", function () {",
+                  "    const expiresAt = new Date(pm.response.json().expires_at);",
+                  "    const hours = (expiresAt - new Date()) / 3600000;",
+                  "    pm.expect(hours).to.be.below(13);",
+                  "});",
+                  "",
+                  "pm.test(\"this is a separate token, not a replacement\", function () {",
+                  "    pm.expect(pm.response.json().token).to.not.eql(pm.collectionVariables.get('token'));",
+                  "});",
+                  "",
+                  "// Park it as 'the other device'. Logout and Logout-everywhere below both",
+                  "// check what happens to it - that is the only way to tell the two apart.",
+                  "pm.collectionVariables.set('second_device_token', pm.response.json().token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{user_email}}\",\n  \"password\": \"{{user_password}}\",\n  \"remember\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "The same call with `remember: false`, which drops the token lifetime from 30 days to 12 hours. Omitting `remember` entirely behaves the same way.\n\nEvery login mints an independent token - signing in on a phone does not disturb a laptop. This request leaves `{{token}}` alone and parks its own token in `{{second_device_token}}`, so it stands in as \"the user's other device\" for the two logout requests below."
+          },
+          "response": []
+        },
+        {
+          "name": "Me",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body is the signed-in user\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('user');",
+                  "    pm.expect(b.user.email).to.eql(pm.collectionVariables.get('user_email'));",
+                  "    pm.expect(b.user).to.have.property('role');",
+                  "});",
+                  "",
+                  "pm.test(\"no password hash is exposed\", function () {",
+                  "    pm.expect(pm.response.json().user).to.not.have.property('password');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "The user behind the presented token. The frontend calls this on boot to restore a session from a stored token, and treats a 401 as \"the token is gone, show the login page\".",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"message is the expected one\", function () {",
+                  "    pm.expect(pm.response.json().message).to.eql('Signed out successfully.');",
+                  "});",
+                  "",
+                  "// The point of this endpoint: the user's other device stays signed in.",
+                  "const other = pm.collectionVariables.get('second_device_token');",
+                  "if (other) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.collectionVariables.get('base_url') + '/auth/me',",
+                  "        method: 'GET',",
+                  "        header: { Accept: 'application/json', Authorization: 'Bearer ' + other },",
+                  "    }, function (err, res) {",
+                  "        pm.test(\"the other device is STILL signed in\", function () {",
+                  "            pm.expect(err).to.equal(null);",
+                  "            pm.expect(res.code).to.eql(200);",
+                  "        });",
+                  "    });",
+                  "}",
+                  "",
+                  "// This token is dead now; drop it so a stale value cannot mislead later runs.",
+                  "pm.collectionVariables.set('token', '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Revokes **only** the token that made this request. Re-running `Me` afterwards returns 401, but the user's other sessions keep working - the test here proves it against `{{second_device_token}}`.\n\nThis is what a normal \"Sign out\" button calls. For \"sign out everywhere\", see `Logout everywhere` below.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login again (after logout)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('token', pm.response.json().token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{user_email}}\",\n  \"password\": \"{{user_password}}\",\n  \"remember\": true,\n  \"device_name\": \"postman-relogin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Plumbing, not a new behaviour: `Logout` above revoked `{{token}}`, and `Logout everywhere` needs a live token to authenticate with. This mints one.\n\n`{{second_device_token}}` is still alive at this point, which is what makes the next request's assertion meaningful."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout everywhere (all devices)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"reports how many sessions ended\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.message).to.eql('Signed out of all devices.');",
+                  "    pm.expect(b.revoked_tokens).to.be.a('number').and.to.be.at.least(2);",
+                  "});",
+                  "",
+                  "// The difference from Logout: the other device goes down too.",
+                  "const other = pm.collectionVariables.get('second_device_token');",
+                  "if (other) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.collectionVariables.get('base_url') + '/auth/me',",
+                  "        method: 'GET',",
+                  "        header: { Accept: 'application/json', Authorization: 'Bearer ' + other },",
+                  "    }, function (err, res) {",
+                  "        pm.test(\"the other device is signed out as well\", function () {",
+                  "            pm.expect(err).to.equal(null);",
+                  "            pm.expect(res.code).to.eql(401);",
+                  "        });",
+                  "    });",
+                  "}",
+                  "",
+                  "pm.collectionVariables.set('token', '');",
+                  "pm.collectionVariables.set('second_device_token', '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/logout-all",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "logout-all"
+              ]
+            },
+            "description": "Revokes **every** token the user holds, the one making this request included, and answers with the count:\n\n```json\n{ \"message\": \"Signed out of all devices.\", \"revoked_tokens\": 2 }\n```\n\nThis is what a \"sign out everywhere\" button calls - a lost phone, a shared computer, or after a password change.\n\nThe test checks `{{second_device_token}}` is now 401, which is exactly the assertion `Logout` makes in reverse."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth - failure cases",
+      "description": "Every rejection path the frontend has to render, one request each.\n\nSafe to run in any order; none of them touch the `token` variable.",
+      "item": [
+        {
+          "name": "Login - wrong password (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test(\"message is the expected one\", function () {",
+                  "    pm.expect(pm.response.json().message).to.eql(\"The provided credentials do not match our records.\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{user_email}}\",\n  \"password\": \"definitely-not-the-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "A real account with the wrong password."
+          },
+          "response": []
+        },
+        {
+          "name": "Login - unknown email (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test(\"message is the expected one\", function () {",
+                  "    pm.expect(pm.response.json().message).to.eql(\"The provided credentials do not match our records.\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nobody@izsuite.io\",\n  \"password\": \"{{user_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "An address with no account behind it. The response is identical to the wrong-password case - same status, same message - so the endpoint cannot be used to enumerate which emails are registered."
+          },
+          "response": []
+        },
+        {
+          "name": "Login - admin account (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test(\"no token is issued\", function () {",
+                  "    pm.expect(pm.response.json()).to.not.have.property('token');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{user_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Admin, staff and super-admin accounts cannot obtain a frontend token; they sign in through the admin panel at `/login`.\n\nExpect 403 only when the password is also correct - a wrong password still returns 401, because the credential check runs first. Point `admin_email` at an admin account whose password is `user_password` to see the 403."
+          },
+          "response": []
+        },
+        {
+          "name": "Login - validation error (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"errors name the offending fields\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('errors');",
+                  "    pm.expect(b.errors).to.have.property('email');",
+                  "    pm.expect(b.errors).to.have.property('password');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"not-an-email\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "A malformed email and a missing password. Note the distinction the API keeps: **422** means the request body is wrong, **401** means the body was fine but the credentials did not match."
+          },
+          "response": []
+        },
+        {
+          "name": "Login - credentials in query string (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"message says to use the body\", function () {",
+                  "    pm.expect(pm.response.json().message).to.include('request body');",
+                  "});",
+                  "",
+                  "pm.test(\"no token is issued\", function () {",
+                  "    pm.expect(pm.response.json()).to.not.have.property('token');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login?email={{user_email}}&password={{user_password}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ],
+              "query": [
+                {
+                  "key": "email",
+                  "value": "{{user_email}}",
+                  "description": "Rejected: credentials may not travel in a URL."
+                },
+                {
+                  "key": "password",
+                  "value": "{{user_password}}",
+                  "description": "Rejected: credentials may not travel in a URL."
+                }
+              ]
+            },
+            "description": "Correct credentials, but in the query string instead of the body - refused with 400.\n\nLaravel's `input()` reads the query string as well as the body, so without an explicit guard this would sign you in. A URL is not a private channel: it is written verbatim into web-server access logs, browser history, bookmarks and outgoing `Referer` headers, so a password sent this way ends up on disk in several places.\n\nThe guard fires on the parameter *name*, so even `?email&password` with empty values is refused - the point is to make a client that gets this wrong fail loudly rather than leak quietly."
+          },
+          "response": []
+        },
+        {
+          "name": "Login - email not verified (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test(\"action tells the client what to do next\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b.action).to.eql('verification_required');",
+                  "    pm.expect(b.message).to.include('not verified');",
+                  "});",
+                  "",
+                  "pm.test(\"no token is issued\", function () {",
+                  "    pm.expect(pm.response.json()).to.not.have.property('token');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{unverified_email}}\",\n  \"password\": \"{{user_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Correct password, but the account's `email_verified_at` is null - refused with 403 and no token.\n\nThis is the one rejection that carries an `action` next to the message:\n\n```json\n{\n  \"message\": \"Your email address is not verified. Please verify your email to access this resource.\",\n  \"action\": \"verification_required\"\n}\n```\n\nBranch on `action`, not on the message text, so the UI can offer a \"resend verification email\" button here rather than the dead end the other 403s deserve. Shape and wording match the existing `CheckEmailVerified` middleware, so one client-side handler covers both.\n\nNote the ordering: the password is checked *first*. An unverified account with a wrong password still returns 401, so this endpoint never reveals that an unverified account exists."
+          },
+          "response": []
+        },
+        {
+          "name": "Me - no token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test(\"message is the expected one\", function () {",
+                  "    pm.expect(pm.response.json().message).to.eql(\"Unauthenticated.\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "No Authorization header. The same 401 comes back for an expired or revoked token - run Logout and then Me to see it."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "App Categories",
+      "description": "Public list of active app categories.\n\nOnly rows with is_active = true are returned, sorted by name.",
+      "item": [
+        {
+          "name": "List App Categories",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app-categories",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app-categories"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Partial match on category name.",
+                  "disabled": true
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Rows per page. Allowed: 10, 15, 25, 50, 100 (default 15). Anything else returns 422.",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1).",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Returns every active app category, 15 per page."
+          },
+          "response": []
+        },
+        {
+          "name": "List App Categories - search",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app-categories?search=fin",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app-categories"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "fin",
+                  "description": "Partial match on category name."
+                }
+              ]
+            },
+            "description": "Filters categories by a partial name match (case-insensitive LIKE)."
+          },
+          "response": []
+        },
+        {
+          "name": "List App Categories - paginated",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app-categories?per_page=10&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app-categories"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "10",
+                  "description": "Rows per page. Allowed: 10, 15, 25, 50, 100 (default 15). Anything else returns 422."
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)."
+                }
+              ]
+            },
+            "description": "Shows how pagination is driven by per_page + page."
+          },
+          "response": []
+        },
+        {
+          "name": "List App Categories - invalid per_page (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"per_page error is returned\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.errors).to.have.property('per_page');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/app-categories?per_page=7",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "app-categories"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "7",
+                  "description": "7 is not in the allowed list, so this returns 422."
+                }
+              ]
+            },
+            "description": "Confirms per_page is validated instead of silently falling back."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Apps",
+      "description": "Public list of active apps.\n\nOnly rows with is_active = true are returned, sorted by name. logo_url comes back as an absolute URL, or null when no logo is set.",
+      "item": [
+        {
+          "name": "List Apps",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/apps",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "apps"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Partial match on name, description or category.",
+                  "disabled": true
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "description": "Exact category name, e.g. Productivity.",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Exact status, e.g. recommended or active.",
+                  "disabled": true
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Rows per page. Allowed: 10, 15, 25, 50, 100 (default 15). Anything else returns 422.",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1).",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Returns every active app, 15 per page."
+          },
+          "response": []
+        },
+        {
+          "name": "List Apps - search",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/apps?search=test",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "apps"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "test",
+                  "description": "Partial match on name, description or category."
+                }
+              ]
+            },
+            "description": "Searches across name, description and category in one query."
+          },
+          "response": []
+        },
+        {
+          "name": "List Apps - filter by category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/apps?category=Productivity",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "apps"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "Productivity",
+                  "description": "Exact category name. Pull valid values from GET /app-categories."
+                }
+              ]
+            },
+            "description": "Exact-match category filter. Use the names returned by the App Categories endpoint."
+          },
+          "response": []
+        },
+        {
+          "name": "List Apps - filter by status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/apps?status=active",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "apps"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "active",
+                  "description": "Exact status match."
+                }
+              ]
+            },
+            "description": "Exact-match status filter."
+          },
+          "response": []
+        },
+        {
+          "name": "List Apps - paginated",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/apps?per_page=10&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "apps"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "10",
+                  "description": "Rows per page. Allowed: 10, 15, 25, 50, 100 (default 15). Anything else returns 422."
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)."
+                }
+              ]
+            },
+            "description": "Shows how pagination is driven by per_page + page."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Plans",
+      "description": "Public list of active subscription plans.\n\nOnly rows with is_active = true are returned, ordered by sort_order then id - the same sequence the admin panel shows.\n\n**Limits**: a null value under `limits` means unlimited. `limits_label` carries the ready-to-print string (\"Unlimited\" or the number), so you do not have to re-derive it.",
+      "item": [
+        {
+          "name": "List Plans",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plans",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "plans"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Partial match on plan name or description.",
+                  "disabled": true
+                },
+                {
+                  "key": "billing_type",
+                  "value": "",
+                  "description": "monthly or yearly. Anything else returns 422.",
+                  "disabled": true
+                },
+                {
+                  "key": "plan_for",
+                  "value": "",
+                  "description": "Audience, e.g. recruiter or candidate.",
+                  "disabled": true
+                },
+                {
+                  "key": "featured",
+                  "value": "",
+                  "description": "true / false / 1 / 0. Leave blank for no filter.",
+                  "disabled": true
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Rows per page. Allowed: 10, 15, 25, 50, 100 (default 15). Anything else returns 422.",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1).",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Returns every active plan, 15 per page."
+          },
+          "response": []
+        },
+        {
+          "name": "List Plans - featured only",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plans?featured=true",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "plans"
+              ],
+              "query": [
+                {
+                  "key": "featured",
+                  "value": "true",
+                  "description": "true / false / 1 / 0. Leave blank for no filter."
+                }
+              ]
+            },
+            "description": "Only plans flagged as featured. Pass featured=false to get the rest."
+          },
+          "response": []
+        },
+        {
+          "name": "List Plans - monthly",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plans?billing_type=monthly",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "plans"
+              ],
+              "query": [
+                {
+                  "key": "billing_type",
+                  "value": "monthly",
+                  "description": "monthly or yearly. Anything else returns 422."
+                }
+              ]
+            },
+            "description": "Filters by billing type."
+          },
+          "response": []
+        },
+        {
+          "name": "List Plans - by audience",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plans?plan_for=recruiter",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "plans"
+              ],
+              "query": [
+                {
+                  "key": "plan_for",
+                  "value": "recruiter",
+                  "description": "Audience, e.g. recruiter or candidate."
+                }
+              ]
+            },
+            "description": "Filters by the plan_for column."
+          },
+          "response": []
+        },
+        {
+          "name": "List Plans - search",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plans?search=team",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "plans"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "team",
+                  "description": "Partial match on plan name or description."
+                }
+              ]
+            },
+            "description": "Searches plan name and description."
+          },
+          "response": []
+        },
+        {
+          "name": "List Plans - paginated",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"body has data + pagination\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.pagination).to.have.property('current_page');",
+                  "    pm.expect(body.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plans?per_page=10&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "plans"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "10",
+                  "description": "Rows per page. Allowed: 10, 15, 25, 50, 100 (default 15). Anything else returns 422."
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)."
+                }
+              ]
+            },
+            "description": "Shows how pagination is driven by per_page + page."
+          },
+          "response": []
+        },
+        {
+          "name": "List Plans - invalid billing_type (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"billing_type error is returned\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.errors).to.have.property('billing_type');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plans?billing_type=weekly",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "plans"
+              ],
+              "query": [
+                {
+                  "key": "billing_type",
+                  "value": "weekly",
+                  "description": "Only monthly and yearly are accepted."
+                }
+              ]
+            },
+            "description": "Confirms billing_type is validated rather than silently ignored."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://izsuite-admin.test:8080/api/v1",
+      "type": "string",
+      "description": "Laragon nginx vhost. Port 8080 because IIS occupies port 80 - drop the port and you get an IIS 404 instead of the API."
+    },
+    {
+      "key": "artisan_url",
+      "value": "http://127.0.0.1:8000/api/v1",
+      "type": "string",
+      "description": "Alternative base URL when running: php artisan serve --port=8000"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "Bearer token. Filled in automatically by the Login request's test script; cleared by Logout."
+    },
+    {
+      "key": "second_device_token",
+      "value": "",
+      "type": "string",
+      "description": "Second live token, used to show that Logout spares other devices and Logout-everywhere does not. Filled and cleared automatically."
+    },
+    {
+      "key": "user_email",
+      "value": "user@izsuite.io",
+      "type": "string",
+      "description": "Seeded frontend demo user (database/seeders/UserSeeder.php)."
+    },
+    {
+      "key": "user_password",
+      "value": "123456",
+      "type": "string",
+      "description": "Password for the seeded demo accounts."
+    },
+    {
+      "key": "unverified_email",
+      "value": "unverified@izsuite.io",
+      "type": "string",
+      "description": "Seeded account with email_verified_at = null (database/seeders/UserSeeder.php)."
+    },
+    {
+      "key": "admin_email",
+      "value": "admin@izsuite.io",
+      "type": "string",
+      "description": "Any admin-role account, used only to demonstrate the 403 in \"Login - admin account\". Must be an account that actually exists, or the request returns 401 (unknown email) instead."
+    }
+  ]
+}

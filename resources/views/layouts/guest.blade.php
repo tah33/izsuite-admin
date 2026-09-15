@@ -31,8 +31,9 @@
                     <x-site-logo class="w-[36px] h-[36px]" />
                     <span class="text-xl font-bold text-[var(--text-primary)]">{{ setting('site_name', config('brand.name')) }}</span>
                 @else
-                    {{-- Default brand lockup already contains the name, so no text beside it --}}
-                    <x-site-logo variant="full" class="h-14 w-auto" />
+                    {{-- Default brand lockup already contains the name, so no text beside it.
+                         Dark variant: this page sits on the light --content-bg. --}}
+                    <x-site-logo variant="full" class="h-16 w-auto" />
                 @endif
             </a>
         </div>

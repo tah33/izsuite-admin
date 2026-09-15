@@ -72,7 +72,13 @@ GLYPH.height = GLYPH.y2 - GLYPH.y1;
 function wordmark(size) {
   const fullAdv  = XB.getAdvanceWidth('izSuite', size);
   const suiteAdv = XB.getAdvanceWidth('Suite', size);
-  const xSuite   = fullAdv - suiteAdv;               // keeps the z->S kern pair
+  // Rounded, and it has to stay rounded. opentype.js rounds path coordinates
+  // with `+(Math.round(n + 'e+3') + 'e-3')` - string concatenation - so any
+  // coordinate JS prints in exponential notation ("1.42e-14") becomes
+  // "1.42e-14e+3" and rounds to NaN. Feeding getPath an offset carrying float
+  // noise (154.0000000000001 rather than 154) lands points on 1e-14 instead of
+  // a clean 0 and silently empties the "Suite" path.
+  const xSuite   = r(fullAdv - suiteAdv);            // keeps the z->S kern pair
 
   const iz    = XB.getPath('iz', 0, 0, size);
   const suite = XB.getPath('Suite', xSuite, 0, size);
@@ -90,7 +96,9 @@ function tracked(font, text, size, tracking) {
   const p = new opentype.Path();
   for (const ch of text) {
     const g = font.charToGlyph(ch);
-    p.extend(g.getPath(x, 0, size));
+    // Rounded for the same reason as xSuite above: x accumulates float drift
+    // across the string, and drift is what turns coordinates into NaN.
+    p.extend(g.getPath(r(x), 0, size));
     x += (g.advanceWidth / font.unitsPerEm) * size + tracking;
   }
   const bb = p.getBoundingBox();

@@ -5,8 +5,9 @@
                 <x-site-logo class="w-7 h-7" />
                 <span class="logo-text block leading-tight">{{ setting('site_name', config('brand.name')) }}</span>
             @else
-                {{-- Reversed wordmark: the sidebar is a dark surface, and the mark already reads as the name --}}
-                <x-site-logo variant="wordmark" tone="light" class="h-[22px] w-auto" />
+                {{-- Full lockup, reversed: the sidebar is a dark surface. 40px keeps the
+                     tagline legible and still leaves room inside the 64px header row. --}}
+                <x-site-logo variant="full" tone="light" class="h-10 w-auto" />
             @endif
         </a>
     </div>
