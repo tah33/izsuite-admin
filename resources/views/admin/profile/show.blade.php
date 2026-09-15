@@ -14,9 +14,15 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div class="form-group flex flex-col gap-1.5">
-                    <label for="name" class="form-label text-sm text-[var(--text-muted)]">{{ __('Full Name') }}</label>
-                    <input type="text" id="name" name="name" value="{{ old('name', $user->name) }}" class="form-input @error('name') border-[var(--danger)] @enderror">
-                    @error('name')<p class="text-xs text-[var(--danger)]">{{ $message }}</p>@enderror
+                    <label for="first_name" class="form-label text-sm text-[var(--text-muted)]">{{ __('First Name') }}</label>
+                    <input type="text" id="first_name" name="first_name" value="{{ old('first_name', $user->first_name) }}" class="form-input @error('first_name') border-[var(--danger)] @enderror">
+                    @error('first_name')<p class="text-xs text-[var(--danger)]">{{ $message }}</p>@enderror
+                </div>
+
+                <div class="form-group flex flex-col gap-1.5">
+                    <label for="last_name" class="form-label text-sm text-[var(--text-muted)]">{{ __('Last Name') }}</label>
+                    <input type="text" id="last_name" name="last_name" value="{{ old('last_name', $user->last_name) }}" class="form-input @error('last_name') border-[var(--danger)] @enderror">
+                    @error('last_name')<p class="text-xs text-[var(--danger)]">{{ $message }}</p>@enderror
                 </div>
 
                 <div class="form-group flex flex-col gap-1.5">
@@ -79,6 +85,7 @@
                         <label for="password" class="form-label text-sm text-[var(--text-muted)]">{{ __('New Password') }}</label>
                         <input type="password" id="password" name="password" autocomplete="new-password" class="form-input @error('password') border-[var(--danger)] @enderror">
                         @error('password')<p class="text-xs text-[var(--danger)]">{{ $message }}</p>@enderror
+                        <p class="text-xs text-[var(--text-muted)]">{{ __('At least 8 characters, with upper and lower case, a number and a symbol.') }}</p>
                     </div>
 
                     <div class="form-group flex flex-col gap-1.5">

@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Admin\Role;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -12,6 +13,14 @@ use Illuminate\Support\Str;
  */
 class UserFactory extends Factory
 {
+    /**
+     * Stated rather than guessed: Factory derives the model name from its own
+     * class, which would give App\User instead of App\Models\User\User.
+     *
+     * @var class-string<User>
+     */
+    protected $model = User::class;
+
     /**
      * The current password being used by the factory.
      */
@@ -25,7 +34,18 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name'              => fake()->name(),
+            // role_id is NOT NULL, so the factory has to supply one. The
+            // frontend role is the harmless default; states and explicit
+            // attributes override it where a test needs an admin.
+            'role_id'           => fn () => Role::firstOrCreate(
+                ['slug' => 'user'],
+                ['name' => 'User', 'permissions' => null],
+            )->id,
+            // users.name was split into first_name/last_name by the
+            // replace_users_name_with_first_name migration; the column is gone.
+            'first_name'        => fake()->firstName(),
+            'last_name'         => fake()->lastName(),
+            'username'          => fake()->unique()->userName(),
             'email'             => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password'          => static::$password ??= Hash::make('password'),

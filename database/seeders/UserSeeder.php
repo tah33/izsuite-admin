@@ -17,34 +17,37 @@ class UserSeeder extends Seeder
         User::firstOrCreate(
             ['email' => 'admin@izsuite.io'],
             [
-                'name'     => 'Admin',
-                'password' => '123456',
-                'role_id'  => 1,
+                'first_name' => 'Admin',
+                'password'   => '123456',
+                'role_id'    => 1,
             ]
         );
 
         User::firstOrCreate(
             ['email' => 'recruiter@izsuite.io'],
             [
-                'name'     => 'Recruiter Demo',
-                'password' => '123456',
-                'role_id'  => $recruiterRoleId,
+                'first_name' => 'Recruiter',
+                'last_name'  => 'Demo',
+                'password'   => '123456',
+                'role_id'    => $recruiterRoleId,
             ]
         );
 
         User::firstOrCreate(
             ['email' => 'candidate@izsuite.io'],
             [
-                'name'     => 'Candidate Demo',
-                'password' => '123456',
-                'role_id'  => $candidateRoleId,
+                'first_name' => 'Candidate',
+                'last_name'  => 'Demo',
+                'password'   => '123456',
+                'role_id'    => $candidateRoleId,
             ]
         );
 
         User::firstOrCreate(
             ['email' => 'user@izsuite.io'],
             [
-                'name'              => 'izSuite User',
+                'first_name'        => 'izSuite',
+                'last_name'         => 'User',
                 'password'          => '123456',
                 'role_id'           => $userRoleId,
                 'status'            => 'active',
@@ -58,7 +61,8 @@ class UserSeeder extends Seeder
         User::firstOrCreate(
             ['email' => 'unverified@izsuite.io'],
             [
-                'name'              => 'Unverified User',
+                'first_name'        => 'Unverified',
+                'last_name'         => 'User',
                 'password'          => '123456',
                 'role_id'           => $userRoleId,
                 'status'            => 'active',

@@ -19,7 +19,7 @@ class StaffRepository
                     ->whereHas('role', fn ($q) => $q->whereNotIn('slug', ['recruiter', 'candidate']))
             )
             ->through([
-                new SearchFilter($search, columns: ['name', 'email']),
+                new SearchFilter($search, columns: ['first_name', 'last_name', 'email']),
             ])
             ->thenReturn()
             ->latest()

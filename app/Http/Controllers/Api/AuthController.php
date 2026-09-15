@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Auth\LoginRequest;
+use App\Http\Requests\Api\Auth\RegisterRequest;
 use App\Http\Resources\Users\UserResource;
 use App\Services\Api\Auth\AuthService;
+use App\Services\Api\Auth\EmailVerificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -16,8 +18,28 @@ class AuthController extends Controller
     ) {}
 
     /**
-     * Sign a frontend user in and issue a bearer token.
+     * Create a frontend account and email it an activation code.
+     *
+     * No token here, unlike login(): the account is not usable until the code
+     * comes back, so the frontend's next screen is the OTP box, not the app.
      */
+    public function register(RegisterRequest $request): JsonResponse
+    {
+        try {
+            $user = $this->authService->register($request->validated());
+
+            return response()->json([
+                'message'            => 'Your account has been created. Check your email for the verification code.',
+                'action'             => 'verification_required',
+                'expires_in_minutes' => EmailVerificationService::OTP_TTL_MINUTES,
+                'user'               => new UserResource($user->loadMissing('role')),
+            ], 201);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
     public function login(LoginRequest $request): JsonResponse
     {
         try {
@@ -36,11 +58,6 @@ class AuthController extends Controller
             throw $e;
         }
     }
-
-    /**
-     * The user behind the presented token — used by the frontend to restore a
-     * session after a reload.
-     */
     public function me(Request $request): JsonResponse
     {
         try {

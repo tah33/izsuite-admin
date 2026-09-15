@@ -1,0 +1,61 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Auth\ResendVerificationRequest;
+use App\Http\Requests\Api\Auth\VerifyEmailRequest;
+use App\Services\Api\Auth\EmailVerificationService;
+use Illuminate\Http\JsonResponse;
+
+/**
+ * The activation step between registering and signing in.
+ *
+ * Verification does not hand out a token: the frontend sends the user to the
+ * sign-in screen afterwards, so the password is what turns a verified account
+ * into a session, exactly as it would on any later visit.
+ */
+class EmailVerificationController extends Controller
+{
+    public function __construct(
+        protected EmailVerificationService $verificationService,
+    ) {}
+
+    public function verify(VerifyEmailRequest $request): JsonResponse
+    {
+        try {
+            $data = $request->validated();
+
+            $this->verificationService->verify($data['email'], $data['otp']);
+
+            return response()->json([
+                'message' => 'Your email address has been verified. You can sign in now.',
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /**
+     * Always answers the same way, whether or not the address has an account
+     * waiting on a code. See EmailVerificationService::resend().
+     */
+    public function resend(ResendVerificationRequest $request): JsonResponse
+    {
+        try {
+            $this->verificationService->resend($request->validated()['email']);
+
+            return response()->json([
+                'message'            => 'If that address needs verifying, a new code is on its way.',
+                'expires_in_minutes' => EmailVerificationService::OTP_TTL_MINUTES,
+                'retry_after_seconds' => EmailVerificationService::RESEND_COOLDOWN_SECONDS,
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+}

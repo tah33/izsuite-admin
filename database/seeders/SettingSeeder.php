@@ -35,8 +35,30 @@ class SettingSeeder extends Seeder
             ['group' => 'notifications', 'key' => 'email_notifications',   'value' => '1'],
         ];
 
+        // Mail / SMTP. These belong to the admin, so re-running the seeder must
+        // never wipe live credentials -- only fill in the keys that are missing.
+        // Mirrors SettingService::DEFAULTS, which backfills the same keys.
+        $mailSettings = [
+            ['group' => 'mail', 'key' => 'smtp_enabled',      'value' => '0'],
+            ['group' => 'mail', 'key' => 'smtp_host',         'value' => 'sandbox.smtp.mailtrap.io'],
+            ['group' => 'mail', 'key' => 'smtp_port',         'value' => '2525'],
+            ['group' => 'mail', 'key' => 'smtp_encryption',   'value' => 'tls'],
+            ['group' => 'mail', 'key' => 'smtp_username',     'value' => 'b342f85d88af77'],
+            ['group' => 'mail', 'key' => 'smtp_password',     'value' => 'de1849ecf20af7'],
+            ['group' => 'mail', 'key' => 'smtp_from_address', 'value' => 'support@izsuite.test'],
+            ['group' => 'mail', 'key' => 'smtp_from_name',    'value' => config('brand.name')],
+        ];
+
         foreach ($settings as $data) {
             Setting::updateOrCreate(['key' => $data['key']], $data);
         }
+
+        foreach ($mailSettings as $data) {
+            Setting::firstOrCreate(['key' => $data['key']], $data);
+        }
+
+        // Settings are cached forever, so the seeded rows are invisible until
+        // the cache is dropped.
+        Setting::clearCache();
     }
 }

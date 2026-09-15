@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreStaffRequest;
 use App\Http\Requests\Admin\UpdateStaffRequest;
 use App\Models\Admin\Role;
-use App\Services\Shared\ActivityLogService;
 use App\Services\Admin\StaffService;
+use App\Services\Shared\ActivityLogService;
 use Illuminate\Http\Request;
 
 class StaffController extends Controller
@@ -65,7 +65,9 @@ class StaffController extends Controller
 
             $staff     = $this->staffService->create($validated);
 
-            ActivityLogService::record('created', "Created staff member \"{$validated['name']}\"", $staff);
+            // $staff->name is the composed accessor, so it reflects whatever
+            // first/last name actually landed on the row.
+            ActivityLogService::record('created', "Created staff member \"{$staff->name}\"", $staff);
 
             return $this->adminSuccess(
                 $request,

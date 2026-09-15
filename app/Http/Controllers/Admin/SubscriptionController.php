@@ -53,9 +53,9 @@ class SubscriptionController extends Controller
     {
         try {
             $users = User::query()
-                ->select(['id', 'name', 'email'])
+                ->select(['id', 'first_name', 'last_name', 'email'])
                 ->whereHas('role', fn ($query) => $query->whereNotIn('slug', ['super-admin', 'admin']))
-                ->orderBy('name')
+                ->orderBy('first_name')
                 ->get();
 
             $plans = Plan::query()
