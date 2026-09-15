@@ -14,10 +14,11 @@ class StoreStaffRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name'     => ['required', 'string', 'max:255'],
-            'email'    => ['required', 'email', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'role_id'  => ['required', 'exists:roles,id'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name'  => ['nullable', 'string', 'max:255'],
+            'email'      => ['required', 'email', 'unique:users,email'],
+            'password'   => ['required', 'string', 'min:8', 'confirmed'],
+            'role_id'    => ['required', 'exists:roles,id'],
         ];
     }
 }

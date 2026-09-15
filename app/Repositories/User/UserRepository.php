@@ -53,7 +53,7 @@ class UserRepository
                     ->whereHas('role', fn (Builder $query) => $query->where('slug', $roleSlug))
             )
             ->through([
-                new SearchFilter($search, columns: ['name', 'email']),
+                new SearchFilter($search, columns: ['first_name', 'last_name', 'email']),
             ])
             ->thenReturn()
             ->latest()

@@ -24,7 +24,7 @@ class TicketRepository
                 new SearchFilter(
                     $filters['search'] ?? null,
                     columns: ['subject'],
-                    relations: ['user' => ['name', 'email']],
+                    relations: ['user' => ['first_name', 'last_name', 'email']],
                 ),
             ])
             ->thenReturn()
@@ -58,14 +58,14 @@ class TicketRepository
     public function getUsers(): Collection
     {
         return User::whereHas('role', fn ($q) => $q->whereIn('slug', ['recruiter', 'candidate']))
-            ->orderBy('name')
-            ->get(['id', 'name', 'email']);
+            ->orderBy('first_name')
+            ->get(['id', 'first_name', 'last_name', 'email']);
     }
 
     public function getStaff(): Collection
     {
         return User::whereHas('role', fn ($q) => $q->whereNotIn('slug', ['recruiter', 'candidate']))
-            ->orderBy('name')
-            ->get(['id', 'name']);
+            ->orderBy('first_name')
+            ->get(['id', 'first_name', 'last_name']);
     }
 }

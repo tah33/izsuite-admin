@@ -26,7 +26,8 @@ class SubscriptionRepository
                     ->orWhere('plan_slug', 'like', "%{$search}%")
                     ->orWhere('payment_id', 'like', "%{$search}%")
                     ->orWhereHas('user', function (Builder $userQuery) use ($search) {
-                        $userQuery->where('name', 'like', "%{$search}%")
+                        $userQuery->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
                             ->orWhere('email', 'like', "%{$search}%");
                     });
             });

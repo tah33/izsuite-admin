@@ -23,10 +23,19 @@ Route::prefix('v1')->group(function () {
      | Frontend user authentication
      | -------------------------------------------------------- */
     Route::prefix('auth')->group(function () {
-        // Throttled per IP: credential stuffing is the obvious attack on the
-        // only unauthenticated write endpoint here.
+        // Same ceiling as login. A tighter per-IP cap punishes the wrong
+        // people - an office or campus behind one NAT address shares it, so a
+        // handful of colleagues signing up together would lock each other out
+        // while a bot just rotates IPs and walks past it. Real sign-up abuse is
+        // stopped by email verification and a captcha, not by this number.
+        Route::post('/register', [AuthController::class, 'register'])
+            ->middleware('throttle:register')
+            ->name('api.auth.register');
+
+        // Throttled per IP: credential stuffing is the obvious attack on an
+        // unauthenticated write endpoint.
         Route::post('/login', [AuthController::class, 'login'])
-            ->middleware('throttle:10,1')
+            ->middleware('throttle:login')
             ->name('api.auth.login');
 
         Route::middleware('auth:sanctum')->group(function () {

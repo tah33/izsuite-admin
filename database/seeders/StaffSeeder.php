@@ -19,20 +19,22 @@ class StaffSeeder extends Seeder
         User::firstOrCreate(
             ['email' => 'staff@resumist.test'],
             [
-                'name'     => 'Staff Demo',
-                'password' => 'password',
-                'role_id'  => $staffRole->id,
-                'status'   => 'active',
+                'first_name' => 'Staff',
+                'last_name'  => 'Demo',
+                'password'   => 'password',
+                'role_id'    => $staffRole->id,
+                'status'     => 'active',
             ]
         );
 
         User::firstOrCreate(
             ['email' => 'editor@resumist.test'],
             [
-                'name'     => 'Editor Demo',
-                'password' => 'password',
-                'role_id'  => $staffRole->id,
-                'status'   => 'active',
+                'first_name' => 'Editor',
+                'last_name'  => 'Demo',
+                'password'   => 'password',
+                'role_id'    => $staffRole->id,
+                'status'     => 'active',
             ]
         );
     }

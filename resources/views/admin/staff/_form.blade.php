@@ -4,12 +4,22 @@
 @endphp
 
 {{-- Name --}}
-<div class="mb-4">
-    <label class="form-label" for="name">{{ __('Full Name') }}</label>
-    <input type="text" id="name" name="name" value="{{ old('name', $isEdit ? $staffUser->name : '') }}" class="form-input" placeholder="John Doe" required>
-    @error('name')
-        <p class="text-xs mt-1 text-[var(--danger)]">{{ $message }}</p>
-    @enderror
+<div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+        <label class="form-label" for="first_name">{{ __('First Name') }}</label>
+        <input type="text" id="first_name" name="first_name" value="{{ old('first_name', $isEdit ? $staffUser->first_name : '') }}" class="form-input" placeholder="John" required>
+        @error('first_name')
+            <p class="text-xs mt-1 text-[var(--danger)]">{{ $message }}</p>
+        @enderror
+    </div>
+
+    <div>
+        <label class="form-label" for="last_name">{{ __('Last Name') }}</label>
+        <input type="text" id="last_name" name="last_name" value="{{ old('last_name', $isEdit ? $staffUser->last_name : '') }}" class="form-input" placeholder="Doe">
+        @error('last_name')
+            <p class="text-xs mt-1 text-[var(--danger)]">{{ $message }}</p>
+        @enderror
+    </div>
 </div>
 
 {{-- Email --}}

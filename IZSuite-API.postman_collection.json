@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "b7c1e5a4-3f2d-4a18-9c6b-2d0f5e8a1c34",
     "name": "IZSuite - API",
-    "description": "Every endpoint the izSuite Nuxt frontend talks to: user authentication plus the public read-only lists.\n\n**Base URL**\nIIS holds port 80 on this machine, so Laragon nginx serves the vhost on port **8080**. The `:8080` is required - without it the request hits IIS and comes back as a 404 HTML page.\n\n- Laragon vhost: `http://izsuite-admin.test:8080/api/v1` (default)\n- artisan serve: `http://127.0.0.1:8000/api/v1`\n\n---\n\n## Auth\n\nSanctum personal access tokens, not session cookies. `POST /auth/login` returns a plain-text token; send it back as `Authorization: Bearer <token>`.\n\n**Run \"Login\" first.** Its test script writes the token into the `token` variable, and the two requests that need it (`Me`, `Logout`) read it from there, so they just work afterwards.\n\nToken lifetime is driven by `remember`:\n- `remember: true` -> 30 days\n- `remember: false` or absent -> 12 hours\n\n**Two ways to sign out**\n\n| Endpoint | Revokes | Response |\n|---|---|---|\n| `POST /auth/logout` | Only the token that made the request - other devices stay signed in | `{ message }` |\n| `POST /auth/logout-all` | Every token the user holds, this one included | `{ message, revoked_tokens }` |\n\nBoth are token-level. Neither touches the **admin panel** session at `/login` - that is separate, cookie-based auth on the `web` guard, and it signs out via `POST /logout`.\n\n**Credentials go in the body, never the URL.** `POST /auth/login?email=..&password=..` is refused with 400 even when the values are correct, because a query string is recorded in access logs, browser history and `Referer` headers.\n\n`device_name` is optional and only labels the token, so a user can tell their sessions apart in a future \"active devices\" screen.\n\n**Re-running the whole collection**\nOne full run makes 9 login attempts, and login is throttled at 10 per minute per IP - so there is almost no headroom. A second run started inside the same minute fails with 429s, and so will the first run if you have been clicking Send by hand. Wait a minute, or clear the counter:\n\n```\nphp artisan cache:clear\n```\n\n**Who may sign in here**\nFrontend users only, and only fully set-up ones. Three separate 403s:\n\n| Condition | Message | `action` |\n|---|---|---|\n| Admin, staff or super-admin role | Sign in through the admin panel at `/login` | - |\n| `status` is not `active` | Account is not active, contact support | - |\n| `email_verified_at` is null | Verify your email first | `verification_required` |\n\nThe password is always checked first, so all three are only reachable by someone who already knows the credentials - the endpoint never reveals *why* an account it does not own would be refused.\n\nSeeded accounts for these: `admin@izsuite.io` (admin) and `unverified@izsuite.io` (unverified).\n\n**Seeded demo account**\n`user@izsuite.io` / `123456`. If it is missing, run `php artisan db:seed --class=RoleSeeder` then `php artisan db:seed --class=UserSeeder`.\n\n**Login response**\n```json\n{\n  \"message\": \"Signed in successfully.\",\n  \"token\": \"1|xxxxxxxx\",\n  \"token_type\": \"Bearer\",\n  \"expires_at\": \"2026-10-09T14:43:16+00:00\",\n  \"user\": {\n    \"id\": 10,\n    \"name\": \"izSuite User\",\n    \"email\": \"user@izsuite.io\",\n    \"phone\": null,\n    \"headline\": null,\n    \"bio\": null,\n    \"avatar_url\": null,\n    \"role\": { \"id\": 105, \"name\": \"User\", \"slug\": \"user\" },\n    \"status\": \"active\",\n    \"timezone\": \"UTC\",\n    \"currency\": \"USD\",\n    \"is_email_verified\": true,\n    \"email_verified_at\": \"2026-09-09T14:42:51+00:00\",\n    \"last_login_at\": \"2026-09-09T14:43:16+00:00\",\n    \"created_at\": \"2026-09-09T14:42:52+00:00\"\n  }\n}\n```\n\n---\n\n## Public lists\n\nApp categories, apps and plans. No token required.\n\n```json\n{\n  \"data\": [ ... ],\n  \"pagination\": {\n    \"current_page\": 1,\n    \"last_page\": 1,\n    \"per_page\": 15,\n    \"total\": 3,\n    \"from\": 1,\n    \"to\": 3,\n    \"has_prev_page\": false,\n    \"has_next_page\": false\n  }\n}\n```\n\n---\n\n## Status codes\n\n| Code | Meaning |\n|---|---|\n| 200 | OK |\n| 201 | Contact message created |\n| 400 | Credentials were sent in the query string instead of the body |\n| 401 | Credentials do not match, or token missing, expired or revoked |\n| 403 | Admin account, inactive account, or unverified email |\n| 422 | Request body or query string failed validation |\n| 429 | More than 10 login attempts from one IP in a minute |\n\nFailures answer with `{ \"message\": \"...\" }`; validation failures add an `errors` object keyed by field name.\n",
+    "description": "Every endpoint the izSuite Nuxt frontend talks to: user authentication plus the public read-only lists.\n\n**Base URL**\nIIS holds port 80 on this machine, so Laragon nginx serves the vhost on port **8080**. The `:8080` is required - without it the request hits IIS and comes back as a 404 HTML page.\n\n- Laragon vhost: `http://izsuite-admin.test:8080/api/v1` (default)\n- artisan serve: `http://127.0.0.1:8000/api/v1`\n\n---\n\n## Auth\n\nSanctum personal access tokens, not session cookies. `POST /auth/login` returns a plain-text token; send it back as `Authorization: Bearer <token>`.\n\n**Run \"Login\" first.** Its test script writes the token into the `token` variable, and the two requests that need it (`Me`, `Logout`) read it from there, so they just work afterwards.\n\nToken lifetime is driven by `remember`:\n- `remember: true` -> 30 days\n- `remember: false` or absent -> 12 hours\n\n**Two ways to sign out**\n\n| Endpoint | Revokes | Response |\n|---|---|---|\n| `POST /auth/logout` | Only the token that made the request - other devices stay signed in | `{ message }` |\n| `POST /auth/logout-all` | Every token the user holds, this one included | `{ message, revoked_tokens }` |\n\nBoth are token-level. Neither touches the **admin panel** session at `/login` - that is separate, cookie-based auth on the `web` guard, and it signs out via `POST /logout`.\n\n**Credentials go in the body, never the URL.** `POST /auth/login?email=..&password=..` is refused with 400 even when the values are correct, because a query string is recorded in access logs, browser history and `Referer` headers.\n\n`device_name` is optional and only labels the token, so a user can tell their sessions apart in a future \"active devices\" screen.\n\n**Re-running the whole collection**\nOne full run makes 9 login attempts and 5 register attempts. Both endpoints allow 10 per minute per IP, so there is almost no headroom on login. A second run started inside the same minute fails with 429s, and so will the first run if you have been clicking Send by hand. Wait a minute, or clear the counters:\n\n```\nphp artisan cache:clear\n```\n\n**Registering**\n`POST /auth/register` takes the fields the frontend's Owner information form collects and returns the same token/user shape as login, so a new account is signed in immediately. New accounts get the `user` role.\n\nThe Register body is sent verbatim - type your own values and those are saved. Because `username` and `email` are unique, **re-sending Register unchanged returns 422**; change them to create another account. The four `Register - ...` failure requests are safe to re-send as often as you like.\n\nEmail verification is **not** part of this yet: there is no verify endpoint, so registration marks the address verified rather than leaving every new account unable to log in. When the verification flow ships, that one line in AuthService::register() comes out.\n\n**Who may sign in here**\nFrontend users only, and only fully set-up ones. Three separate 403s:\n\n| Condition | Message | `action` |\n|---|---|---|\n| Admin, staff or super-admin role | Sign in through the admin panel at `/login` | - |\n| `status` is not `active` | Account is not active, contact support | - |\n| `email_verified_at` is null | Verify your email first | `verification_required` |\n\nThe password is always checked first, so all three are only reachable by someone who already knows the credentials - the endpoint never reveals *why* an account it does not own would be refused.\n\nSeeded accounts for these: `admin@izsuite.io` (admin) and `unverified@izsuite.io` (unverified).\n\n**Seeded demo account**\n`user@izsuite.io` / `123456`. If it is missing, run `php artisan db:seed --class=RoleSeeder` then `php artisan db:seed --class=UserSeeder`.\n\n**Login response**\n```json\n{\n  \"message\": \"Signed in successfully.\",\n  \"token\": \"1|xxxxxxxx\",\n  \"token_type\": \"Bearer\",\n  \"expires_at\": \"2026-10-09T14:43:16+00:00\",\n  \"user\": {\n    \"id\": 10,\n    \"name\": \"izSuite User\",\n    \"email\": \"user@izsuite.io\",\n    \"phone\": null,\n    \"headline\": null,\n    \"bio\": null,\n    \"avatar_url\": null,\n    \"role\": { \"id\": 105, \"name\": \"User\", \"slug\": \"user\" },\n    \"status\": \"active\",\n    \"timezone\": \"UTC\",\n    \"currency\": \"USD\",\n    \"is_email_verified\": true,\n    \"email_verified_at\": \"2026-09-09T14:42:51+00:00\",\n    \"last_login_at\": \"2026-09-09T14:43:16+00:00\",\n    \"created_at\": \"2026-09-09T14:42:52+00:00\"\n  }\n}\n```\n\n---\n\n## Public lists\n\nApp categories, apps and plans. No token required.\n\n```json\n{\n  \"data\": [ ... ],\n  \"pagination\": {\n    \"current_page\": 1,\n    \"last_page\": 1,\n    \"per_page\": 15,\n    \"total\": 3,\n    \"from\": 1,\n    \"to\": 3,\n    \"has_prev_page\": false,\n    \"has_next_page\": false\n  }\n}\n```\n\n---\n\n## Status codes\n\n| Code | Meaning |\n|---|---|\n| 200 | OK |\n| 201 | Contact message created |\n| 400 | Credentials were sent in the query string instead of the body |\n| 401 | Credentials do not match, or token missing, expired or revoked |\n| 403 | Admin account, inactive account, or unverified email |\n| 422 | Request body or query string failed validation |\n| 429 | More than 10 login attempts from one IP in a minute |\n\nFailures answer with `{ \"message\": \"...\" }`; validation failures add an `errors` object keyed by field name.\n",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -10,6 +10,88 @@
       "name": "Auth",
       "description": "The login session trio: sign in, read the session, sign out.\n\nRun them top to bottom - Login stores the token that Me and Logout consume.",
       "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "// pm.request holds the request as sent, with {{...}} already resolved - so",
+                  "// this compares against your real values, whatever you typed in the body.",
+                  "const sent = JSON.parse(pm.request.body.raw);",
+                  "",
+                  "pm.test(\"account is created and signed straight in\", function () {",
+                  "    const b = pm.response.json();",
+                  "    pm.expect(b).to.have.property('token').that.is.a('string').and.is.not.empty;",
+                  "    pm.expect(b.token_type).to.eql('Bearer');",
+                  "    pm.expect(b).to.have.property('expires_at').that.is.a('string');",
+                  "});",
+                  "",
+                  "pm.test(\"the response saves exactly what was sent\", function () {",
+                  "    const u = pm.response.json().user;",
+                  "    pm.expect(u.prefix).to.eql(sent.prefix);",
+                  "    pm.expect(u.first_name).to.eql(sent.first_name);",
+                  "    pm.expect(u.last_name).to.eql(sent.last_name);",
+                  "    pm.expect(u.username).to.eql(sent.username.toLowerCase());",
+                  "    pm.expect(u.email).to.eql(sent.email.toLowerCase());",
+                  "    pm.expect(u.name).to.eql(sent.first_name + ' ' + sent.last_name); // composed",
+                  "});",
+                  "",
+                  "pm.test(\"lands on the frontend user role, never an admin one\", function () {",
+                  "    pm.expect(pm.response.json().user.role.slug).to.eql('user');",
+                  "});",
+                  "",
+                  "pm.test(\"password is never echoed back\", function () {",
+                  "    pm.expect(pm.response.text()).to.not.include(sent.password);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prefix\": \"Mr\",\n  \"first_name\": \"Ayesha\",\n  \"last_name\": \"Rahman\",\n  \"username\": \"ayesha.rahman\",\n  \"email\": \"ayesha.rahman@izsuite.io\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\",\n  \"accept_terms\": true,\n  \"device_name\": \"postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Creates a frontend account from the registration form and signs it straight in - the response is the same token/user shape as Login, so the frontend reuses one \"store the session\" path.\n\n**The body is sent exactly as written.** Nothing rewrites it, so put in whatever values you want and those are what get saved.\n\n`username` and `email` are unique, so sending the same ones twice returns **422 - already taken**. To register again, change them (or delete the earlier account).\n\n**Fields**\n\n| Field | Required | Notes |\n|---|---|---|\n| `prefix` | no | One of Mr, Mrs, Miss, Ms, Dr |\n| `first_name` | **yes** | Saved verbatim |\n| `last_name` | no | Saved verbatim |\n| `username` | **yes** | Unique, 3-30 chars, starts with a letter or digit, then letters/digits/`.`/`_`/`-`. Stored lower-cased |\n| `email` | **yes** | Unique. Stored lower-cased |\n| `password` | **yes** | Min 8 characters |\n| `password_confirmation` | **yes** | The form's \"Confirm Password\" box. Must match `password` |\n| `accept_terms` | **yes** | Must be true - the form's Terms checkbox |\n| `device_name` | no | Labels the issued token |\n\nOnly `username` and `email` are normalised (lower-cased) so one address cannot become two accounts. Everything else is stored exactly as sent.\n\nThe new account gets the `user` role, `status: active`, and `terms_accepted_at` set to now."
+          },
+          "response": []
+        },
         {
           "name": "Login",
           "event": [
@@ -408,6 +490,250 @@
       "name": "Auth - failure cases",
       "description": "Every rejection path the frontend has to render, one request each.\n\nSafe to run in any order; none of them touch the `token` variable.",
       "item": [
+        {
+          "name": "Register - duplicate email (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"email is the field rejected\", function () {",
+                  "    pm.expect(pm.response.json().errors).to.have.property('email');",
+                  "});",
+                  "",
+                  "pm.test(\"no account is created\", function () {",
+                  "    pm.expect(pm.response.json()).to.not.have.property('token');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Ayesha\",\n  \"username\": \"someone.else\",\n  \"email\": \"{{user_email}}\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\",\n  \"accept_terms\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "The seeded demo account's address. Unlike login, registration *must* say the email is taken - the user has to know to sign in instead - so there is no enumeration trade-off to make here."
+          },
+          "response": []
+        },
+        {
+          "name": "Register - password mismatch (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"password is the field rejected\", function () {",
+                  "    pm.expect(pm.response.json().errors).to.have.property('password');",
+                  "});",
+                  "",
+                  "pm.test(\"no account is created\", function () {",
+                  "    pm.expect(pm.response.json()).to.not.have.property('token');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Ayesha\",\n  \"username\": \"mismatch.demo\",\n  \"email\": \"mismatch.demo@izsuite.io\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"something-else\",\n  \"accept_terms\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "The form's Confirm Password box did not match. Laravel's `confirmed` rule reports this on the `password` field.\n\nThe username and email here are fixed and safe to re-send: the request always fails validation, so no account is ever created with them."
+          },
+          "response": []
+        },
+        {
+          "name": "Register - terms not accepted (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"accept_terms is the field rejected\", function () {",
+                  "    pm.expect(pm.response.json().errors).to.have.property('accept_terms');",
+                  "});",
+                  "",
+                  "pm.test(\"no account is created\", function () {",
+                  "    pm.expect(pm.response.json()).to.not.have.property('token');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Ayesha\",\n  \"username\": \"noterms.demo\",\n  \"email\": \"noterms.demo@izsuite.io\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\",\n  \"accept_terms\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "The Terms & Conditions checkbox was left unticked. Omitting `accept_terms` entirely fails the same way.\n\nThe username and email here are fixed and safe to re-send: the request always fails validation, so no account is ever created with them."
+          },
+          "response": []
+        },
+        {
+          "name": "Register - invalid username (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"username is the field rejected\", function () {",
+                  "    pm.expect(pm.response.json().errors).to.have.property('username');",
+                  "});",
+                  "",
+                  "pm.test(\"no account is created\", function () {",
+                  "    pm.expect(pm.response.json()).to.not.have.property('token');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Ayesha\",\n  \"username\": \"bad user!\",\n  \"email\": \"baduser.demo@izsuite.io\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\",\n  \"accept_terms\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Spaces and punctuation are refused so a username stays usable in a URL or an @mention. Too short (under 3) and too long (over 30) fail on the same field.\n\nThe username and email here are fixed and safe to re-send: the request always fails validation, so no account is ever created with them."
+          },
+          "response": []
+        },
         {
           "name": "Login - wrong password (401)",
           "event": [
