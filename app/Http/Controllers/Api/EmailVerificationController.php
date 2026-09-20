@@ -39,17 +39,33 @@ class EmailVerificationController extends Controller
     }
 
     /**
-     * Always answers the same way, whether or not the address has an account
-     * waiting on a code. See EmailVerificationService::resend().
+     * 422 with `account_not_found` if the address has no account, 429 with
+     * `cooldown_active` if a code went out moments ago, and a plain 200 that
+     * says so if the account is already active.
      */
     public function resend(ResendVerificationRequest $request): JsonResponse
     {
         try {
-            $this->verificationService->resend($request->validated()['email']);
+            $email = $request->validated()['email'];
+
+            $outcome = $this->verificationService->resend($email);
+
+            if ($outcome === 'already_verified') {
+                return response()->json([
+                    'message' => sprintf('%s is already verified - you can sign in.', $email),
+                    'action'  => 'already_verified',
+                ]);
+            }
 
             return response()->json([
-                'message'            => 'If that address needs verifying, a new code is on its way.',
-                'expires_in_minutes' => EmailVerificationService::OTP_TTL_MINUTES,
+                'message' => sprintf(
+                    "We sent a new %d-digit code to %s. It expires in %d minutes - check your spam folder if it doesn't arrive.",
+                    EmailVerificationService::OTP_LENGTH,
+                    $email,
+                    EmailVerificationService::OTP_TTL_MINUTES,
+                ),
+                'sent_to'             => $email,
+                'expires_in_minutes'  => EmailVerificationService::OTP_TTL_MINUTES,
                 'retry_after_seconds' => EmailVerificationService::RESEND_COOLDOWN_SECONDS,
             ]);
 

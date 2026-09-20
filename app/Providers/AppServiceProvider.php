@@ -72,6 +72,20 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(3)->by('resend-ip|'.$request->ip()),
             Limit::perHour(6)->by('resend|'.$this->emailKey($request)),
         ]);
+
+        // Sends real mail to an address the caller does not have to own, so
+        // the same ceiling as the other mail-sending endpoint.
+        RateLimiter::for('forgot-password', fn (Request $request) => [
+            Limit::perMinute(3)->by('forgot-ip|'.$request->ip()),
+            Limit::perHour(6)->by('forgot|'.$this->emailKey($request)),
+        ]);
+
+        // The reset token is 64 random characters, so guessing is not the
+        // threat here - this is just a ceiling on a write endpoint.
+        RateLimiter::for('reset-password', fn (Request $request) => [
+            Limit::perMinute(6)->by('reset-ip|'.$request->ip()),
+            Limit::perHour(12)->by('reset|'.$this->emailKey($request)),
+        ]);
     }
 
     /**

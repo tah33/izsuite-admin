@@ -19,14 +19,21 @@ class ResendVerificationRequest extends FormRequest
     }
 
     /**
-     * No `exists` rule on purpose: it would answer "is this address
-     * registered?" to anyone who asks, which is exactly what the endpoint's
-     * identical-response-either-way design is there to prevent.
+     * Same trade as ForgotPasswordRequest: register already reveals which
+     * addresses are taken, so refusing to say so here only left a real user
+     * unable to tell a typo from a mail that never arrived.
      */
     public function rules(): array
     {
         return [
-            'email' => ['required', 'email', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'exists:users,email'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'email.exists' => "We couldn't find an account with that email address.",
         ];
     }
 }

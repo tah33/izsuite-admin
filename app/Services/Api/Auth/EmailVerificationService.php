@@ -44,6 +44,8 @@ class EmailVerificationService
 
     private const EXPIRED_CODE_ACTION    = 'code_expired';
 
+    private const COOLDOWN_ACTION        = 'cooldown_active';
+
     public function __construct(
         protected UserRepository $userRepository,
     ) {}
@@ -75,18 +77,29 @@ class EmailVerificationService
     /**
      * Re-issue a code for an address that asked for one.
      *
-     * Deliberately says nothing about the address. An unknown email, an already
-     * verified account and an account still inside its cooldown all look
-     * identical from outside, so this endpoint cannot be used to find out who
-     * has an account. The caller's own countdown is what tells a real user when
-     * to try again.
+     * Returns what happened so the caller can say something true: an account
+     * that is already active is not an error, but telling someone a code is on
+     * its way when none was sent would leave them waiting on an email that
+     * never comes.
+     *
+     * @return 'sent'|'already_verified'
      */
-    public function resend(string $email): void
+    public function resend(string $email): string
     {
         $user = $this->userRepository->findByEmail($email);
 
-        if (! $user || $user->email_verified_at || $this->withinCooldown($user)) {
-            return;
+        // The exists rule has already been past, so a miss means the row went
+        // away between the two queries.
+        if (! $user) {
+            $this->reject("We couldn't find an account with that email address.", 'account_not_found');
+        }
+
+        if ($user->email_verified_at) {
+            return 'already_verified';
+        }
+
+        if ($remaining = $this->cooldownRemaining($user)) {
+            $this->rejectCooldown($remaining);
         }
 
         $this->issue($user);
@@ -94,6 +107,8 @@ class EmailVerificationService
         ActivityLogService::record('updated', 'Requested a new email verification code', $user, [
             'source' => 'api',
         ]);
+
+        return 'sent';
     }
 
     /**
@@ -168,26 +183,44 @@ class EmailVerificationService
      */
     private function reject(string $message, string $action): never
     {
+        $field = $action === 'account_not_found' ? 'email' : 'otp';
+
         throw new HttpResponseException(response()->json([
             'message' => $message,
             'action'  => $action,
-            'errors'  => ['otp' => [$message]],
+            'errors'  => [$field => [$message]],
         ], 422));
     }
 
     /**
-     * How long ago the current code went out, derived from its expiry so the
-     * cooldown needs no column of its own.
+     * Seconds still to wait before another code may be sent, or 0 if one may go
+     * now. Derived from the current code's expiry, so the cooldown needs no
+     * column of its own.
      */
-    private function withinCooldown(User $user): bool
+    private function cooldownRemaining(User $user): int
     {
         if (blank($user->verification_otp_expires_at)) {
-            return false;
+            return 0;
         }
 
-        $issuedAt = $user->verification_otp_expires_at->copy()->subMinutes(self::OTP_TTL_MINUTES);
+        $readyAt = $user->verification_otp_expires_at->copy()
+            ->subMinutes(self::OTP_TTL_MINUTES)
+            ->addSeconds(self::RESEND_COOLDOWN_SECONDS);
 
-        return $issuedAt->addSeconds(self::RESEND_COOLDOWN_SECONDS)->isFuture();
+        return $readyAt->isFuture() ? (int) ceil(now()->diffInSeconds($readyAt, true)) : 0;
+    }
+
+    /**
+     * 429 rather than a 422: nothing about the request was wrong, it was just
+     * too soon. retry_after_seconds is what the screen counts down.
+     */
+    private function rejectCooldown(int $seconds): never
+    {
+        throw new HttpResponseException(response()->json([
+            'message'             => "A code was just sent. Wait $seconds seconds before asking for another.",
+            'action'              => self::COOLDOWN_ACTION,
+            'retry_after_seconds' => $seconds,
+        ], 429));
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Auth\ChangePasswordRequest;
 use App\Http\Requests\Api\Auth\LoginRequest;
 use App\Http\Requests\Api\Auth\RegisterRequest;
 use App\Http\Resources\Users\UserResource;
@@ -29,8 +30,14 @@ class AuthController extends Controller
             $user = $this->authService->register($request->validated());
 
             return response()->json([
-                'message'            => 'Your account has been created. Check your email for the verification code.',
+                'message' => sprintf(
+                    'Your account is ready. Enter the %d-digit code we sent to %s to activate it - the code expires in %d minutes.',
+                    EmailVerificationService::OTP_LENGTH,
+                    $user->email,
+                    EmailVerificationService::OTP_TTL_MINUTES,
+                ),
                 'action'             => 'verification_required',
+                'sent_to'            => $user->email,
                 'expires_in_minutes' => EmailVerificationService::OTP_TTL_MINUTES,
                 'user'               => new UserResource($user->loadMissing('role')),
             ], 201);
@@ -81,6 +88,31 @@ class AuthController extends Controller
 
             return response()->json([
                 'message' => 'Signed out successfully.',
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /**
+     * Change the password of the signed-in account.
+     *
+     * Validation is deliberately identical to the admin profile form: the same
+     * `current_password` check and the same Password::defaults() policy, so
+     * there is no weaker way in through the API.
+     */
+    public function changePassword(ChangePasswordRequest $request): JsonResponse
+    {
+        try {
+            $revoked = $this->authService->changePassword($request->user(), $request->validated()['password']);
+
+            return response()->json([
+                'message'        => $revoked > 0
+                    ? "Your password has been changed. $revoked other session".($revoked === 1 ? ' was' : 's were').' signed out.'
+                    : 'Your password has been changed.',
+                'revoked_tokens' => $revoked,
             ]);
 
         } catch (\Throwable $e) {

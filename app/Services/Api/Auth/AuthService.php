@@ -136,6 +136,34 @@ class AuthService
     }
 
     /**
+     * Change the password of an account that is already signed in.
+     *
+     * Every other device is signed out, but not this one. People change a
+     * password because they think someone else may have it, so leaving the
+     * other sessions alive would leave the problem alive - and signing this
+     * one out as well would just make them log straight back in.
+     *
+     * @return int  Sessions ended, so the caller can say how many.
+     */
+    public function changePassword(User $user, string $password): int
+    {
+        $current = $user->currentAccessToken();
+
+        $revoked = $user->tokens()
+            ->when($current, fn ($q) => $q->where('id', '!=', $current->id))
+            ->delete();
+
+        $user->forceFill(['password' => $password])->save();
+
+        ActivityLogService::record('updated', 'Changed their password', $user, [
+            'source'         => 'api',
+            'revoked_tokens' => $revoked,
+        ]);
+
+        return $revoked;
+    }
+
+    /**
      * Revoke every token the user holds, this request's included.
      *
      * What "sign out everywhere" is for: a lost phone, a shared computer, or a

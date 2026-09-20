@@ -18,7 +18,7 @@
                         <td style="padding:40px;">
                             <h2 style="margin:0 0 16px; color:#1a1a2e; font-size:20px; font-weight:600;">Password Reset Request</h2>
                             <p style="margin:0 0 24px; color:#51545e; font-size:15px; line-height:1.6;">
-                                We received a request to reset your password. Use the OTP below to proceed. This code is valid for <strong>30 minutes</strong>.
+                                We received a request to reset your password. Use the OTP below to proceed. This code is valid for <strong>{{ $expiresInMinutes }} minutes</strong>.
                             </p>
 
                             <!-- OTP Box -->
