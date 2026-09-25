@@ -2,7 +2,7 @@
     "info": {
         "_postman_id": "b7c1e5a4-3f2d-4a18-9c6b-2d0f5e8a1c34",
         "name": "IZSuite - API",
-        "description": "Every endpoint the izSuite Nuxt frontend talks to: user authentication plus the public read-only lists.\n\n**Base URL**\nIIS holds port 80 on this machine, so Laragon nginx serves the vhost on port **8080**. The `:8080` is required - without it the request hits IIS and comes back as a 404 HTML page.\n\n- Laragon vhost: `http://izsuite-admin.test:8080/api/v1` (default)\n- artisan serve: `http://127.0.0.1:8000/api/v1`\n\n---\n\n## Auth\n\nSanctum personal access tokens, not session cookies. `POST /auth/login` returns a plain-text token; send it back as `Authorization: Bearer <token>`.\n\n**Run \"Login\" first.** Its test script writes the token into the `token` variable, and the two requests that need it (`Me`, `Logout`) read it from there, so they just work afterwards.\n\nToken lifetime is driven by `remember`:\n- `remember: true` -> 30 days\n- `remember: false` or absent -> 12 hours\n\n**Two ways to sign out**\n\n| Endpoint | Revokes | Response |\n|---|---|---|\n| `POST /auth/logout` | Only the token that made the request - other devices stay signed in | `{ message }` |\n| `POST /auth/logout-all` | Every token the user holds, this one included | `{ message, revoked_tokens }` |\n\nBoth are token-level. Neither touches the **admin panel** session at `/login` - that is separate, cookie-based auth on the `web` guard, and it signs out via `POST /logout`.\n\n**Credentials go in the body, never the URL.** `POST /auth/login?email=..&password=..` is refused with 400 even when the values are correct, because a query string is recorded in access logs, browser history and `Referer` headers.\n\n`device_name` is optional and only labels the token, so a user can tell their sessions apart in a future \"active devices\" screen.\n\n**Re-running the whole collection**\nOne full run makes 9 login attempts and 5 register attempts. Both endpoints allow 10 per minute per IP, so there is almost no headroom on login. A second run started inside the same minute fails with 429s, and so will the first run if you have been clicking Send by hand. Wait a minute, or clear the counters:\n\n```\nphp artisan cache:clear\n```\n\n**Registering**\n`POST /auth/register` takes the fields the frontend's Owner information form collects and returns the same token/user shape as login, so a new account is signed in immediately. New accounts get the `user` role.\n\nThe Register body is sent verbatim - type your own values and those are saved. Because `username` and `email` are unique, **re-sending Register unchanged returns 422**; change them to create another account. The four `Register - ...` failure requests are safe to re-send as often as you like.\n\nEmail verification is **not** part of this yet: there is no verify endpoint, so registration marks the address verified rather than leaving every new account unable to log in. When the verification flow ships, that one line in AuthService::register() comes out.\n\n**Who may sign in here**\nFrontend users only, and only fully set-up ones. Three separate 403s:\n\n| Condition | Message | `action` |\n|---|---|---|\n| Admin, staff or super-admin role | Sign in through the admin panel at `/login` | - |\n| `status` is not `active` | Account is not active, contact support | - |\n| `email_verified_at` is null | Verify your email first | `verification_required` |\n\nThe password is always checked first, so all three are only reachable by someone who already knows the credentials - the endpoint never reveals *why* an account it does not own would be refused.\n\nSeeded accounts for these: `admin@izsuite.io` (admin) and `unverified@izsuite.io` (unverified).\n\n**Seeded demo account**\n`user@izsuite.io` / `123456`. If it is missing, run `php artisan db:seed --class=RoleSeeder` then `php artisan db:seed --class=UserSeeder`.\n\n**Login response**\n```json\n{\n  \"message\": \"Signed in successfully.\",\n  \"token\": \"1|xxxxxxxx\",\n  \"token_type\": \"Bearer\",\n  \"expires_at\": \"2026-10-09T14:43:16+00:00\",\n  \"user\": {\n    \"id\": 10,\n    \"name\": \"izSuite User\",\n    \"email\": \"user@izsuite.io\",\n    \"phone\": null,\n    \"headline\": null,\n    \"bio\": null,\n    \"avatar_url\": null,\n    \"role\": { \"id\": 105, \"name\": \"User\", \"slug\": \"user\" },\n    \"status\": \"active\",\n    \"timezone\": \"UTC\",\n    \"currency\": \"USD\",\n    \"is_email_verified\": true,\n    \"email_verified_at\": \"2026-09-09T14:42:51+00:00\",\n    \"last_login_at\": \"2026-09-09T14:43:16+00:00\",\n    \"created_at\": \"2026-09-09T14:42:52+00:00\"\n  }\n}\n```\n\n---\n\n## Public lists\n\nApp categories, apps and plans. No token required.\n\n```json\n{\n  \"data\": [ ... ],\n  \"pagination\": {\n    \"current_page\": 1,\n    \"last_page\": 1,\n    \"per_page\": 15,\n    \"total\": 3,\n    \"from\": 1,\n    \"to\": 3,\n    \"has_prev_page\": false,\n    \"has_next_page\": false\n  }\n}\n```\n\n---\n\n## Status codes\n\n| Code | Meaning |\n|---|---|\n| 200 | OK |\n| 201 | Contact message created |\n| 400 | Credentials were sent in the query string instead of the body |\n| 401 | Credentials do not match, or token missing, expired or revoked |\n| 403 | Admin account, inactive account, or unverified email |\n| 422 | Request body or query string failed validation |\n| 429 | More than 10 login attempts from one IP in a minute |\n\nFailures answer with `{ \"message\": \"...\" }`; validation failures add an `errors` object keyed by field name.\n",
+        "description": "Every endpoint the izSuite Nuxt frontend talks to: user authentication, the signed-in user's profile, plus the public read-only lists.\n\n**Base URL**\nIIS holds port 80 on this machine, so Laragon nginx serves the vhost on port **8080**. The `:8080` is required - without it the request hits IIS and comes back as a 404 HTML page.\n\n- Laragon vhost: `http://izsuite-admin.test:8080/api/v1` (default)\n- artisan serve: `http://127.0.0.1:8000/api/v1`\n\n---\n\n## Auth\n\nSanctum personal access tokens, not session cookies. `POST /auth/login` returns a plain-text token; send it back as `Authorization: Bearer <token>`.\n\n**Run \"Login\" first.** Its test script writes the token into the `token` variable, and the two requests that need it (`Me`, `Logout`) read it from there, so they just work afterwards.\n\nToken lifetime is driven by `remember`:\n- `remember: true` -> 30 days\n- `remember: false` or absent -> 12 hours\n\n**Two ways to sign out**\n\n| Endpoint | Revokes | Response |\n|---|---|---|\n| `POST /auth/logout` | Only the token that made the request - other devices stay signed in | `{ message }` |\n| `POST /auth/logout-all` | Every token the user holds, this one included | `{ message, revoked_tokens }` |\n\nBoth are token-level. Neither touches the **admin panel** session at `/login` - that is separate, cookie-based auth on the `web` guard, and it signs out via `POST /logout`.\n\n**Credentials go in the body, never the URL.** `POST /auth/login?email=..&password=..` is refused with 400 even when the values are correct, because a query string is recorded in access logs, browser history and `Referer` headers.\n\n`device_name` is optional and only labels the token, so a user can tell their sessions apart in a future \"active devices\" screen.\n\n**Re-running the whole collection**\nOne full run makes 9 login attempts and 5 register attempts. Both endpoints allow 10 per minute per IP, so there is almost no headroom on login. A second run started inside the same minute fails with 429s, and so will the first run if you have been clicking Send by hand. Wait a minute, or clear the counters:\n\n```\nphp artisan cache:clear\n```\n\n**Registering**\n`POST /auth/register` takes the fields the frontend's Owner information form collects and returns the same token/user shape as login, so a new account is signed in immediately. New accounts get the `user` role.\n\nThe Register body is sent verbatim - type your own values and those are saved. Because `username` and `email` are unique, **re-sending Register unchanged returns 422**; change them to create another account. The four `Register - ...` failure requests are safe to re-send as often as you like.\n\nEmail verification is **not** part of this yet: there is no verify endpoint, so registration marks the address verified rather than leaving every new account unable to log in. When the verification flow ships, that one line in AuthService::register() comes out.\n\n**Who may sign in here**\nFrontend users only, and only fully set-up ones. Three separate 403s:\n\n| Condition | Message | `action` |\n|---|---|---|\n| Admin, staff or super-admin role | Sign in through the admin panel at `/login` | - |\n| `status` is not `active` | Account is not active, contact support | - |\n| `email_verified_at` is null | Verify your email first | `verification_required` |\n\nThe password is always checked first, so all three are only reachable by someone who already knows the credentials - the endpoint never reveals *why* an account it does not own would be refused.\n\nSeeded accounts for these: `admin@izsuite.io` (admin) and `unverified@izsuite.io` (unverified).\n\n**Seeded demo account**\n`user@izsuite.io` / `123456`. If it is missing, run `php artisan db:seed --class=RoleSeeder` then `php artisan db:seed --class=UserSeeder`.\n\n**Login response**\n```json\n{\n  \"message\": \"Signed in successfully.\",\n  \"token\": \"1|xxxxxxxx\",\n  \"token_type\": \"Bearer\",\n  \"expires_at\": \"2026-10-09T14:43:16+00:00\",\n  \"user\": {\n    \"id\": 10,\n    \"name\": \"izSuite User\",\n    \"email\": \"user@izsuite.io\",\n    \"phone\": null,\n    \"headline\": null,\n    \"bio\": null,\n    \"avatar_url\": null,\n    \"role\": { \"id\": 105, \"name\": \"User\", \"slug\": \"user\" },\n    \"status\": \"active\",\n    \"timezone\": \"UTC\",\n    \"currency\": \"USD\",\n    \"is_email_verified\": true,\n    \"email_verified_at\": \"2026-09-09T14:42:51+00:00\",\n    \"last_login_at\": \"2026-09-09T14:43:16+00:00\",\n    \"created_at\": \"2026-09-09T14:42:52+00:00\"\n  }\n}\n```\n\n---\n\n## Profile\n\nThe signed-in user's own profile, read and written by the Nuxt `/profile` page. Uses the same `token` variable as the Auth folder.\n\n| Endpoint | Does | Response |\n|---|---|---|\n| `GET /profile` | Reads the profile | `{ user }` |\n| `PUT /profile` | Saves `first_name` (required) and `last_name` (optional) | `{ message, user }` |\n\n`email` cannot be changed here - sending it is a 422 - because it is the login and sign-up verified it by code. Any other field in the body is ignored. Password changes go through `POST /auth/password/change`.\n\n---\n\n## Public lists\n\nApp categories, apps and plans. No token required.\n\n```json\n{\n  \"data\": [ ... ],\n  \"pagination\": {\n    \"current_page\": 1,\n    \"last_page\": 1,\n    \"per_page\": 15,\n    \"total\": 3,\n    \"from\": 1,\n    \"to\": 3,\n    \"has_prev_page\": false,\n    \"has_next_page\": false\n  }\n}\n```\n\n---\n\n## Status codes\n\n| Code | Meaning |\n|---|---|\n| 200 | OK |\n| 201 | Contact message created |\n| 400 | Credentials were sent in the query string instead of the body |\n| 401 | Credentials do not match, or token missing, expired or revoked |\n| 403 | Admin account, inactive account, or unverified email |\n| 422 | Request body or query string failed validation |\n| 429 | More than 10 login attempts from one IP in a minute |\n\nFailures answer with `{ \"message\": \"...\" }`; validation failures add an `errors` object keyed by field name.\n",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "item": [
@@ -1441,6 +1441,309 @@
                             ]
                         },
                         "description": "No Authorization header. The same 401 comes back for an expired or revoked token - run Logout and then Me to see it."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Profile",
+            "description": "The signed-in user's own profile. Needs `{{token}}` - run a Login from the Auth folder first.",
+            "item": [
+                {
+                    "name": "Profile",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 200\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"body is the signed-in user's profile\", function () {",
+                                    "    const u = pm.response.json().user;",
+                                    "    pm.expect(u.email).to.eql(pm.collectionVariables.get('user_email'));",
+                                    "    pm.expect(u).to.have.property('role');",
+                                    "    pm.expect(u).to.have.property('last_login_at');",
+                                    "    pm.expect(u).to.not.have.property('password');",
+                                    "});",
+                                    "",
+                                    "// Remembered so \"Update profile\" can save the same name back and leave",
+                                    "// the account exactly as it found it.",
+                                    "if (pm.response.code === 200) {",
+                                    "    const u = pm.response.json().user;",
+                                    "    pm.collectionVariables.set('profile_first_name', u.first_name);",
+                                    "    pm.collectionVariables.set('profile_last_name', u.last_name || '');",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/profile",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "profile"
+                            ]
+                        },
+                        "description": "The signed-in account's profile, as the Nuxt `/profile` page reads it.\n\nSame body as `GET /auth/me` today. That one answers \"who holds this token\" for guards and the header; this one is the profile resource the profile page reads and `PUT /profile` writes, so the two are kept apart.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update profile",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 200\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"the saved name comes back\", function () {",
+                                    "    const b = pm.response.json();",
+                                    "    const sent = JSON.parse(pm.request.body.raw);",
+                                    "    pm.expect(b.message).to.eql('Profile updated successfully.');",
+                                    "    pm.expect(b.user.first_name).to.eql(sent.first_name);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/profile",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "profile"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"first_name\": \"{{profile_first_name}}\",\n    \"last_name\": \"{{profile_last_name}}\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "description": "Saves the editable profile fields: `first_name` (required) and `last_name` (optional; send an empty string to clear it).\n\nRun **Profile** first - it stores the current name, so by default this saves the same name back and changes nothing. Edit the body to really rename the account.\n\nAnything else in the body (`role_id`, `status`, ...) is ignored. `email` is refused outright - see the next request.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update profile - email not allowed (422)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 422\", function () {",
+                                    "    pm.response.to.have.status(422);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"the error is on email\", function () {",
+                                    "    pm.expect(pm.response.json().errors).to.have.property('email');",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/profile",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "profile"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"first_name\": \"{{profile_first_name}}\",\n    \"email\": \"someone-else@example.com\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "description": "Email is the login, and sign-up proved the address by code. Changing it here without proving the new one would undo that, so the field is `prohibited` - a clear 422 rather than being silently dropped. Nothing is saved.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update profile - first name missing (422)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 422\", function () {",
+                                    "    pm.response.to.have.status(422);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"the error is on first_name\", function () {",
+                                    "    pm.expect(pm.response.json().errors).to.have.property('first_name');",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/profile",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "profile"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"first_name\": \"\",\n    \"last_name\": \"{{profile_last_name}}\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "description": "Same rule as the admin profile form: a first name is required.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Profile - no token (401)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 401\", function () {",
+                                    "    pm.response.to.have.status(401);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"message is the expected one\", function () {",
+                                    "    pm.expect(pm.response.json().message).to.eql(\"Unauthenticated.\");",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/profile",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "profile"
+                            ]
+                        },
+                        "description": "No Authorization header. `PUT /profile` answers the same way."
                     },
                     "response": []
                 }
@@ -3197,6 +3500,18 @@
         {
             "key": "run_password_change",
             "value": ""
+        },
+        {
+            "key": "profile_first_name",
+            "value": "",
+            "type": "string",
+            "description": "Set by the Profile request, so Update profile can save the same name back."
+        },
+        {
+            "key": "profile_last_name",
+            "value": "",
+            "type": "string",
+            "description": "Set by the Profile request, so Update profile can save the same name back."
         }
     ]
 }

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ContactMessageController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PlanController;
+use App\Http\Controllers\Api\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -57,5 +58,13 @@ Route::prefix('v1')->group(function () {
             Route::post('/logout', [AuthController::class, 'logout'])->name('api.auth.logout');
             Route::post('/logout-all', [AuthController::class, 'logoutAll'])->name('api.auth.logout-all');
         });
+    });
+
+    /* ----------------------------------------------------------
+     | Signed-in user's profile
+     | -------------------------------------------------------- */
+    Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
+        Route::get('/', [ProfileController::class, 'show'])->name('api.profile.show');
+        Route::put('/', [ProfileController::class, 'update'])->name('api.profile.update');
     });
 });
