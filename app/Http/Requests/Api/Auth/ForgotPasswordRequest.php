@@ -27,32 +27,33 @@ class ForgotPasswordRequest extends FormRequest
      * vague here bought very little and cost a real user any way of telling a
      * typo from a delivery problem.
      *
-     * Admin roles are excluded rather than rejected further in, so an admin
-     * address and an unregistered one come back identical - same status, same
-     * body, same field. Answering them differently would make this a way to
-     * pick the admin accounts out of a list of addresses, and it would leave
-     * the frontend with two shapes to handle for one situation.
+     * Every other role is excluded rather than rejected further in, so an
+     * out-of-scope address and an unregistered one come back identical - same
+     * status, same body, same field. Answering them differently would make
+     * this a way to pick those accounts out of a list of addresses, and it
+     * would leave the frontend with two shapes to handle for one situation.
      */
     public function rules(): array
     {
         return [
             'email' => [
                 'required', 'email', 'max:255',
-                Rule::exists('users', 'email')->whereNotIn('role_id', $this->adminRoleIds()),
+                Rule::exists('users', 'email')->whereIn('role_id', $this->userRoleIds()),
             ],
         ];
     }
 
     /**
-     * Mirrors User::isAdmin(): the roles that belong to the admin panel rather
-     * than the frontend. Read by slug so renumbering the table cannot quietly
-     * open this up.
+     * Mirrors User::isUser(): only the plain frontend account role may reset a
+     * password through this public endpoint - not admins, and not the other
+     * non-admin roles (recruiter, candidate) that share the users table. Read
+     * by slug so renumbering the table cannot quietly open this up.
      *
      * @return array<int, int>
      */
-    private function adminRoleIds(): array
+    private function userRoleIds(): array
     {
-        return Role::whereIn('slug', ['super-admin', 'admin', 'staff'])->pluck('id')->all();
+        return Role::where('slug', 'user')->pluck('id')->all();
     }
 
     public function messages(): array

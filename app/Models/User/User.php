@@ -135,6 +135,15 @@ class User extends Authenticatable
         return $this->role_id === Role::SUPER_ADMIN_ID;
     }
 
+    /**
+     * The plain frontend account role - not an admin, and not one of the other
+     * non-admin roles (recruiter, candidate) that share the users table.
+     */
+    public function isUser(): bool
+    {
+        return $this->role?->slug === 'user';
+    }
+
     public function hasPermission(string $routeName): bool
     {
         if ($this->isSuperAdmin()) {

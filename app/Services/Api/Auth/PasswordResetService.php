@@ -2,6 +2,7 @@
 
 namespace App\Services\Api\Auth;
 
+use App\Mail\PasswordChanged;
 use App\Mail\PasswordResetOtp;
 use App\Models\User\User;
 use App\Repositories\User\UserRepository;
@@ -73,19 +74,20 @@ class PasswordResetService
     /**
      * Step one: email a code to an address that has an account.
      *
-     * An admin address is answered as though it had no account here. Admins
-     * sign in through the session-based panel, so a public endpoint that reset
-     * an admin password would hand the panel a door it never asked for - and
-     * reusing the not-found wording keeps this from being a way to pick the
-     * admin accounts out of a list of addresses.
+     * An address outside the plain "user" role is answered as though it had no
+     * account here. Admins sign in through the session-based panel, and the
+     * other non-admin roles (recruiter, candidate) have no business resetting
+     * a password through this public endpoint either - and reusing the
+     * not-found wording keeps this from being a way to pick those accounts out
+     * of a list of addresses.
      */
     public function sendCode(string $email): void
     {
         $user = $this->userRepository->findByEmail($email);
 
-        // The exists rule has already been past, so a miss here means an admin
-        // account or a row that vanished between the two queries.
-        if (! $user || $user->isAdmin()) {
+        // The exists rule has already been past, so a miss here means an
+        // out-of-scope role or a row that vanished between the two queries.
+        if (! $user || ! $user->isUser()) {
             $this->reject(self::NO_ACCOUNT_MESSAGE, self::NO_ACCOUNT_ACTION);
         }
 
@@ -93,7 +95,7 @@ class PasswordResetService
             $this->rejectCooldown($remaining);
         }
 
-        $otp = $this->generateOtp();
+        $otp  = $this->generateOtp();
 
         DB::transaction(function () use ($user, $otp) {
             // One live code per address: a new request retires the old one, so
@@ -129,7 +131,7 @@ class PasswordResetService
      */
     public function verifyCode(string $email, string $otp): string
     {
-        $record = DB::table('password_reset_otps')->where('email', $email)->first();
+        $record     = DB::table('password_reset_otps')->where('email', $email)->first();
 
         if (! $record || ! Hash::check($otp, $record->otp)) {
             $this->reject(self::WRONG_CODE_MESSAGE, self::WRONG_CODE_ACTION);
@@ -167,7 +169,7 @@ class PasswordResetService
      */
     public function resetPassword(string $email, string $resetToken, string $password): User
     {
-        $record = DB::table('password_reset_tokens')->where('email', $email)->first();
+        $record   = DB::table('password_reset_tokens')->where('email', $email)->first();
 
         if (! $record || ! Hash::check($resetToken, $record->token)) {
             $this->reject(self::BAD_TOKEN_MESSAGE, self::BAD_TOKEN_ACTION);
@@ -181,7 +183,7 @@ class PasswordResetService
             $this->reject(self::BAD_TOKEN_MESSAGE, self::BAD_TOKEN_ACTION);
         }
 
-        $user = $this->userRepository->findByEmail($email);
+        $user     = $this->userRepository->findByEmail($email);
 
         if (! $user) {
             $this->reject(self::BAD_TOKEN_MESSAGE, self::BAD_TOKEN_ACTION);
@@ -204,6 +206,14 @@ class PasswordResetService
             'source' => 'api',
         ]);
 
+        // Every session was just revoked above, so this is the one notice a
+        // visitor who did not request the reset still has a chance to see.
+        try {
+            Mail::to($user->email)->send(new PasswordChanged($user->first_name, $user->email, now()));
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         return $user;
     }
 
@@ -214,7 +224,7 @@ class PasswordResetService
      */
     private function cooldownRemaining(string $email): int
     {
-        $record = DB::table('password_reset_otps')->where('email', $email)->first();
+        $record  = DB::table('password_reset_otps')->where('email', $email)->first();
 
         if (! $record || blank($record->created_at)) {
             return 0;

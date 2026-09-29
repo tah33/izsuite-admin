@@ -2,6 +2,7 @@
 
 namespace App\Services\Api\Auth;
 
+use App\Mail\EmailVerified;
 use App\Mail\VerifyEmailOtp;
 use App\Models\User\User;
 use App\Repositories\User\UserRepository;
@@ -149,6 +150,15 @@ class EmailVerificationService
         ActivityLogService::record('updated', 'Verified their email address', $user, [
             'source' => 'api',
         ]);
+
+        // Only reached the moment the account actually flips to verified -
+        // the early return above for an already-verified address, and a
+        // second submit of a spent code, both stop well before here.
+        try {
+            Mail::to($user->email)->send(new EmailVerified($user->first_name, $user->email));
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return $user;
     }

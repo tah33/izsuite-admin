@@ -55,6 +55,7 @@ class RegisterRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'prefix'       => ['nullable', 'string', Rule::in(self::ALLOWED_PREFIXES)],
             'first_name'   => ['required', 'string', 'max:255'],
             'last_name'    => ['nullable', 'string', 'max:255'],
             'username'     => [

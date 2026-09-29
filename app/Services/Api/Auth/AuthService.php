@@ -2,6 +2,7 @@
 
 namespace App\Services\Api\Auth;
 
+use App\Mail\PasswordChanged;
 use App\Models\Admin\Role;
 use App\Models\User\User;
 use App\Repositories\User\UserRepository;
@@ -10,22 +11,30 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Laravel\Sanctum\NewAccessToken;
 use RuntimeException;
 
 class AuthService
 {
     /** Token name used when the caller does not label its device. */
-    private const DEFAULT_DEVICE_NAME   = 'izsuite-frontend';
+    private const DEFAULT_DEVICE_NAME         = 'izsuite-frontend';
 
     /** Token lifetime when "remember me" is off. */
-    private const SESSION_TOKEN_HOURS   = 12;
+    private const SESSION_TOKEN_HOURS         = 12;
 
     /** Token lifetime when "remember me" is on. */
-    private const REMEMBERED_TOKEN_DAYS = 30;
+    private const REMEMBERED_TOKEN_DAYS       = 30;
 
     /** Role every self-registered account gets. Deliberately not an admin one. */
-    private const FRONTEND_ROLE_SLUG    = 'user';
+    private const FRONTEND_ROLE_SLUG          = 'user';
+
+    /**
+     * Shared by every way this endpoint can refuse a login: unknown email,
+     * wrong password, or an admin account. One wording for all three so none
+     * of them tells the caller which reason applied.
+     */
+    private const INVALID_CREDENTIALS_MESSAGE = 'The provided credentials do not match our records.';
 
     public function __construct(
         protected UserRepository $userRepository,
@@ -84,13 +93,15 @@ class AuthService
         // An unknown email and a wrong password return the identical 401 so the
         // endpoint cannot be used to discover which addresses are registered.
         if (! $user || ! Hash::check($data['password'], $user->password)) {
-            abort(401, 'The provided credentials do not match our records.');
+            abort(401, self::INVALID_CREDENTIALS_MESSAGE);
         }
 
-        // Only reachable once the password is verified, so the narrower messages
-        // below leak nothing about accounts the caller does not already own.
+        // Admins sign in through the session-based panel, not this API - but
+        // saying so here would tell someone who already has the password that
+        // the account is an admin's. Answered exactly like a login that never
+        // matched, even though the password just did.
         if ($user->isAdmin()) {
-            abort(403, 'Admin accounts sign in through the admin panel, not this API.');
+            abort(401, self::INVALID_CREDENTIALS_MESSAGE);
         }
 
         if ($user->status !== 'active') {
@@ -143,7 +154,7 @@ class AuthService
      * other sessions alive would leave the problem alive - and signing this
      * one out as well would just make them log straight back in.
      *
-     * @return int  Sessions ended, so the caller can say how many.
+     * @return int Sessions ended, so the caller can say how many.
      */
     public function changePassword(User $user, string $password): int
     {
@@ -159,6 +170,12 @@ class AuthService
             'source'         => 'api',
             'revoked_tokens' => $revoked,
         ]);
+
+        try {
+            Mail::to($user->email)->send(new PasswordChanged($user->first_name, $user->email, now()));
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return $revoked;
     }
