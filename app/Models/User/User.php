@@ -100,6 +100,16 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class);
     }
 
+    public function businessSetting(): HasOne
+    {
+        return $this->hasOne(BusinessSetting::class);
+    }
+
+    public function locations(): HasMany
+    {
+        return $this->hasMany(Location::class);
+    }
+
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);

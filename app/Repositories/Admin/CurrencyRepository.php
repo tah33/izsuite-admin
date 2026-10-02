@@ -5,10 +5,25 @@ namespace App\Repositories\Admin;
 use App\Models\Admin\Currency;
 use App\QueryFilters\SearchFilter;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pipeline\Pipeline;
 
 class CurrencyRepository
 {
+    /**
+     * Public listing: active currencies only, default first. Not paginated -
+     * this feeds a dropdown, which needs the whole list.
+     *
+     * @return Collection<int, Currency>
+     */
+    public function getActive(): Collection
+    {
+        return Currency::active()
+            ->orderBy('is_default', 'desc')
+            ->orderBy('name')
+            ->get();
+    }
+
     public function getPaginated(?string $search = null, int $perPage = 10): LengthAwarePaginator
     {
         return app(Pipeline::class)

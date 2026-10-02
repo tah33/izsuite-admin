@@ -2,7 +2,7 @@
     "info": {
         "_postman_id": "b7c1e5a4-3f2d-4a18-9c6b-2d0f5e8a1c34",
         "name": "IZSuite - API",
-        "description": "Every endpoint the izSuite Nuxt frontend talks to: user authentication, the signed-in user's profile, plus the public read-only lists.\n\n**Base URL**\nIIS holds port 80 on this machine, so Laragon nginx serves the vhost on port **8080**. The `:8080` is required - without it the request hits IIS and comes back as a 404 HTML page.\n\n- Laragon vhost: `http://izsuite-admin.test:8080/api/v1` (default)\n- artisan serve: `http://127.0.0.1:8000/api/v1`\n\n---\n\n## Auth\n\nSanctum personal access tokens, not session cookies. `POST /auth/login` returns a plain-text token; send it back as `Authorization: Bearer <token>`.\n\n**Run \"Login\" first.** Its test script writes the token into the `token` variable, and the two requests that need it (`Me`, `Logout`) read it from there, so they just work afterwards.\n\nToken lifetime is driven by `remember`:\n- `remember: true` -> 30 days\n- `remember: false` or absent -> 12 hours\n\n**Two ways to sign out**\n\n| Endpoint | Revokes | Response |\n|---|---|---|\n| `POST /auth/logout` | Only the token that made the request - other devices stay signed in | `{ message }` |\n| `POST /auth/logout-all` | Every token the user holds, this one included | `{ message, revoked_tokens }` |\n\nBoth are token-level. Neither touches the **admin panel** session at `/login` - that is separate, cookie-based auth on the `web` guard, and it signs out via `POST /logout`.\n\n**Credentials go in the body, never the URL.** `POST /auth/login?email=..&password=..` is refused with 400 even when the values are correct, because a query string is recorded in access logs, browser history and `Referer` headers.\n\n`device_name` is optional and only labels the token, so a user can tell their sessions apart in a future \"active devices\" screen.\n\n**Re-running the whole collection**\nOne full run makes 9 login attempts and 5 register attempts. Both endpoints allow 10 per minute per IP, so there is almost no headroom on login. A second run started inside the same minute fails with 429s, and so will the first run if you have been clicking Send by hand. Wait a minute, or clear the counters:\n\n```\nphp artisan cache:clear\n```\n\n**Registering**\n`POST /auth/register` takes the fields the frontend's Owner information form collects and returns the same token/user shape as login, so a new account is signed in immediately. New accounts get the `user` role.\n\nThe Register body is sent verbatim - type your own values and those are saved. Because `username` and `email` are unique, **re-sending Register unchanged returns 422**; change them to create another account. The four `Register - ...` failure requests are safe to re-send as often as you like.\n\nEmail verification is **not** part of this yet: there is no verify endpoint, so registration marks the address verified rather than leaving every new account unable to log in. When the verification flow ships, that one line in AuthService::register() comes out.\n\n**Who may sign in here**\nFrontend users only, and only fully set-up ones. Three separate 403s:\n\n| Condition | Message | `action` |\n|---|---|---|\n| Admin, staff or super-admin role | Sign in through the admin panel at `/login` | - |\n| `status` is not `active` | Account is not active, contact support | - |\n| `email_verified_at` is null | Verify your email first | `verification_required` |\n\nThe password is always checked first, so all three are only reachable by someone who already knows the credentials - the endpoint never reveals *why* an account it does not own would be refused.\n\nSeeded accounts for these: `admin@izsuite.io` (admin) and `unverified@izsuite.io` (unverified).\n\n**Seeded demo account**\n`user@izsuite.io` / `123456`. If it is missing, run `php artisan db:seed --class=RoleSeeder` then `php artisan db:seed --class=UserSeeder`.\n\n**Login response**\n```json\n{\n  \"message\": \"Signed in successfully.\",\n  \"token\": \"1|xxxxxxxx\",\n  \"token_type\": \"Bearer\",\n  \"expires_at\": \"2026-10-09T14:43:16+00:00\",\n  \"user\": {\n    \"id\": 10,\n    \"name\": \"izSuite User\",\n    \"email\": \"user@izsuite.io\",\n    \"phone\": null,\n    \"headline\": null,\n    \"bio\": null,\n    \"avatar_url\": null,\n    \"role\": { \"id\": 105, \"name\": \"User\", \"slug\": \"user\" },\n    \"status\": \"active\",\n    \"timezone\": \"UTC\",\n    \"currency\": \"USD\",\n    \"is_email_verified\": true,\n    \"email_verified_at\": \"2026-09-09T14:42:51+00:00\",\n    \"last_login_at\": \"2026-09-09T14:43:16+00:00\",\n    \"created_at\": \"2026-09-09T14:42:52+00:00\"\n  }\n}\n```\n\n---\n\n## Profile\n\nThe signed-in user's own profile, read and written by the Nuxt `/profile` page. Uses the same `token` variable as the Auth folder.\n\n| Endpoint | Does | Response |\n|---|---|---|\n| `GET /profile` | Reads the profile | `{ user }` |\n| `PUT /profile` | Saves `first_name` (required) and `last_name` (optional) | `{ message, user }` |\n\n`email` cannot be changed here - sending it is a 422 - because it is the login and sign-up verified it by code. Any other field in the body is ignored. Password changes go through `POST /auth/password/change`.\n\n---\n\n## Public lists\n\nApp categories, apps and plans. No token required.\n\n```json\n{\n  \"data\": [ ... ],\n  \"pagination\": {\n    \"current_page\": 1,\n    \"last_page\": 1,\n    \"per_page\": 15,\n    \"total\": 3,\n    \"from\": 1,\n    \"to\": 3,\n    \"has_prev_page\": false,\n    \"has_next_page\": false\n  }\n}\n```\n\n---\n\n## Status codes\n\n| Code | Meaning |\n|---|---|\n| 200 | OK |\n| 201 | Contact message created |\n| 400 | Credentials were sent in the query string instead of the body |\n| 401 | Credentials do not match, or token missing, expired or revoked |\n| 403 | Admin account, inactive account, or unverified email |\n| 422 | Request body or query string failed validation |\n| 429 | More than 10 login attempts from one IP in a minute |\n\nFailures answer with `{ \"message\": \"...\" }`; validation failures add an `errors` object keyed by field name.\n",
+        "description": "Every endpoint the izSuite Nuxt frontend talks to: user authentication, the signed-in user's profile, business settings and locations, plus the public read-only lists.\n\n**Base URL**\nIIS holds port 80 on this machine, so Laragon nginx serves the vhost on port **8080**. The `:8080` is required - without it the request hits IIS and comes back as a 404 HTML page.\n\n- Laragon vhost: `http://izsuite-admin.test:8080/api/v1` (default)\n- artisan serve: `http://127.0.0.1:8000/api/v1`\n\n---\n\n## Auth\n\nSanctum personal access tokens, not session cookies. `POST /auth/login` returns a plain-text token; send it back as `Authorization: Bearer <token>`.\n\n**Run \"Login\" first.** Its test script writes the token into the `token` variable, and the two requests that need it (`Me`, `Logout`) read it from there, so they just work afterwards.\n\nToken lifetime is driven by `remember`:\n- `remember: true` -> 30 days\n- `remember: false` or absent -> 12 hours\n\n**Two ways to sign out**\n\n| Endpoint | Revokes | Response |\n|---|---|---|\n| `POST /auth/logout` | Only the token that made the request - other devices stay signed in | `{ message }` |\n| `POST /auth/logout-all` | Every token the user holds, this one included | `{ message, revoked_tokens }` |\n\nBoth are token-level. Neither touches the **admin panel** session at `/login` - that is separate, cookie-based auth on the `web` guard, and it signs out via `POST /logout`.\n\n**Credentials go in the body, never the URL.** `POST /auth/login?email=..&password=..` is refused with 400 even when the values are correct, because a query string is recorded in access logs, browser history and `Referer` headers.\n\n`device_name` is optional and only labels the token, so a user can tell their sessions apart in a future \"active devices\" screen.\n\n**Re-running the whole collection**\nOne full run makes 9 login attempts and 5 register attempts. Both endpoints allow 10 per minute per IP, so there is almost no headroom on login. A second run started inside the same minute fails with 429s, and so will the first run if you have been clicking Send by hand. Wait a minute, or clear the counters:\n\n```\nphp artisan cache:clear\n```\n\n**Registering**\n`POST /auth/register` takes the fields the frontend's Owner information form collects and returns the same token/user shape as login, so a new account is signed in immediately. New accounts get the `user` role.\n\nThe Register body is sent verbatim - type your own values and those are saved. Because `username` and `email` are unique, **re-sending Register unchanged returns 422**; change them to create another account. The four `Register - ...` failure requests are safe to re-send as often as you like.\n\nEmail verification is **not** part of this yet: there is no verify endpoint, so registration marks the address verified rather than leaving every new account unable to log in. When the verification flow ships, that one line in AuthService::register() comes out.\n\n**Who may sign in here**\nFrontend users only, and only fully set-up ones. Three separate 403s:\n\n| Condition | Message | `action` |\n|---|---|---|\n| Admin, staff or super-admin role | Sign in through the admin panel at `/login` | - |\n| `status` is not `active` | Account is not active, contact support | - |\n| `email_verified_at` is null | Verify your email first | `verification_required` |\n\nThe password is always checked first, so all three are only reachable by someone who already knows the credentials - the endpoint never reveals *why* an account it does not own would be refused.\n\nSeeded accounts for these: `admin@izsuite.io` (admin) and `unverified@izsuite.io` (unverified).\n\n**Seeded demo account**\n`user@izsuite.io` / `123456`. If it is missing, run `php artisan db:seed --class=RoleSeeder` then `php artisan db:seed --class=UserSeeder`.\n\n**Login response**\n```json\n{\n  \"message\": \"Signed in successfully.\",\n  \"token\": \"1|xxxxxxxx\",\n  \"token_type\": \"Bearer\",\n  \"expires_at\": \"2026-10-09T14:43:16+00:00\",\n  \"user\": {\n    \"id\": 10,\n    \"name\": \"izSuite User\",\n    \"email\": \"user@izsuite.io\",\n    \"phone\": null,\n    \"headline\": null,\n    \"bio\": null,\n    \"avatar_url\": null,\n    \"role\": { \"id\": 105, \"name\": \"User\", \"slug\": \"user\" },\n    \"status\": \"active\",\n    \"timezone\": \"UTC\",\n    \"currency\": \"USD\",\n    \"is_email_verified\": true,\n    \"email_verified_at\": \"2026-09-09T14:42:51+00:00\",\n    \"last_login_at\": \"2026-09-09T14:43:16+00:00\",\n    \"created_at\": \"2026-09-09T14:42:52+00:00\"\n  }\n}\n```\n\n---\n\n## Profile\n\nThe signed-in user's own profile, read and written by the Nuxt `/profile` page. Uses the same `token` variable as the Auth folder.\n\n| Endpoint | Does | Response |\n|---|---|---|\n| `GET /profile` | Reads the profile | `{ user }` |\n| `PUT /profile` | Saves `first_name` (required) and `last_name` (optional) | `{ message, user }` |\n\n`email` cannot be changed here - sending it is a 422 - because it is the login and sign-up verified it by code. Any other field in the body is ignored. Password changes go through `POST /auth/password/change`.\n\n---\n\n## Business settings\n\nThe signed-in user's business profile, address, tax registration and accounting defaults - the Settings > Business form in the Nuxt app. One row per account. Uses the same `token` variable as the Auth folder.\n\n| Endpoint | Does | Response |\n|---|---|---|\n| `GET /business-settings` | Reads the saved settings | `{ data }` - `data` is `null` until the first save |\n| `POST /business-settings` | Creates them the first time, overwrites them after | `{ message, data }` |\n\nIt is a POST, not a PUT, and the body is **form-data**, not JSON: the logo travels as a file, and PHP only parses multipart bodies on POST. Every field the form marks required is required here too, and an optional field is cleared by sending it empty. A new `logo` replaces the old file; leaving `logo` out keeps it.\n\n`currency` and `language` must be codes from `GET /currencies` and `GET /languages` - an inactive or unknown code is a 422. `timezone` is an IANA name such as `Asia/Dhaka`. The logo must be a JPG, PNG or WebP of at most 2 MB; SVG is refused on purpose.\n\n---\n\n## Locations\n\nThe signed-in user's branches, warehouses and outlets - Settings > Locations in the Nuxt app. Uses the same `token` variable as the Auth folder.\n\n| Endpoint | Does | Response |\n|---|---|---|\n| `GET /locations` | Lists the caller's locations, alphabetical by name | `{ data: [{ id, name, country, state }] }` |\n| `POST /locations` | Adds one | 201 `{ message, data }` |\n| `PUT /locations/{id}` | Saves all three fields of one | `{ message, data }` |\n| `DELETE /locations/{id}` | Deletes one, for good | `{ message }` |\n\n`name`, `country` and `state` are all required, on add and on update alike. Every id is looked up among the caller's own locations, so another account's location answers with the same 404 as one that does not exist.\n\n---\n\n## Public lists\n\nApp categories, apps, plans, currencies and languages. No token required.\n\n```json\n{\n  \"data\": [ ... ],\n  \"pagination\": {\n    \"current_page\": 1,\n    \"last_page\": 1,\n    \"per_page\": 15,\n    \"total\": 3,\n    \"from\": 1,\n    \"to\": 3,\n    \"has_prev_page\": false,\n    \"has_next_page\": false\n  }\n}\n```\n\n`GET /currencies` and `GET /languages` are not paginated - they answer `{ \"data\": [ ... ] }` with only the active rows, the default one first.\n\n---\n\n## Status codes\n\n| Code | Meaning |\n|---|---|\n| 200 | OK |\n| 201 | Contact message created |\n| 400 | Credentials were sent in the query string instead of the body |\n| 401 | Credentials do not match, or token missing, expired or revoked |\n| 403 | Admin account, inactive account, or unverified email |\n| 422 | Request body or query string failed validation |\n| 429 | More than 10 login attempts from one IP in a minute |\n\nFailures answer with `{ \"message\": \"...\" }`; validation failures add an `errors` object keyed by field name.\n",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "item": [
@@ -1750,6 +1750,1117 @@
             ]
         },
         {
+            "name": "Business Settings",
+            "description": "The signed-in user's business profile, address, tax registration and accounting defaults - the Settings > Business form in the Nuxt app. Needs `{{token}}` - run a Login from the Auth folder first.\n\nOne row per account. **Save business settings** creates it the first time and overwrites it after; **Business settings** reads it back (`data` is `null` until the first save), so run them in that order.\n\nSaving is a POST, not a PUT, and the body is **form-data**, not JSON: the logo travels as a file, and PHP only parses multipart bodies on POST.",
+            "item": [
+                {
+                    "name": "Save business settings",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 200\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"the saved settings come back\", function () {",
+                                    "    const b = pm.response.json();",
+                                    "    const sent = pm.request.body.formdata;",
+                                    "    pm.expect(b.message).to.eql('Business settings saved successfully.');",
+                                    "    pm.expect(b.data.business_name).to.eql(sent.get('business_name'));",
+                                    "    pm.expect(b.data.currency).to.eql(sent.get('currency').toUpperCase());",
+                                    "    pm.expect(b.data.financial_year_start_month).to.eql(parseInt(sent.get('financial_year_start_month'), 10));",
+                                    "    pm.expect(b.data).to.have.property('logo_url');",
+                                    "});",
+                                    "",
+                                    "pm.test(\"the owning account is never exposed\", function () {",
+                                    "    pm.expect(pm.response.json().data).to.not.have.property('user_id');",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/business-settings",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "business-settings"
+                            ]
+                        },
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "business_name",
+                                    "value": "Global Traders Inc.",
+                                    "type": "text",
+                                    "description": "Required, up to 255 characters."
+                                },
+                                {
+                                    "key": "start_date",
+                                    "value": "2024-03-15",
+                                    "type": "text",
+                                    "description": "Optional, YYYY-MM-DD. Leave empty to clear it."
+                                },
+                                {
+                                    "key": "currency",
+                                    "value": "USD",
+                                    "type": "text",
+                                    "description": "Required. A code from GET /currencies - an inactive or unknown code is a 422."
+                                },
+                                {
+                                    "key": "language",
+                                    "value": "en",
+                                    "type": "text",
+                                    "description": "Required. A code from GET /languages - an inactive or unknown code is a 422."
+                                },
+                                {
+                                    "key": "logo",
+                                    "type": "file",
+                                    "src": [],
+                                    "disabled": true,
+                                    "description": "Optional JPG, PNG or WebP, up to 2 MB (SVG is refused). Tick it and pick a file to upload a new logo; leave it unticked to keep the current one."
+                                },
+                                {
+                                    "key": "website",
+                                    "value": "https://globaltraders.example",
+                                    "type": "text",
+                                    "description": "Optional http(s) URL. Leave empty to clear it."
+                                },
+                                {
+                                    "key": "business_contact_number",
+                                    "value": "+880 1712-345678",
+                                    "type": "text",
+                                    "description": "Optional, up to 30 characters."
+                                },
+                                {
+                                    "key": "alternate_contact_number",
+                                    "value": "",
+                                    "type": "text",
+                                    "description": "Optional, up to 30 characters."
+                                },
+                                {
+                                    "key": "country",
+                                    "value": "Bangladesh",
+                                    "type": "text",
+                                    "description": "Required."
+                                },
+                                {
+                                    "key": "state",
+                                    "value": "Dhaka",
+                                    "type": "text",
+                                    "description": "Required."
+                                },
+                                {
+                                    "key": "city",
+                                    "value": "Dhaka",
+                                    "type": "text",
+                                    "description": "Required."
+                                },
+                                {
+                                    "key": "zip_code",
+                                    "value": "1207",
+                                    "type": "text",
+                                    "description": "Required, up to 20 characters."
+                                },
+                                {
+                                    "key": "landmark",
+                                    "value": "Near City Center",
+                                    "type": "text",
+                                    "description": "Required."
+                                },
+                                {
+                                    "key": "timezone",
+                                    "value": "Asia/Dhaka",
+                                    "type": "text",
+                                    "description": "Required. An IANA time zone name such as Asia/Dhaka."
+                                },
+                                {
+                                    "key": "tax_1_name",
+                                    "value": "VAT",
+                                    "type": "text",
+                                    "description": "Optional, up to 50 characters."
+                                },
+                                {
+                                    "key": "tax_1_no",
+                                    "value": "BIN-123456",
+                                    "type": "text",
+                                    "description": "Optional, up to 50 characters."
+                                },
+                                {
+                                    "key": "tax_2_name",
+                                    "value": "",
+                                    "type": "text",
+                                    "description": "Optional, up to 50 characters."
+                                },
+                                {
+                                    "key": "tax_2_no",
+                                    "value": "",
+                                    "type": "text",
+                                    "description": "Optional, up to 50 characters."
+                                },
+                                {
+                                    "key": "financial_year_start_month",
+                                    "value": "7",
+                                    "type": "text",
+                                    "description": "Required. 1 (January) to 12 (December)."
+                                },
+                                {
+                                    "key": "stock_accounting_method",
+                                    "value": "fifo",
+                                    "type": "text",
+                                    "description": "Required. fifo, lifo, weighted_average or specific_identification."
+                                }
+                            ]
+                        },
+                        "description": "Creates the account's business settings on the first call and overwrites them on every call after. Send the whole form every time - the required fields are required on every save.\n\nOptional fields (`start_date`, `website`, the two contact numbers, the four tax fields) are cleared by sending them empty.\n\n`logo` is optional. Tick it and pick a JPG, PNG or WebP of at most 2 MB to upload one - it replaces the old file. Leave it unticked and the current logo stays. SVG is refused on purpose: it can carry script, and the file is served from this domain.\n\nThe response has the stored values under `data`, including `logo_url`. Re-sending this unchanged is harmless - it writes the same values back.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Business settings",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 200\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"body holds the saved settings\", function () {",
+                                    "    const d = pm.response.json().data;",
+                                    "    pm.expect(d, 'Nothing saved yet - run Save business settings first.').to.be.an('object');",
+                                    "    ['business_name', 'start_date', 'currency', 'language', 'logo_url', 'website', 'country', 'state', 'city', 'zip_code', 'landmark', 'timezone', 'financial_year_start_month', 'stock_accounting_method'].forEach(function (field) {",
+                                    "        pm.expect(d).to.have.property(field);",
+                                    "    });",
+                                    "    pm.expect(d).to.not.have.property('user_id');",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/business-settings",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "business-settings"
+                            ]
+                        },
+                        "description": "The signed-in account's saved business settings, as the Settings > Business form loads them.\n\n`data` is `null` until the account has saved once - that is not an error, the form simply starts blank. `start_date` is `YYYY-MM-DD`, `financial_year_start_month` is a number 1-12, and `logo_url` is an absolute URL or `null`.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Save business settings - required fields missing (422)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 422\", function () {",
+                                    "    pm.response.to.have.status(422);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"every required field is reported\", function () {",
+                                    "    const errors = pm.response.json().errors;",
+                                    "    [\"business_name\",\"currency\",\"language\",\"country\",\"state\",\"city\",\"zip_code\",\"landmark\",\"timezone\",\"financial_year_start_month\",\"stock_accounting_method\"].forEach(function (field) {",
+                                    "        pm.expect(errors).to.have.property(field);",
+                                    "    });",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/business-settings",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "business-settings"
+                            ]
+                        },
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": []
+                        },
+                        "description": "An empty body. Every field the form marks required comes back under `errors`, and nothing is saved.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Save business settings - currency or language not available (422)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 422\", function () {",
+                                    "    pm.response.to.have.status(422);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"the errors are on currency and language\", function () {",
+                                    "    const errors = pm.response.json().errors;",
+                                    "    pm.expect(errors).to.have.property('currency');",
+                                    "    pm.expect(errors).to.have.property('language');",
+                                    "    pm.expect(errors).to.not.have.property('business_name');",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/business-settings",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "business-settings"
+                            ]
+                        },
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "business_name",
+                                    "value": "Global Traders Inc.",
+                                    "type": "text",
+                                    "description": "Required, up to 255 characters."
+                                },
+                                {
+                                    "key": "start_date",
+                                    "value": "2024-03-15",
+                                    "type": "text",
+                                    "description": "Optional, YYYY-MM-DD. Leave empty to clear it."
+                                },
+                                {
+                                    "key": "currency",
+                                    "value": "XYZ",
+                                    "type": "text",
+                                    "description": "Required. A code from GET /currencies - an inactive or unknown code is a 422."
+                                },
+                                {
+                                    "key": "language",
+                                    "value": "xx",
+                                    "type": "text",
+                                    "description": "Required. A code from GET /languages - an inactive or unknown code is a 422."
+                                },
+                                {
+                                    "key": "website",
+                                    "value": "https://globaltraders.example",
+                                    "type": "text",
+                                    "description": "Optional http(s) URL. Leave empty to clear it."
+                                },
+                                {
+                                    "key": "business_contact_number",
+                                    "value": "+880 1712-345678",
+                                    "type": "text",
+                                    "description": "Optional, up to 30 characters."
+                                },
+                                {
+                                    "key": "alternate_contact_number",
+                                    "value": "",
+                                    "type": "text",
+                                    "description": "Optional, up to 30 characters."
+                                },
+                                {
+                                    "key": "country",
+                                    "value": "Bangladesh",
+                                    "type": "text",
+                                    "description": "Required."
+                                },
+                                {
+                                    "key": "state",
+                                    "value": "Dhaka",
+                                    "type": "text",
+                                    "description": "Required."
+                                },
+                                {
+                                    "key": "city",
+                                    "value": "Dhaka",
+                                    "type": "text",
+                                    "description": "Required."
+                                },
+                                {
+                                    "key": "zip_code",
+                                    "value": "1207",
+                                    "type": "text",
+                                    "description": "Required, up to 20 characters."
+                                },
+                                {
+                                    "key": "landmark",
+                                    "value": "Near City Center",
+                                    "type": "text",
+                                    "description": "Required."
+                                },
+                                {
+                                    "key": "timezone",
+                                    "value": "Asia/Dhaka",
+                                    "type": "text",
+                                    "description": "Required. An IANA time zone name such as Asia/Dhaka."
+                                },
+                                {
+                                    "key": "tax_1_name",
+                                    "value": "VAT",
+                                    "type": "text",
+                                    "description": "Optional, up to 50 characters."
+                                },
+                                {
+                                    "key": "tax_1_no",
+                                    "value": "BIN-123456",
+                                    "type": "text",
+                                    "description": "Optional, up to 50 characters."
+                                },
+                                {
+                                    "key": "tax_2_name",
+                                    "value": "",
+                                    "type": "text",
+                                    "description": "Optional, up to 50 characters."
+                                },
+                                {
+                                    "key": "tax_2_no",
+                                    "value": "",
+                                    "type": "text",
+                                    "description": "Optional, up to 50 characters."
+                                },
+                                {
+                                    "key": "financial_year_start_month",
+                                    "value": "7",
+                                    "type": "text",
+                                    "description": "Required. 1 (January) to 12 (December)."
+                                },
+                                {
+                                    "key": "stock_accounting_method",
+                                    "value": "fifo",
+                                    "type": "text",
+                                    "description": "Required. fifo, lifo, weighted_average or specific_identification."
+                                }
+                            ]
+                        },
+                        "description": "Both lists are managed in the admin panel, and only the entries left active are accepted - the same ones `GET /currencies` and `GET /languages` return. An unknown code and a switched-off one fail alike. Nothing is saved.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Save business settings - invalid values (422)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 422\", function () {",
+                                    "    pm.response.to.have.status(422);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"each bad field is reported\", function () {",
+                                    "    const errors = pm.response.json().errors;",
+                                    "    ['website', 'timezone', 'financial_year_start_month', 'stock_accounting_method'].forEach(function (field) {",
+                                    "        pm.expect(errors).to.have.property(field);",
+                                    "    });",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/business-settings",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "business-settings"
+                            ]
+                        },
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "business_name",
+                                    "value": "Global Traders Inc.",
+                                    "type": "text",
+                                    "description": "Required, up to 255 characters."
+                                },
+                                {
+                                    "key": "start_date",
+                                    "value": "2024-03-15",
+                                    "type": "text",
+                                    "description": "Optional, YYYY-MM-DD. Leave empty to clear it."
+                                },
+                                {
+                                    "key": "currency",
+                                    "value": "USD",
+                                    "type": "text",
+                                    "description": "Required. A code from GET /currencies - an inactive or unknown code is a 422."
+                                },
+                                {
+                                    "key": "language",
+                                    "value": "en",
+                                    "type": "text",
+                                    "description": "Required. A code from GET /languages - an inactive or unknown code is a 422."
+                                },
+                                {
+                                    "key": "website",
+                                    "value": "ftp://files.example",
+                                    "type": "text",
+                                    "description": "Optional http(s) URL. Leave empty to clear it."
+                                },
+                                {
+                                    "key": "business_contact_number",
+                                    "value": "+880 1712-345678",
+                                    "type": "text",
+                                    "description": "Optional, up to 30 characters."
+                                },
+                                {
+                                    "key": "alternate_contact_number",
+                                    "value": "",
+                                    "type": "text",
+                                    "description": "Optional, up to 30 characters."
+                                },
+                                {
+                                    "key": "country",
+                                    "value": "Bangladesh",
+                                    "type": "text",
+                                    "description": "Required."
+                                },
+                                {
+                                    "key": "state",
+                                    "value": "Dhaka",
+                                    "type": "text",
+                                    "description": "Required."
+                                },
+                                {
+                                    "key": "city",
+                                    "value": "Dhaka",
+                                    "type": "text",
+                                    "description": "Required."
+                                },
+                                {
+                                    "key": "zip_code",
+                                    "value": "1207",
+                                    "type": "text",
+                                    "description": "Required, up to 20 characters."
+                                },
+                                {
+                                    "key": "landmark",
+                                    "value": "Near City Center",
+                                    "type": "text",
+                                    "description": "Required."
+                                },
+                                {
+                                    "key": "timezone",
+                                    "value": "Mars/Olympus_Mons",
+                                    "type": "text",
+                                    "description": "Required. An IANA time zone name such as Asia/Dhaka."
+                                },
+                                {
+                                    "key": "tax_1_name",
+                                    "value": "VAT",
+                                    "type": "text",
+                                    "description": "Optional, up to 50 characters."
+                                },
+                                {
+                                    "key": "tax_1_no",
+                                    "value": "BIN-123456",
+                                    "type": "text",
+                                    "description": "Optional, up to 50 characters."
+                                },
+                                {
+                                    "key": "tax_2_name",
+                                    "value": "",
+                                    "type": "text",
+                                    "description": "Optional, up to 50 characters."
+                                },
+                                {
+                                    "key": "tax_2_no",
+                                    "value": "",
+                                    "type": "text",
+                                    "description": "Optional, up to 50 characters."
+                                },
+                                {
+                                    "key": "financial_year_start_month",
+                                    "value": "13",
+                                    "type": "text",
+                                    "description": "Required. 1 (January) to 12 (December)."
+                                },
+                                {
+                                    "key": "stock_accounting_method",
+                                    "value": "average",
+                                    "type": "text",
+                                    "description": "Required. fifo, lifo, weighted_average or specific_identification."
+                                }
+                            ]
+                        },
+                        "description": "A website that is not an http(s) URL, a time zone that does not exist, a month outside 1-12 and a stock method that is not one of the four. Each is reported under its own field, and nothing is saved.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Business settings - no token (401)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 401\", function () {",
+                                    "    pm.response.to.have.status(401);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"message is the expected one\", function () {",
+                                    "    pm.expect(pm.response.json().message).to.eql(\"Unauthenticated.\");",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/business-settings",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "business-settings"
+                            ]
+                        },
+                        "description": "No Authorization header. `POST /business-settings` answers the same way."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Locations",
+            "description": "The signed-in user's locations - branches, warehouses and outlets - listed under Settings > Locations in the Nuxt app. Needs `{{token}}` - run a Login from the Auth folder first.\n\nRun the requests in order: **Add location** stores the new id in `location_id`, which **List**, **Update** and **Delete** then use, and the second delete shows the 404 for an id that is gone.\n\nEvery id is looked up among the caller's own locations, so another account's location is a 404 - exactly the answer for one that does not exist.",
+            "item": [
+                {
+                    "name": "Add location",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 201\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"the location comes back with its id\", function () {",
+                                    "    const b = pm.response.json();",
+                                    "    const sent = JSON.parse(pm.request.body.raw);",
+                                    "    pm.expect(b.message).to.eql('Location added successfully.');",
+                                    "    pm.expect(b.data).to.have.property('id');",
+                                    "    pm.expect(b.data.name).to.eql(sent.name);",
+                                    "    pm.expect(b.data.country).to.eql(sent.country);",
+                                    "    pm.expect(b.data.state).to.eql(sent.state);",
+                                    "});",
+                                    "",
+                                    "// Handed on to List, Update and Delete below.",
+                                    "if (pm.response.code === 201) {",
+                                    "    pm.collectionVariables.set('location_id', pm.response.json().data.id);",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/locations",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "locations"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Dhaka Warehouse\",\n    \"country\": \"Bangladesh\",\n    \"state\": \"Dhaka\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "description": "Adds a location to the signed-in account. `name` (up to 255 characters), `country` and `state` (up to 100 each) are all required. The same name may be used twice - an account can have several locations in one place.\n\nAnswers 201 with the new row under `data`. Its `id` is stored in the `location_id` collection variable for the requests below. Anything else in the body (`user_id`, ...) is ignored: the location always belongs to the caller.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List locations",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 200\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"body is a plain list of locations\", function () {",
+                                    "    const body = pm.response.json();",
+                                    "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                                    "    body.data.forEach(function (row) {",
+                                    "        pm.expect(row).to.have.all.keys('id', 'name', 'country', 'state');",
+                                    "    });",
+                                    "});",
+                                    "",
+                                    "pm.test(\"the location just added is in it\", function () {",
+                                    "    const id = parseInt(pm.collectionVariables.get('location_id'), 10);",
+                                    "    if (!id) { return; }",
+                                    "    const ids = pm.response.json().data.map(function (row) { return row.id; });",
+                                    "    pm.expect(ids).to.include(id);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/locations",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "locations"
+                            ]
+                        },
+                        "description": "Every location the signed-in account has, alphabetical by name. Not paginated - an account has a handful of branches and warehouses. `data` is an empty array for an account with none.\n\nOnly the caller's own rows are ever returned.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update location",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 200\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"the new values come back\", function () {",
+                                    "    const b = pm.response.json();",
+                                    "    const sent = JSON.parse(pm.request.body.raw);",
+                                    "    pm.expect(b.message).to.eql('Location updated successfully.');",
+                                    "    pm.expect(b.data.id).to.eql(parseInt(pm.collectionVariables.get('location_id'), 10));",
+                                    "    pm.expect(b.data.name).to.eql(sent.name);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/locations/{{location_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "locations",
+                                "{{location_id}}"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Dhaka Warehouse (renamed)\",\n    \"country\": \"Bangladesh\",\n    \"state\": \"Dhaka\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "description": "Saves all three fields of the location in `{{location_id}}` - the same rules as adding one, so send the whole thing every time. Run **Add location** first to set the id.\n\nAnother account's location, or one that does not exist, is a 404.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete location",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 200\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"it says the location was deleted\", function () {",
+                                    "    pm.expect(pm.response.json().message).to.eql('Location deleted successfully.');",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/locations/{{location_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "locations",
+                                "{{location_id}}"
+                            ]
+                        },
+                        "description": "Deletes the location in `{{location_id}}`. Gone for good - there is no undo. Answers `{ message }`.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete location - already deleted (404)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 404\", function () {",
+                                    "    pm.response.to.have.status(404);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"the message is generic\", function () {",
+                                    "    pm.expect(pm.response.json().message).to.eql('Location not found.');",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/locations/{{location_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "locations",
+                                "{{location_id}}"
+                            ]
+                        },
+                        "description": "The same id again. It is gone, so the answer is a plain 404 - the same one another account would get for a location that is not theirs.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Add location - required fields missing (422)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 422\", function () {",
+                                    "    pm.response.to.have.status(422);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"all three fields are reported\", function () {",
+                                    "    const errors = pm.response.json().errors;",
+                                    "    ['name', 'country', 'state'].forEach(function (field) {",
+                                    "        pm.expect(errors).to.have.property(field);",
+                                    "    });",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/locations",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "locations"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "description": "An empty body. `name`, `country` and `state` all come back under `errors`, and nothing is saved.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Locations - no token (401)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 401\", function () {",
+                                    "    pm.response.to.have.status(401);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"message is the expected one\", function () {",
+                                    "    pm.expect(pm.response.json().message).to.eql(\"Unauthenticated.\");",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/locations",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "locations"
+                            ]
+                        },
+                        "description": "No Authorization header. Adding, updating and deleting answer the same way."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
             "name": "Email verification",
             "description": "The step between registering and signing in. Register emails a 6-digit code; this folder spends it.\n\n**The happy-path request needs a human.** The code only exists in the inbox, so no runner can read it: register, open the email, paste the digits into the `verify_otp` collection variable, then send **Verify email**. Until that variable is filled the request reports itself as skipped, so a full run stays green.\n\nEvery failure case below runs unattended.\n\nA failed verify returns 422 with `errors.otp` and a top-level `action`:\n\n| `action` | Means |\n|---|---|\n| `code_invalid` | Wrong digits, no code on file, or an address with no account |\n| `code_expired` | Right digits, but past the 30 minute expiry |\n\nBranch on `action`, never on the wording - the sentences are free to change and to be translated.",
             "item": [
@@ -3406,6 +4517,106 @@
                     "response": []
                 }
             ]
+        },
+        {
+            "name": "Currencies",
+            "description": "Public list of the currencies an admin has left active - what the Currency dropdown in Settings > Business offers. Only rows with is_active = true are returned: switching one off in the admin panel removes it here too.\n\nThe default currency comes first, then the rest by name. Not paginated.",
+            "item": [
+                {
+                    "name": "List Currencies",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 200\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"body is a plain list of code / name / symbol\", function () {",
+                                    "    const body = pm.response.json();",
+                                    "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                                    "    body.data.forEach(function (currency) {",
+                                    "        pm.expect(currency).to.have.all.keys('code', 'name', 'symbol');",
+                                    "    });",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/currencies",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "currencies"
+                            ]
+                        },
+                        "description": "Returns every active currency as `{ data: [{ code, name, symbol }] }`. `code` is the ISO 4217 code the business settings store."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Languages",
+            "description": "Public list of the languages an admin has left active - what the Language dropdown in Settings > Business offers. Only rows with is_active = true are returned: switching one off in the admin panel removes it here too.\n\nThe default language comes first, then the rest by name. Not paginated.",
+            "item": [
+                {
+                    "name": "List Languages",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 200\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"body is a plain list of code / name / native_name\", function () {",
+                                    "    const body = pm.response.json();",
+                                    "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                                    "    body.data.forEach(function (language) {",
+                                    "        pm.expect(language).to.have.all.keys('code', 'name', 'native_name');",
+                                    "    });",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/languages",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "languages"
+                            ]
+                        },
+                        "description": "Returns every active language as `{ data: [{ code, name, native_name }] }`. `code` is the language code the business settings store."
+                    },
+                    "response": []
+                }
+            ]
         }
     ],
     "variable": [
@@ -3512,6 +4723,12 @@
             "value": "",
             "type": "string",
             "description": "Set by the Profile request, so Update profile can save the same name back."
+        },
+        {
+            "key": "location_id",
+            "value": "",
+            "type": "string",
+            "description": "Bearer token. Filled in automatically by the Login request's test script; cleared by Logout."
         }
     ]
 }

@@ -3,8 +3,12 @@
 use App\Http\Controllers\Api\AppCategoryController;
 use App\Http\Controllers\Api\AppController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BusinessSettingController;
 use App\Http\Controllers\Api\ContactMessageController;
+use App\Http\Controllers\Api\CurrencyController;
 use App\Http\Controllers\Api\EmailVerificationController;
+use App\Http\Controllers\Api\LanguageController;
+use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProfileController;
@@ -21,6 +25,8 @@ Route::prefix('v1')->group(function () {
     Route::get('/app-categories', [AppCategoryController::class, 'index'])->name('api.app-categories.index');
     Route::get('/apps', [AppController::class, 'index'])->name('api.apps.index');
     Route::get('/plans', [PlanController::class, 'index'])->name('api.plans.index');
+    Route::get('/currencies', [CurrencyController::class, 'index'])->name('api.currencies.index');
+    Route::get('/languages', [LanguageController::class, 'index'])->name('api.languages.index');
 
     /* ----------------------------------------------------------
      | Frontend user authentication
@@ -66,5 +72,29 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
         Route::get('/', [ProfileController::class, 'show'])->name('api.profile.show');
         Route::put('/', [ProfileController::class, 'update'])->name('api.profile.update');
+    });
+
+    /* ----------------------------------------------------------
+     | Signed-in user's business settings
+     |
+     | Saved with POST, not PUT: the form sends the logo as a file, and PHP only
+     | parses multipart bodies on POST. It is still create-or-overwrite.
+     | -------------------------------------------------------- */
+    Route::middleware('auth:sanctum')->prefix('business-settings')->group(function () {
+        Route::get('/', [BusinessSettingController::class, 'show'])->name('api.business-settings.show');
+        Route::post('/', [BusinessSettingController::class, 'save'])->name('api.business-settings.save');
+    });
+
+    /* ----------------------------------------------------------
+     | Signed-in user's locations - branches, warehouses, outlets
+     |
+     | Every id is looked up among the caller's own rows, so someone else's
+     | location is a 404, the same as one that does not exist.
+     | -------------------------------------------------------- */
+    Route::middleware('auth:sanctum')->prefix('locations')->group(function () {
+        Route::get('/', [LocationController::class, 'index'])->name('api.locations.index');
+        Route::post('/', [LocationController::class, 'store'])->name('api.locations.store');
+        Route::put('/{id}', [LocationController::class, 'update'])->whereNumber('id')->name('api.locations.update');
+        Route::delete('/{id}', [LocationController::class, 'destroy'])->whereNumber('id')->name('api.locations.destroy');
     });
 });
