@@ -6,10 +6,28 @@ use App\Models\Admin\Role;
 use App\Models\User\User;
 use App\QueryFilters\SearchFilter;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pipeline\Pipeline;
 
 class StaffRepository
 {
+    /**
+     * The staff accounts a customer can attach to a workspace, alphabetical.
+     * Not paginated - this feeds a dropdown, which needs the whole list - and
+     * only the columns a name is made of: nothing else about a staff member
+     * travels this far.
+     *
+     * @return Collection<int, User>
+     */
+    public function getActive(): Collection
+    {
+        return User::activeStaff()
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->orderBy('id')
+            ->get(['id', 'first_name', 'last_name']);
+    }
+
     public function getPaginated(?string $search = null, int $perPage = 15): LengthAwarePaginator
     {
         return app(Pipeline::class)

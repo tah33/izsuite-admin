@@ -6,6 +6,7 @@ use App\Models\Admin\Role;
 use App\Models\Billing\Invoice;
 use App\Models\Billing\Subscription;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -110,6 +111,11 @@ class User extends Authenticatable
         return $this->hasMany(Location::class);
     }
 
+    public function workspaces(): HasMany
+    {
+        return $this->hasMany(Workspace::class);
+    }
+
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);
@@ -152,6 +158,18 @@ class User extends Authenticatable
     public function isUser(): bool
     {
         return $this->role?->slug === 'user';
+    }
+
+    /**
+     * The staff accounts that can be attached to a workspace: the staff role,
+     * and not switched off. One definition, used both to list them and to
+     * check an id sent back, so the two can never disagree.
+     */
+    public function scopeActiveStaff(Builder $query): Builder
+    {
+        return $query
+            ->where('status', 'active')
+            ->whereHas('role', fn (Builder $role) => $role->where('slug', 'staff'));
     }
 
     public function hasPermission(string $routeName): bool

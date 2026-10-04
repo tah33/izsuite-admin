@@ -12,6 +12,8 @@ use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\StaffController;
+use App\Http\Controllers\Api\WorkspaceController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -96,5 +98,24 @@ Route::prefix('v1')->group(function () {
         Route::post('/', [LocationController::class, 'store'])->name('api.locations.store');
         Route::put('/{id}', [LocationController::class, 'update'])->whereNumber('id')->name('api.locations.update');
         Route::delete('/{id}', [LocationController::class, 'destroy'])->whereNumber('id')->name('api.locations.destroy');
+    });
+
+    /* ----------------------------------------------------------
+     | Staff a signed-in user can attach to a workspace - id and name only,
+     | and not for anonymous visitors
+     | -------------------------------------------------------- */
+    Route::get('/staff', [StaffController::class, 'index'])->middleware('auth:sanctum')->name('api.staff.index');
+
+    /* ----------------------------------------------------------
+     | Signed-in user's workspaces
+     |
+     | Same rule as locations: every id is looked up among the caller's own
+     | rows, so someone else's workspace is a 404.
+     | -------------------------------------------------------- */
+    Route::middleware('auth:sanctum')->prefix('workspaces')->group(function () {
+        Route::get('/', [WorkspaceController::class, 'index'])->name('api.workspaces.index');
+        Route::post('/', [WorkspaceController::class, 'store'])->name('api.workspaces.store');
+        Route::put('/{id}', [WorkspaceController::class, 'update'])->whereNumber('id')->name('api.workspaces.update');
+        Route::delete('/{id}', [WorkspaceController::class, 'destroy'])->whereNumber('id')->name('api.workspaces.destroy');
     });
 });
