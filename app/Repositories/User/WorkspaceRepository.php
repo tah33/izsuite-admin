@@ -13,7 +13,7 @@ class WorkspaceRepository
      * the columns a name is made of, so nothing else about either can reach the
      * response, and each row can show both names without a query of its own.
      */
-    private const RELATIONS = ['app:id,name', 'staff:id,first_name,last_name'];
+    private const RELATIONS = ['app:id,name', 'staff:id,name'];
 
     /**
      * Alphabetical, with the id as tie-breaker so two workspaces sharing a name

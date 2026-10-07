@@ -12,7 +12,7 @@ use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProfileController;
-use App\Http\Controllers\Api\StaffController;
+use App\Http\Controllers\Api\UserStaffController;
 use App\Http\Controllers\Api\WorkspaceController;
 use Illuminate\Support\Facades\Route;
 
@@ -101,21 +101,32 @@ Route::prefix('v1')->group(function () {
     });
 
     /* ----------------------------------------------------------
-     | Staff a signed-in user can attach to a workspace - id and name only,
-     | and not for anonymous visitors
-     | -------------------------------------------------------- */
-    Route::get('/staff', [StaffController::class, 'index'])->middleware('auth:sanctum')->name('api.staff.index');
-
-    /* ----------------------------------------------------------
      | Signed-in user's workspaces
      |
      | Same rule as locations: every id is looked up among the caller's own
-     | rows, so someone else's workspace is a 404.
+     | rows, so someone else's workspace is a 404. The staff member a workspace
+     | may carry is one of the caller's own active staff (see user-staff below).
      | -------------------------------------------------------- */
     Route::middleware('auth:sanctum')->prefix('workspaces')->group(function () {
         Route::get('/', [WorkspaceController::class, 'index'])->name('api.workspaces.index');
         Route::post('/', [WorkspaceController::class, 'store'])->name('api.workspaces.store');
         Route::put('/{id}', [WorkspaceController::class, 'update'])->whereNumber('id')->name('api.workspaces.update');
         Route::delete('/{id}', [WorkspaceController::class, 'destroy'])->whereNumber('id')->name('api.workspaces.destroy');
+    });
+
+    /* ----------------------------------------------------------
+     | Signed-in user's staff - the people who work for their business, with
+     | their contact details and whether they are active
+     |
+     | Records the caller keeps themselves, and the same rule as locations
+     | applies - every id is looked up among the caller's own rows, so someone
+     | else's is a 404. The Workspace form's Staff dropdown is made from this
+     | list: the active ones.
+     | -------------------------------------------------------- */
+    Route::middleware('auth:sanctum')->prefix('user-staff')->group(function () {
+        Route::get('/', [UserStaffController::class, 'index'])->name('api.user-staff.index');
+        Route::post('/', [UserStaffController::class, 'store'])->name('api.user-staff.store');
+        Route::put('/{id}', [UserStaffController::class, 'update'])->whereNumber('id')->name('api.user-staff.update');
+        Route::delete('/{id}', [UserStaffController::class, 'destroy'])->whereNumber('id')->name('api.user-staff.destroy');
     });
 });

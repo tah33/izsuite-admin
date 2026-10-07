@@ -28,10 +28,11 @@ class Workspace extends Model
     }
 
     /**
-     * Staff are users with the staff role - there is no separate staff table.
+     * One of the account's own staff - a row of user_staff, not a staff-role
+     * account in users.
      */
     public function staff(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'staff_id');
+        return $this->belongsTo(UserStaff::class, 'staff_id');
     }
 }

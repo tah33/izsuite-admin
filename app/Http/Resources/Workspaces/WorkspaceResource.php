@@ -21,7 +21,7 @@ class WorkspaceResource extends JsonResource
 
             // Their names travel with the workspace, so a list can show them
             // even for an app that has left the active catalogue or a staff
-            // account that has been switched off.
+            // member who has since been made inactive.
             'app'      => $this->whenLoaded('app', fn () => [
                 'id'   => $this->app->id,
                 'name' => $this->app->name,

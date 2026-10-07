@@ -2,7 +2,7 @@
     "info": {
         "_postman_id": "b7c1e5a4-3f2d-4a18-9c6b-2d0f5e8a1c34",
         "name": "IZSuite - API",
-        "description": "Every endpoint the izSuite Nuxt frontend talks to: user authentication, the signed-in user's profile, business settings, locations and workspaces (with the staff list their form offers), plus the public read-only lists.\n\n**Base URL**\nIIS holds port 80 on this machine, so Laragon nginx serves the vhost on port **8080**. The `:8080` is required - without it the request hits IIS and comes back as a 404 HTML page.\n\n- Laragon vhost: `http://izsuite-admin.test:8080/api/v1` (default)\n- artisan serve: `http://127.0.0.1:8000/api/v1`\n\n---\n\n## Auth\n\nSanctum personal access tokens, not session cookies. `POST /auth/login` returns a plain-text token; send it back as `Authorization: Bearer <token>`.\n\n**Run \"Login\" first.** Its test script writes the token into the `token` variable, and the two requests that need it (`Me`, `Logout`) read it from there, so they just work afterwards.\n\nToken lifetime is driven by `remember`:\n- `remember: true` -> 30 days\n- `remember: false` or absent -> 12 hours\n\n**Two ways to sign out**\n\n| Endpoint | Revokes | Response |\n|---|---|---|\n| `POST /auth/logout` | Only the token that made the request - other devices stay signed in | `{ message }` |\n| `POST /auth/logout-all` | Every token the user holds, this one included | `{ message, revoked_tokens }` |\n\nBoth are token-level. Neither touches the **admin panel** session at `/login` - that is separate, cookie-based auth on the `web` guard, and it signs out via `POST /logout`.\n\n**Credentials go in the body, never the URL.** `POST /auth/login?email=..&password=..` is refused with 400 even when the values are correct, because a query string is recorded in access logs, browser history and `Referer` headers.\n\n`device_name` is optional and only labels the token, so a user can tell their sessions apart in a future \"active devices\" screen.\n\n**Re-running the whole collection**\nOne full run makes 9 login attempts and 5 register attempts. Both endpoints allow 10 per minute per IP, so there is almost no headroom on login. A second run started inside the same minute fails with 429s, and so will the first run if you have been clicking Send by hand. Wait a minute, or clear the counters:\n\n```\nphp artisan cache:clear\n```\n\n**Registering**\n`POST /auth/register` takes the fields the frontend's Owner information form collects and returns the same token/user shape as login, so a new account is signed in immediately. New accounts get the `user` role.\n\nThe Register body is sent verbatim - type your own values and those are saved. Because `username` and `email` are unique, **re-sending Register unchanged returns 422**; change them to create another account. The four `Register - ...` failure requests are safe to re-send as often as you like.\n\nEmail verification is **not** part of this yet: there is no verify endpoint, so registration marks the address verified rather than leaving every new account unable to log in. When the verification flow ships, that one line in AuthService::register() comes out.\n\n**Who may sign in here**\nFrontend users only, and only fully set-up ones. Three separate 403s:\n\n| Condition | Message | `action` |\n|---|---|---|\n| Admin, staff or super-admin role | Sign in through the admin panel at `/login` | - |\n| `status` is not `active` | Account is not active, contact support | - |\n| `email_verified_at` is null | Verify your email first | `verification_required` |\n\nThe password is always checked first, so all three are only reachable by someone who already knows the credentials - the endpoint never reveals *why* an account it does not own would be refused.\n\nSeeded accounts for these: `admin@izsuite.io` (admin) and `unverified@izsuite.io` (unverified).\n\n**Seeded demo account**\n`user@izsuite.io` / `123456`. If it is missing, run `php artisan db:seed --class=RoleSeeder` then `php artisan db:seed --class=UserSeeder`.\n\n**Login response**\n```json\n{\n  \"message\": \"Signed in successfully.\",\n  \"token\": \"1|xxxxxxxx\",\n  \"token_type\": \"Bearer\",\n  \"expires_at\": \"2026-10-09T14:43:16+00:00\",\n  \"user\": {\n    \"id\": 10,\n    \"name\": \"izSuite User\",\n    \"email\": \"user@izsuite.io\",\n    \"phone\": null,\n    \"headline\": null,\n    \"bio\": null,\n    \"avatar_url\": null,\n    \"role\": { \"id\": 105, \"name\": \"User\", \"slug\": \"user\" },\n    \"status\": \"active\",\n    \"timezone\": \"UTC\",\n    \"currency\": \"USD\",\n    \"is_email_verified\": true,\n    \"email_verified_at\": \"2026-09-09T14:42:51+00:00\",\n    \"last_login_at\": \"2026-09-09T14:43:16+00:00\",\n    \"created_at\": \"2026-09-09T14:42:52+00:00\"\n  }\n}\n```\n\n---\n\n## Profile\n\nThe signed-in user's own profile, read and written by the Nuxt `/profile` page. Uses the same `token` variable as the Auth folder.\n\n| Endpoint | Does | Response |\n|---|---|---|\n| `GET /profile` | Reads the profile | `{ user }` |\n| `PUT /profile` | Saves `first_name` (required) and `last_name` (optional) | `{ message, user }` |\n\n`email` cannot be changed here - sending it is a 422 - because it is the login and sign-up verified it by code. Any other field in the body is ignored. Password changes go through `POST /auth/password/change`.\n\n---\n\n## Business settings\n\nThe signed-in user's business profile, address, tax registration and accounting defaults - the Settings > Business form in the Nuxt app. One row per account. Uses the same `token` variable as the Auth folder.\n\n| Endpoint | Does | Response |\n|---|---|---|\n| `GET /business-settings` | Reads the saved settings | `{ data }` - `data` is `null` until the first save |\n| `POST /business-settings` | Creates them the first time, overwrites them after | `{ message, data }` |\n\nIt is a POST, not a PUT, and the body is **form-data**, not JSON: the logo travels as a file, and PHP only parses multipart bodies on POST. Every field the form marks required is required here too, and an optional field is cleared by sending it empty. A new `logo` replaces the old file; leaving `logo` out keeps it.\n\n`currency` and `language` must be codes from `GET /currencies` and `GET /languages` - an inactive or unknown code is a 422. `timezone` is an IANA name such as `Asia/Dhaka`. The logo must be a JPG, PNG or WebP of at most 2 MB; SVG is refused on purpose.\n\n---\n\n## Locations\n\nThe signed-in user's branches, warehouses and outlets - Settings > Locations in the Nuxt app. Uses the same `token` variable as the Auth folder.\n\n| Endpoint | Does | Response |\n|---|---|---|\n| `GET /locations` | Lists the caller's locations, alphabetical by name | `{ data: [{ id, name, country, state }] }` |\n| `POST /locations` | Adds one | 201 `{ message, data }` |\n| `PUT /locations/{id}` | Saves all three fields of one | `{ message, data }` |\n| `DELETE /locations/{id}` | Deletes one, for good | `{ message }` |\n\n`name`, `country` and `state` are all required, on add and on update alike. Every id is looked up among the caller's own locations, so another account's location answers with the same 404 as one that does not exist.\n\n---\n\n## Workspaces\n\nThe signed-in user's workspaces - the Workspace page in the Nuxt app. Uses the same `token` variable as the Auth folder.\n\n| Endpoint | Does | Response |\n|---|---|---|\n| `GET /workspaces` | Lists the caller's workspaces, alphabetical by name | `{ data: [{ id, name, app_id, staff_id, app, staff }] }` |\n| `POST /workspaces` | Adds one | 201 `{ message, data }` |\n| `PUT /workspaces/{id}` | Saves one | `{ message, data }` |\n| `DELETE /workspaces/{id}` | Deletes one, for good | `{ message }` |\n| `GET /staff` | The staff accounts that can be attached to a workspace | `{ data: [{ id, name }] }` |\n\n`name` is required. `app_id` and `staff_id` are optional: an app id from `GET /apps` (active apps only) and a staff id from `GET /staff` (active staff only), or `null` for none. On an update, `null` clears one and leaving it out keeps it as it was.\n\n`user_id` in a body is ignored - a workspace is always the caller's. A staff member goes out as an id and a name only, never an email or a phone number, and `GET /staff` needs a token. Every workspace id is looked up among the caller's own, so another account's workspace answers with the same 404 as one that does not exist.\n\n---\n\n## Public lists\n\nApp categories, apps, plans, currencies and languages. No token required.\n\n```json\n{\n  \"data\": [ ... ],\n  \"pagination\": {\n    \"current_page\": 1,\n    \"last_page\": 1,\n    \"per_page\": 15,\n    \"total\": 3,\n    \"from\": 1,\n    \"to\": 3,\n    \"has_prev_page\": false,\n    \"has_next_page\": false\n  }\n}\n```\n\n`GET /currencies` and `GET /languages` are not paginated - they answer `{ \"data\": [ ... ] }` with only the active rows, the default one first.\n\n---\n\n## Status codes\n\n| Code | Meaning |\n|---|---|\n| 200 | OK |\n| 201 | Contact message created |\n| 400 | Credentials were sent in the query string instead of the body |\n| 401 | Credentials do not match, or token missing, expired or revoked |\n| 403 | Admin account, inactive account, or unverified email |\n| 422 | Request body or query string failed validation |\n| 429 | More than 10 login attempts from one IP in a minute |\n\nFailures answer with `{ \"message\": \"...\" }`; validation failures add an `errors` object keyed by field name.\n",
+        "description": "Every endpoint the izSuite Nuxt frontend talks to: user authentication, the signed-in user's profile, business settings, locations, workspaces and staff, plus the public read-only lists.\n\n**Base URL**\nIIS holds port 80 on this machine, so Laragon nginx serves the vhost on port **8080**. The `:8080` is required - without it the request hits IIS and comes back as a 404 HTML page.\n\n- Laragon vhost: `http://izsuite-admin.test:8080/api/v1` (default)\n- artisan serve: `http://127.0.0.1:8000/api/v1`\n\n---\n\n## Auth\n\nSanctum personal access tokens, not session cookies. `POST /auth/login` returns a plain-text token; send it back as `Authorization: Bearer <token>`.\n\n**Run \"Login\" first.** Its test script writes the token into the `token` variable, and the two requests that need it (`Me`, `Logout`) read it from there, so they just work afterwards.\n\nToken lifetime is driven by `remember`:\n- `remember: true` -> 30 days\n- `remember: false` or absent -> 12 hours\n\n**Two ways to sign out**\n\n| Endpoint | Revokes | Response |\n|---|---|---|\n| `POST /auth/logout` | Only the token that made the request - other devices stay signed in | `{ message }` |\n| `POST /auth/logout-all` | Every token the user holds, this one included | `{ message, revoked_tokens }` |\n\nBoth are token-level. Neither touches the **admin panel** session at `/login` - that is separate, cookie-based auth on the `web` guard, and it signs out via `POST /logout`.\n\n**Credentials go in the body, never the URL.** `POST /auth/login?email=..&password=..` is refused with 400 even when the values are correct, because a query string is recorded in access logs, browser history and `Referer` headers.\n\n`device_name` is optional and only labels the token, so a user can tell their sessions apart in a future \"active devices\" screen.\n\n**Re-running the whole collection**\nOne full run makes 9 login attempts and 5 register attempts. Both endpoints allow 10 per minute per IP, so there is almost no headroom on login. A second run started inside the same minute fails with 429s, and so will the first run if you have been clicking Send by hand. Wait a minute, or clear the counters:\n\n```\nphp artisan cache:clear\n```\n\n**Registering**\n`POST /auth/register` takes the fields the frontend's Owner information form collects and returns the same token/user shape as login, so a new account is signed in immediately. New accounts get the `user` role.\n\nThe Register body is sent verbatim - type your own values and those are saved. Because `username` and `email` are unique, **re-sending Register unchanged returns 422**; change them to create another account. The four `Register - ...` failure requests are safe to re-send as often as you like.\n\nEmail verification is **not** part of this yet: there is no verify endpoint, so registration marks the address verified rather than leaving every new account unable to log in. When the verification flow ships, that one line in AuthService::register() comes out.\n\n**Who may sign in here**\nFrontend users only, and only fully set-up ones. Three separate 403s:\n\n| Condition | Message | `action` |\n|---|---|---|\n| Admin, staff or super-admin role | Sign in through the admin panel at `/login` | - |\n| `status` is not `active` | Account is not active, contact support | - |\n| `email_verified_at` is null | Verify your email first | `verification_required` |\n\nThe password is always checked first, so all three are only reachable by someone who already knows the credentials - the endpoint never reveals *why* an account it does not own would be refused.\n\nSeeded accounts for these: `admin@izsuite.io` (admin) and `unverified@izsuite.io` (unverified).\n\n**Seeded demo account**\n`user@izsuite.io` / `123456`. If it is missing, run `php artisan db:seed --class=RoleSeeder` then `php artisan db:seed --class=UserSeeder`.\n\n**Login response**\n```json\n{\n  \"message\": \"Signed in successfully.\",\n  \"token\": \"1|xxxxxxxx\",\n  \"token_type\": \"Bearer\",\n  \"expires_at\": \"2026-10-09T14:43:16+00:00\",\n  \"user\": {\n    \"id\": 10,\n    \"name\": \"izSuite User\",\n    \"email\": \"user@izsuite.io\",\n    \"phone\": null,\n    \"headline\": null,\n    \"bio\": null,\n    \"avatar_url\": null,\n    \"role\": { \"id\": 105, \"name\": \"User\", \"slug\": \"user\" },\n    \"status\": \"active\",\n    \"timezone\": \"UTC\",\n    \"currency\": \"USD\",\n    \"is_email_verified\": true,\n    \"email_verified_at\": \"2026-09-09T14:42:51+00:00\",\n    \"last_login_at\": \"2026-09-09T14:43:16+00:00\",\n    \"created_at\": \"2026-09-09T14:42:52+00:00\"\n  }\n}\n```\n\n---\n\n## Profile\n\nThe signed-in user's own profile, read and written by the Nuxt `/profile` page. Uses the same `token` variable as the Auth folder.\n\n| Endpoint | Does | Response |\n|---|---|---|\n| `GET /profile` | Reads the profile | `{ user }` |\n| `PUT /profile` | Saves `first_name` (required) and `last_name` (optional) | `{ message, user }` |\n\n`email` cannot be changed here - sending it is a 422 - because it is the login and sign-up verified it by code. Any other field in the body is ignored. Password changes go through `POST /auth/password/change`.\n\n---\n\n## Business settings\n\nThe signed-in user's business profile, address, tax registration and accounting defaults - the Settings > Business form in the Nuxt app. One row per account. Uses the same `token` variable as the Auth folder.\n\n| Endpoint | Does | Response |\n|---|---|---|\n| `GET /business-settings` | Reads the saved settings | `{ data }` - `data` is `null` until the first save |\n| `POST /business-settings` | Creates them the first time, overwrites them after | `{ message, data }` |\n\nIt is a POST, not a PUT, and the body is **form-data**, not JSON: the logo travels as a file, and PHP only parses multipart bodies on POST. Every field the form marks required is required here too, and an optional field is cleared by sending it empty. A new `logo` replaces the old file; leaving `logo` out keeps it.\n\n`currency` and `language` must be codes from `GET /currencies` and `GET /languages` - an inactive or unknown code is a 422. `timezone` is an IANA name such as `Asia/Dhaka`. The logo must be a JPG, PNG or WebP of at most 2 MB; SVG is refused on purpose.\n\n---\n\n## Locations\n\nThe signed-in user's branches, warehouses and outlets - Settings > Locations in the Nuxt app. Uses the same `token` variable as the Auth folder.\n\n| Endpoint | Does | Response |\n|---|---|---|\n| `GET /locations` | Lists the caller's locations, alphabetical by name | `{ data: [{ id, name, country, state }] }` |\n| `POST /locations` | Adds one | 201 `{ message, data }` |\n| `PUT /locations/{id}` | Saves all three fields of one | `{ message, data }` |\n| `DELETE /locations/{id}` | Deletes one, for good | `{ message }` |\n\n`name`, `country` and `state` are all required, on add and on update alike. Every id is looked up among the caller's own locations, so another account's location answers with the same 404 as one that does not exist.\n\n---\n\n## Workspaces\n\nThe signed-in user's workspaces - the Workspace page in the Nuxt app. Uses the same `token` variable as the Auth folder.\n\n| Endpoint | Does | Response |\n|---|---|---|\n| `GET /workspaces` | Lists the caller's workspaces, alphabetical by name | `{ data: [{ id, name, app_id, staff_id, app, staff }] }` |\n| `POST /workspaces` | Adds one | 201 `{ message, data }` |\n| `PUT /workspaces/{id}` | Saves one | `{ message, data }` |\n| `DELETE /workspaces/{id}` | Deletes one, for good | `{ message }` |\n\n`name` is required. `app_id` and `staff_id` are optional: an app id from `GET /apps` (active apps only) and the id of one of the caller's own active staff from `GET /user-staff` (`status` 1), or `null` for none. On an update, `null` clears one and leaving it out keeps it as it was.\n\n`user_id` in a body is ignored - a workspace is always the caller's. A staff member goes out with a workspace as an id and a name only - never an email, a phone number or an address - and another account's staff member is never accepted. Every workspace id is looked up among the caller's own, so another account's workspace answers with the same 404 as one that does not exist.\n\n---\n\n## User staff\n\nThe signed-in user's staff - the Staff page in the Nuxt app. Uses the same `token` variable as the Auth folder.\n\n| Endpoint | Does | Response |\n|---|---|---|\n| `GET /user-staff` | Lists the caller's staff, alphabetical by name | `{ data: [{ id, name, email, phone, address, state, country, status }] }` |\n| `POST /user-staff` | Adds one | 201 `{ message, data }` |\n| `PUT /user-staff/{id}` | Saves one | `{ message, data }` |\n| `DELETE /user-staff/{id}` | Deletes one, for good | `{ message }` |\n\n`name`, `email`, `phone` and `status` are required, on an update as well as on an add. `address`, `state` and `country` are optional: `null` or a blank clears one, and on an update leaving it out keeps it as it was.\n\n`status` is a number, stored as one too: `1` is active and `0` is inactive. The active ones are the staff a workspace can be given - the Workspace form's Staff dropdown is made of them. Deleting a staff member leaves any workspace that had them without one; it is not deleted with them.\n\n`user_id` in a body is ignored - a staff member is always the caller's, and the owner never comes back in a response. Every id is looked up among the caller's own staff, so another account's staff member answers with the same 404 as one that does not exist.\n\n---\n\n## Public lists\n\nApp categories, apps, plans, currencies and languages. No token required.\n\n```json\n{\n  \"data\": [ ... ],\n  \"pagination\": {\n    \"current_page\": 1,\n    \"last_page\": 1,\n    \"per_page\": 15,\n    \"total\": 3,\n    \"from\": 1,\n    \"to\": 3,\n    \"has_prev_page\": false,\n    \"has_next_page\": false\n  }\n}\n```\n\n`GET /currencies` and `GET /languages` are not paginated - they answer `{ \"data\": [ ... ] }` with only the active rows, the default one first.\n\n---\n\n## Status codes\n\n| Code | Meaning |\n|---|---|\n| 200 | OK |\n| 201 | Contact message created |\n| 400 | Credentials were sent in the query string instead of the body |\n| 401 | Credentials do not match, or token missing, expired or revoked |\n| 403 | Admin account, inactive account, or unverified email |\n| 422 | Request body or query string failed validation |\n| 429 | More than 10 login attempts from one IP in a minute |\n\nFailures answer with `{ \"message\": \"...\" }`; validation failures add an `errors` object keyed by field name.\n",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "item": [
@@ -2928,7 +2928,7 @@
                                 }
                             }
                         },
-                        "description": "Adds a workspace to the signed-in account. `name` is required (up to 255 characters). `app_id` and `staff_id` are optional:\n\n- `app_id` - an id from `GET /apps`; only an app an admin has left active is accepted.\n- `staff_id` - an id from `GET /staff`; only an active staff account is accepted.\n\nSend `null` (or leave one out) for none. Answers 201 with the new row under `data`, including `app` and `staff` (`{ id, name }` or `null`). Its `id` is stored in the `workspace_id` collection variable for the requests below.\n\nThe workspace always belongs to the caller: `user_id` in the body is ignored.",
+                        "description": "Adds a workspace to the signed-in account. `name` is required (up to 255 characters). `app_id` and `staff_id` are optional:\n\n- `app_id` - an id from `GET /apps`; only an app an admin has left active is accepted.\n- `staff_id` - the id of one of your own staff, from `GET /user-staff`; only one with `status` 1 (active) is accepted.\n\nSend `null` (or leave one out) for none. Answers 201 with the new row under `data`, including `app` and `staff` (`{ id, name }` or `null`). Its `id` is stored in the `workspace_id` collection variable for the requests below.\n\nThe workspace always belongs to the caller: `user_id` in the body is ignored.",
                         "auth": {
                             "type": "bearer",
                             "bearer": [
@@ -3352,7 +3352,7 @@
                                 }
                             }
                         },
-                        "description": "Only an active account with the staff role is accepted - the ones `GET /staff` returns. An id that does not exist, a customer, an admin and a staff account that has been switched off all fail alike. Nothing is saved.",
+                        "description": "Only one of the caller's own staff who is active - `status` 1 in `GET /user-staff` - is accepted. An id that does not exist, a staff member who is inactive and another account's staff member all fail alike. Nothing is saved.",
                         "auth": {
                             "type": "bearer",
                             "bearer": [
@@ -3412,50 +3412,80 @@
             ]
         },
         {
-            "name": "Staff",
-            "description": "The staff accounts a signed-in user can attach to a workspace - what the Staff dropdown in the Workspace form offers. Needs `{{token}}`: who works for the platform is not for anonymous visitors.\n\nOnly active accounts with the staff role are listed, alphabetical. Not paginated.",
+            "name": "User Staff",
+            "description": "The signed-in user's staff - the Staff page in the Nuxt app: the people who work for their business, with their contact details and whether they are active. The active ones are what the Workspace form's Staff dropdown offers. Needs `{{token}}` - run a Login from the Auth folder first.\n\nRun the requests in order: **Add staff member** stores the new id in `user_staff_id`, which **List**, **Update** and **Delete** then use, and the second delete shows the 404 for an id that is gone.\n\nEvery id is looked up among the caller's own staff, so another account's staff member is a 404 - exactly the answer for one that does not exist.",
             "item": [
                 {
-                    "name": "List staff",
+                    "name": "Add staff member",
                     "event": [
                         {
                             "listen": "test",
                             "script": {
                                 "type": "text/javascript",
                                 "exec": [
-                                    "pm.test(\"status is 200\", function () {",
-                                    "    pm.response.to.have.status(200);",
+                                    "pm.test(\"status is 201\", function () {",
+                                    "    pm.response.to.have.status(201);",
                                     "});",
                                     "",
-                                    "pm.test(\"body is a plain list of id / name\", function () {",
-                                    "    const body = pm.response.json();",
-                                    "    pm.expect(body).to.have.property('data').that.is.an('array');",
-                                    "    body.data.forEach(function (member) {",
-                                    "        pm.expect(member).to.have.all.keys('id', 'name');",
-                                    "    });",
-                                    "});"
+                                    "pm.test(\"the staff member comes back with its id\", function () {",
+                                    "    const b = pm.response.json();",
+                                    "    const sent = JSON.parse(pm.request.body.raw);",
+                                    "    pm.expect(b.message).to.eql('Staff member added successfully.');",
+                                    "    pm.expect(b.data).to.have.property('id');",
+                                    "    pm.expect(b.data.name).to.eql(sent.name);",
+                                    "    pm.expect(b.data.email).to.eql(sent.email);",
+                                    "    pm.expect(b.data.phone).to.eql(sent.phone);",
+                                    "    pm.expect(b.data.country).to.eql(sent.country);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"the status comes back as the number that was sent\", function () {",
+                                    "    const sent = JSON.parse(pm.request.body.raw);",
+                                    "    pm.expect(pm.response.json().data.status).to.eql(sent.status);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"the owner is not exposed\", function () {",
+                                    "    pm.expect(pm.response.json().data).to.not.have.property('user_id');",
+                                    "});",
+                                    "",
+                                    "// Handed on to List, Update and Delete below.",
+                                    "if (pm.response.code === 201) {",
+                                    "    pm.collectionVariables.set('user_staff_id', pm.response.json().data.id);",
+                                    "}"
                                 ]
                             }
                         }
                     ],
                     "request": {
-                        "method": "GET",
+                        "method": "POST",
                         "header": [
                             {
                                 "key": "Accept",
                                 "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/staff",
+                            "raw": "{{base_url}}/user-staff",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "staff"
+                                "user-staff"
                             ]
                         },
-                        "description": "Returns every active staff account as `{ data: [{ id, name }] }`. That is all that is shared: never an email, a phone number or a role. `id` is what a workspace stores in `staff_id`.",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Rahim Uddin\",\n    \"email\": \"rahim@example.com\",\n    \"phone\": \"+8801700000000\",\n    \"address\": \"House 12, Road 5, Mirpur-11\",\n    \"state\": \"Dhaka\",\n    \"country\": \"Bangladesh\",\n    \"status\": 1\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "description": "Adds a staff member to the signed-in account. The `name` (up to 255 characters), `email` (a valid address, up to 255), `phone` (up to 30) and `status` are required. `address` (up to 255), `state` and `country` (up to 100 each) are optional: leave a key out, or send `null` or a blank, to store nothing for it.\n\n`status` is a number: `1` for active, `0` for inactive. The active ones are the staff a workspace can be given.\n\nAnswers 201 with the new row under `data`. Its `id` is stored in the `user_staff_id` collection variable for the requests below.\n\nThe staff member always belongs to the caller: `user_id` in the body is ignored, and it is never sent back.",
                         "auth": {
                             "type": "bearer",
                             "bearer": [
@@ -3470,7 +3500,522 @@
                     "response": []
                 },
                 {
-                    "name": "Staff - no token (401)",
+                    "name": "List staff members",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 200\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"body is a plain list of staff members\", function () {",
+                                    "    const body = pm.response.json();",
+                                    "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                                    "    body.data.forEach(function (row) {",
+                                    "        pm.expect(row).to.have.all.keys('id', 'name', 'email', 'phone', 'address', 'state', 'country', 'status');",
+                                    "    });",
+                                    "});",
+                                    "",
+                                    "pm.test(\"every status is 1 or 0\", function () {",
+                                    "    pm.response.json().data.forEach(function (row) {",
+                                    "        pm.expect([0, 1]).to.include(row.status);",
+                                    "    });",
+                                    "});",
+                                    "",
+                                    "pm.test(\"the staff member just added is in it\", function () {",
+                                    "    const id = parseInt(pm.collectionVariables.get('user_staff_id'), 10);",
+                                    "    if (!id) { return; }",
+                                    "    const ids = pm.response.json().data.map(function (row) { return row.id; });",
+                                    "    pm.expect(ids).to.include(id);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/user-staff",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "user-staff"
+                            ]
+                        },
+                        "description": "Every staff member the signed-in account has, active or not, alphabetical by name. Not paginated. `data` is an empty array for an account with none. `status` is `1` (active) or `0` (inactive) on every row.\n\nOnly the caller's own rows are ever returned.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update staff member",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 200\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"the new values come back\", function () {",
+                                    "    const b = pm.response.json();",
+                                    "    const sent = JSON.parse(pm.request.body.raw);",
+                                    "    pm.expect(b.message).to.eql('Staff member updated successfully.');",
+                                    "    pm.expect(b.data.id).to.eql(parseInt(pm.collectionVariables.get('user_staff_id'), 10));",
+                                    "    pm.expect(b.data.name).to.eql(sent.name);",
+                                    "    pm.expect(b.data.email).to.eql(sent.email);",
+                                    "    pm.expect(b.data.phone).to.eql(sent.phone);",
+                                    "    pm.expect(b.data.address).to.eql(sent.address);",
+                                    "    pm.expect(b.data.status).to.eql(sent.status);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/user-staff/{{user_staff_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "user-staff",
+                                "{{user_staff_id}}"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Rahim Uddin (renamed)\",\n    \"email\": \"rahim.uddin@example.com\",\n    \"phone\": \"+8801800000000\",\n    \"address\": \"House 4, Road 2, Banani\",\n    \"state\": \"Dhaka\",\n    \"country\": \"Bangladesh\",\n    \"status\": 0\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "description": "Saves the staff member in `{{user_staff_id}}` - the same rules as adding one, so `name`, `email`, `phone` and `status` are always required. `address`, `state` and `country` left out of the body keep their value; send `null` to clear one (see the next request). Run **Add staff member** first to set the id.\n\n`status` here sets the staff member to inactive (`0`), which takes them off the list a workspace can pick from. Workspaces that already have them keep them.\n\nAnother account's staff member, or one that does not exist, is a 404. The owner is never changed from here.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update staff member - clear the optional fields",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 200\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"the address, state and country are now null\", function () {",
+                                    "    const row = pm.response.json().data;",
+                                    "    pm.expect(row.id).to.eql(parseInt(pm.collectionVariables.get('user_staff_id'), 10));",
+                                    "    ['address', 'state', 'country'].forEach(function (field) {",
+                                    "        pm.expect(row[field]).to.eql(null);",
+                                    "    });",
+                                    "});",
+                                    "",
+                                    "pm.test(\"the required fields are as sent\", function () {",
+                                    "    const row = pm.response.json().data;",
+                                    "    const sent = JSON.parse(pm.request.body.raw);",
+                                    "    pm.expect(row.name).to.eql(sent.name);",
+                                    "    pm.expect(row.email).to.eql(sent.email);",
+                                    "    pm.expect(row.phone).to.eql(sent.phone);",
+                                    "    pm.expect(row.status).to.eql(sent.status);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/user-staff/{{user_staff_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "user-staff",
+                                "{{user_staff_id}}"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Rahim Uddin\",\n    \"email\": \"rahim@example.com\",\n    \"phone\": \"+8801700000000\",\n    \"address\": null,\n    \"state\": null,\n    \"country\": null,\n    \"status\": 0\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "description": "Only the address, state and country are optional, so only they can be emptied: `null` (or a blank string, which is what a form sends for an emptied input) stores nothing. The name, email, phone and status are sent as always, and the row keeps its id.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete staff member",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 200\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"it says the staff member was deleted\", function () {",
+                                    "    pm.expect(pm.response.json().message).to.eql('Staff member deleted successfully.');",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/user-staff/{{user_staff_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "user-staff",
+                                "{{user_staff_id}}"
+                            ]
+                        },
+                        "description": "Deletes the staff member in `{{user_staff_id}}`. Gone for good - there is no undo - and any workspace that had them is left without a staff member, not deleted. Answers `{ message }`.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete staff member - already deleted (404)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 404\", function () {",
+                                    "    pm.response.to.have.status(404);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"the message is generic\", function () {",
+                                    "    pm.expect(pm.response.json().message).to.eql('Staff member not found.');",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/user-staff/{{user_staff_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "user-staff",
+                                "{{user_staff_id}}"
+                            ]
+                        },
+                        "description": "The same id again. It is gone, so the answer is a plain 404 - the same one another account would get for a staff member that is not theirs.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Add staff member - required fields missing (422)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 422\", function () {",
+                                    "    pm.response.to.have.status(422);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"every required field is reported\", function () {",
+                                    "    const errors = pm.response.json().errors;",
+                                    "    ['name', 'email', 'phone', 'status'].forEach(function (field) {",
+                                    "        pm.expect(errors).to.have.property(field);",
+                                    "    });",
+                                    "    pm.expect(errors).to.not.have.property('address');",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/user-staff",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "user-staff"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"address\": \"House 12, Road 5, Mirpur-11\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "description": "No `name`, `email`, `phone` or `status` - all four are required. Each comes back under `errors`, and nothing is saved. The address, which was sent, is not an error.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Add staff member - email not valid (422)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 422\", function () {",
+                                    "    pm.response.to.have.status(422);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"the error is on email\", function () {",
+                                    "    const errors = pm.response.json().errors;",
+                                    "    pm.expect(errors).to.have.property('email');",
+                                    "    pm.expect(errors).to.not.have.any.keys('name', 'phone', 'status');",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/user-staff",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "user-staff"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Rahim Uddin\",\n    \"email\": \"not-an-email\",\n    \"phone\": \"+8801700000000\",\n    \"status\": 1\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "description": "The email is required, and it has to be an email address. The error is on `email` alone, and nothing is saved.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Add staff member - status not valid (422)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"status is 422\", function () {",
+                                    "    pm.response.to.have.status(422);",
+                                    "});",
+                                    "",
+                                    "pm.test(\"the error is on status\", function () {",
+                                    "    const errors = pm.response.json().errors;",
+                                    "    pm.expect(errors).to.have.property('status');",
+                                    "    pm.expect(errors).to.not.have.any.keys('name', 'email', 'phone');",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/user-staff",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "user-staff"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Rahim Uddin\",\n    \"email\": \"rahim@example.com\",\n    \"phone\": \"+8801700000000\",\n    \"status\": 2\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "description": "`status` has to be `1` (active) or `0` (inactive) - not `2`, and not a word such as `\"active\"`. The error is on `status` alone, and nothing is saved.",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "User staff - no token (401)",
                     "event": [
                         {
                             "listen": "test",
@@ -3500,15 +4045,15 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/staff",
+                            "raw": "{{base_url}}/user-staff",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
-                                "staff"
+                                "user-staff"
                             ]
                         },
-                        "description": "No Authorization header."
+                        "description": "No Authorization header. Adding, updating and deleting answer the same way."
                     },
                     "response": []
                 }
@@ -5382,13 +5927,19 @@
             "key": "location_id",
             "value": "",
             "type": "string",
-            "description": "Bearer token. Filled in automatically by the Login request's test script; cleared by Logout."
+            "description": "Set by the Add location request, so List, Update and Delete location act on the row it created."
         },
         {
             "key": "workspace_id",
             "value": "",
             "type": "string",
-            "description": "Bearer token. Filled in automatically by the Login request's test script; cleared by Logout."
+            "description": "Set by the Add workspace request, so List, Update and Delete workspace act on the row it created."
+        },
+        {
+            "key": "user_staff_id",
+            "value": "",
+            "type": "string",
+            "description": "Set by the Add staff member request, so List, Update and Delete staff member act on the row it created."
         }
     ]
 }
