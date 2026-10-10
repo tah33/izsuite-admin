@@ -51,7 +51,6 @@ return new class extends Migration
                 $table->string('usage_status')->default('medium');
                 $table->unsignedTinyInteger('confidence_score')->nullable();
                 $table->boolean('is_manual')->default(true);
-                $table->foreignId('connection_id')->nullable();
                 $table->timestamps();
 
                 $table->index(['user_id', 'status']);

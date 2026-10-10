@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\Frontend\Application;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreAppRequest extends FormRequest
 {
@@ -19,7 +21,7 @@ class StoreAppRequest extends FormRequest
             'price'       => ['nullable', 'numeric', 'min:0'],
             'image'       => ['nullable', 'image', 'mimes:jpg,jpeg,png,svg,webp', 'max:2048'],
             'category'    => ['nullable', 'string', 'max:255'],
-            'status'      => ['required', 'in:active,inactive,pending'],
+            'status'      => ['required', Rule::in(array_keys(Application::STATUSES))],
             'is_active'   => ['sometimes', 'boolean'],
         ];
     }

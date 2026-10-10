@@ -15,7 +15,7 @@ return new class extends Migration
             $table->decimal('price', 10, 2)->default(0);
             $table->string('logo_url')->nullable();
             $table->string('category');
-            $table->string('status')->default('recommended');
+            $table->string('status')->default('available');
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });

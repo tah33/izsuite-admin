@@ -77,9 +77,9 @@
 <div class="mb-4">
     <label class="form-label" for="status">{{ __('Status') }}</label>
     <select id="status" name="status" class="form-input" required>
-        <option value="recommended"   {{ old('status', $isEdit ? $app->status : 'recommended') === 'recommended' ? 'selected' : '' }}>{{ __('Recommended') }}</option>
-        <option value="upcoming" {{ old('status', $isEdit ? $app->status : '') === 'upcoming' ? 'selected' : '' }}>{{ __('Upcoming') }}</option>
-        <option value="pending"  {{ old('status', $isEdit ? $app->status : '') === 'pending' ? 'selected' : '' }}>{{ __('Pending') }}</option>
+        @foreach(\App\Models\Frontend\Application::STATUSES as $value => $label)
+            <option value="{{ $value }}" {{ old('status', $isEdit ? $app->status : 'available') === $value ? 'selected' : '' }}>{{ __($label) }}</option>
+        @endforeach
     </select>
     @error('status')
         <p class="text-xs mt-1 text-[var(--danger)]">{{ $message }}</p>

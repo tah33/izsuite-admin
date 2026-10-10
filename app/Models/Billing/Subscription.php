@@ -4,7 +4,6 @@ namespace App\Models\Billing;
 
 use App\Models\Frontend\Category;
 use App\Models\User\User;
-use App\Models\User\UserConnection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -41,7 +40,6 @@ class Subscription extends Model
         'usage_status',
         'confidence_score',
         'is_manual',
-        'connection_id',
     ];
 
     protected $casts    = [
@@ -71,11 +69,6 @@ class Subscription extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
-    }
-
-    public function connection(): BelongsTo
-    {
-        return $this->belongsTo(UserConnection::class, 'connection_id');
     }
 
     public function invoices(): HasMany

@@ -11,6 +11,15 @@ class Application extends Model
 
     protected $table = 'apps';
 
+    /** Status options shown in the admin dropdown, keyed by stored value. */
+    public const STATUSES = [
+        'included'    => 'Included',
+        'active'      => 'Active',
+        'available'   => 'Available',
+        'locked'      => 'Locked',
+        'coming_soon' => 'Coming Soon',
+    ];
+
     protected $fillable = [
         'name',
         'description',

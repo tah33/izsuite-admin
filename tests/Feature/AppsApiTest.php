@@ -22,7 +22,7 @@ class AppsApiTest extends TestCase
     {
         Application::create([
             'name' => 'Notion', 'description' => 'Notes and docs', 'price' => 9.99,
-            'category' => 'Productivity', 'status' => 'recommended', 'is_active' => true,
+            'category' => 'Productivity', 'status' => 'included', 'is_active' => true,
             'logo_url' => 'apps/notion.png',
         ]);
         Application::create([
@@ -127,7 +127,7 @@ class AppsApiTest extends TestCase
     {
         $this->seedApps();
 
-        $response = $this->getJson('/api/v1/apps?status=recommended');
+        $response = $this->getJson('/api/v1/apps?status=included');
 
         $response->assertOk()->assertJsonPath('pagination.total', 1);
         $this->assertSame(['Notion'], array_column($response->json('data'), 'name'));

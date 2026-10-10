@@ -80,13 +80,16 @@
                                 <span class="text-sm font-medium">{{ number_format((float) $app->price, 2) }}</span>
                             </td>
                             <td>
-                                @if($app->status === 'Recommended')
-                                    <span class="badge badge-success">{{ __('Recommended') }}</span>
-                                @elseif($app->status === 'pending')
-                                    <span class="badge badge-warning">{{ __('Pending') }}</span>
-                                @else
-                                    <span class="badge badge-inactive">{{ __('Upcoming') }}</span>
-                                @endif
+                                @php
+                                    $statusBadge = [
+                                        'included'    => 'badge-success',
+                                        'active'      => 'badge-active',
+                                        'available'   => 'badge-trial',
+                                        'locked'      => 'badge-cancelled',
+                                        'coming_soon' => 'badge-warning',
+                                    ][$app->status] ?? 'badge-inactive';
+                                @endphp
+                                <span class="badge {{ $statusBadge }}">{{ __(\App\Models\Frontend\Application::STATUSES[$app->status] ?? ucfirst((string) $app->status)) }}</span>
                             </td>
                             <td>
                                 @if($app->is_active)

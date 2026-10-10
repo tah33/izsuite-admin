@@ -196,5 +196,13 @@ class RoleSeeder extends Seeder
                 'permissions' => null,
             ]
         );
+
+        Role::firstOrCreate(
+            ['slug' => 'affiliate'],
+            [
+                'name'        => 'Affiliate',
+                'permissions' => [],
+            ]
+        );
     }
 }

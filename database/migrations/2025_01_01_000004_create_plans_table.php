@@ -12,11 +12,16 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('slug')->unique();
+            $table->enum('plan_for', ['recruiter', 'candidate'])->default('recruiter');
+            $table->enum('billing_type', ['monthly', 'yearly'])->default('monthly');
             $table->text('description')->nullable();
             $table->decimal('monthly_price', 10, 2)->default(0);
             $table->decimal('yearly_price', 10, 2)->default(0);
             $table->unsignedSmallInteger('trial_days')->default(0);
             $table->json('features')->nullable();
+            $table->unsignedInteger('job_postings_limit')->nullable();
+            $table->unsignedInteger('ai_screenings_limit')->nullable();
+            $table->unsignedInteger('team_members_limit')->nullable();
             $table->boolean('is_active')->default(true);
             $table->boolean('is_featured')->default(false);
             $table->unsignedSmallInteger('sort_order')->default(0);

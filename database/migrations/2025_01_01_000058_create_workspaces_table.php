@@ -13,10 +13,11 @@ use Illuminate\Support\Facades\Schema;
  *
  * app_id and staff_id are optional and nulled when what they point at goes
  * away: a workspace should outlive an app being retired by an admin, or a staff
- * account being deleted - not vanish with it, and not block the delete.
+ * member being deleted - not vanish with it, and not block the delete.
  *
- * staff_id references users: staff are users with the staff role, there is no
- * separate staff table.
+ * staff_id references user_staff - one of the account's own staff, not a
+ * staff-role account in users. That table is created after this one, so its
+ * migration adds the foreign key.
  */
 return new class extends Migration
 {
@@ -27,7 +28,7 @@ return new class extends Migration
             $table->string('name');
             $table->foreignId('app_id')->nullable()->constrained('apps')->nullOnDelete();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('staff_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('staff_id')->nullable();
 
             $table->timestamps();
         });
