@@ -2,6 +2,7 @@
 
 namespace App\Services\Api\Auth;
 
+use App\Events\UserRegistered;
 use App\Mail\PasswordChanged;
 use App\Models\Admin\Role;
 use App\Models\User\User;
@@ -47,6 +48,11 @@ class AuthService
      * No token comes back. The account is unverified until the code returns,
      * and login() refuses unverified accounts - so issuing a session here
      * would be a way around the very check this flow exists to add.
+     *
+     * What the account starts with - the "Billing Starter" workspace, the "Main
+     * Location", and the owner as a staff member - is not made here: queued
+     * listeners make it (see UserRegistered), so registration takes no longer
+     * for it. By the time the code from the e-mail has been typed in, it is there.
      */
     public function register(array $data): User
     {
@@ -69,14 +75,21 @@ class AuthService
             return $user;
         });
 
-        $this->emailVerification->issue($user);
-
         // The request is unauthenticated at this point, so the log service has
         // no actor to read from auth(); passing the user as the subject is what
         // fills in user_id.
         ActivityLogService::record('created', 'Registered an izSuite account', $user, [
             'source' => 'api',
         ]);
+
+        // Announced as soon as the account is saved, ahead of the e-mail: should
+        // anything after this fail, the account still gets what it starts with.
+        // The listeners only leave jobs on the queue here, so this costs nothing
+        // noticeable - and logged after the line above, what they make follows
+        // "Registered" in the account's activity log rather than racing ahead of it.
+        UserRegistered::dispatch($user->id);
+
+        $this->emailVerification->issue($user);
 
         return $user;
     }

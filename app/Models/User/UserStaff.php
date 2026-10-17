@@ -2,7 +2,6 @@
 
 namespace App\Models\User;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -24,27 +23,19 @@ class UserStaff extends Model
         'state',
         'country',
         'status',
+        'assigned_apps',
+        'assigned_workspaces',
     ];
 
     /**
      * A number in the database and a number in the API - never "1" - whatever
-     * it arrived as.
+     * it arrived as. The two assignments are lists of ids, kept as JSON.
      */
     protected $casts = [
-        'status' => 'integer',
+        'status'              => 'integer',
+        'assigned_apps'       => 'array',
+        'assigned_workspaces' => 'array',
     ];
-
-    // ── Scopes ──
-
-    /**
-     * The staff who can be given work, the only ones a workspace may be
-     * attached to. One definition, so the check on an id sent back and the
-     * dropdown it came from cannot disagree about who counts.
-     */
-    public function scopeActive(Builder $query): Builder
-    {
-        return $query->where('status', self::STATUS_ACTIVE);
-    }
 
     // ── Relationships ──
 

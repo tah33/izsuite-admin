@@ -31,6 +31,15 @@ class LocationRepository
         return $user->locations()->create($data);
     }
 
+    /**
+     * The owner's location matching $attributes, made from them if there is none
+     * yet - for something that may run twice and must still leave only one.
+     */
+    public function firstOrCreateForUser(User $user, array $attributes): Location
+    {
+        return $user->locations()->firstOrCreate($attributes);
+    }
+
     public function update(Location $location, array $data): Location
     {
         $location->update($data);

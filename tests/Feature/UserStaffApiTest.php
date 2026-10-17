@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\Frontend\Application;
 use App\Models\Shared\ActivityLog;
 use App\Models\User\User;
 use App\Models\User\UserStaff;
+use App\Models\User\Workspace;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -29,6 +32,24 @@ class UserStaffApiTest extends TestCase
     private function staffOf(User $user, array $overrides = []): UserStaff
     {
         return $user->userStaff()->create($this->payload($overrides));
+    }
+
+    private function app(string $name, bool $active = true): Application
+    {
+        return Application::create(['name' => $name, 'category' => 'Finance', 'is_active' => $active]);
+    }
+
+    private function workspaceOf(User $user, string $name): Workspace
+    {
+        return $user->workspaces()->create(['name' => $name]);
+    }
+
+    /** The JSON a column actually holds, as a list. */
+    private function stored(UserStaff $staff, string $column): ?array
+    {
+        $json = DB::table('user_staff')->where('id', $staff->id)->value($column);
+
+        return $json === null ? null : json_decode($json, true);
     }
 
     /* ---------------------------------------------------------- auth */
@@ -73,7 +94,7 @@ class UserStaffApiTest extends TestCase
         $response = $this->getJson('/api/v1/user-staff')
             ->assertOk()
             ->assertJsonCount(2, 'data')
-            ->assertJsonStructure(['data' => [['id', 'name', 'email', 'phone', 'address', 'state', 'country', 'status']]])
+            ->assertJsonStructure(['data' => [['id', 'name', 'email', 'phone', 'address', 'state', 'country', 'status', 'assigned_apps', 'assigned_workspaces']]])
             ->assertJsonPath('data.0.name', 'Alpha')
             ->assertJsonPath('data.0.email', null)
             ->assertJsonPath('data.0.status', 0)
@@ -117,6 +138,8 @@ class UserStaffApiTest extends TestCase
             ->assertJsonPath('data.state', 'Dhaka')
             ->assertJsonPath('data.country', 'Bangladesh')
             ->assertJsonPath('data.status', 1)
+            ->assertJsonPath('data.assigned_apps', [])
+            ->assertJsonPath('data.assigned_workspaces', [])
             ->assertJsonStructure(['data' => ['id']])
             ->assertJsonMissingPath('data.user_id');
 
@@ -610,7 +633,222 @@ class UserStaffApiTest extends TestCase
         $this->assertSame([$kept->id], UserStaff::pluck('id')->all());
     }
 
+    /* ---------------------------------------------------------- assignments */
+
+    public function test_the_apps_and_workspaces_a_staff_member_is_assigned_to_are_saved(): void
+    {
+        $user      = User::factory()->create();
+        $sales     = $this->app('Sales Lite');
+        $purchases = $this->app('Purchases Lite');
+        $main      = $this->workspaceOf($user, 'Main');
+        $branch    = $this->workspaceOf($user, 'Branch');
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/v1/user-staff', $this->payload([
+            'assigned_apps'       => [$purchases->id, $sales->id],
+            'assigned_workspaces' => [$branch->id, $main->id],
+        ]))->assertCreated();
+
+        // Whole numbers, in order, in the answer...
+        $this->assertSame([$sales->id, $purchases->id], $response->json('data.assigned_apps'));
+        $this->assertSame([$main->id, $branch->id], $response->json('data.assigned_workspaces'));
+
+        // ...as the row holds them...
+        $staff = UserStaff::findOrFail($response->json('data.id'));
+
+        $this->assertSame([$sales->id, $purchases->id], $this->stored($staff, 'assigned_apps'));
+        $this->assertSame([$main->id, $branch->id], $this->stored($staff, 'assigned_workspaces'));
+
+        // ...and as the list hands them back.
+        $this->getJson('/api/v1/user-staff')
+            ->assertOk()
+            ->assertJsonPath('data.0.assigned_apps', [$sales->id, $purchases->id])
+            ->assertJsonPath('data.0.assigned_workspaces', [$main->id, $branch->id]);
+    }
+
+    public function test_assignments_are_optional_and_come_back_as_empty_lists(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        foreach ([[], ['assigned_apps' => null, 'assigned_workspaces' => null], ['assigned_apps' => [], 'assigned_workspaces' => []]] as $extra) {
+            $response = $this->postJson('/api/v1/user-staff', $this->payload($extra))->assertCreated();
+
+            $this->assertSame([], $response->json('data.assigned_apps'));
+            $this->assertSame([], $response->json('data.assigned_workspaces'));
+        }
+
+        // A row that never had them - as every row did before the columns - reads the same.
+        DB::table('user_staff')->update(['assigned_apps' => null, 'assigned_workspaces' => null]);
+
+        $this->getJson('/api/v1/user-staff')
+            ->assertOk()
+            ->assertJsonPath('data.0.assigned_apps', [])
+            ->assertJsonPath('data.0.assigned_workspaces', []);
+    }
+
+    public function test_assignments_are_stored_as_whole_numbers_each_once_and_in_order(): void
+    {
+        $user = User::factory()->create();
+        $a    = $this->app('A');
+        $b    = $this->app('B');
+        $w1   = $this->workspaceOf($user, 'One');
+        $w2   = $this->workspaceOf($user, 'Two');
+        Sanctum::actingAs($user);
+
+        // Text, and out of order: what a form may send.
+        $response = $this->postJson('/api/v1/user-staff', $this->payload([
+            'assigned_apps'       => [(string) $b->id, (string) $a->id],
+            'assigned_workspaces' => [(string) $w2->id, (string) $w1->id],
+        ]))->assertCreated();
+
+        $this->assertSame([$a->id, $b->id], $response->json('data.assigned_apps'));
+        $this->assertSame([$w1->id, $w2->id], $response->json('data.assigned_workspaces'));
+    }
+
+    public function test_update_changes_and_clears_the_assignments(): void
+    {
+        $user  = User::factory()->create();
+        $a     = $this->app('A');
+        $b     = $this->app('B');
+        $w1    = $this->workspaceOf($user, 'One');
+        $w2    = $this->workspaceOf($user, 'Two');
+        $staff = $this->staffOf($user, ['assigned_apps' => [$a->id], 'assigned_workspaces' => [$w1->id]]);
+        Sanctum::actingAs($user);
+
+        $this->putJson("/api/v1/user-staff/{$staff->id}", $this->payload(['assigned_apps' => [$b->id], 'assigned_workspaces' => [$w1->id, $w2->id]]))
+            ->assertOk()
+            ->assertJsonPath('data.assigned_apps', [$b->id])
+            ->assertJsonPath('data.assigned_workspaces', [$w1->id, $w2->id]);
+
+        $this->assertSame([$b->id], $this->stored($staff, 'assigned_apps'));
+
+        // Cleared both ways: an empty list, and null.
+        $this->putJson("/api/v1/user-staff/{$staff->id}", $this->payload(['assigned_apps' => [], 'assigned_workspaces' => null]))
+            ->assertOk()
+            ->assertJsonPath('data.assigned_apps', [])
+            ->assertJsonPath('data.assigned_workspaces', []);
+
+        $this->assertSame([], $this->stored($staff, 'assigned_apps'));
+        $this->assertSame([], $this->stored($staff, 'assigned_workspaces'));
+    }
+
+    public function test_an_update_that_leaves_the_assignments_out_leaves_them_as_they_were(): void
+    {
+        $user  = User::factory()->create();
+        $a     = $this->app('A');
+        $w1    = $this->workspaceOf($user, 'One');
+        $staff = $this->staffOf($user, ['assigned_apps' => [$a->id], 'assigned_workspaces' => [$w1->id]]);
+        Sanctum::actingAs($user);
+
+        $this->putJson("/api/v1/user-staff/{$staff->id}", $this->payload(['name' => 'Renamed']))
+            ->assertOk()
+            ->assertJsonPath('data.assigned_apps', [$a->id])
+            ->assertJsonPath('data.assigned_workspaces', [$w1->id]);
+
+        $this->assertSame([$a->id], $this->stored($staff, 'assigned_apps'));
+        $this->assertSame([$w1->id], $this->stored($staff, 'assigned_workspaces'));
+    }
+
+    public function test_the_assigned_apps_must_be_active_apps_chosen_once_each(): void
+    {
+        $user    = User::factory()->create();
+        $active  = $this->app('Active');
+        $retired = $this->app('Retired', false);
+        Sanctum::actingAs($user);
+
+        // An app an admin has switched off, one that does not exist, and a non-id.
+        foreach ([[$retired->id], [999999], ['sales'], [$active->id, 999999]] as $apps) {
+            $this->postJson('/api/v1/user-staff', $this->payload(['assigned_apps' => $apps]))
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('assigned_apps.'.(count($apps) - 1));
+        }
+
+        // The same one twice, and not a list at all.
+        $this->postJson('/api/v1/user-staff', $this->payload(['assigned_apps' => [$active->id, $active->id]]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['assigned_apps.0' => 'only once']);
+
+        $this->postJson('/api/v1/user-staff', $this->payload(['assigned_apps' => 'sales']))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('assigned_apps');
+
+        $this->assertDatabaseCount('user_staff', 0);
+    }
+
+    public function test_the_assigned_workspaces_must_be_the_callers_own(): void
+    {
+        $user      = User::factory()->create();
+        $mine      = $this->workspaceOf($user, 'Mine');
+        $someoneElses = $this->workspaceOf(User::factory()->create(), 'Not Mine');
+        Sanctum::actingAs($user);
+
+        foreach ([[$someoneElses->id], [999999], [$mine->id, $someoneElses->id]] as $workspaces) {
+            $this->postJson('/api/v1/user-staff', $this->payload(['assigned_workspaces' => $workspaces]))
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['assigned_workspaces.'.(count($workspaces) - 1) => 'your own workspaces']);
+        }
+
+        $this->postJson('/api/v1/user-staff', $this->payload(['assigned_workspaces' => [$mine->id, $mine->id]]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['assigned_workspaces.0' => 'only once']);
+
+        // The same rule when a staff member is edited.
+        $staff = $this->staffOf($user);
+
+        $this->putJson("/api/v1/user-staff/{$staff->id}", $this->payload(['assigned_workspaces' => [$someoneElses->id]]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('assigned_workspaces.0');
+
+        $this->assertNull($this->stored($staff, 'assigned_workspaces'));
+    }
+
+    public function test_deleting_a_workspace_takes_it_out_of_the_staff_it_was_assigned_to(): void
+    {
+        $user  = User::factory()->create();
+        $other = User::factory()->create();
+        $w1    = $this->workspaceOf($user, 'One');
+        $w2    = $this->workspaceOf($user, 'Two');
+
+        $both     = $this->staffOf($user, ['name' => 'Both', 'assigned_workspaces' => [$w1->id, $w2->id]]);
+        $onlyTwo  = $this->staffOf($user, ['name' => 'Only Two', 'assigned_workspaces' => [$w2->id]]);
+        $neither  = $this->staffOf($user, ['name' => 'Neither', 'assigned_workspaces' => [$w1->id]]);
+        // Another account's staff member cannot really hold this id; if one somehow does, it is not ours to edit.
+        $foreign  = $this->staffOf($other, ['name' => 'Foreign', 'assigned_workspaces' => [$w2->id]]);
+        Sanctum::actingAs($user);
+
+        $this->deleteJson("/api/v1/workspaces/{$w2->id}")->assertOk();
+
+        $this->assertSame([$w1->id], $this->stored($both, 'assigned_workspaces'));
+        $this->assertSame([], $this->stored($onlyTwo, 'assigned_workspaces'));
+        $this->assertSame([$w1->id], $this->stored($neither, 'assigned_workspaces'));
+        $this->assertSame([$w2->id], $this->stored($foreign, 'assigned_workspaces'));
+
+        $this->getJson('/api/v1/user-staff')
+            ->assertOk()
+            ->assertJsonPath('data.0.assigned_workspaces', [$w1->id]);
+    }
+
     /* ---------------------------------------------------------- activity log */
+
+    public function test_a_changed_assignment_is_logged_as_the_field_that_changed_and_a_reordered_one_is_not(): void
+    {
+        $user  = User::factory()->create();
+        $a     = $this->app('A');
+        $b     = $this->app('B');
+        $staff = $this->staffOf($user, ['assigned_apps' => [$a->id, $b->id]]);
+        Sanctum::actingAs($user);
+
+        // The same two apps, sent the other way round, with a new name: only the name changed.
+        $this->putJson("/api/v1/user-staff/{$staff->id}", $this->payload(['name' => 'Renamed', 'assigned_apps' => [$b->id, $a->id]]))->assertOk();
+
+        $this->assertSame(['name'], ActivityLog::where('user_id', $user->id)->where('action', 'updated')->latest('id')->firstOrFail()->properties['fields']);
+
+        // Now one app fewer: that is the change.
+        $this->putJson("/api/v1/user-staff/{$staff->id}", $this->payload(['name' => 'Renamed', 'assigned_apps' => [$a->id]]))->assertOk();
+
+        $this->assertSame(['assigned_apps'], ActivityLog::where('user_id', $user->id)->where('action', 'updated')->latest('id')->firstOrFail()->properties['fields']);
+    }
 
     public function test_each_write_is_logged_once_by_name(): void
     {

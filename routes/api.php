@@ -104,8 +104,9 @@ Route::prefix('v1')->group(function () {
      | Signed-in user's workspaces
      |
      | Same rule as locations: every id is looked up among the caller's own
-     | rows, so someone else's workspace is a 404. The staff member a workspace
-     | may carry is one of the caller's own active staff (see user-staff below).
+     | rows, so someone else's workspace is a 404. A workspace has no staff
+     | member of its own - which staff work in it is set from the staff side,
+     | as their assigned workspaces (see user-staff below).
      | -------------------------------------------------------- */
     Route::middleware('auth:sanctum')->prefix('workspaces')->group(function () {
         Route::get('/', [WorkspaceController::class, 'index'])->name('api.workspaces.index');
@@ -116,12 +117,13 @@ Route::prefix('v1')->group(function () {
 
     /* ----------------------------------------------------------
      | Signed-in user's staff - the people who work for their business, with
-     | their contact details and whether they are active
+     | their contact details, whether they are active, and the apps and
+     | workspaces they are assigned to
      |
      | Records the caller keeps themselves, and the same rule as locations
      | applies - every id is looked up among the caller's own rows, so someone
-     | else's is a 404. The Workspace form's Staff dropdown is made from this
-     | list: the active ones.
+     | else's is a 404. An assigned workspace must be one of the caller's own,
+     | and an assigned app one that is active.
      | -------------------------------------------------------- */
     Route::middleware('auth:sanctum')->prefix('user-staff')->group(function () {
         Route::get('/', [UserStaffController::class, 'index'])->name('api.user-staff.index');

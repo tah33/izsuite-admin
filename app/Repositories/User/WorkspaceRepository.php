@@ -9,11 +9,11 @@ use Illuminate\Database\Eloquent\Collection;
 class WorkspaceRepository
 {
     /**
-     * What a workspace comes back with - its app and its staff member - and only
-     * the columns a name is made of, so nothing else about either can reach the
-     * response, and each row can show both names without a query of its own.
+     * What a workspace comes back with - its app - and only the columns a name is
+     * made of, so nothing else about it can reach the response, and each row can
+     * show the name without a query of its own.
      */
-    private const RELATIONS = ['app:id,name', 'staff:id,name'];
+    private const RELATIONS = ['app:id,name'];
 
     /**
      * Alphabetical, with the id as tie-breaker so two workspaces sharing a name
@@ -38,12 +38,30 @@ class WorkspaceRepository
         return $user->workspaces()->create($data)->load(self::RELATIONS);
     }
 
+    /**
+     * The owner's workspace matching $attributes, made from them if there is none
+     * yet - for something that may run twice and must still leave only one.
+     */
+    public function firstOrCreateForUser(User $user, array $attributes): Workspace
+    {
+        return $user->workspaces()->firstOrCreate($attributes);
+    }
+
+    /**
+     * The owner's first workspace with this name. Names are not unique, so the
+     * oldest one is the answer when there are several.
+     */
+    public function findByNameForUser(User $user, string $name): ?Workspace
+    {
+        return Workspace::where('user_id', $user->id)->where('name', $name)->orderBy('id')->first();
+    }
+
     public function update(Workspace $workspace, array $data): Workspace
     {
         $workspace->update($data);
 
-        // Reloaded, not just returned: the app and the staff member it was
-        // fetched with may be ones it no longer has.
+        // Reloaded, not just returned: the app it was fetched with may be one it
+        // no longer has.
         return $workspace->load(self::RELATIONS);
     }
 

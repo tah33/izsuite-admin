@@ -24,6 +24,10 @@ class AppResource extends JsonResource
             'category'        => $this->category,
             'status'          => $this->status,
             'is_active'       => (bool) $this->is_active,
+            'family_key'      => $this->family_key,
+            'edition'         => $this->edition,
+            'edition_label'   => $this->editionLabel(),
+            'sort_order'      => (int) $this->sort_order,
             'created_at'      => to_display_timezone_iso($this->created_at),
         ];
     }

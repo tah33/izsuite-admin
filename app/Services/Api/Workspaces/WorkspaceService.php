@@ -4,6 +4,7 @@ namespace App\Services\Api\Workspaces;
 
 use App\Models\User\User;
 use App\Models\User\Workspace;
+use App\Repositories\User\UserStaffRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Database\Eloquent\Collection;
@@ -13,6 +14,7 @@ class WorkspaceService
 {
     public function __construct(
         protected WorkspaceRepository $workspaceRepository,
+        protected UserStaffRepository $userStaffRepository,
     ) {}
 
     public function list(User $user): Collection
@@ -50,6 +52,9 @@ class WorkspaceService
         $workspace = $this->findOwned($user, $id);
 
         $this->workspaceRepository->delete($workspace);
+
+        // The staff it was assigned to must not go on listing a workspace that is gone.
+        $this->userStaffRepository->forgetWorkspace($user, $id);
 
         ActivityLogService::record('deleted', "Deleted workspace {$this->quoted($workspace)}", $workspace, ['source' => 'api']);
     }

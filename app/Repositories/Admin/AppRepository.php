@@ -17,10 +17,11 @@ class AppRepository
         if (! empty($search)) {
             $query->where(fn ($q) => $q
                 ->where('name', 'like', "%{$search}%")
-                ->orWhere('category', 'like', "%{$search}%"));
+                ->orWhere('category', 'like', "%{$search}%")
+                ->orWhere('family_key', 'like', "%{$search}%"));
         }
 
-        return $query->latest()->paginate($perPage);
+        return $query->latest()->paginate($perPage)->withQueryString();
     }
 
     /**
@@ -49,7 +50,7 @@ class AppRepository
             $query->where('status', $status);
         }
 
-        return $query->orderBy('name')->paginate($perPage)->withQueryString();
+        return $query->orderBy('name')->orderBy('sort_order')->paginate($perPage)->withQueryString();
     }
 
     public function find(int $id): ?Application

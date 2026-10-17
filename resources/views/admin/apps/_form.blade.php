@@ -45,6 +45,40 @@
 
 <div class="divider"></div>
 
+{{-- Edition: rows sharing a family key are tiers of one product --}}
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+    <div>
+        <label class="form-label" for="family_key">{{ __('Family Key') }}</label>
+        <input type="text" id="family_key" name="family_key" value="{{ old('family_key', $isEdit ? $app->family_key : '') }}" class="form-input" placeholder="task-manager">
+        <p class="text-xs mt-1 text-[var(--text-muted)]">{{ __('Same key for every edition of one product. Leave blank to use the app name.') }}</p>
+        @error('family_key')
+            <p class="text-xs mt-1 text-[var(--danger)]">{{ $message }}</p>
+        @enderror
+    </div>
+    <div>
+        <label class="form-label" for="edition">{{ __('Edition') }}</label>
+        <select id="edition" name="edition" class="form-input">
+            <option value="">{{ __('None (single edition)') }}</option>
+            @foreach(\App\Models\Frontend\Application::EDITIONS as $value => $label)
+                <option value="{{ $value }}" {{ old('edition', $isEdit ? $app->edition : '') === $value ? 'selected' : '' }}>{{ __($label) }}</option>
+            @endforeach
+        </select>
+        @error('edition')
+            <p class="text-xs mt-1 text-[var(--danger)]">{{ $message }}</p>
+        @enderror
+    </div>
+    <div>
+        <label class="form-label" for="sort_order">{{ __('Sort Order') }}</label>
+        <input type="number" id="sort_order" name="sort_order" min="0" step="1" value="{{ old('sort_order', $isEdit ? $app->sort_order : 0) }}" class="form-input" placeholder="0">
+        <p class="text-xs mt-1 text-[var(--text-muted)]">{{ __('Tier rank in the family. Higher means a higher tier; users upgrade upward.') }}</p>
+        @error('sort_order')
+            <p class="text-xs mt-1 text-[var(--danger)]">{{ $message }}</p>
+        @enderror
+    </div>
+</div>
+
+<div class="divider"></div>
+
 {{-- Logo --}}
 <div class="mb-4">
     <label class="form-label" for="image">{{ __('Logo') }}</label>

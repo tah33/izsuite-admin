@@ -87,7 +87,8 @@ class AppsApiTest extends TestCase
             ->assertJsonStructure([
                 'data' => [[
                     'id', 'name', 'description', 'price', 'price_formatted',
-                    'logo_url', 'category', 'status', 'is_active', 'created_at',
+                    'logo_url', 'category', 'status', 'is_active',
+                    'family_key', 'edition', 'edition_label', 'sort_order', 'created_at',
                 ]],
                 'pagination' => ['current_page', 'last_page', 'per_page', 'total'],
             ])
@@ -156,6 +157,50 @@ class AppsApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('pagination.total', 0)
             ->assertJsonPath('data', []);
+    }
+
+    /* ----------------------------------------------------------- editions */
+
+    private function seedTaskManagerFamily(): array
+    {
+        $make = fn (string $edition, int $rank, bool $active = true) => Application::create([
+            'name' => 'Task Manager '.ucfirst($edition), 'category' => 'Productivity',
+            'status' => 'available', 'is_active' => $active,
+            'family_key' => 'task-manager', 'edition' => $edition, 'sort_order' => $rank,
+        ]);
+
+        return [$make('lite', 1), $make('pro', 2), $make('max', 3)];
+    }
+
+    public function test_family_key_defaults_to_the_name_slug(): void
+    {
+        $app = Application::create(['name' => 'Sales Lite', 'category' => 'Finance']);
+
+        $this->assertSame('sales-lite', $app->family_key);
+    }
+
+    public function test_upgrades_are_higher_ranked_active_editions_in_the_same_family(): void
+    {
+        [$lite, $pro, $max] = $this->seedTaskManagerFamily();
+        Application::create(['name' => 'Other Pro', 'category' => 'X', 'family_key' => 'other', 'edition' => 'pro', 'sort_order' => 9]);
+
+        $this->assertSame(['pro', 'max'], $lite->upgrades()->pluck('edition')->all());
+        $this->assertSame(['max'], $pro->upgrades()->pluck('edition')->all());
+        $this->assertTrue($max->upgrades()->isEmpty());
+
+        $max->update(['is_active' => false]);
+        $this->assertSame(['pro'], $lite->upgrades()->pluck('edition')->all());
+    }
+
+    public function test_app_list_exposes_edition_fields(): void
+    {
+        $this->seedTaskManagerFamily();
+
+        $pro = collect($this->getJson('/api/v1/apps')->json('data'))->firstWhere('edition', 'pro');
+
+        $this->assertSame('task-manager', $pro['family_key']);
+        $this->assertSame('Pro', $pro['edition_label']);
+        $this->assertSame(2, $pro['sort_order']);
     }
 
     /* --------------------------------------------------------- validation */

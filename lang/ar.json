@@ -628,5 +628,13 @@
     "optional": "اختياري",
     "replies": "ردود",
     "role?": "الدور؟",
-    "translation_saved": "تم حفظ الترجمات بنجاح."
+    "translation_saved": "تم حفظ الترجمات بنجاح.",
+    "Edition": "الإصدار",
+    "Family Key": "مفتاح العائلة",
+    "None (single edition)": "لا شيء (إصدار واحد)",
+    "Lite": "لايت",
+    "Max": "ماكس",
+    "Same key for every edition of one product. Leave blank to use the app name.": "نفس المفتاح لكل إصدارات المنتج الواحد. اتركه فارغًا لاستخدام اسم التطبيق.",
+    "Tier rank in the family. Higher means a higher tier; users upgrade upward.": "ترتيب المستوى داخل العائلة. الرقم الأعلى يعني مستوى أعلى، والترقية تكون للأعلى.",
+    "This family already has an app with that edition.": "هذه العائلة لديها بالفعل تطبيق بهذا الإصدار."
 }

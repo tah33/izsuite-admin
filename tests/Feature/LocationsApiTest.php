@@ -111,24 +111,40 @@ class LocationsApiTest extends TestCase
         $this->assertSame(1, $attacker->locations()->count());
     }
 
-    public function test_name_country_and_state_are_all_required(): void
+    public function test_only_the_name_is_required(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
 
         $this->postJson('/api/v1/locations', [])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['name', 'country', 'state']);
+            ->assertJsonValidationErrors(['name'])
+            ->assertJsonMissingValidationErrors(['country', 'state']);
 
         $this->assertDatabaseCount('locations', 0);
+
+        // A name alone is a whole location, with no country or state yet.
+        $this->postJson('/api/v1/locations', ['name' => 'Main Location'])
+            ->assertCreated()
+            ->assertJsonPath('data.country', null)
+            ->assertJsonPath('data.state', null);
+
+        $this->assertDatabaseHas('locations', ['user_id' => $user->id, 'name' => 'Main Location', 'country' => null, 'state' => null]);
     }
 
     public function test_values_of_only_spaces_count_as_empty(): void
     {
         Sanctum::actingAs(User::factory()->create());
 
-        $this->postJson('/api/v1/locations', ['name' => '   ', 'country' => ' ', 'state' => "\t"])
+        $this->postJson('/api/v1/locations', ['name' => '   ', 'country' => 'Bangladesh', 'state' => 'Dhaka'])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['name', 'country', 'state']);
+            ->assertJsonValidationErrors(['name']);
+
+        // An optional field of nothing but spaces is simply empty.
+        $this->postJson('/api/v1/locations', ['name' => 'Main Location', 'country' => ' ', 'state' => "\t"])
+            ->assertCreated()
+            ->assertJsonPath('data.country', null)
+            ->assertJsonPath('data.state', null);
     }
 
     public function test_values_respect_their_column_lengths(): void
@@ -184,6 +200,31 @@ class LocationsApiTest extends TestCase
             ->assertJsonValidationErrors('name');
 
         $this->assertDatabaseHas('locations', ['id' => $location->id, 'name' => 'Dhaka Warehouse', 'state' => 'Dhaka']);
+    }
+
+    public function test_update_can_clear_the_country_and_state(): void
+    {
+        $user     = User::factory()->create();
+        $location = $this->locationOf($user);
+        Sanctum::actingAs($user);
+
+        $this->putJson("/api/v1/locations/{$location->id}", ['name' => 'Dhaka Warehouse', 'country' => null, 'state' => ''])
+            ->assertOk()
+            ->assertJsonPath('data.country', null)
+            ->assertJsonPath('data.state', null);
+
+        $this->assertDatabaseHas('locations', ['id' => $location->id, 'country' => null, 'state' => null]);
+    }
+
+    public function test_an_update_that_leaves_the_country_and_state_out_keeps_them(): void
+    {
+        $user     = User::factory()->create();
+        $location = $this->locationOf($user);
+        Sanctum::actingAs($user);
+
+        $this->putJson("/api/v1/locations/{$location->id}", ['name' => 'Port Depot'])->assertOk();
+
+        $this->assertDatabaseHas('locations', ['id' => $location->id, 'name' => 'Port Depot', 'country' => 'Bangladesh', 'state' => 'Dhaka']);
     }
 
     public function test_a_user_id_in_an_update_cannot_move_the_location(): void

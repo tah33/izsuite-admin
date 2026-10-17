@@ -40,6 +40,7 @@
                     <tr>
                         <th>#</th>
                         <th>{{ __('App') }}</th>
+                        <th>{{ __('Edition') }}</th>
                         <th>{{ __('Category') }}</th>
                         <th>{{ __('Price') }}</th>
                         <th>{{ __('Status') }}</th>
@@ -68,6 +69,14 @@
                                         @endif
                                     </div>
                                 </div>
+                            </td>
+                            <td>
+                                @if($app->edition)
+                                    <span class="badge badge-active">{{ __($app->editionLabel()) }}</span>
+                                    <span class="block text-xs mt-1 text-[var(--text-muted)]">{{ $app->family_key }} · #{{ $app->sort_order }}</span>
+                                @else
+                                    <span class="text-[var(--text-muted)]">—</span>
+                                @endif
                             </td>
                             <td>
                                 @if($app->category)
@@ -130,7 +139,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="text-center py-8 text-[var(--text-muted)]">
+                            <td colspan="9" class="text-center py-8 text-[var(--text-muted)]">
                                 <i data-lucide="app-window" class="w-8 h-8 mx-auto mb-2 opacity-40"></i>
                                 <p>{{ __('No apps found.') }}</p>
                             </td>

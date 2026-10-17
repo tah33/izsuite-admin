@@ -5,9 +5,9 @@ namespace Tests\Feature;
 use App\Models\Frontend\Application;
 use App\Models\Shared\ActivityLog;
 use App\Models\User\User;
-use App\Models\User\UserStaff;
 use App\Models\User\Workspace;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -38,20 +38,6 @@ class WorkspacesApiTest extends TestCase
     private function workspaceOf(User $user, array $overrides = []): Workspace
     {
         return $user->workspaces()->create($this->payload($overrides));
-    }
-
-    /**
-     * One of $owner's own staff - a user_staff row - active unless said otherwise.
-     */
-    private function staffOf(User $owner, array $overrides = []): UserStaff
-    {
-        return $owner->userStaff()->create(array_merge([
-            'name'    => 'Rahim Uddin',
-            'email'   => 'rahim@izsuite.test',
-            'phone'   => '+8801700000000',
-            'address' => '12 Private Street',
-            'status'  => UserStaff::STATUS_ACTIVE,
-        ], $overrides));
     }
 
     /* ---------------------------------------------------------- auth */
@@ -100,32 +86,6 @@ class WorkspacesApiTest extends TestCase
             ->assertJsonPath('data.1.app', ['id' => $this->sales->id, 'name' => 'Sales Lite']);
 
         $this->assertSame(['Alpha', 'Zeta'], array_column($response->json('data'), 'name'));
-    }
-
-    public function test_the_list_carries_each_staff_member_by_name_and_never_the_owner(): void
-    {
-        $user  = User::factory()->create();
-        $staff = $this->staffOf($user);
-
-        $this->workspaceOf($user, ['name' => 'Alpha', 'staff_id' => $staff->id]);
-        $this->workspaceOf($user, ['name' => 'Beta']);
-
-        Sanctum::actingAs($user);
-
-        $response = $this->getJson('/api/v1/workspaces')
-            ->assertOk()
-            ->assertJsonStructure(['data' => [['id', 'name', 'app_id', 'staff_id', 'app', 'staff']]])
-            ->assertJsonPath('data.0.staff_id', $staff->id)
-            ->assertJsonPath('data.0.staff', ['id' => $staff->id, 'name' => 'Rahim Uddin'])
-            ->assertJsonPath('data.1.staff_id', null)
-            ->assertJsonPath('data.1.staff', null)
-            ->assertJsonMissingPath('data.0.user_id');
-
-        // Only the name of a staff member goes out with a workspace - not their
-        // email, phone or address, which are the Staff page's to show.
-        $this->assertStringNotContainsString('rahim@izsuite.test', $response->getContent());
-        $this->assertStringNotContainsString('+8801700000000', $response->getContent());
-        $this->assertStringNotContainsString('12 Private Street', $response->getContent());
     }
 
     /* ---------------------------------------------------------- create */
@@ -184,74 +144,27 @@ class WorkspacesApiTest extends TestCase
         $this->assertSame(1, $attacker->workspaces()->count());
     }
 
-    public function test_store_can_attach_one_of_the_callers_own_active_staff(): void
-    {
-        $user  = User::factory()->create();
-        $staff = $this->staffOf($user);
-        Sanctum::actingAs($user);
-
-        $this->postJson('/api/v1/workspaces', $this->payload(['staff_id' => $staff->id]))
-            ->assertCreated()
-            ->assertJsonPath('data.staff_id', $staff->id)
-            ->assertJsonPath('data.staff', ['id' => $staff->id, 'name' => 'Rahim Uddin']);
-
-        $this->assertDatabaseHas('workspaces', ['user_id' => $user->id, 'name' => 'Main Workspace', 'staff_id' => $staff->id]);
-    }
-
-    public function test_the_staff_member_is_optional(): void
+    public function test_a_workspace_has_no_staff_member_of_its_own(): void
     {
         $user = User::factory()->create();
+        $staff = $user->userStaff()->create(['name' => 'Rahim Uddin', 'email' => 'rahim@example.com', 'phone' => '+8801700000000', 'status' => 1]);
         Sanctum::actingAs($user);
 
-        $this->postJson('/api/v1/workspaces', ['name' => 'No Staff Yet'])
+        // Which staff work in which workspace is set from the staff side, so a
+        // staff_id sent here is not a field of the workspace: it is ignored.
+        $response = $this->postJson('/api/v1/workspaces', $this->payload(['staff_id' => $staff->id]))
             ->assertCreated()
-            ->assertJsonPath('data.staff_id', null)
-            ->assertJsonPath('data.staff', null);
+            ->assertJsonMissingPath('data.staff_id')
+            ->assertJsonMissingPath('data.staff');
 
-        $this->postJson('/api/v1/workspaces', ['name' => 'Explicit Null', 'staff_id' => null])->assertCreated();
+        $this->assertStringNotContainsString('Rahim', $response->getContent());
+        $this->assertFalse(Schema::hasColumn('workspaces', 'staff_id'));
 
-        $this->assertSame(2, $user->workspaces()->whereNull('staff_id')->count());
-    }
-
-    public function test_the_staff_member_must_be_one_of_the_callers_own_active_staff(): void
-    {
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
-
-        $inactive     = $this->staffOf($user, ['status' => UserStaff::STATUS_INACTIVE]);
-        $someoneElses = $this->staffOf(User::factory()->create());
-
-        // One of the caller's own who is inactive, an active one that belongs to
-        // another account, and one that does not exist: none of them is on offer.
-        foreach ([$inactive->id, $someoneElses->id, 999999] as $id) {
-            $this->postJson('/api/v1/workspaces', $this->payload(['staff_id' => $id]))
-                ->assertUnprocessable()
-                ->assertJsonValidationErrors(['staff_id' => 'available staff']);
-        }
-
-        $this->postJson('/api/v1/workspaces', $this->payload(['staff_id' => 'rahim']))
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('staff_id');
-
-        $this->assertDatabaseCount('workspaces', 0);
-    }
-
-    public function test_the_same_rule_holds_when_a_workspace_is_edited(): void
-    {
-        $user      = User::factory()->create();
-        $workspace = $this->workspaceOf($user);
-        Sanctum::actingAs($user);
-
-        $inactive     = $this->staffOf($user, ['status' => UserStaff::STATUS_INACTIVE]);
-        $someoneElses = $this->staffOf(User::factory()->create());
-
-        foreach ([$inactive->id, $someoneElses->id] as $id) {
-            $this->putJson("/api/v1/workspaces/{$workspace->id}", $this->payload(['staff_id' => $id]))
-                ->assertUnprocessable()
-                ->assertJsonValidationErrors(['staff_id' => 'available staff']);
-        }
-
-        $this->assertNull($workspace->fresh()->staff_id);
+        $this->getJson('/api/v1/workspaces')
+            ->assertOk()
+            ->assertJsonMissingPath('data.0.staff_id')
+            ->assertJsonMissingPath('data.0.staff');
+        $this->assertSame([], $staff->fresh()->assigned_workspaces ?? []);
     }
 
     public function test_the_name_is_required_and_limited(): void
@@ -353,32 +266,10 @@ class WorkspacesApiTest extends TestCase
         $this->assertDatabaseHas('workspaces', ['id' => $workspace->id, 'name' => 'Main Workspace', 'app_id' => $this->sales->id]);
     }
 
-    public function test_update_can_change_or_clear_the_staff_member(): void
-    {
-        $user      = User::factory()->create();
-        $first     = $this->staffOf($user);
-        $other     = $this->staffOf($user, ['name' => 'Karim Hossain', 'email' => 'karim@izsuite.test']);
-        $workspace = $this->workspaceOf($user, ['staff_id' => $first->id]);
-        Sanctum::actingAs($user);
-
-        // the staff member in the answer is the new one, not the one it was loaded with
-        $this->putJson("/api/v1/workspaces/{$workspace->id}", $this->payload(['staff_id' => $other->id]))
-            ->assertOk()
-            ->assertJsonPath('data.staff', ['id' => $other->id, 'name' => 'Karim Hossain']);
-
-        $this->putJson("/api/v1/workspaces/{$workspace->id}", $this->payload(['staff_id' => null]))
-            ->assertOk()
-            ->assertJsonPath('data.staff_id', null)
-            ->assertJsonPath('data.staff', null);
-
-        $this->assertNull($workspace->fresh()->staff_id);
-    }
-
     public function test_a_field_left_out_of_an_update_is_left_as_it_was(): void
     {
         $user      = User::factory()->create();
-        $staff     = $this->staffOf($user);
-        $workspace = $this->workspaceOf($user, ['staff_id' => $staff->id]);
+        $workspace = $this->workspaceOf($user);
         Sanctum::actingAs($user);
 
         $this->putJson("/api/v1/workspaces/{$workspace->id}", ['name' => 'Renamed'])->assertOk();
@@ -387,67 +278,6 @@ class WorkspacesApiTest extends TestCase
 
         $this->assertSame('Renamed', $fresh->name);
         $this->assertSame($this->sales->id, $fresh->app_id);
-        $this->assertSame($staff->id, $fresh->staff_id);
-    }
-
-    /* ---------------------------------------------------------- the staff member's side of it */
-
-    public function test_a_workspace_keeps_a_staff_member_who_is_made_inactive(): void
-    {
-        $user      = User::factory()->create();
-        $staff     = $this->staffOf($user);
-        $workspace = $this->workspaceOf($user, ['name' => 'Alpha', 'staff_id' => $staff->id]);
-        Sanctum::actingAs($user);
-
-        $staff->update(['status' => UserStaff::STATUS_INACTIVE]);
-
-        // Still named on the workspace, so the list can show who it is.
-        $this->getJson('/api/v1/workspaces')
-            ->assertOk()
-            ->assertJsonPath('data.0.staff_id', $staff->id)
-            ->assertJsonPath('data.0.staff', ['id' => $staff->id, 'name' => 'Rahim Uddin']);
-
-        // An edit that leaves the staff member alone does not disturb them...
-        $this->putJson("/api/v1/workspaces/{$workspace->id}", ['name' => 'Renamed'])->assertOk();
-        $this->assertSame($staff->id, $workspace->fresh()->staff_id);
-
-        // ...but sending them back is choosing them, and they are no longer on offer.
-        $this->putJson("/api/v1/workspaces/{$workspace->id}", $this->payload(['staff_id' => $staff->id]))
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['staff_id' => 'available staff']);
-    }
-
-    public function test_the_list_follows_a_staff_member_who_is_renamed(): void
-    {
-        $user  = User::factory()->create();
-        $staff = $this->staffOf($user);
-        $this->workspaceOf($user, ['staff_id' => $staff->id]);
-        Sanctum::actingAs($user);
-
-        $staff->update(['name' => 'Karim Hossain']);
-
-        $this->getJson('/api/v1/workspaces')
-            ->assertOk()
-            ->assertJsonPath('data.0.staff', ['id' => $staff->id, 'name' => 'Karim Hossain']);
-    }
-
-    public function test_deleting_a_staff_member_leaves_their_workspaces_without_one(): void
-    {
-        $user      = User::factory()->create();
-        $staff     = $this->staffOf($user);
-        $workspace = $this->workspaceOf($user, ['staff_id' => $staff->id]);
-        Sanctum::actingAs($user);
-
-        $staff->delete();
-
-        // The workspace outlives them - it is not deleted with them, and does not block it.
-        $this->assertNull($workspace->fresh()->staff_id);
-
-        $this->getJson('/api/v1/workspaces')
-            ->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.staff_id', null)
-            ->assertJsonPath('data.0.staff', null);
     }
 
     public function test_a_user_id_in_an_update_cannot_move_the_workspace(): void

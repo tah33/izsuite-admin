@@ -628,5 +628,13 @@
     "optional": "optional",
     "replies": "replies",
     "role?": "role?",
-    "translation_saved": "Translations saved successfully."
+    "translation_saved": "Translations saved successfully.",
+    "Edition": "Edition",
+    "Family Key": "Family Key",
+    "None (single edition)": "None (single edition)",
+    "Lite": "Lite",
+    "Max": "Max",
+    "Same key for every edition of one product. Leave blank to use the app name.": "Same key for every edition of one product. Leave blank to use the app name.",
+    "Tier rank in the family. Higher means a higher tier; users upgrade upward.": "Tier rank in the family. Higher means a higher tier; users upgrade upward.",
+    "This family already has an app with that edition.": "This family already has an app with that edition."
 }
