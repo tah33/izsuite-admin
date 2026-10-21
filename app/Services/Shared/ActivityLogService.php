@@ -25,9 +25,14 @@ class ActivityLogService
         return $this->repo->getDistinctActions();
     }
 
-    public function log(string $action, string $description, ?Model $subject = null, ?array $properties = null): ?ActivityLog
+    /**
+     * $actor is who did it, and defaults to whoever is signed in. Pass it for
+     * work done with nobody signed in - a queued job acting for an account -
+     * or the entry would belong to no one.
+     */
+    public function log(string $action, string $description, ?Model $subject = null, ?array $properties = null, ?User $actor = null): ?ActivityLog
     {
-        $actor = auth()->user();
+        $actor ??= auth()->user();
 
         if ($this->shouldSkipAdminActivity($actor, $subject)) {
             return null;
@@ -48,9 +53,9 @@ class ActivityLogService
         return $log;
     }
 
-    public static function record(string $action, string $description, ?Model $subject = null, ?array $properties = null): ?ActivityLog
+    public static function record(string $action, string $description, ?Model $subject = null, ?array $properties = null, ?User $actor = null): ?ActivityLog
     {
-        return app(static::class)->log($action, $description, $subject, $properties);
+        return app(static::class)->log($action, $description, $subject, $properties, $actor);
     }
 
     private function shouldSkipAdminActivity(?User $actor, ?Model $subject): bool

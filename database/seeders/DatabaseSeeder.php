@@ -20,6 +20,8 @@ class DatabaseSeeder extends Seeder
             PaymentMethodSeeder::class,
             UserSeeder::class,
             StaffSeeder::class,
+            AppCatalogSeeder::class,
+            DemoAccountSeeder::class,
             PageSeeder::class,
             TicketSeeder::class,
             ActivityLogSeeder::class,

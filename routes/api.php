@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\Api\AppActivationController;
 use App\Http\Controllers\Api\AppCategoryController;
 use App\Http\Controllers\Api\AppController;
+use App\Http\Controllers\Api\AppsCenterController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BusinessSettingController;
 use App\Http\Controllers\Api\ContactMessageController;
@@ -9,6 +11,7 @@ use App\Http\Controllers\Api\CurrencyController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\LanguageController;
 use App\Http\Controllers\Api\LocationController;
+use App\Http\Controllers\Api\NavigationController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProfileController;
@@ -130,5 +133,24 @@ Route::prefix('v1')->group(function () {
         Route::post('/', [UserStaffController::class, 'store'])->name('api.user-staff.store');
         Route::put('/{id}', [UserStaffController::class, 'update'])->whereNumber('id')->name('api.user-staff.update');
         Route::delete('/{id}', [UserStaffController::class, 'destroy'])->whereNumber('id')->name('api.user-staff.destroy');
+    });
+
+    /* ----------------------------------------------------------
+     | The signed-in user's business: its sidebar, its Apps Center, and
+     | turning apps on and off ("izSuite Apps & Menus")
+     |
+     | `workspace` picks the business from the X-Workspace-Id header (the
+     | caller's oldest workspace without one); someone else's is a 404.
+     | Activating and deactivating answer with the new navigation.
+     |
+     | An app's own routes go in groups behind `app:{family}` - for example
+     | Route::middleware(['auth:sanctum', 'workspace', 'app:sales'])
+     | - or `app:{family},full` for what only the Full edition has.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace'])->group(function () {
+        Route::get('/navigation', NavigationController::class)->name('api.navigation');
+        Route::get('/apps-center', AppsCenterController::class)->name('api.apps-center');
+        Route::post('/apps/{appKey}/activate', [AppActivationController::class, 'activate'])->name('api.apps.activate');
+        Route::post('/apps/{appKey}/deactivate', [AppActivationController::class, 'deactivate'])->name('api.apps.deactivate');
     });
 });

@@ -33,7 +33,7 @@ class AppService
      */
     public function create(array $data): Application
     {
-        return $this->appRepository->create($data);
+        return $this->shareFamilyOrder($this->appRepository->create($data));
     }
 
     /**
@@ -41,7 +41,20 @@ class AppService
      */
     public function update(Application $app, array $data): Application
     {
-        return $this->appRepository->update($app, $data);
+        return $this->shareFamilyOrder($this->appRepository->update($app, $data));
+    }
+
+    /**
+     * Both editions of a family share one sort order, so Lite and Full take
+     * the same place in the sidebar and the Apps Center.
+     */
+    private function shareFamilyOrder(Application $app): Application
+    {
+        Application::where('family_key', $app->family_key)
+            ->whereKeyNot($app->getKey())
+            ->update(['sort_order' => $app->sort_order]);
+
+        return $app;
     }
 
     /**

@@ -2,13 +2,6 @@
 @section('title', __('Plans & Pricing'))
 
 @section('content')
-    <div class="mb-6 flex justify-end">
-        <a href="{{ route('admin.plans.create') }}" class="btn btn-primary">
-            <i data-lucide="plus" class="w-4 h-4"></i>
-            {{ __('New Plan') }}
-        </a>
-    </div>
-
     {{-- Flash --}}
     @if(session('error'))
         <div class="p-3 rounded-xl mb-4 text-sm font-medium bg-[var(--danger-light)] text-[var(--danger)]">
@@ -16,13 +9,23 @@
         </div>
     @endif
 
-    {{-- Monthly / Yearly Toggle --}}
-    <div class="flex items-center gap-2 mb-4">
-        <span class="text-sm font-medium text-[var(--text-primary)]">{{ __('Show prices:') }}</span>
-        <div class="inline-flex rounded-lg overflow-hidden border border-[var(--card-border)]" id="billing-toggle">
-            <button type="button" class="billing-tab px-4 py-1.5 text-sm font-medium transition-all bg-[var(--primary)] text-white" data-interval="monthly">{{ __('Monthly') }}</button>
-            <button type="button" class="billing-tab px-4 py-1.5 text-sm font-medium transition-all text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--card-bg)]" data-interval="yearly">{{ __('Yearly') }}</button>
+    {{-- One toolbar row: price toggle on the left, page actions on the right. --}}
+    <div class="flex flex-wrap items-center gap-3 mb-4">
+        {{-- Monthly / Yearly Toggle --}}
+        <div class="flex items-center gap-2">
+            <span class="text-sm font-medium text-[var(--text-primary)]">{{ __('Show prices:') }}</span>
+            <div class="inline-flex rounded-lg overflow-hidden border border-[var(--card-border)]" id="billing-toggle">
+                {{-- Active/hover colors come from .billing-tab in app.css; it is
+                     unlayered, so color utilities on these buttons would lose. --}}
+                <button type="button" class="billing-tab active px-4 py-1.5 text-sm font-medium transition-all" data-interval="monthly">{{ __('Monthly') }}</button>
+                <button type="button" class="billing-tab px-4 py-1.5 text-sm font-medium transition-all" data-interval="yearly">{{ __('Yearly') }}</button>
+            </div>
         </div>
+
+        <a href="{{ route('admin.plans.create') }}" class="btn btn-primary ms-auto">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            {{ __('New Plan') }}
+        </a>
     </div>
 
     {{-- Table --}}
@@ -36,7 +39,7 @@
                         <th>{{ __('Audience') }}</th>
                         <th>{{ __('Type') }}</th>
                         <th class="price-col" data-interval="monthly">{{ __('Monthly Price') }}</th>
-                        <th class="price-col" data-interval="yearly" class="hidden">{{ __('Yearly Price') }}</th>
+                        <th class="price-col hidden" data-interval="yearly">{{ __('Yearly Price') }}</th>
                         <th>{{ __('Trial') }}</th>
                         <th>{{ __('Users') }}</th>
                         <th>{{ __('Limits') }}</th>
@@ -72,7 +75,7 @@
                             <td class="price-col font-semibold text-[var(--primary)]" data-interval="monthly">
                                 {{ format_price($plan->monthly_price) }}
                             </td>
-                            <td class="price-col font-semibold text-[var(--primary)]" data-interval="yearly" class="hidden">
+                            <td class="price-col hidden font-semibold text-[var(--primary)]" data-interval="yearly">
                                 {{ format_price($plan->yearly_price) }}
                             </td>
                             <td>
@@ -145,13 +148,7 @@
         btn.addEventListener('click', () => {
             const interval = btn.dataset.interval;
             document.querySelectorAll('.billing-tab').forEach(b => {
-                const isActive = (b === btn);
-                b.classList.toggle('bg-[var(--primary)]', isActive);
-                b.classList.toggle('text-white', isActive);
-                
-                b.classList.toggle('text-[var(--text-muted)]', !isActive);
-                b.classList.toggle('hover:text-[var(--text-primary)]', !isActive);
-                b.classList.toggle('hover:bg-[var(--card-bg)]', !isActive);
+                b.classList.toggle('active', b === btn);
             });
             document.querySelectorAll('.price-col').forEach(col => {
                 col.classList.toggle('hidden', col.dataset.interval !== interval);

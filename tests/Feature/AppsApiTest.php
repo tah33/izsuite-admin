@@ -18,20 +18,25 @@ class AppsApiTest extends TestCase
         AppCategory::create(['name' => 'Archived', 'is_active' => false]);
     }
 
+    private function category(string $name): int
+    {
+        return AppCategory::firstOrCreate(['name' => $name], ['is_active' => true])->id;
+    }
+
     private function seedApps(): void
     {
         Application::create([
             'name' => 'Notion', 'description' => 'Notes and docs', 'price' => 9.99,
-            'category' => 'Productivity', 'status' => 'included', 'is_active' => true,
+            'category_id' => $this->category('Productivity'), 'status' => 'coming_soon', 'is_active' => true,
             'logo_url' => 'apps/notion.png',
         ]);
         Application::create([
             'name' => 'Xero', 'description' => 'Bookkeeping', 'price' => 0,
-            'category' => 'Accounting', 'status' => 'active', 'is_active' => true,
+            'category_id' => $this->category('Accounting'), 'status' => 'available', 'is_active' => true,
         ]);
         Application::create([
             'name' => 'Dead App', 'description' => 'Retired', 'price' => 5,
-            'category' => 'Productivity', 'status' => 'active', 'is_active' => false,
+            'category_id' => $this->category('Productivity'), 'status' => 'available', 'is_active' => false,
         ]);
     }
 
@@ -86,8 +91,8 @@ class AppsApiTest extends TestCase
         $response->assertOk()
             ->assertJsonStructure([
                 'data' => [[
-                    'id', 'name', 'description', 'price', 'price_formatted',
-                    'logo_url', 'category', 'status', 'is_active',
+                    'id', 'app_key', 'name', 'description', 'price', 'price_formatted',
+                    'logo_url', 'icon', 'category_id', 'category', 'status', 'is_active',
                     'family_key', 'edition', 'edition_label', 'sort_order', 'created_at',
                 ]],
                 'pagination' => ['current_page', 'last_page', 'per_page', 'total'],
@@ -128,7 +133,7 @@ class AppsApiTest extends TestCase
     {
         $this->seedApps();
 
-        $response = $this->getJson('/api/v1/apps?status=included');
+        $response = $this->getJson('/api/v1/apps?status=coming_soon');
 
         $response->assertOk()->assertJsonPath('pagination.total', 1);
         $this->assertSame(['Notion'], array_column($response->json('data'), 'name'));
@@ -161,46 +166,56 @@ class AppsApiTest extends TestCase
 
     /* ----------------------------------------------------------- editions */
 
-    private function seedTaskManagerFamily(): array
+    /** A family with both editions (Doc 01 section 9). */
+    private function seedSalesFamily(): array
     {
-        $make = fn (string $edition, int $rank, bool $active = true) => Application::create([
-            'name' => 'Task Manager '.ucfirst($edition), 'category' => 'Productivity',
-            'status' => 'available', 'is_active' => $active,
-            'family_key' => 'task-manager', 'edition' => $edition, 'sort_order' => $rank,
+        $make = fn (string $name, string $edition) => Application::create([
+            'name' => $name, 'category_id' => $this->category('Sales & Commerce'),
+            'status' => 'available', 'is_active' => true,
+            'family_key' => 'sales', 'edition' => $edition, 'sort_order' => 10,
         ]);
 
-        return [$make('lite', 1), $make('pro', 2), $make('max', 3)];
+        return [$make('Sales Lite', 'lite'), $make('Sales', 'full')];
     }
 
-    public function test_family_key_defaults_to_the_name_slug(): void
+    public function test_family_key_and_app_key_default_from_the_name(): void
     {
-        $app = Application::create(['name' => 'Sales Lite', 'category' => 'Finance']);
+        $standalone = Application::create(['name' => 'Task Manager']);
+        $lite       = Application::create(['name' => 'Sales Lite', 'family_key' => 'sales', 'edition' => 'lite']);
 
-        $this->assertSame('sales-lite', $app->family_key);
+        $this->assertSame('task-manager', $standalone->family_key);
+        $this->assertSame('task-manager', $standalone->app_key);
+        $this->assertSame('sales_lite', $lite->app_key);
     }
 
-    public function test_upgrades_are_higher_ranked_active_editions_in_the_same_family(): void
+    public function test_a_lite_app_upgrades_to_the_active_full_edition_of_its_family(): void
     {
-        [$lite, $pro, $max] = $this->seedTaskManagerFamily();
-        Application::create(['name' => 'Other Pro', 'category' => 'X', 'family_key' => 'other', 'edition' => 'pro', 'sort_order' => 9]);
+        [$lite, $full] = $this->seedSalesFamily();
+        Application::create(['name' => 'CRM', 'family_key' => 'crm', 'edition' => 'full']);
 
-        $this->assertSame(['pro', 'max'], $lite->upgrades()->pluck('edition')->all());
-        $this->assertSame(['max'], $pro->upgrades()->pluck('edition')->all());
-        $this->assertTrue($max->upgrades()->isEmpty());
+        $this->assertSame(['sales'], $lite->upgrades()->pluck('app_key')->all());
+        $this->assertTrue($full->upgrades()->isEmpty());
+        $this->assertSame($lite->id, $full->liteEdition()->id);
 
-        $max->update(['is_active' => false]);
-        $this->assertSame(['pro'], $lite->upgrades()->pluck('edition')->all());
+        $full->update(['is_active' => false]);
+        $this->assertTrue($lite->upgrades()->isEmpty());
     }
 
     public function test_app_list_exposes_edition_fields(): void
     {
-        $this->seedTaskManagerFamily();
+        $this->seedSalesFamily();
 
-        $pro = collect($this->getJson('/api/v1/apps')->json('data'))->firstWhere('edition', 'pro');
+        $apps = collect($this->getJson('/api/v1/apps')->json('data'));
+        $full = $apps->firstWhere('edition', 'full');
+        $lite = $apps->firstWhere('edition', 'lite');
 
-        $this->assertSame('task-manager', $pro['family_key']);
-        $this->assertSame('Pro', $pro['edition_label']);
-        $this->assertSame(2, $pro['sort_order']);
+        $this->assertSame('sales', $full['family_key']);
+        $this->assertSame('sales', $full['app_key']);
+        $this->assertSame('Full', $full['edition_label']);
+        $this->assertSame('sales_lite', $lite['app_key']);
+        $this->assertSame('Lite', $lite['edition_label']);
+        $this->assertSame('Sales & Commerce', $lite['category']);
+        $this->assertSame(10, $lite['sort_order']);
     }
 
     /* --------------------------------------------------------- validation */

@@ -17,6 +17,12 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 
+    {{-- Select2 4.1 (the copy wwp uses): app.js turns every <select> into one.
+         Its stylesheet comes before @vite so the brand theme in app.css wins. --}}
+    <link rel="stylesheet" href="{{ asset('vendor/select2/select2.min.css') }}">
+    <script src="{{ asset('vendor/select2/select2.min.js') }}"></script>
+    <meta name="select2-no-results" content="{{ __('No results found') }}">
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <x-brand-head />
@@ -34,14 +40,22 @@
             @include('components.admin-sidebar')
         @endif
 
-        <div class="flex-1 flex flex-col main-content-layout">
+        {{--
+            min-w-0 is load-bearing here. Without it the flex-1 column inherits
+            min-width:auto and any wide child (the overview chart, a wide table)
+            pushes the entire layout past the viewport — the whole page scrolls
+            horizontally and the topbar actions slide off-screen. With min-w-0
+            the column can shrink, and any inner overflow-x-auto wrapper clips
+            on its own, keeping the sidebar pinned.
+        --}}
+        <div class="flex-1 min-w-0 flex flex-col main-content-layout">
             @hasSection('topbar')
                 @yield('topbar')
             @else
                 @include('components.topbar', ['panelTitle' => 'Admin Panel'])
             @endif
 
-            <main class="flex-1 p-6">
+            <main class="flex-1 min-w-0 p-6">
                 @if(session('success'))
                     <div class="p-3 rounded-xl mb-4 text-sm font-medium bg-[var(--success-light)] text-[var(--primary-dark)]">
                         {{ session('success') }}

@@ -12,16 +12,20 @@ class AppRepository
      */
     public function getPaginated(?string $search = null, int $perPage = 15): LengthAwarePaginator
     {
-        $query = Application::query();
+        $query = Application::query()->with(['category', 'packages:id,key,name,rank']);
 
         if (! empty($search)) {
             $query->where(fn ($q) => $q
                 ->where('name', 'like', "%{$search}%")
-                ->orWhere('category', 'like', "%{$search}%")
-                ->orWhere('family_key', 'like', "%{$search}%"));
+                ->orWhere('family_key', 'like', "%{$search}%")
+                ->orWhere('app_key', 'like', "%{$search}%")
+                ->orWhereHas('category', fn ($c) => $c->where('name', 'like', "%{$search}%")));
         }
 
-        return $query->latest()->paginate($perPage)->withQueryString();
+        // Families together, Lite before Full, in the Apps Center's order.
+        return $query->orderBy('sort_order')->orderBy('family_key')
+            ->orderByRaw("case when edition = 'lite' then 1 else 2 end")
+            ->paginate($perPage)->withQueryString();
     }
 
     /**
@@ -33,17 +37,18 @@ class AppRepository
         ?string $status = null,
         int $perPage = 15,
     ): LengthAwarePaginator {
-        $query = Application::query()->where('is_active', true);
+        $query = Application::query()->with('category')->where('is_active', true);
 
         if (! empty($search)) {
             $query->where(fn ($q) => $q
                 ->where('name', 'like', "%{$search}%")
                 ->orWhere('description', 'like', "%{$search}%")
-                ->orWhere('category', 'like', "%{$search}%"));
+                ->orWhereHas('category', fn ($c) => $c->where('name', 'like', "%{$search}%")));
         }
 
+        // By the category's name, as the public list has always taken it.
         if (! empty($category)) {
-            $query->where('category', $category);
+            $query->whereHas('category', fn ($c) => $c->where('name', $category));
         }
 
         if (! empty($status)) {

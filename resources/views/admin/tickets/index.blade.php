@@ -2,64 +2,55 @@
 @section('title', __('Support Tickets'))
 
 @section('content')
-    <div class="mb-6 flex justify-end">
-        <a href="{{ route('admin.tickets.create') }}" class="btn btn-primary">
-            <i data-lucide="plus" class="w-4 h-4 me-2"></i> {{ __('Create Ticket') }}
-        </a>
-    </div>
+    {{-- One toolbar row: status tabs and search on the left, page actions on the right. --}}
+    <div class="flex flex-wrap items-center gap-3 mb-4">
+        {{-- Status Tabs --}}
+        <div class="tabs">
+            <a href="{{ route('admin.tickets.index') }}"
+               class="tab {{ !request('status') ? 'active' : '' }}">
+               {{ __('All') }}
+            </a>
+            <a href="{{ route('admin.tickets.index', ['status' => 'open']) }}"
+               class="tab {{ request('status') === 'open' ? 'active' : '' }}">
+               {{ __('Open') }}
+            </a>
+            <a href="{{ route('admin.tickets.index', ['status' => 'in_progress']) }}"
+               class="tab {{ request('status') === 'in_progress' ? 'active' : '' }}">
+               {{ __('In Progress') }}
+            </a>
+            <a href="{{ route('admin.tickets.index', ['status' => 'resolved']) }}"
+               class="tab {{ request('status') === 'resolved' ? 'active' : '' }}">
+               {{ __('Resolved') }}
+            </a>
+            <a href="{{ route('admin.tickets.index', ['status' => 'closed']) }}"
+               class="tab {{ request('status') === 'closed' ? 'active' : '' }}">
+               {{ __('Closed') }}
+            </a>
+        </div>
 
-    {{-- Status Tabs --}}
-    <div class="tabs mb-4">
-        <a href="{{ route('admin.tickets.index') }}"
-           class="tab {{ !request('status') ? 'active' : '' }}">
-           {{ __('All') }}
-        </a>
-        <a href="{{ route('admin.tickets.index', ['status' => 'open']) }}"
-           class="tab {{ request('status') === 'open' ? 'active' : '' }}">
-           {{ __('Open') }}
-        </a>
-        <a href="{{ route('admin.tickets.index', ['status' => 'in_progress']) }}"
-           class="tab {{ request('status') === 'in_progress' ? 'active' : '' }}">
-           {{ __('In Progress') }}
-        </a>
-        <a href="{{ route('admin.tickets.index', ['status' => 'resolved']) }}"
-           class="tab {{ request('status') === 'resolved' ? 'active' : '' }}">
-           {{ __('Resolved') }}
-        </a>
-        <a href="{{ route('admin.tickets.index', ['status' => 'closed']) }}"
-           class="tab {{ request('status') === 'closed' ? 'active' : '' }}">
-           {{ __('Closed') }}
-        </a>
-    </div>
-
-    {{-- Filters --}}
-    <form action="{{ route('admin.tickets.index') }}" method="GET" class="card mb-3">
-        @if(request('status'))
-            <input type="hidden" name="status" value="{{ request('status') }}">
-        @endif
-        <div class="flex flex-col md:flex-row md:items-end gap-3 w-full">
-            <div class="search-input-wrapper flex-1 min-w-0 ![max-width:none]">
+        {{-- Filters --}}
+        <form action="{{ route('admin.tickets.index') }}" method="GET" class="flex flex-1 max-md:basis-full flex-wrap items-center gap-2 min-w-0">
+            @if(request('status'))
+                <input type="hidden" name="status" value="{{ request('status') }}">
+            @endif
+            <div class="search-input-wrapper flex-1 min-w-[200px]">
                 <i data-lucide="search" class="search-icon"></i>
                 <input type="text" name="search" value="{{ request('search') }}"
                        placeholder="{{ __('Search tickets...') }}" class="form-input search-input w-full">
             </div>
-            <div class="md:w-[140px] shrink-0">
-                <select name="per_page" class="form-select w-full" onchange="this.form.submit()">
-                    @foreach([10, 15, 25, 50, 100] as $option)
-                        <option value="{{ $option }}" {{ (int) request('per_page', 15) === $option ? 'selected' : '' }}>{{ $option }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="flex gap-2 shrink-0">
-                <button type="submit" class="btn btn-primary">
-                    <i data-lucide="search" class="w-4 h-4 me-1"></i>{{ __('Filter') }}
-                </button>
-                <a href="{{ route('admin.tickets.index', request('status') ? ['status' => request('status')] : []) }}" class="btn btn-secondary">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </a>
-            </div>
-        </div>
-    </form>
+            <x-per-page-select />
+            <button type="submit" class="btn btn-secondary">
+                <i data-lucide="search" class="w-4 h-4"></i>{{ __('Filter') }}
+            </button>
+            <a href="{{ route('admin.tickets.index', request('status') ? ['status' => request('status')] : []) }}" class="btn btn-secondary self-stretch" title="{{ __('Reset') }}">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </a>
+        </form>
+
+        <a href="{{ route('admin.tickets.create') }}" class="btn btn-primary">
+            <i data-lucide="plus" class="w-4 h-4"></i> {{ __('Create Ticket') }}
+        </a>
+    </div>
 
     {{-- Tickets List --}}
     <div class="space-y-4">

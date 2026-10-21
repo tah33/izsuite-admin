@@ -32,9 +32,16 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && rm -rf /var/lib/apt/lists/*
 
 # Refresh install-php-extensions before use: the copy baked into the base image
-# resolves phpredis through PECL's REST API, which intermittently returns
-# "does not have REST xml available". The current release pulls from GitHub
-# tarballs instead.
+# is older than the release below.
+#
+# phpredis is built from a git clone of its release tag, not from PECL. The
+# installer resolves `redis` through PECL's REST API, which intermittently
+# fails with "does not have REST xml/dependency information available" or "No
+# releases available" (its CDN answers 504 after 20s) and takes the whole build
+# down with it. A clone rather than the installer's `phpredis/phpredis@<tag>`
+# shorthand: that fetches GitHub's tag archive, which omits the liblzf
+# submodule package.xml lists, so the install fails. Bump the tag deliberately
+# when upgrading.
 #
 # Extension set is driven by composer.json and the code:
 #   pdo_mysql          DB_CONNECTION=mysql
@@ -49,6 +56,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
 RUN curl -sSLf https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions \
         -o /usr/local/bin/install-php-extensions \
     && chmod +x /usr/local/bin/install-php-extensions \
+    && git -c advice.detachedHead=false clone --quiet --depth 1 --branch 6.3.0 \
+        --recurse-submodules --shallow-submodules \
+        https://github.com/phpredis/phpredis.git /tmp/phpredis \
     && install-php-extensions \
         pdo_mysql \
         zip \
@@ -57,9 +67,10 @@ RUN curl -sSLf https://github.com/mlocati/docker-php-extension-installer/release
         intl \
         exif \
         mbstring \
-        redis \
+        /tmp/phpredis \
         opcache \
-        pcntl
+        pcntl \
+    && rm -rf /tmp/phpredis
 
 COPY docker/php/uploads.ini /usr/local/etc/php/conf.d/99-uploads.ini
 

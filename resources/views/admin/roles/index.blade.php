@@ -2,7 +2,7 @@
 @section('title', __('Roles'))
 
 @section('content')
-    <div class="mb-6 flex justify-end">
+    <div class="mb-4 flex justify-end">
         <a href="{{ route('admin.roles.create') }}" class="btn btn-primary">
             <i data-lucide="plus" class="w-4 h-4"></i> {{ __('New Role') }}
         </a>

@@ -31,12 +31,15 @@
             <form action="{{ route('admin.tickets.update', $ticket->id) }}" method="POST">
                 @csrf
                 @method('PUT')
-                <select name="status" onchange="this.form.submit()" class="form-select text-sm py-1 ps-2 pe-8 border-[var(--border-color)]">
-                    <option value="open" {{ $ticket->status === 'open' ? 'selected' : '' }}>{{ __('Open') }}</option>
-                    <option value="in_progress" {{ $ticket->status === 'in_progress' ? 'selected' : '' }}>{{ __('In Progress') }}</option>
-                    <option value="resolved" {{ $ticket->status === 'resolved' ? 'selected' : '' }}>{{ __('Resolved') }}</option>
-                    <option value="closed" {{ $ticket->status === 'closed' ? 'selected' : '' }}>{{ __('Closed') }}</option>
-                </select>
+                {{-- A Select2 fills its container, so the container sets the width --}}
+                <div class="w-36">
+                    <select name="status" onchange="this.form.submit()" class="form-select select-sm" aria-label="{{ __('Status') }}">
+                        <option value="open" {{ $ticket->status === 'open' ? 'selected' : '' }}>{{ __('Open') }}</option>
+                        <option value="in_progress" {{ $ticket->status === 'in_progress' ? 'selected' : '' }}>{{ __('In Progress') }}</option>
+                        <option value="resolved" {{ $ticket->status === 'resolved' ? 'selected' : '' }}>{{ __('Resolved') }}</option>
+                        <option value="closed" {{ $ticket->status === 'closed' ? 'selected' : '' }}>{{ __('Closed') }}</option>
+                    </select>
+                </div>
             </form>
         </div>
     </div>

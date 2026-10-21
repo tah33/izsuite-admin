@@ -23,14 +23,17 @@
                     <input type="hidden" name="{{ $key }}" value="{{ $value }}">
                 @endif
             @endforeach
-            <label class="text-xs font-medium text-[var(--text-muted)]">{{ __('Rows') }}</label>
-            <select name="per_page" onchange="this.form.submit()" class="h-9 rounded-lg border border-[var(--card-border)] bg-white px-2 text-sm text-[var(--text-primary)]">
-                @foreach($perPageOptions as $option)
-                    <option value="{{ $option }}" {{ $currentPerPage === $option ? 'selected' : '' }}>
-                        {{ $option }}
-                    </option>
-                @endforeach
-            </select>
+            <label for="topbar-per-page" class="text-xs font-medium text-[var(--text-muted)]">{{ __('Rows') }}</label>
+            {{-- A Select2 fills its container, so the container sets the width --}}
+            <div class="w-[76px]">
+                <select id="topbar-per-page" name="per_page" onchange="this.form.submit()" class="form-select select-sm">
+                    @foreach($perPageOptions as $option)
+                        <option value="{{ $option }}" {{ $currentPerPage === $option ? 'selected' : '' }}>
+                            {{ $option }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
         </form>
 
         <a href="{{ config('app.frontend_url') }}" target="_blank" rel="noopener noreferrer" class="topbar-dropdown" title="{{ __('Visit Website') }}">

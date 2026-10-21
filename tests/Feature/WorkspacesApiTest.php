@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Billing\Package;
 use App\Models\Frontend\Application;
 use App\Models\Shared\ActivityLog;
 use App\Models\User\User;
@@ -17,22 +18,20 @@ class WorkspacesApiTest extends TestCase
 
     private Application $sales;
 
-    private Application $purchases;
-
-    private Application $retired;
+    /** Billing Starter, which every new workspace starts on. */
+    private Package $starter;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->sales     = Application::create(['name' => 'Sales Lite', 'category' => 'Finance', 'is_active' => true]);
-        $this->purchases = Application::create(['name' => 'Purchases Lite', 'category' => 'Finance', 'is_active' => true]);
-        $this->retired   = Application::create(['name' => 'Retired App', 'category' => 'Finance', 'is_active' => false]);
+        $this->starter = Package::where('key', 'starter')->firstOrFail();
+        $this->sales   = Application::create(['name' => 'Sales Lite', 'family_key' => 'sales', 'edition' => 'lite', 'is_active' => true]);
     }
 
     private function payload(array $overrides = []): array
     {
-        return array_merge(['name' => 'Main Workspace', 'app_id' => $this->sales->id], $overrides);
+        return array_merge(['name' => 'Main Workspace'], $overrides);
     }
 
     private function workspaceOf(User $user, array $overrides = []): Workspace
@@ -67,13 +66,13 @@ class WorkspacesApiTest extends TestCase
             ->assertExactJson(['data' => []]);
     }
 
-    public function test_list_returns_only_the_signed_in_users_workspaces_by_name_with_their_app(): void
+    public function test_list_returns_only_the_signed_in_users_workspaces_by_name_with_their_plan(): void
     {
         $user  = User::factory()->create();
         $other = User::factory()->create();
 
-        $this->workspaceOf($user, ['name' => 'Zeta', 'app_id' => $this->sales->id]);
-        $this->workspaceOf($user, ['name' => 'Alpha', 'app_id' => null]);
+        $this->workspaceOf($user, ['name' => 'Zeta']);
+        $this->workspaceOf($user, ['name' => 'Alpha']);
         $this->workspaceOf($other, ['name' => 'Not Mine']);
 
         Sanctum::actingAs($user);
@@ -81,16 +80,15 @@ class WorkspacesApiTest extends TestCase
         $response = $this->getJson('/api/v1/workspaces')
             ->assertOk()
             ->assertJsonCount(2, 'data')
-            ->assertJsonStructure(['data' => [['id', 'name', 'app_id', 'app']]])
-            ->assertJsonPath('data.0.app', null)
-            ->assertJsonPath('data.1.app', ['id' => $this->sales->id, 'name' => 'Sales Lite']);
+            ->assertJsonStructure(['data' => [['id', 'name', 'package']]])
+            ->assertJsonPath('data.0.package', ['key' => 'starter', 'name' => 'Billing Starter']);
 
         $this->assertSame(['Alpha', 'Zeta'], array_column($response->json('data'), 'name'));
     }
 
     /* ---------------------------------------------------------- create */
 
-    public function test_store_creates_a_workspace_for_the_signed_in_user(): void
+    public function test_store_creates_a_workspace_for_the_signed_in_user_on_billing_starter(): void
     {
         $user = User::factory()->create();
         Sanctum::actingAs($user);
@@ -99,26 +97,39 @@ class WorkspacesApiTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('message', 'Workspace added successfully.')
             ->assertJsonPath('data.name', 'Main Workspace')
-            ->assertJsonPath('data.app_id', $this->sales->id)
-            ->assertJsonPath('data.app', ['id' => $this->sales->id, 'name' => 'Sales Lite'])
+            ->assertJsonPath('data.package', ['key' => 'starter', 'name' => 'Billing Starter'])
+            ->assertJsonMissingPath('data.app_id')
             ->assertJsonStructure(['data' => ['id']]);
 
-        $this->assertDatabaseHas('workspaces', ['user_id' => $user->id, 'name' => 'Main Workspace', 'app_id' => $this->sales->id]);
+        $this->assertDatabaseHas('workspaces', ['user_id' => $user->id, 'name' => 'Main Workspace', 'package_id' => $this->starter->id]);
     }
 
-    public function test_an_app_is_optional(): void
+    public function test_a_new_workspace_starts_with_its_plans_lite_apps_on(): void
+    {
+        $this->sales->packages()->attach($this->starter);
+        Sanctum::actingAs(User::factory()->create());
+
+        $id = $this->postJson('/api/v1/workspaces', $this->payload())->assertCreated()->json('data.id');
+
+        $this->assertDatabaseHas('workspace_apps', ['workspace_id' => $id, 'family_key' => 'sales', 'app_id' => $this->sales->id, 'status' => 'active']);
+    }
+
+    public function test_apps_and_plans_are_not_set_from_here(): void
     {
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $this->postJson('/api/v1/workspaces', ['name' => 'No App Yet'])
+        // A business turns apps on in the Apps Center, and its plan is not the caller's to choose.
+        $premium = Package::where('key', 'premium')->firstOrFail();
+
+        $this->postJson('/api/v1/workspaces', $this->payload(['app_id' => $this->sales->id, 'package_id' => $premium->id, 'nav_version' => 99]))
             ->assertCreated()
-            ->assertJsonPath('data.app_id', null)
-            ->assertJsonPath('data.app', null);
+            ->assertJsonPath('data.package.key', 'starter');
 
-        $this->postJson('/api/v1/workspaces', ['name' => 'Explicit Null', 'app_id' => null])->assertCreated();
-
-        $this->assertSame(2, $user->workspaces()->whereNull('app_id')->count());
+        $workspace = $user->workspaces()->sole();
+        $this->assertSame($this->starter->id, $workspace->package_id);
+        $this->assertSame(0, $workspace->workspaceApps()->count());
+        $this->assertFalse(Schema::hasColumn('workspaces', 'app_id'));
     }
 
     public function test_an_account_can_have_several_workspaces_with_the_same_name(): void
@@ -127,7 +138,7 @@ class WorkspacesApiTest extends TestCase
         Sanctum::actingAs($user);
 
         $this->postJson('/api/v1/workspaces', $this->payload())->assertCreated();
-        $this->postJson('/api/v1/workspaces', $this->payload(['app_id' => $this->purchases->id]))->assertCreated();
+        $this->postJson('/api/v1/workspaces', $this->payload())->assertCreated();
 
         $this->assertSame(2, $user->workspaces()->count());
     }
@@ -191,24 +202,6 @@ class WorkspacesApiTest extends TestCase
             ->assertJsonValidationErrors('name');
     }
 
-    public function test_the_app_must_be_an_existing_active_one(): void
-    {
-        Sanctum::actingAs(User::factory()->create());
-
-        // An app an admin has switched off, one that does not exist, and a non-id.
-        foreach ([$this->retired->id, 999999] as $id) {
-            $this->postJson('/api/v1/workspaces', $this->payload(['app_id' => $id]))
-                ->assertUnprocessable()
-                ->assertJsonValidationErrors(['app_id' => 'available apps']);
-        }
-
-        $this->postJson('/api/v1/workspaces', $this->payload(['app_id' => 'sales']))
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('app_id');
-
-        $this->assertDatabaseCount('workspaces', 0);
-    }
-
     public function test_the_longest_name_is_accepted_and_its_log_entry_still_fits(): void
     {
         Sanctum::actingAs(User::factory()->create());
@@ -221,36 +214,21 @@ class WorkspacesApiTest extends TestCase
 
     /* ---------------------------------------------------------- update */
 
-    public function test_update_changes_the_name_and_the_app(): void
+    public function test_update_changes_the_name(): void
     {
         $user      = User::factory()->create();
         $workspace = $this->workspaceOf($user);
         Sanctum::actingAs($user);
 
-        $this->putJson("/api/v1/workspaces/{$workspace->id}", ['name' => 'Renamed', 'app_id' => $this->purchases->id])
+        $this->putJson("/api/v1/workspaces/{$workspace->id}", ['name' => 'Renamed'])
             ->assertOk()
             ->assertJsonPath('message', 'Workspace updated successfully.')
             ->assertJsonPath('data.id', $workspace->id)
             ->assertJsonPath('data.name', 'Renamed')
-            // the app in the answer is the new one, not the one it was loaded with
-            ->assertJsonPath('data.app', ['id' => $this->purchases->id, 'name' => 'Purchases Lite']);
+            ->assertJsonPath('data.package.key', 'starter');
 
-        $this->assertDatabaseHas('workspaces', ['id' => $workspace->id, 'name' => 'Renamed', 'app_id' => $this->purchases->id]);
+        $this->assertDatabaseHas('workspaces', ['id' => $workspace->id, 'name' => 'Renamed']);
         $this->assertDatabaseCount('workspaces', 1);
-    }
-
-    public function test_update_can_take_the_workspace_off_its_app(): void
-    {
-        $user      = User::factory()->create();
-        $workspace = $this->workspaceOf($user);
-        Sanctum::actingAs($user);
-
-        $this->putJson("/api/v1/workspaces/{$workspace->id}", ['name' => 'Main Workspace', 'app_id' => null])
-            ->assertOk()
-            ->assertJsonPath('data.app_id', null)
-            ->assertJsonPath('data.app', null);
-
-        $this->assertNull($workspace->fresh()->app_id);
     }
 
     public function test_update_is_validated_like_a_create(): void
@@ -259,25 +237,27 @@ class WorkspacesApiTest extends TestCase
         $workspace = $this->workspaceOf($user);
         Sanctum::actingAs($user);
 
-        $this->putJson("/api/v1/workspaces/{$workspace->id}", ['name' => '', 'app_id' => $this->purchases->id])
+        $this->putJson("/api/v1/workspaces/{$workspace->id}", ['name' => ''])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('name');
 
-        $this->assertDatabaseHas('workspaces', ['id' => $workspace->id, 'name' => 'Main Workspace', 'app_id' => $this->sales->id]);
+        $this->assertDatabaseHas('workspaces', ['id' => $workspace->id, 'name' => 'Main Workspace']);
     }
 
-    public function test_a_field_left_out_of_an_update_is_left_as_it_was(): void
+    public function test_an_update_leaves_the_plan_and_the_apps_as_they_were(): void
     {
         $user      = User::factory()->create();
         $workspace = $this->workspaceOf($user);
+        $premium   = Package::where('key', 'premium')->firstOrFail();
+        $workspace->package()->associate($premium)->save();
         Sanctum::actingAs($user);
 
-        $this->putJson("/api/v1/workspaces/{$workspace->id}", ['name' => 'Renamed'])->assertOk();
+        $this->putJson("/api/v1/workspaces/{$workspace->id}", ['name' => 'Renamed', 'package_id' => $this->starter->id])->assertOk();
 
         $fresh = $workspace->fresh();
 
         $this->assertSame('Renamed', $fresh->name);
-        $this->assertSame($this->sales->id, $fresh->app_id);
+        $this->assertSame($premium->id, $fresh->package_id);
     }
 
     public function test_a_user_id_in_an_update_cannot_move_the_workspace(): void

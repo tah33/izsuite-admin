@@ -2,7 +2,7 @@
 @section('title', __($pageTitle))
 
 @section('content')
-    <div class="mb-6 flex justify-end">
+    <div class="mb-4 flex justify-end">
         <button type="submit" form="settings-form" class="btn btn-primary" id="save-btn">
             <i data-lucide="save" class="w-4 h-4"></i>
             {{ __('Save All') }}

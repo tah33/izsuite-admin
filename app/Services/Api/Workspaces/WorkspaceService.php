@@ -41,7 +41,8 @@ class WorkspaceService
 
         ActivityLogService::record('updated', "Updated workspace {$this->quoted($workspace)}", $workspace, [
             'source' => 'api',
-            'fields' => array_keys(array_diff_key($workspace->getChanges(), ['updated_at' => true])),
+            // nav_version goes up with a rename - bookkeeping, not something the user changed.
+            'fields' => array_keys(array_diff_key($workspace->getChanges(), ['updated_at' => true, 'nav_version' => true])),
         ]);
 
         return $workspace;

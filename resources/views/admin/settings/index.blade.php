@@ -355,7 +355,9 @@
         });
     }
 
-    document.getElementById('setting_ai_active_provider')?.addEventListener('change', syncAiSettingsVisibility);
+    // jQuery, not addEventListener: the select is a Select2, which announces a
+    // pick through jQuery.
+    $('#setting_ai_active_provider').on('change', syncAiSettingsVisibility);
     syncAiSettingsVisibility();
 </script>
 @endpush

@@ -9,11 +9,10 @@ use Illuminate\Database\Eloquent\Collection;
 class WorkspaceRepository
 {
     /**
-     * What a workspace comes back with - its app - and only the columns a name is
-     * made of, so nothing else about it can reach the response, and each row can
-     * show the name without a query of its own.
+     * What a workspace comes back with - its plan - and only the columns the
+     * response shows, so each row can show it without a query of its own.
      */
-    private const RELATIONS = ['app:id,name'];
+    private const RELATIONS = ['package:id,key,name'];
 
     /**
      * Alphabetical, with the id as tie-breaker so two workspaces sharing a name

@@ -12,13 +12,14 @@ class AppCategoryRepository
      */
     public function getPaginated(?string $search = null, int $perPage = 15): LengthAwarePaginator
     {
-        $query = AppCategory::query();
+        $query = AppCategory::query()->withCount('apps');
 
         if (! empty($search)) {
             $query->where('name', 'like', "%{$search}%");
         }
 
-        return $query->latest()->paginate($perPage)->withQueryString();
+        // The Apps Center's order.
+        return $query->orderBy('sort_order')->orderBy('name')->paginate($perPage)->withQueryString();
     }
 
     /**

@@ -2,35 +2,26 @@
 @section('title', __('Staff'))
 
 @section('content')
-    <div class="mb-6 flex justify-end">
+    {{-- One toolbar row: filters on the left, page actions on the right. --}}
+    <div class="flex flex-wrap items-center gap-3 mb-4">
+        <form action="{{ route('admin.staff.index') }}" method="GET" class="flex flex-1 max-md:basis-full flex-wrap items-center gap-2 min-w-0">
+            <div class="search-input-wrapper flex-1 min-w-[200px]">
+                <i data-lucide="search" class="search-icon"></i>
+                <input type="text" name="search" value="{{ request('search') }}" placeholder="{{ __('Search staff...') }}" class="form-input search-input w-full">
+            </div>
+            <x-per-page-select />
+            <button type="submit" class="btn btn-secondary">
+                <i data-lucide="search" class="w-4 h-4"></i>{{ __('Filter') }}
+            </button>
+            <a href="{{ route('admin.staff.index') }}" class="btn btn-secondary self-stretch" title="{{ __('Reset') }}">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </a>
+        </form>
+
         <a href="{{ route('admin.staff.create') }}" class="btn btn-primary">
             <i data-lucide="user-plus" class="w-4 h-4"></i> {{ __('Add Staff') }}
         </a>
     </div>
-
-    <form action="{{ route('admin.staff.index') }}" method="GET" class="card mb-3">
-        <div class="flex flex-col md:flex-row md:items-end gap-3 w-full">
-            <div class="search-input-wrapper flex-1 min-w-0 ![max-width:none]">
-                <i data-lucide="search" class="search-icon"></i>
-                <input type="text" name="search" value="{{ request('search') }}" placeholder="{{ __('Search staff...') }}" class="form-input search-input w-full">
-            </div>
-            <div class="md:w-[140px] shrink-0">
-                <select name="per_page" class="form-select w-full" onchange="this.form.submit()">
-                    @foreach([10, 15, 25, 50, 100] as $option)
-                        <option value="{{ $option }}" {{ (int) request('per_page', 15) === $option ? 'selected' : '' }}>{{ $option }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="flex gap-2 shrink-0">
-                <button type="submit" class="btn btn-primary">
-                    <i data-lucide="search" class="w-4 h-4 me-1"></i>{{ __('Filter') }}
-                </button>
-                <a href="{{ route('admin.staff.index') }}" class="btn btn-secondary">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </a>
-            </div>
-        </div>
-    </form>
 
     {{-- Staff Table --}}
     <div class="card overflow-visible">

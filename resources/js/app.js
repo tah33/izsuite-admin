@@ -109,6 +109,20 @@ import './bootstrap';
         $form.find('.form-input, .form-select, .form-textarea, .form-control')
             .removeClass('has-error form-input-error is-invalid')
             .removeAttr('aria-invalid');
+        $form.find('.select2-container').removeClass('has-error');
+    }
+
+    // A <select> that Select2 has taken over is hidden; what the user sees -
+    // and what an error belongs under - is the control drawn after it.
+    function visibleField($input) {
+        if ($input.hasClass('select2-hidden-accessible')) {
+            var $control = $input.next('.select2-container');
+            if ($control.length) {
+                return $control;
+            }
+        }
+
+        return $input;
     }
 
     function dotNameToBracket(name) {
@@ -163,8 +177,9 @@ import './bootstrap';
             }
         }
 
-        if ($input[0] && typeof $input[0].scrollIntoView === 'function') {
-            $input[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        var field = visibleField($input)[0];
+        if (field && typeof field.scrollIntoView === 'function') {
+            field.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     }
 
@@ -183,8 +198,11 @@ import './bootstrap';
 
             $input.addClass('has-error form-input-error is-invalid').attr('aria-invalid', 'true');
 
+            var $field = visibleField($input);
+            $field.addClass('has-error');
+
             var $error = $('<p class="field-error form-error"></p>').text(message);
-            $input.after($error);
+            $field.after($error);
 
             if (! firstErroredInput) {
                 firstErroredInput = $input;
@@ -318,8 +336,62 @@ import './bootstrap';
         });
     }
 
+    // ── Dropdowns: every <select> is a Select2 ───────────────────────────────
+    //
+    // The plugin, version and look the wwp admin uses (the theme is in
+    // app.css). A select can opt out with data-no-select2.
+    //
+    // - The open list renders on <body>, so a card with overflow:hidden or a
+    //   modal can never clip it.
+    // - A search box shows once a list is long enough to need one.
+    // - An empty option ("All plans", "Unassigned") stays an ordinary choice. Set
+    //   as a placeholder, Select2 would drop it from the list and leave no way
+    //   back to it - so a placeholder is only used when the <select> asks for
+    //   one with data-placeholder.
+    // - class="select-sm" draws the compact control.
+    //
+    // Select2 reports a pick with a jQuery 'change', not a native DOM event: a
+    // page script listens with $(select).on('change', …) - a listener added
+    // with addEventListener('change') never hears it. Inline onchange="…"
+    // attributes do run. Setting a value from script needs
+    // $(select).val(x).trigger('change') to repaint the control.
+    var SELECT2_SEARCH_FROM = 8;
+
+    function initSelect2(root) {
+        if (! $.fn.select2) {
+            return;
+        }
+
+        var noResults = $('meta[name="select2-no-results"]').attr('content') || 'No results found';
+
+        $(root || document).find('select').not('[data-no-select2], .select2-hidden-accessible').each(function () {
+            var $select = $(this);
+            var options = {
+                width: '100%',
+                dropdownParent: $(document.body),
+                minimumResultsForSearch: SELECT2_SEARCH_FROM,
+                selectionCssClass: $select.hasClass('select-sm') ? 's2-sm' : '',
+                language: {
+                    noResults: function () {
+                        return noResults;
+                    },
+                },
+            };
+
+            if ($select.attr('data-placeholder')) {
+                options.placeholder = $select.attr('data-placeholder');
+            }
+
+            $select.select2(options);
+        });
+    }
+
+    // For a page that adds selects after load.
+    window.AdminSelect2 = { init: initSelect2 };
+
     $(document).ready(function () {
         handleAjaxFormSubmissions();
+        initSelect2(document);
 
         // Sidebar toggle for mobile
         $('#sidebar-toggle').on('click', function () {
@@ -389,5 +461,24 @@ import './bootstrap';
                 sessionStorage.setItem('sidebarScrollPos', this.scrollTop);
             });
         }
+
+        // Show/hide toggle for <x-password-input>. Delegated so it works for
+        // every password field on every page without per-page wiring — swaps
+        // the input's type and the button's icon between eye/eye-off.
+        $(document).on('click', '[data-toggle-password]', function () {
+            var input = document.getElementById($(this).attr('data-toggle-password'));
+            if (! input) {
+                return;
+            }
+
+            var showing = input.type === 'text';
+            input.type = showing ? 'password' : 'text';
+            $(this).attr('aria-label', showing ? 'Show password' : 'Hide password')
+                .find('i, svg').first().replaceWith('<i data-lucide="' + (showing ? 'eye' : 'eye-off') + '" class="w-4 h-4"></i>');
+
+            if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                window.lucide.createIcons();
+            }
+        });
     });
 })(window.jQuery);

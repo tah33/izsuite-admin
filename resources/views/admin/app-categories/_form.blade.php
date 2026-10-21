@@ -12,6 +12,28 @@
     @enderror
 </div>
 
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+    {{-- Icon --}}
+    <div>
+        <label class="form-label" for="icon">{{ __('Icon') }}</label>
+        <input type="text" id="icon" name="icon" value="{{ old('icon', $isEdit ? $appCategory->icon : '') }}" class="form-input" placeholder="shopping-bag">
+        <p class="text-xs mt-1 text-[var(--text-muted)]">{{ __('A lucide icon name, shown in the Apps Center.') }}</p>
+        @error('icon')
+            <p class="text-xs mt-1 text-[var(--danger)]">{{ $message }}</p>
+        @enderror
+    </div>
+
+    {{-- Sort order --}}
+    <div>
+        <label class="form-label" for="sort_order">{{ __('Order') }}</label>
+        <input type="number" id="sort_order" name="sort_order" min="0" step="1" value="{{ old('sort_order', $isEdit ? $appCategory->sort_order : 0) }}" class="form-input">
+        <p class="text-xs mt-1 text-[var(--text-muted)]">{{ __('Lower comes first in the Apps Center.') }}</p>
+        @error('sort_order')
+            <p class="text-xs mt-1 text-[var(--danger)]">{{ $message }}</p>
+        @enderror
+    </div>
+</div>
+
 <div class="divider"></div>
 
 {{-- Is Active (toggle switch) --}}

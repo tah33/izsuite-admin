@@ -8,7 +8,10 @@ use App\Http\Controllers\Admin\CurrencyController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\FaqController;
 use App\Http\Controllers\Admin\LanguageController;
+use App\Http\Controllers\Admin\MenuItemController;
 use App\Http\Controllers\Admin\OverviewController;
+use App\Http\Controllers\Admin\PackageAccessController;
+use App\Http\Controllers\Admin\PackageController;
 use App\Http\Controllers\Admin\PageController;
 use App\Http\Controllers\Admin\PaymentMethodController;
 use App\Http\Controllers\Admin\PlanController;
@@ -18,6 +21,7 @@ use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\SubscriptionController;
 use App\Http\Controllers\Admin\TicketController;
+use App\Http\Controllers\Admin\WorkspaceController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin.')->group(function () {
@@ -36,6 +40,19 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     Route::resource('roles', RoleController::class)->except(['show'])->parameters(['roles' => 'id']);
     Route::resource('pages', PageController::class)->except(['show'])->parameters(['pages' => 'id']);
     Route::resource('apps', AppController::class)->except(['show'])->parameters(['apps' => 'id']);
+    Route::post('/apps/{id}/dependencies', [AppController::class, 'storeDependency'])->name('apps.dependencies.store');
+    Route::delete('/apps/{id}/dependencies/{dependencyId}', [AppController::class, 'destroyDependency'])->name('apps.dependencies.destroy');
+
+    // App system: plans, which plan includes which app, the business sidebar, and businesses' plans.
+    Route::get('/packages', [PackageController::class, 'index'])->name('packages.index');
+    Route::get('/packages/{id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
+    Route::put('/packages/{id}', [PackageController::class, 'update'])->name('packages.update');
+    Route::get('/package-access', [PackageAccessController::class, 'index'])->name('package-access.index');
+    Route::put('/package-access', [PackageAccessController::class, 'update'])->name('package-access.update');
+    Route::put('/menu-items/reorder', [MenuItemController::class, 'reorder'])->name('menu-items.reorder');
+    Route::resource('menu-items', MenuItemController::class)->except(['show'])->parameters(['menu-items' => 'id']);
+    Route::get('/workspaces', [WorkspaceController::class, 'index'])->name('workspaces.index');
+    Route::patch('/workspaces/{id}/package', [WorkspaceController::class, 'updatePackage'])->name('workspaces.package');
     Route::resource('app-categories', AppCategoryController::class)->except(['show'])->parameters(['app-categories' => 'id']);
     Route::patch('/app-categories/{id}/toggle-status', [AppCategoryController::class, 'toggleActive'])->name('app-categories.toggle-status');
     Route::resource('departments', DepartmentController::class)->except(['show'])->parameters(['departments' => 'id']);

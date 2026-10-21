@@ -2,7 +2,7 @@
 @section('title', __('Contact Messages'))
 
 @section('content')
-    <div class="mb-6 flex justify-end gap-2">
+    <div class="mb-4 flex justify-end gap-2">
         <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--card-bg)] border border-[var(--card-border)] text-sm">
             <span class="w-2 h-2 rounded-full bg-[var(--warning)]"></span>
             <span>{{ $messages->where('status', 'new')->count() }} {{ __('New') }}</span>

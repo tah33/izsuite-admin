@@ -77,7 +77,9 @@
             yearlyPrice.required = billingType.value === 'yearly';
         };
 
-        billingType.addEventListener('change', syncRequiredPrice);
+        // jQuery, not addEventListener: the select is a Select2, which
+        // announces a pick through jQuery.
+        $(billingType).on('change', syncRequiredPrice);
         syncRequiredPrice();
     })();
 </script>

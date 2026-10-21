@@ -168,6 +168,11 @@ class AppCategoryController extends Controller
                 abort(404);
             }
 
+            // Its apps would be left without a group in the Apps Center.
+            if ($appCategory->apps()->exists()) {
+                return $this->adminFailure(request(), 'This category still has apps. Move them, or set the category inactive instead.', 422);
+            }
+
             $name = $appCategory->name;
             $this->appCategoryService->delete($appCategory);
 
