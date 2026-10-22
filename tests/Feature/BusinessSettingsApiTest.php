@@ -2,11 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\ResolveWorkspace;
 use App\Models\Admin\Currency;
 use App\Models\Admin\Language;
 use App\Models\Shared\ActivityLog;
 use App\Models\User\BusinessSetting;
 use App\Models\User\User;
+use App\Models\User\Workspace;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -25,6 +28,11 @@ class BusinessSettingsApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Seeded with the others, super-admin keeps id 1 - a "user" role made
+        // first by the factory would take it, and every account would pass for
+        // an admin, whose activity is not logged.
+        $this->seed(RoleSeeder::class);
 
         // EUR and French exist but an admin has switched them off.
         Currency::create(['name' => 'US Dollar', 'code' => 'USD', 'symbol' => '$', 'is_default' => true, 'is_active' => true]);
@@ -65,6 +73,21 @@ class BusinessSettingsApiTest extends TestCase
         return $this->post('/api/v1/business-settings', $this->payload($overrides) + ['logo' => $logo], ['Accept' => 'application/json']);
     }
 
+    /** The account's first business - the one the API answers for when none is picked. */
+    private function businessOf(User $user): Workspace
+    {
+        return $user->workspaces()->orderBy('id')->first()
+            ?? $user->workspaces()->create(['name' => 'Main Business']);
+    }
+
+    private function signIn(User $user): User
+    {
+        $this->businessOf($user);
+        Sanctum::actingAs($user);
+
+        return $user;
+    }
+
     private function logoPathOf(User $user): ?string
     {
         return BusinessSetting::where('user_id', $user->id)->value('logo');
@@ -84,7 +107,7 @@ class BusinessSettingsApiTest extends TestCase
 
     public function test_show_is_null_before_anything_is_saved(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         $this->getJson('/api/v1/business-settings')
             ->assertOk()
@@ -93,7 +116,7 @@ class BusinessSettingsApiTest extends TestCase
 
     public function test_show_returns_the_saved_settings(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         $this->postJson('/api/v1/business-settings', $this->payload())->assertOk();
 
@@ -115,11 +138,11 @@ class BusinessSettingsApiTest extends TestCase
     public function test_settings_belong_to_one_account_only(): void
     {
         $owner = User::factory()->create();
-        Sanctum::actingAs($owner);
+        $this->signIn($owner);
         $this->postJson('/api/v1/business-settings', $this->payload(['business_name' => 'Owner Co']))->assertOk();
 
         $other = User::factory()->create();
-        Sanctum::actingAs($other);
+        $this->signIn($other);
 
         $this->getJson('/api/v1/business-settings')->assertExactJson(['data' => null]);
 
@@ -133,7 +156,7 @@ class BusinessSettingsApiTest extends TestCase
     {
         $victim   = User::factory()->create();
         $attacker = User::factory()->create();
-        Sanctum::actingAs($attacker);
+        $this->signIn($attacker);
 
         $this->postJson('/api/v1/business-settings', $this->payload(['user_id' => $victim->id]))->assertOk();
 
@@ -141,12 +164,44 @@ class BusinessSettingsApiTest extends TestCase
         $this->assertDatabaseHas('business_settings', ['user_id' => $attacker->id]);
     }
 
+    public function test_each_business_has_its_own_settings(): void
+    {
+        $user   = $this->signIn(User::factory()->create());
+        $first  = $this->businessOf($user);
+        $second = $user->workspaces()->create(['name' => 'Second Business']);
+        $header = [ResolveWorkspace::HEADER => (string) $second->id];
+
+        $this->postJson('/api/v1/business-settings', $this->payload(['business_name' => 'First Co']))->assertOk();
+
+        // The other business starts blank, and saving it leaves the first alone.
+        $this->getJson('/api/v1/business-settings', $header)->assertExactJson(['data' => null]);
+        $this->postJson('/api/v1/business-settings', $this->payload(['business_name' => 'Second Co']), $header)->assertOk();
+
+        $this->getJson('/api/v1/business-settings')->assertJsonPath('data.business_name', 'First Co');
+        $this->getJson('/api/v1/business-settings', $header)->assertJsonPath('data.business_name', 'Second Co');
+
+        $this->assertSame('First Co', $first->businessSetting->business_name);
+        $this->assertSame('Second Co', $second->businessSetting->business_name);
+    }
+
+    public function test_an_account_with_no_workspace_is_asked_to_create_one(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->getJson('/api/v1/business-settings')
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Create a workspace first.');
+        $this->postJson('/api/v1/business-settings', $this->payload())->assertNotFound();
+
+        $this->assertDatabaseCount('business_settings', 0);
+    }
+
     /* ---------------------------------------------------------- save */
 
     public function test_first_save_creates_the_row(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $this->postJson('/api/v1/business-settings', $this->payload())
             ->assertOk()
@@ -156,6 +211,7 @@ class BusinessSettingsApiTest extends TestCase
 
         $this->assertDatabaseHas('business_settings', [
             'user_id'                    => $user->id,
+            'workspace_id'               => $this->businessOf($user)->id,
             'business_name'              => 'Global Traders Inc.',
             'currency'                   => 'USD',
             'financial_year_start_month' => 7,
@@ -166,7 +222,7 @@ class BusinessSettingsApiTest extends TestCase
     public function test_saving_again_overwrites_instead_of_adding_a_second_row(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $this->postJson('/api/v1/business-settings', $this->payload())->assertOk();
 
@@ -180,7 +236,7 @@ class BusinessSettingsApiTest extends TestCase
 
     public function test_only_the_required_fields_are_needed(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         $minimal = array_intersect_key($this->payload(), array_flip(self::REQUIRED_FIELDS));
 
@@ -193,7 +249,7 @@ class BusinessSettingsApiTest extends TestCase
 
     public function test_optional_fields_can_be_cleared(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         $this->postJson('/api/v1/business-settings', $this->payload())
             ->assertOk()
@@ -215,7 +271,7 @@ class BusinessSettingsApiTest extends TestCase
 
     public function test_every_required_field_is_enforced(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         $this->postJson('/api/v1/business-settings', [])
             ->assertUnprocessable()
@@ -227,7 +283,7 @@ class BusinessSettingsApiTest extends TestCase
     public function test_a_failed_save_leaves_the_existing_row_untouched(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $this->postJson('/api/v1/business-settings', $this->payload())->assertOk();
         $this->postJson('/api/v1/business-settings', $this->payload(['business_name' => '', 'city' => 'Chattogram']))->assertUnprocessable();
@@ -237,7 +293,7 @@ class BusinessSettingsApiTest extends TestCase
 
     public function test_text_fields_respect_their_column_lengths(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         $this->postJson('/api/v1/business-settings', $this->payload([
             'business_name' => str_repeat('a', 256),
@@ -252,7 +308,7 @@ class BusinessSettingsApiTest extends TestCase
 
     public function test_currency_must_be_an_active_one(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         // EUR exists but is switched off; XYZ does not exist at all.
         foreach (['EUR', 'XYZ'] as $code) {
@@ -266,7 +322,7 @@ class BusinessSettingsApiTest extends TestCase
 
     public function test_language_must_be_an_active_one(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         foreach (['fr', 'xx'] as $code) {
             $this->postJson('/api/v1/business-settings', $this->payload(['language' => $code]))
@@ -279,7 +335,7 @@ class BusinessSettingsApiTest extends TestCase
 
     public function test_switching_a_currency_off_blocks_it_from_the_next_save(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         $this->postJson('/api/v1/business-settings', $this->payload())->assertOk();
 
@@ -293,7 +349,7 @@ class BusinessSettingsApiTest extends TestCase
     public function test_currency_code_is_stored_upper_case(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $this->postJson('/api/v1/business-settings', $this->payload(['currency' => 'usd']))
             ->assertOk()
@@ -306,7 +362,7 @@ class BusinessSettingsApiTest extends TestCase
 
     public function test_timezone_must_be_a_real_one(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         foreach (['Mars/Olympus_Mons', 'Dhaka', 'UTC+6'] as $zone) {
             $this->postJson('/api/v1/business-settings', $this->payload(['timezone' => $zone]))
@@ -317,7 +373,7 @@ class BusinessSettingsApiTest extends TestCase
 
     public function test_the_older_zone_names_the_browser_still_offers_are_accepted(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         // Intl.supportedValuesOf('timeZone') lists these; PHP's default
         // timezone group rejects every one of them.
@@ -330,7 +386,7 @@ class BusinessSettingsApiTest extends TestCase
 
     public function test_financial_year_start_month_must_be_a_month_number(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         foreach (['0', '13', 'abc', '1.5'] as $month) {
             $this->postJson('/api/v1/business-settings', $this->payload(['financial_year_start_month' => $month]))
@@ -345,7 +401,7 @@ class BusinessSettingsApiTest extends TestCase
 
     public function test_stock_accounting_method_must_be_a_known_one(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         $this->postJson('/api/v1/business-settings', $this->payload(['stock_accounting_method' => 'average']))
             ->assertUnprocessable()
@@ -360,7 +416,7 @@ class BusinessSettingsApiTest extends TestCase
 
     public function test_website_must_be_an_http_or_https_url(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         foreach (['not a url', 'ftp://files.example', 'javascript:alert(1)'] as $site) {
             $this->postJson('/api/v1/business-settings', $this->payload(['website' => $site]))
@@ -371,7 +427,7 @@ class BusinessSettingsApiTest extends TestCase
 
     public function test_start_date_must_be_a_year_month_day_date(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         foreach (['15/03/2024', '2024-13-45', 'yesterday'] as $date) {
             $this->postJson('/api/v1/business-settings', $this->payload(['start_date' => $date]))
@@ -386,7 +442,7 @@ class BusinessSettingsApiTest extends TestCase
     {
         Storage::fake('public');
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $response = $this->saveWithLogo(UploadedFile::fake()->image('logo.png', 200, 200))->assertOk();
 
@@ -401,7 +457,7 @@ class BusinessSettingsApiTest extends TestCase
     {
         Storage::fake('public');
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $this->saveWithLogo(UploadedFile::fake()->image('first.png'))->assertOk();
         $first = $this->logoPathOf($user);
@@ -418,7 +474,7 @@ class BusinessSettingsApiTest extends TestCase
     {
         Storage::fake('public');
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $this->saveWithLogo(UploadedFile::fake()->image('logo.png'))->assertOk();
         $path = $this->logoPathOf($user);
@@ -435,7 +491,7 @@ class BusinessSettingsApiTest extends TestCase
     public function test_logo_must_be_a_small_raster_image(): void
     {
         Storage::fake('public');
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         $rejected = [
             'a pdf'      => UploadedFile::fake()->create('logo.pdf', 10, 'application/pdf'),
@@ -460,7 +516,7 @@ class BusinessSettingsApiTest extends TestCase
     public function test_each_save_is_logged_once_with_the_changed_fields(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $this->postJson('/api/v1/business-settings', $this->payload())->assertOk();
         $this->postJson('/api/v1/business-settings', $this->payload(['city' => 'Chattogram']))->assertOk();

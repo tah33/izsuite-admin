@@ -7,9 +7,12 @@ use App\Services\User\Apps\ProvisionWorkspaceApps;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
- * A business workspace: the business's plan and the apps it has turned on.
+ * A business workspace: the business's plan, the apps it has turned on, and
+ * its own data - locations, business settings and staff - kept apart from the
+ * owner's other businesses. Deleting it deletes that data too.
  *
  * package_id and nav_version are not fillable: the plan changes through
  * SyncAppsWithPackage's callers, and nav_version only ever goes up by one.
@@ -66,6 +69,21 @@ class Workspace extends Model
     public function appLogs(): HasMany
     {
         return $this->hasMany(WorkspaceAppLog::class);
+    }
+
+    public function locations(): HasMany
+    {
+        return $this->hasMany(Location::class);
+    }
+
+    public function businessSetting(): HasOne
+    {
+        return $this->hasOne(BusinessSetting::class);
+    }
+
+    public function staff(): HasMany
+    {
+        return $this->hasMany(UserStaff::class);
     }
 
     /**

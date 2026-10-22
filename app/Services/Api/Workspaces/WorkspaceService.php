@@ -7,6 +7,7 @@ use App\Models\User\Workspace;
 use App\Repositories\User\UserStaffRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\Shared\ActivityLogService;
+use App\Services\Support\ImageService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 
@@ -15,6 +16,7 @@ class WorkspaceService
     public function __construct(
         protected WorkspaceRepository $workspaceRepository,
         protected UserStaffRepository $userStaffRepository,
+        protected ImageService $imageService,
     ) {}
 
     public function list(User $user): Collection
@@ -52,9 +54,16 @@ class WorkspaceService
     {
         $workspace = $this->findOwned($user, $id);
 
+        // The business's own data - locations, settings, staff - goes with it:
+        // the database cascades. Its logo file does not, so it is removed once
+        // the rows are gone.
+        $logo = $workspace->businessSetting()->value('logo');
+
         $this->workspaceRepository->delete($workspace);
 
-        // The staff it was assigned to must not go on listing a workspace that is gone.
+        $this->imageService->deletePublic($logo);
+
+        // Staff of the owner's other businesses must not go on listing a workspace that is gone.
         $this->userStaffRepository->forgetWorkspace($user, $id);
 
         ActivityLogService::record('deleted', "Deleted workspace {$this->quoted($workspace)}", $workspace, ['source' => 'api']);

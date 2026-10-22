@@ -3,7 +3,7 @@
 namespace App\Services\Api\Locations;
 
 use App\Models\User\Location;
-use App\Models\User\User;
+use App\Models\User\Workspace;
 use App\Repositories\User\LocationRepository;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Database\Eloquent\Collection;
@@ -15,14 +15,14 @@ class LocationService
         protected LocationRepository $locationRepository,
     ) {}
 
-    public function list(User $user): Collection
+    public function list(Workspace $workspace): Collection
     {
-        return $this->locationRepository->getForUser($user);
+        return $this->locationRepository->getFor($workspace);
     }
 
-    public function create(User $user, array $data): Location
+    public function create(Workspace $workspace, array $data): Location
     {
-        $location = $this->locationRepository->create($user, $data);
+        $location = $this->locationRepository->create($workspace, $data);
 
         // Each write is logged here, by name, so LogApiWriteActivity does not
         // add its own vaguer "POST api/v1/locations" entry for the same request.
@@ -31,9 +31,9 @@ class LocationService
         return $location;
     }
 
-    public function update(User $user, int $id, array $data): Location
+    public function update(Workspace $workspace, int $id, array $data): Location
     {
-        $location = $this->findOwned($user, $id);
+        $location = $this->findOwned($workspace, $id);
 
         $this->locationRepository->update($location, $data);
 
@@ -45,9 +45,9 @@ class LocationService
         return $location;
     }
 
-    public function delete(User $user, int $id): void
+    public function delete(Workspace $workspace, int $id): void
     {
-        $location = $this->findOwned($user, $id);
+        $location = $this->findOwned($workspace, $id);
 
         $this->locationRepository->delete($location);
 
@@ -68,14 +68,14 @@ class LocationService
     }
 
     /**
-     * A location that is someone else's answers exactly like one that does not
-     * exist. Aborting with our own message also keeps Laravel's default out of
+     * A location of another business - the owner's own other one, or someone
+     * else's - answers exactly like one that does not exist. Aborting with our own message also keeps Laravel's default out of
      * the response - "No query results for model [App\Models\User\Location]" -
      * which names an internal class.
      */
-    private function findOwned(User $user, int $id): Location
+    private function findOwned(Workspace $workspace, int $id): Location
     {
-        return $this->locationRepository->findForUser($user, $id)
+        return $this->locationRepository->findFor($workspace, $id)
             ?? abort(404, 'Location not found.');
     }
 }

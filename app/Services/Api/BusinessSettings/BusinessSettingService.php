@@ -3,7 +3,7 @@
 namespace App\Services\Api\BusinessSettings;
 
 use App\Models\User\BusinessSetting;
-use App\Models\User\User;
+use App\Models\User\Workspace;
 use App\Repositories\User\BusinessSettingRepository;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Support\ImageService;
@@ -19,14 +19,13 @@ class BusinessSettingService
         protected ImageService $imageService,
     ) {}
 
-    public function show(User $user): ?BusinessSetting
+    public function show(Workspace $workspace): ?BusinessSetting
     {
-        return $this->businessSettingRepository->findForUser($user);
+        return $this->businessSettingRepository->findFor($workspace);
     }
 
     /**
-     * Save the signed-in account's business settings, creating them the first
-     * time.
+     * Save the business's settings, creating them the first time.
      *
      * $validated is the validated request, so it can only hold the fields
      * SaveBusinessSettingsRequest allows. Its `logo`, when present, is the
@@ -34,15 +33,15 @@ class BusinessSettingService
      * here, and left out entirely when no new file came, which keeps the
      * current logo.
      */
-    public function save(User $user, array $validated): BusinessSetting
+    public function save(Workspace $workspace, array $validated): BusinessSetting
     {
         $upload = $validated['logo'] ?? null;
         unset($validated['logo']);
 
-        $previousLogo = $this->businessSettingRepository->findForUser($user)?->logo;
+        $previousLogo = $this->businessSettingRepository->findFor($workspace)?->logo;
 
         // The new file goes down first and the old one is only removed once the
-        // row points at the new one - a failed write must not leave the account
+        // row points at the new one - a failed write must not leave the business
         // with a logo path whose file is already gone, nor a file nothing uses.
         $newLogo = $upload instanceof UploadedFile
             ? $this->imageService->storePublic($upload, self::LOGO_DIRECTORY)
@@ -51,7 +50,7 @@ class BusinessSettingService
         $attributes = $newLogo ? [...$validated, 'logo' => $newLogo] : $validated;
 
         try {
-            $settings = $this->businessSettingRepository->save($user, $attributes);
+            $settings = $this->businessSettingRepository->save($workspace, $attributes);
         } catch (\Throwable $e) {
             $this->imageService->deletePublic($newLogo);
 

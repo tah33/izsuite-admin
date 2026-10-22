@@ -14,7 +14,9 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * Only the user's own workspaces count: any other id is a 404, so a caller
  * cannot tell "not yours" from "does not exist". A user with no workspace gets
- * none, and the endpoints that need one say so.
+ * none, and the endpoints that need one say so - or, behind
+ * `workspace:required` (a business's locations, staff, settings), are never
+ * reached: the answer is a 404 that says to create one first.
  *
  * Read it back with $request->attributes->get('workspace').
  */
@@ -22,7 +24,7 @@ class ResolveWorkspace
 {
     public const HEADER = 'X-Workspace-Id';
 
-    public function handle(Request $request, Closure $next): Response
+    public function handle(Request $request, Closure $next, ?string $need = null): Response
     {
         $id    = (string) $request->header(self::HEADER, '');
         $query = Workspace::where('user_id', $request->user()->id)->with('package');
@@ -34,6 +36,8 @@ class ResolveWorkspace
 
             abort_if($workspace === null, 404, 'Workspace not found.');
         }
+
+        abort_if($workspace === null && $need === 'required', 404, 'Create a workspace first.');
 
         $request->attributes->set('workspace', $workspace);
 

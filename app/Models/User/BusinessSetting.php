@@ -12,6 +12,7 @@ class BusinessSetting extends Model
 
     protected $fillable = [
         'user_id',
+        'workspace_id',
         'business_name',
         'start_date',
         'currency',
@@ -41,8 +42,15 @@ class BusinessSetting extends Model
 
     // ── Relationships ──
 
+    /** The account that owns the business. */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** The business it belongs to. */
+    public function workspace(): BelongsTo
+    {
+        return $this->belongsTo(Workspace::class);
     }
 }

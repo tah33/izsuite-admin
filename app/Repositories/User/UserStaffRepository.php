@@ -4,35 +4,37 @@ namespace App\Repositories\User;
 
 use App\Models\User\User;
 use App\Models\User\UserStaff;
+use App\Models\User\Workspace;
 use Illuminate\Database\Eloquent\Collection;
 
+/**
+ * Staff belong to one business (workspace). Every lookup is scoped to it, so
+ * another business's staff member - the same owner's or anyone else's - is
+ * simply not found.
+ */
 class UserStaffRepository
 {
     /**
      * Alphabetical, with the id as tie-breaker so two staff members sharing a
      * name always come back in the same order.
      */
-    public function getForUser(User $user): Collection
+    public function getFor(Workspace $workspace): Collection
     {
-        return UserStaff::where('user_id', $user->id)->orderBy('name')->orderBy('id')->get();
+        return $workspace->staff()->orderBy('name')->orderBy('id')->get();
+    }
+
+    public function findFor(Workspace $workspace, int $id): ?UserStaff
+    {
+        return $workspace->staff()->find($id);
     }
 
     /**
-     * Scoped to the owner: another account's id finds nothing, so callers
-     * cannot tell "not yours" from "does not exist".
+     * Made through the business, so its workspace and owner are always the
+     * business's own - never read from $data.
      */
-    public function findForUser(User $user, int $id): ?UserStaff
+    public function create(Workspace $workspace, array $data): UserStaff
     {
-        return UserStaff::where('user_id', $user->id)->find($id);
-    }
-
-    /**
-     * Created through the owner's relation, so user_id is always the caller's -
-     * it is never read from $data.
-     */
-    public function create(User $user, array $data): UserStaff
-    {
-        return $user->userStaff()->create($this->tidy($data));
+        return $workspace->staff()->create([...$this->tidy($data), 'user_id' => $workspace->user_id]);
     }
 
     public function update(UserStaff $staff, array $data): UserStaff
@@ -43,22 +45,13 @@ class UserStaffRepository
     }
 
     /**
-     * The owner's staff member matching $match, made from $match and $values if
-     * there is none yet - for something that may run twice and must still leave
-     * only one.
+     * The business's staff member matching $match, made from $match and $values
+     * if there is none yet - for something that may run twice and must still
+     * leave only one.
      */
-    public function firstOrCreateForUser(User $user, array $match, array $values = []): UserStaff
+    public function firstOrCreateFor(Workspace $workspace, array $match, array $values = []): UserStaff
     {
-        return $user->userStaff()->firstOrCreate($match, $this->tidy($values));
-    }
-
-    /**
-     * The owner's first staff member with this e-mail - the oldest, should the
-     * same address have been used twice.
-     */
-    public function findByEmailForUser(User $user, string $email): ?UserStaff
-    {
-        return UserStaff::where('user_id', $user->id)->where('email', $email)->orderBy('id')->first();
+        return $workspace->staff()->firstOrCreate($match, [...$this->tidy($values), 'user_id' => $workspace->user_id]);
     }
 
     /**
@@ -82,8 +75,10 @@ class UserStaffRepository
     }
 
     /**
-     * Takes a workspace that has been deleted out of the lists that held it.
-     * Only the caller's staff: nobody else's list can name their workspace.
+     * Takes a workspace that has been deleted out of the lists that held it -
+     * across all of the owner's businesses, since staff of one may be assigned
+     * to another. Only the owner's staff: nobody else's list can name their
+     * workspace.
      */
     public function forgetWorkspace(User $user, int $workspaceId): void
     {

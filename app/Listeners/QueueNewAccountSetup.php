@@ -9,8 +9,8 @@ use App\Jobs\CreateStarterWorkspace;
 use Illuminate\Support\Facades\Bus;
 
 /**
- * Queues what a new account starts with: the "Billing Starter" workspace, the
- * "Main Location", and the owner as a staff member assigned to that workspace.
+ * Queues what a new account starts with: the "Billing Starter" workspace, its
+ * "Main Location", and the owner as a staff member of it.
  *
  * Only queues - registration does not wait for any of it.
  *
@@ -22,13 +22,11 @@ class QueueNewAccountSetup
 {
     public function handle(UserRegistered $event): void
     {
-        CreateMainLocation::dispatch($event->userId);
-
-        // Chained, because the owner is assigned to the workspace the first job
-        // makes. The location needs nothing from either, so it is not held up
-        // behind them.
+        // Chained, because the location and the staff member both belong to
+        // the workspace the first job makes.
         Bus::chain([
             new CreateStarterWorkspace($event->userId),
+            new CreateMainLocation($event->userId),
             new AddOwnerAsStaff($event->userId),
         ])->dispatch();
     }

@@ -12,12 +12,13 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Str;
 
 /**
- * Adds a new account's owner to its own staff - their name and e-mail, active -
- * assigned to the "Billing Starter" workspace.
+ * Adds a new account's owner to its business's staff - their name and e-mail,
+ * active - assigned to that business.
  *
  * Runs after CreateStarterWorkspace (QueueNewAccountSetup chains them), so the
- * workspace is there to assign. Safe to run twice: the owner is matched by
- * e-mail, and a workspace already assigned is not added again.
+ * account's first workspace is there to hold the staff member. Safe to run
+ * twice: the owner is matched by e-mail, and a workspace already assigned is
+ * not added again.
  */
 class AddOwnerAsStaff implements ShouldQueue
 {
@@ -36,8 +37,15 @@ class AddOwnerAsStaff implements ShouldQueue
             return;
         }
 
-        $staff = $staffMembers->firstOrCreateForUser(
-            $user,
+        // No workspace left - deleted before this ran: nothing to put them in.
+        $workspace = $workspaces->oldestForUser($user);
+
+        if (! $workspace) {
+            return;
+        }
+
+        $staff = $staffMembers->firstOrCreateFor(
+            $workspace,
             ['email' => $user->email],
             ['name' => $user->name, 'status' => UserStaff::STATUS_ACTIVE],
         );
@@ -46,11 +54,6 @@ class AddOwnerAsStaff implements ShouldQueue
             ActivityLogService::record('created', 'Added staff member "'.Str::limit($staff->name, 100).'"', $staff, ['source' => 'registration'], $user);
         }
 
-        // Renamed or deleted before this ran: there is nothing to assign.
-        $workspace = $workspaces->findByNameForUser($user, CreateStarterWorkspace::NAME);
-
-        if ($workspace) {
-            $staffMembers->assignWorkspace($staff, $workspace->id);
-        }
+        $staffMembers->assignWorkspace($staff, $workspace->id);
     }
 }

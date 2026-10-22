@@ -2,8 +2,8 @@
 
 namespace App\Services\Api\UserStaff;
 
-use App\Models\User\User;
 use App\Models\User\UserStaff;
+use App\Models\User\Workspace;
 use App\Repositories\User\UserStaffRepository;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Database\Eloquent\Collection;
@@ -15,14 +15,14 @@ class UserStaffService
         protected UserStaffRepository $userStaffRepository,
     ) {}
 
-    public function list(User $user): Collection
+    public function list(Workspace $workspace): Collection
     {
-        return $this->userStaffRepository->getForUser($user);
+        return $this->userStaffRepository->getFor($workspace);
     }
 
-    public function create(User $user, array $data): UserStaff
+    public function create(Workspace $workspace, array $data): UserStaff
     {
-        $staff = $this->userStaffRepository->create($user, $data);
+        $staff = $this->userStaffRepository->create($workspace, $data);
 
         // Each write is logged here, by name, so LogApiWriteActivity does not
         // add its own vaguer "POST api/v1/user-staff" entry for the same request.
@@ -31,9 +31,9 @@ class UserStaffService
         return $staff;
     }
 
-    public function update(User $user, int $id, array $data): UserStaff
+    public function update(Workspace $workspace, int $id, array $data): UserStaff
     {
-        $staff = $this->findOwned($user, $id);
+        $staff = $this->findOwned($workspace, $id);
 
         $this->userStaffRepository->update($staff, $data);
 
@@ -45,9 +45,9 @@ class UserStaffService
         return $staff;
     }
 
-    public function delete(User $user, int $id): void
+    public function delete(Workspace $workspace, int $id): void
     {
-        $staff = $this->findOwned($user, $id);
+        $staff = $this->findOwned($workspace, $id);
 
         $this->userStaffRepository->delete($staff);
 
@@ -55,14 +55,14 @@ class UserStaffService
     }
 
     /**
-     * A staff member that is someone else's answers exactly like one that does
-     * not exist. Aborting with our own message also keeps Laravel's default out
+     * A staff member of another business - the owner's own other one, or
+     * someone else's - answers exactly like one that does not exist. Aborting with our own message also keeps Laravel's default out
      * of the response - "No query results for model [App\Models\User\UserStaff]" -
      * which names an internal class.
      */
-    private function findOwned(User $user, int $id): UserStaff
+    private function findOwned(Workspace $workspace, int $id): UserStaff
     {
-        return $this->userStaffRepository->findForUser($user, $id)
+        return $this->userStaffRepository->findFor($workspace, $id)
             ?? abort(404, 'Staff member not found.');
     }
 

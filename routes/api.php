@@ -80,23 +80,28 @@ Route::prefix('v1')->group(function () {
     });
 
     /* ----------------------------------------------------------
-     | Signed-in user's business settings
+     | The business's settings - one set per business
+     |
+     | This group, locations and user-staff answer for the business picked in
+     | the top bar (X-Workspace-Id; without it, the account's oldest). Each
+     | business's data is its own: another business's ids are a 404, even the
+     | same owner's. An account with no workspace gets a 404 asking for one.
      |
      | Saved with POST, not PUT: the form sends the logo as a file, and PHP only
      | parses multipart bodies on POST. It is still create-or-overwrite.
      | -------------------------------------------------------- */
-    Route::middleware('auth:sanctum')->prefix('business-settings')->group(function () {
+    Route::middleware(['auth:sanctum', 'workspace:required'])->prefix('business-settings')->group(function () {
         Route::get('/', [BusinessSettingController::class, 'show'])->name('api.business-settings.show');
         Route::post('/', [BusinessSettingController::class, 'save'])->name('api.business-settings.save');
     });
 
     /* ----------------------------------------------------------
-     | Signed-in user's locations - branches, warehouses, outlets
+     | The business's locations - branches, warehouses, outlets
      |
-     | Every id is looked up among the caller's own rows, so someone else's
-     | location is a 404, the same as one that does not exist.
+     | Every id is looked up among the business's own rows, so another
+     | business's location is a 404, the same as one that does not exist.
      | -------------------------------------------------------- */
-    Route::middleware('auth:sanctum')->prefix('locations')->group(function () {
+    Route::middleware(['auth:sanctum', 'workspace:required'])->prefix('locations')->group(function () {
         Route::get('/', [LocationController::class, 'index'])->name('api.locations.index');
         Route::post('/', [LocationController::class, 'store'])->name('api.locations.store');
         Route::put('/{id}', [LocationController::class, 'update'])->whereNumber('id')->name('api.locations.update');
@@ -119,16 +124,16 @@ Route::prefix('v1')->group(function () {
     });
 
     /* ----------------------------------------------------------
-     | Signed-in user's staff - the people who work for their business, with
-     | their contact details, whether they are active, and the apps and
-     | workspaces they are assigned to
+     | The business's staff - the people who work for it, with their contact
+     | details, whether they are active, and the apps and workspaces they are
+     | assigned to
      |
-     | Records the caller keeps themselves, and the same rule as locations
-     | applies - every id is looked up among the caller's own rows, so someone
-     | else's is a 404. An assigned workspace must be one of the caller's own,
-     | and an assigned app one that is active.
+     | The same rule as locations applies - every id is looked up among the
+     | business's own rows, so another business's is a 404. An assigned
+     | workspace must be one of the owner's own, and an assigned app one that
+     | is active.
      | -------------------------------------------------------- */
-    Route::middleware('auth:sanctum')->prefix('user-staff')->group(function () {
+    Route::middleware(['auth:sanctum', 'workspace:required'])->prefix('user-staff')->group(function () {
         Route::get('/', [UserStaffController::class, 'index'])->name('api.user-staff.index');
         Route::post('/', [UserStaffController::class, 'store'])->name('api.user-staff.store');
         Route::put('/{id}', [UserStaffController::class, 'update'])->whereNumber('id')->name('api.user-staff.update');

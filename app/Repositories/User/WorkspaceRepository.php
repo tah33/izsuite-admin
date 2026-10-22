@@ -47,12 +47,12 @@ class WorkspaceRepository
     }
 
     /**
-     * The owner's first workspace with this name. Names are not unique, so the
-     * oldest one is the answer when there are several.
+     * The account's first workspace - the one registration made, and the one
+     * the API answers for when no business is picked.
      */
-    public function findByNameForUser(User $user, string $name): ?Workspace
+    public function oldestForUser(User $user): ?Workspace
     {
-        return Workspace::where('user_id', $user->id)->where('name', $name)->orderBy('id')->first();
+        return Workspace::where('user_id', $user->id)->orderBy('id')->first();
     }
 
     public function update(Workspace $workspace, array $data): Workspace

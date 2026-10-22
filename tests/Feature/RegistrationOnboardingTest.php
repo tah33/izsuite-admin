@@ -49,18 +49,21 @@ class RegistrationOnboardingTest extends TestCase
 
         $workspace = $user->workspaces()->sole();
         $this->assertSame('Billing Starter', $workspace->name);
-        $this->assertNull($workspace->app_id);
+        $this->assertSame('starter', $workspace->package->key);
 
-        $location = $user->locations()->sole();
+        // Both belong to that business, not just to the account.
+        $location = $workspace->locations()->sole();
         $this->assertSame('Main Location', $location->name);
         $this->assertNull($location->country);
         $this->assertNull($location->state);
+        $this->assertSame($user->id, $location->user_id);
 
-        $staff = $user->userStaff()->sole();
+        $staff = $workspace->staff()->sole();
         $this->assertSame('Amina Rahman', $staff->name);
         $this->assertSame('amina@example.com', $staff->email);
         $this->assertSame(1, $staff->status);
         $this->assertSame([$workspace->id], $staff->assigned_workspaces);
+        $this->assertSame($user->id, $staff->user_id);
     }
 
     public function test_the_setup_is_queued_not_done_during_the_request(): void
@@ -69,8 +72,7 @@ class RegistrationOnboardingTest extends TestCase
 
         $user = $this->register();
 
-        Bus::assertDispatched(CreateMainLocation::class, fn (CreateMainLocation $job) => $job->userId === $user->id);
-        Bus::assertChained([CreateStarterWorkspace::class, AddOwnerAsStaff::class]);
+        Bus::assertChained([CreateStarterWorkspace::class, CreateMainLocation::class, AddOwnerAsStaff::class]);
 
         $this->assertSame(0, $user->workspaces()->count());
         $this->assertSame(0, $user->locations()->count());
@@ -118,14 +120,26 @@ class RegistrationOnboardingTest extends TestCase
         $this->assertDatabaseCount('user_staff', 0);
     }
 
-    public function test_the_owner_is_still_added_when_the_starter_workspace_is_gone(): void
+    public function test_a_renamed_starter_workspace_still_gets_its_location_and_owner(): void
     {
-        $user = User::factory()->create(['first_name' => 'Amina', 'last_name' => 'Rahman']);
+        $user      = User::factory()->create(['first_name' => 'Amina', 'last_name' => 'Rahman']);
+        $workspace = $user->workspaces()->create(['name' => 'Amina Traders']);
 
+        CreateMainLocation::dispatchSync($user->id);
         AddOwnerAsStaff::dispatchSync($user->id);
 
-        $staff = $user->userStaff()->sole();
-        $this->assertSame('Amina Rahman', $staff->name);
-        $this->assertEmpty($staff->assigned_workspaces);
+        $this->assertSame('Main Location', $workspace->locations()->sole()->name);
+        $this->assertSame([$workspace->id], $workspace->staff()->sole()->assigned_workspaces);
+    }
+
+    public function test_with_no_workspace_left_there_is_nowhere_to_put_the_location_or_owner(): void
+    {
+        $user = User::factory()->create();
+
+        CreateMainLocation::dispatchSync($user->id);
+        AddOwnerAsStaff::dispatchSync($user->id);
+
+        $this->assertDatabaseCount('locations', 0);
+        $this->assertDatabaseCount('user_staff', 0);
     }
 }

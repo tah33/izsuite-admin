@@ -7,8 +7,10 @@ use App\Models\Frontend\Application;
 use App\Models\Shared\ActivityLog;
 use App\Models\User\User;
 use App\Models\User\Workspace;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -24,6 +26,11 @@ class WorkspacesApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Seeded with the others, super-admin keeps id 1 - a "user" role made
+        // first by the factory would take it, and every account would pass for
+        // an admin, whose activity is not logged.
+        $this->seed(RoleSeeder::class);
 
         $this->starter = Package::where('key', 'starter')->firstOrFail();
         $this->sales   = Application::create(['name' => 'Sales Lite', 'family_key' => 'sales', 'edition' => 'lite', 'is_active' => true]);
@@ -157,8 +164,10 @@ class WorkspacesApiTest extends TestCase
 
     public function test_a_workspace_has_no_staff_member_of_its_own(): void
     {
-        $user = User::factory()->create();
-        $staff = $user->userStaff()->create(['name' => 'Rahim Uddin', 'email' => 'rahim@example.com', 'phone' => '+8801700000000', 'status' => 1]);
+        $user  = User::factory()->create();
+        $staff = $this->workspaceOf($user, ['name' => 'First Business'])->staff()->create([
+            'user_id' => $user->id, 'name' => 'Rahim Uddin', 'email' => 'rahim@example.com', 'phone' => '+8801700000000', 'status' => 1,
+        ]);
         Sanctum::actingAs($user);
 
         // Which staff work in which workspace is set from the staff side, so a
@@ -315,6 +324,50 @@ class WorkspacesApiTest extends TestCase
 
         // The app it pointed at is not the workspace's to take down with it.
         $this->assertDatabaseHas('apps', ['id' => $this->sales->id]);
+    }
+
+    public function test_deleting_a_business_deletes_its_own_data_and_leaves_the_others(): void
+    {
+        Storage::fake('public');
+
+        $user    = User::factory()->create();
+        $leaving = $this->workspaceOf($user, ['name' => 'Leaving']);
+        $staying = $this->workspaceOf($user, ['name' => 'Staying']);
+
+        foreach ([$leaving, $staying] as $business) {
+            $logo = "business-logos/{$business->id}.png";
+            Storage::disk('public')->put($logo, 'logo');
+
+            $business->locations()->create(['user_id' => $user->id, 'name' => "{$business->name} Depot"]);
+            $business->staff()->create(['user_id' => $user->id, 'name' => "{$business->name} Staff", 'status' => 1]);
+            $business->businessSetting()->create([
+                'user_id'                    => $user->id,
+                'business_name'              => $business->name,
+                'currency'                   => 'USD',
+                'language'                   => 'en',
+                'logo'                       => $logo,
+                'country'                    => 'Bangladesh',
+                'state'                      => 'Dhaka',
+                'city'                       => 'Dhaka',
+                'zip_code'                   => '1207',
+                'landmark'                   => 'Near City Center',
+                'timezone'                   => 'Asia/Dhaka',
+                'financial_year_start_month' => 7,
+                'stock_accounting_method'    => 'fifo',
+            ]);
+        }
+
+        Sanctum::actingAs($user);
+
+        $this->deleteJson("/api/v1/workspaces/{$leaving->id}")->assertOk();
+
+        foreach (['locations', 'user_staff', 'business_settings'] as $table) {
+            $this->assertDatabaseMissing($table, ['workspace_id' => $leaving->id]);
+            $this->assertDatabaseHas($table, ['workspace_id' => $staying->id]);
+        }
+
+        Storage::disk('public')->assertMissing("business-logos/{$leaving->id}.png");
+        Storage::disk('public')->assertExists("business-logos/{$staying->id}.png");
     }
 
     public function test_someone_elses_workspace_cannot_be_deleted(): void
