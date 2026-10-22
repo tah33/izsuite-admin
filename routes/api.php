@@ -5,14 +5,19 @@ use App\Http\Controllers\Api\AppCategoryController;
 use App\Http\Controllers\Api\AppController;
 use App\Http\Controllers\Api\AppsCenterController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BusinessCurrencyController;
 use App\Http\Controllers\Api\BusinessSettingController;
+use App\Http\Controllers\Api\BusinessTaxController;
+use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\ContactMessageController;
 use App\Http\Controllers\Api\CurrencyController;
 use App\Http\Controllers\Api\EmailVerificationController;
+use App\Http\Controllers\Api\ItemController;
 use App\Http\Controllers\Api\LanguageController;
 use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\NavigationController;
 use App\Http\Controllers\Api\PasswordResetController;
+use App\Http\Controllers\Api\PaymentAccountController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\UserStaffController;
@@ -93,6 +98,13 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'workspace:required'])->prefix('business-settings')->group(function () {
         Route::get('/', [BusinessSettingController::class, 'show'])->name('api.business-settings.show');
         Route::post('/', [BusinessSettingController::class, 'save'])->name('api.business-settings.save');
+
+        // Settings > Currencies and Settings > Taxes (Doc 01 sections 11, 12):
+        // the base currency, the other currencies, and whether taxes are used.
+        Route::get('/currencies', [BusinessCurrencyController::class, 'show'])->name('api.business-settings.currencies.show');
+        Route::put('/currencies', [BusinessCurrencyController::class, 'update'])->name('api.business-settings.currencies.update');
+        Route::get('/taxes', [BusinessTaxController::class, 'show'])->name('api.business-settings.taxes.show');
+        Route::put('/taxes', [BusinessTaxController::class, 'update'])->name('api.business-settings.taxes.update');
     });
 
     /* ----------------------------------------------------------
@@ -138,6 +150,31 @@ Route::prefix('v1')->group(function () {
         Route::post('/', [UserStaffController::class, 'store'])->name('api.user-staff.store');
         Route::put('/{id}', [UserStaffController::class, 'update'])->whereNumber('id')->name('api.user-staff.update');
         Route::delete('/{id}', [UserStaffController::class, 'destroy'])->whereNumber('id')->name('api.user-staff.destroy');
+    });
+
+    /* ----------------------------------------------------------
+     | The business's shared records (Doc 01 section 10): contacts, items and
+     | payment accounts - the one source every app points at
+     |
+     | The same rule as locations: every id is looked up among the business's
+     | own rows, so another business's is a 404. Contacts and items come a
+     | page at a time; payment accounts all at once.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required'])->group(function () {
+        Route::get('/contacts', [ContactController::class, 'index'])->name('api.contacts.index');
+        Route::post('/contacts', [ContactController::class, 'store'])->name('api.contacts.store');
+        Route::put('/contacts/{id}', [ContactController::class, 'update'])->whereNumber('id')->name('api.contacts.update');
+        Route::delete('/contacts/{id}', [ContactController::class, 'destroy'])->whereNumber('id')->name('api.contacts.destroy');
+
+        Route::get('/items', [ItemController::class, 'index'])->name('api.items.index');
+        Route::post('/items', [ItemController::class, 'store'])->name('api.items.store');
+        Route::put('/items/{id}', [ItemController::class, 'update'])->whereNumber('id')->name('api.items.update');
+        Route::delete('/items/{id}', [ItemController::class, 'destroy'])->whereNumber('id')->name('api.items.destroy');
+
+        Route::get('/payment-accounts', [PaymentAccountController::class, 'index'])->name('api.payment-accounts.index');
+        Route::post('/payment-accounts', [PaymentAccountController::class, 'store'])->name('api.payment-accounts.store');
+        Route::put('/payment-accounts/{id}', [PaymentAccountController::class, 'update'])->whereNumber('id')->name('api.payment-accounts.update');
+        Route::delete('/payment-accounts/{id}', [PaymentAccountController::class, 'destroy'])->whereNumber('id')->name('api.payment-accounts.destroy');
     });
 
     /* ----------------------------------------------------------

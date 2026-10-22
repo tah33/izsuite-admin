@@ -22,7 +22,6 @@ class BusinessSettingResource extends JsonResource
             // not the full timestamp the date cast would serialise to.
             'start_date'                 => $this->start_date?->toDateString(),
 
-            'currency'                   => $this->currency,
             'language'                   => $this->language,
             'logo_url'                   => $logoPath ? url($logoPath) : null,
             'website'                    => $this->website,

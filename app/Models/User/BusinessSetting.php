@@ -15,7 +15,6 @@ class BusinessSetting extends Model
         'workspace_id',
         'business_name',
         'start_date',
-        'currency',
         'language',
         'logo',
         'website',

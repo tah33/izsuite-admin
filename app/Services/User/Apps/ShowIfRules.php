@@ -24,11 +24,10 @@ class ShowIfRules
     {
         return match ($key) {
             // Payment Accounts appears once the first one is made (Doc 01
-            // section 6.2). They are not built yet, so no business has one and
-            // the item stays hidden; when they are, this becomes
-            // (bool) $workspace?->paymentAccounts()->exists(), and creating the
-            // first one must bump the business's nav_version.
-            'has_payment_account' => false,
+            // section 6.2). The first one made and the last one deleted bump
+            // the business's nav_version (see PaymentAccount), so the cached
+            // sidebar follows.
+            'has_payment_account' => (bool) $workspace?->paymentAccounts()->exists(),
             default               => false,
         };
     }

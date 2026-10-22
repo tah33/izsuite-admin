@@ -20,11 +20,33 @@ class BusinessDataWorkspaceMigrationTest extends TestCase
 
     private const MIGRATION = 'migrations/2025_01_01_000067_give_business_data_a_workspace.php';
 
+    /** Later migrations that changed the same tables, newest first. */
+    private const LATER_MIGRATIONS = [
+        'migrations/2025_01_01_000068_give_businesses_a_currency_and_tax_choice.php',
+    ];
+
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->seed(RoleSeeder::class);
+    }
+
+    /**
+     * The schema as it stood before the migration - the later ones undone
+     * first - and the migration, to run up. Workspaces made through the model
+     * are made before it: the model fills columns added later.
+     */
+    private function rollBack(): object
+    {
+        foreach (self::LATER_MIGRATIONS as $later) {
+            (require database_path($later))->down();
+        }
+
+        $migration = require database_path(self::MIGRATION);
+        $migration->down();
+
+        return $migration;
     }
 
     /** The account's own rows, as they were saved before the migration. */
@@ -62,12 +84,11 @@ class BusinessDataWorkspaceMigrationTest extends TestCase
 
     public function test_existing_rows_move_to_their_accounts_oldest_workspace(): void
     {
-        $migration = require database_path(self::MIGRATION);
-        $migration->down();
-
         $withTwo = User::factory()->create();
         $oldest  = $withTwo->workspaces()->create(['name' => 'Oldest']);
         $withTwo->workspaces()->create(['name' => 'Newer']);
+
+        $migration = $this->rollBack();
         $this->legacyRowsFor($withTwo, 'Two Shops Ltd');
 
         $migration->up();
@@ -81,8 +102,7 @@ class BusinessDataWorkspaceMigrationTest extends TestCase
 
     public function test_an_account_with_data_but_no_workspace_gets_one_named_after_its_business(): void
     {
-        $migration = require database_path(self::MIGRATION);
-        $migration->down();
+        $migration = $this->rollBack();
 
         $named   = User::factory()->create();
         $unnamed = User::factory()->create();
@@ -112,7 +132,6 @@ class BusinessDataWorkspaceMigrationTest extends TestCase
             $business->businessSetting()->create([
                 'user_id'                    => $user->id,
                 'business_name'              => $business->name,
-                'currency'                   => 'USD',
                 'language'                   => 'en',
                 'country'                    => 'Bangladesh',
                 'state'                      => 'Dhaka',
@@ -125,7 +144,7 @@ class BusinessDataWorkspaceMigrationTest extends TestCase
             ]);
         }
 
-        (require database_path(self::MIGRATION))->down();
+        $this->rollBack();
 
         $this->assertSame(['First'], DB::table('business_settings')->where('user_id', $user->id)->pluck('business_name')->all());
     }

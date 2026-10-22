@@ -57,13 +57,19 @@ class NavigationBuilder
             ->filter(fn (MenuItem $item) => ! $item->show_if || $this->rules->passes($item->show_if, $workspace));
 
         return [
+            // The currencies and tax choice ride along, so every page knows what
+            // to show prices in, which currencies an account may use (the base
+            // one first), and whether tax fields belong on its forms.
             'workspace' => $workspace ? [
-                'id'      => $workspace->id,
-                'name'    => $workspace->name,
-                'package' => $workspace->package ? [
+                'id'            => $workspace->id,
+                'name'          => $workspace->name,
+                'package'       => $workspace->package ? [
                     'key'  => $workspace->package->key,
                     'name' => $workspace->package->name,
                 ] : null,
+                'base_currency' => $workspace->base_currency,
+                'currencies'    => $workspace->currencyCodes(),
+                'tax_mode'      => $workspace->tax_mode,
             ] : null,
 
             // An object even when empty, so the client always gets a map.

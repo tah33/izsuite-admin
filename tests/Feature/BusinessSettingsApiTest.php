@@ -21,7 +21,7 @@ class BusinessSettingsApiTest extends TestCase
     use RefreshDatabase;
 
     private const REQUIRED_FIELDS = [
-        'business_name', 'currency', 'language', 'country', 'state', 'city',
+        'business_name', 'language', 'country', 'state', 'city',
         'zip_code', 'landmark', 'timezone', 'financial_year_start_month', 'stock_accounting_method',
     ];
 
@@ -47,7 +47,6 @@ class BusinessSettingsApiTest extends TestCase
         return array_merge([
             'business_name'              => 'Global Traders Inc.',
             'start_date'                 => '2024-03-15',
-            'currency'                   => 'USD',
             'language'                   => 'en',
             'website'                    => 'https://globaltraders.example',
             'business_contact_number'    => '+880 1712-345678',
@@ -123,7 +122,7 @@ class BusinessSettingsApiTest extends TestCase
         $this->getJson('/api/v1/business-settings')
             ->assertOk()
             ->assertJsonStructure(['data' => [
-                'business_name', 'start_date', 'currency', 'language', 'logo_url', 'website',
+                'business_name', 'start_date', 'language', 'logo_url', 'website',
                 'business_contact_number', 'alternate_contact_number', 'country', 'state', 'city',
                 'zip_code', 'landmark', 'timezone', 'tax_1_name', 'tax_1_no', 'tax_2_name', 'tax_2_no',
                 'financial_year_start_month', 'stock_accounting_method',
@@ -206,14 +205,12 @@ class BusinessSettingsApiTest extends TestCase
         $this->postJson('/api/v1/business-settings', $this->payload())
             ->assertOk()
             ->assertJsonPath('message', 'Business settings saved successfully.')
-            ->assertJsonPath('data.currency', 'USD')
             ->assertJsonPath('data.timezone', 'Asia/Dhaka');
 
         $this->assertDatabaseHas('business_settings', [
             'user_id'                    => $user->id,
             'workspace_id'               => $this->businessOf($user)->id,
             'business_name'              => 'Global Traders Inc.',
-            'currency'                   => 'USD',
             'financial_year_start_month' => 7,
             'stock_accounting_method'    => 'fifo',
         ]);
@@ -304,20 +301,20 @@ class BusinessSettingsApiTest extends TestCase
             ->assertJsonValidationErrors(['business_name', 'zip_code', 'tax_1_name']);
     }
 
-    /* ---------------------------------------------------------- currency + language */
+    /* ---------------------------------------------------------- language */
 
-    public function test_currency_must_be_an_active_one(): void
+    public function test_the_currency_is_not_a_business_setting_any_more(): void
     {
-        $this->signIn(User::factory()->create());
+        $user = $this->signIn(User::factory()->create());
 
-        // EUR exists but is switched off; XYZ does not exist at all.
-        foreach (['EUR', 'XYZ'] as $code) {
-            $this->postJson('/api/v1/business-settings', $this->payload(['currency' => $code]))
-                ->assertUnprocessable()
-                ->assertJsonValidationErrors(['currency' => 'available currencies']);
-        }
+        // It is the business's base currency now (Settings > Currencies): one
+        // sent here is ignored, and none comes back.
+        $this->postJson('/api/v1/business-settings', $this->payload(['currency' => 'EUR']))
+            ->assertOk()
+            ->assertJsonMissingPath('data.currency');
 
-        $this->assertDatabaseCount('business_settings', 0);
+        $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('business_settings', 'currency'));
+        $this->assertSame('USD', $this->businessOf($user)->fresh()->base_currency);
     }
 
     public function test_language_must_be_an_active_one(): void
@@ -331,31 +328,6 @@ class BusinessSettingsApiTest extends TestCase
         }
 
         $this->assertDatabaseCount('business_settings', 0);
-    }
-
-    public function test_switching_a_currency_off_blocks_it_from_the_next_save(): void
-    {
-        $this->signIn(User::factory()->create());
-
-        $this->postJson('/api/v1/business-settings', $this->payload())->assertOk();
-
-        Currency::where('code', 'USD')->update(['is_active' => false]);
-
-        $this->postJson('/api/v1/business-settings', $this->payload())
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('currency');
-    }
-
-    public function test_currency_code_is_stored_upper_case(): void
-    {
-        $user = User::factory()->create();
-        $this->signIn($user);
-
-        $this->postJson('/api/v1/business-settings', $this->payload(['currency' => 'usd']))
-            ->assertOk()
-            ->assertJsonPath('data.currency', 'USD');
-
-        $this->assertSame('USD', BusinessSetting::where('user_id', $user->id)->value('currency'));
     }
 
     /* ---------------------------------------------------------- the other constrained fields */
