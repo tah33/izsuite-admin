@@ -29,30 +29,78 @@ use Illuminate\Support\Facades\Schema;
  */
 return new class extends Migration
 {
+    /**
+     * Re-runnable by design. MySQL has no transactional DDL, so a failure
+     * part-way through this migration leaves the earlier ALTERs applied while
+     * the migration itself stays unrecorded in `migrations`. The next deploy
+     * then re-runs it from the top and dies on "Duplicate column name 'icon'"
+     * before it can reach whatever actually broke - and because
+     * docker/entrypoint.sh runs `migrate --force` under `set -e`, the app
+     * container restart-loops permanently. Each step below therefore tests for
+     * its own result first, so a half-applied run resumes rather than bricking
+     * the deploy.
+     */
     public function up(): void
     {
-        Schema::table('app_categories', function (Blueprint $table) {
-            $table->string('icon', 100)->nullable()->after('name');
-            $table->unsignedInteger('sort_order')->default(0)->after('icon');
-        });
+        if (! Schema::hasColumn('app_categories', 'icon')) {
+            Schema::table('app_categories', function (Blueprint $table) {
+                $table->string('icon', 100)->nullable()->after('name');
+            });
+        }
 
-        Schema::table('apps', function (Blueprint $table) {
-            $table->string('app_key', 100)->nullable()->after('id');
-            $table->foreignId('category_id')->nullable()->after('logo_url')->constrained('app_categories')->restrictOnDelete();
-            $table->string('icon', 100)->nullable()->after('category_id');
-        });
+        if (! Schema::hasColumn('app_categories', 'sort_order')) {
+            Schema::table('app_categories', function (Blueprint $table) {
+                $table->unsignedInteger('sort_order')->default(0)->after('icon');
+            });
+        }
 
-        $this->carryOverRows();
+        if (! Schema::hasColumn('apps', 'app_key')) {
+            Schema::table('apps', function (Blueprint $table) {
+                $table->string('app_key', 100)->nullable()->after('id');
+            });
+        }
 
-        Schema::table('apps', function (Blueprint $table) {
-            $table->dropColumn('category');
-        });
+        if (! Schema::hasColumn('apps', 'category_id')) {
+            Schema::table('apps', function (Blueprint $table) {
+                $table->foreignId('category_id')->nullable()->after('logo_url')->constrained('app_categories')->restrictOnDelete();
+            });
+        }
+
+        if (! Schema::hasColumn('apps', 'icon')) {
+            Schema::table('apps', function (Blueprint $table) {
+                $table->string('icon', 100)->nullable()->after('category_id');
+            });
+        }
+
+        // `category` surviving means carryOverRows() never finished - dropping
+        // it is the step immediately after - so the data migration is re-run.
+        // It converges: each category is found or created, and app_key is
+        // derived from family_key and edition rather than accumulated.
+        if (Schema::hasColumn('apps', 'category')) {
+            $this->carryOverRows();
+
+            Schema::table('apps', function (Blueprint $table) {
+                $table->dropColumn('category');
+            });
+        }
+
+        // A row inserted between a failed run and this one has no app_key, and
+        // the NOT NULL change below would reject it.
+        $this->backfillAppKeys();
 
         Schema::table('apps', function (Blueprint $table) {
             $table->string('app_key', 100)->nullable(false)->change();
             $table->string('edition', 10)->default('full')->nullable(false)->change();
-            $table->unique('app_key');
         });
+
+        // Checked by columns, not by name: the generated name is an
+        // implementation detail, and an equivalent index added by hand on the
+        // server would still count.
+        if (! Schema::hasIndex('apps', ['app_key'], 'unique')) {
+            Schema::table('apps', function (Blueprint $table) {
+                $table->unique('app_key');
+            });
+        }
     }
 
     public function down(): void
@@ -118,12 +166,24 @@ return new class extends Migration
             }
         }
 
-        foreach (DB::table('apps')->get(['id', 'family_key', 'edition']) as $row) {
+        $this->backfillAppKeys(DB::table('apps')->get(['id', 'family_key', 'edition']));
+
+        DB::table('apps')->where('status', '!=', 'coming_soon')->update(['status' => 'available']);
+    }
+
+    /**
+     * app_key is family_key, suffixed for the Lite edition. Derived rather
+     * than incremented, so running it twice yields the same value. Called with
+     * every row during the carry-over, and with only the gaps afterwards.
+     */
+    private function backfillAppKeys($rows = null): void
+    {
+        $rows ??= DB::table('apps')->whereNull('app_key')->get(['id', 'family_key', 'edition']);
+
+        foreach ($rows as $row) {
             DB::table('apps')->where('id', $row->id)->update([
                 'app_key' => $row->edition === 'lite' ? $row->family_key.'_lite' : $row->family_key,
             ]);
         }
-
-        DB::table('apps')->where('status', '!=', 'coming_soon')->update(['status' => 'available']);
     }
 };
