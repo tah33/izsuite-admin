@@ -13,11 +13,13 @@ class ListContactRequest extends FormRequest
         return true;
     }
 
+    /** The search and the filters of the Contacts list (Doc 03 section 3). */
     public function rules(): array
     {
         return [
             'search'   => ['nullable', 'string', 'max:255'],
-            'type'     => ['nullable', Rule::in([Contact::TYPE_CUSTOMER, Contact::TYPE_VENDOR])],
+            'role'     => ['nullable', Rule::in(Contact::ROLES)],
+            'type'     => ['nullable', Rule::in(Contact::TYPES)],
             'status'   => ['nullable', Rule::in(['active', 'inactive'])],
             'per_page' => ['nullable', 'integer', 'in:10,15,25,50,100'],
             'page'     => ['nullable', 'integer', 'min:1'],

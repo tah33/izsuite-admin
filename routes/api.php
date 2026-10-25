@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\BusinessSettingController;
 use App\Http\Controllers\Api\BusinessTaxController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\ContactMessageController;
+use App\Http\Controllers\Api\CountryController;
 use App\Http\Controllers\Api\CurrencyController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\ItemController;
@@ -37,6 +38,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/plans', [PlanController::class, 'index'])->name('api.plans.index');
     Route::get('/currencies', [CurrencyController::class, 'index'])->name('api.currencies.index');
     Route::get('/languages', [LanguageController::class, 'index'])->name('api.languages.index');
+    Route::get('/countries', [CountryController::class, 'index'])->name('api.countries.index');
 
     /* ----------------------------------------------------------
      | Frontend user authentication
@@ -163,8 +165,11 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'workspace:required'])->group(function () {
         Route::get('/contacts', [ContactController::class, 'index'])->name('api.contacts.index');
         Route::post('/contacts', [ContactController::class, 'store'])->name('api.contacts.store');
+        Route::get('/contacts/{id}', [ContactController::class, 'show'])->whereNumber('id')->name('api.contacts.show');
         Route::put('/contacts/{id}', [ContactController::class, 'update'])->whereNumber('id')->name('api.contacts.update');
         Route::delete('/contacts/{id}', [ContactController::class, 'destroy'])->whereNumber('id')->name('api.contacts.destroy');
+        Route::post('/contacts/{id}/activate', [ContactController::class, 'activate'])->whereNumber('id')->name('api.contacts.activate');
+        Route::post('/contacts/{id}/deactivate', [ContactController::class, 'deactivate'])->whereNumber('id')->name('api.contacts.deactivate');
 
         Route::get('/items', [ItemController::class, 'index'])->name('api.items.index');
         Route::post('/items', [ItemController::class, 'store'])->name('api.items.store');

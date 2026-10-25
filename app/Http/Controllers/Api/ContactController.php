@@ -25,7 +25,7 @@ class ContactController extends Controller
         try {
             $contacts = $this->contactService->list(
                 $this->currentWorkspace($request),
-                $request->only(['search', 'type', 'status']),
+                $request->only(['search', 'role', 'type', 'status']),
                 requested_per_page(),
             );
 
@@ -38,6 +38,30 @@ class ContactController extends Controller
             report($e);
             throw $e;
         }
+    }
+
+    /** One contact, whole - for its profile and its edit form. */
+    public function show(Request $request, int $id): JsonResponse
+    {
+        try {
+            return response()->json([
+                'data' => new ContactResource($this->contactService->find($this->currentWorkspace($request), $id)),
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    public function activate(Request $request, int $id): JsonResponse
+    {
+        return $this->setActive($request, $id, true);
+    }
+
+    public function deactivate(Request $request, int $id): JsonResponse
+    {
+        return $this->setActive($request, $id, false);
     }
 
     public function store(SaveContactRequest $request): JsonResponse
@@ -79,6 +103,22 @@ class ContactController extends Controller
 
             return response()->json([
                 'message' => 'Contact deleted successfully.',
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    private function setActive(Request $request, int $id, bool $active): JsonResponse
+    {
+        try {
+            $contact = $this->contactService->setActive($this->currentWorkspace($request), $id, $active);
+
+            return response()->json([
+                'message' => $active ? 'Contact activated.' : 'Contact deactivated.',
+                'data'    => new ContactResource($contact),
             ]);
 
         } catch (\Throwable $e) {

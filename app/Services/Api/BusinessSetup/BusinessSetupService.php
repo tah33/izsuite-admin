@@ -4,6 +4,7 @@ namespace App\Services\Api\BusinessSetup;
 
 use App\Models\User\Workspace;
 use App\Services\Shared\ActivityLogService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -46,10 +47,20 @@ class BusinessSetupService
             ]);
         }
 
-        $workspace->forceFill([
-            'base_currency'         => $data['base_currency'],
-            'additional_currencies' => $additional ?: null,
-        ])->save();
+        DB::transaction(function () use ($workspace, $data, $additional, $kept) {
+            $workspace->forceFill([
+                'base_currency'         => $data['base_currency'],
+                'additional_currencies' => $additional ?: null,
+            ])->save();
+
+            // A contact's default currency that the business stops using gives
+            // way to the base currency, which is what no default means (Doc 03
+            // section 7). Only new transactions follow defaults, so nothing
+            // already issued changes.
+            foreach (['sales_currency', 'purchase_currency'] as $column) {
+                $workspace->contacts()->whereNotNull($column)->whereNotIn($column, $kept)->update([$column => null]);
+            }
+        });
 
         // Logged here, like every save, so LogApiWriteActivity does not write its
         // own vaguer entry. nav_version goes up with the change - bookkeeping,
