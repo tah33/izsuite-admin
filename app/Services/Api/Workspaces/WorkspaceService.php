@@ -8,7 +8,9 @@ use App\Repositories\User\UserStaffRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Support\ImageService;
+use App\Services\User\Workspaces\SetUpNewWorkspace;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class WorkspaceService
@@ -17,6 +19,7 @@ class WorkspaceService
         protected WorkspaceRepository $workspaceRepository,
         protected UserStaffRepository $userStaffRepository,
         protected ImageService $imageService,
+        protected SetUpNewWorkspace $setUpNewWorkspace,
     ) {}
 
     public function list(User $user): Collection
@@ -24,15 +27,24 @@ class WorkspaceService
         return $this->workspaceRepository->getForUser($user);
     }
 
+    /**
+     * A business added here starts the way registration starts the first one:
+     * with its Main Location, and its owner on its staff. All of it is made
+     * together or not at all, so a business never exists without them.
+     */
     public function create(User $user, array $data): Workspace
     {
-        $workspace = $this->workspaceRepository->create($user, $data);
+        return DB::transaction(function () use ($user, $data): Workspace {
+            $workspace = $this->workspaceRepository->create($user, $data);
 
-        // Each write is logged here, by name, so LogApiWriteActivity does not
-        // add its own vaguer "POST api/v1/workspaces" entry for the same request.
-        ActivityLogService::record('created', "Added workspace {$this->quoted($workspace)}", $workspace, ['source' => 'api']);
+            // Each write is logged here, by name, so LogApiWriteActivity does not
+            // add its own vaguer "POST api/v1/workspaces" entry for the same request.
+            ActivityLogService::record('created', "Added workspace {$this->quoted($workspace)}", $workspace, ['source' => 'api']);
 
-        return $workspace;
+            $this->setUpNewWorkspace->handle($workspace, $user, 'api');
+
+            return $workspace;
+        });
     }
 
     public function update(User $user, int $id, array $data): Workspace
@@ -54,9 +66,9 @@ class WorkspaceService
     {
         $workspace = $this->findOwned($user, $id);
 
-        // The business's own data - locations, settings, staff - goes with it:
-        // the database cascades. Its logo file does not, so it is removed once
-        // the rows are gone.
+        // The business's own data - locations, settings, staff, contacts, items,
+        // payment accounts - goes with it: the database cascades. Its logo file
+        // does not, so it is removed once the rows are gone.
         $logo = $workspace->businessSetting()->value('logo');
 
         $this->workspaceRepository->delete($workspace);

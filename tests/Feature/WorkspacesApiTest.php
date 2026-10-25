@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\ResolveWorkspace;
 use App\Models\Billing\Package;
 use App\Models\Frontend\Application;
 use App\Models\Shared\ActivityLog;
@@ -121,6 +122,41 @@ class WorkspacesApiTest extends TestCase
         $this->assertDatabaseHas('workspace_apps', ['workspace_id' => $id, 'family_key' => 'sales', 'app_id' => $this->sales->id, 'status' => 'active']);
     }
 
+    public function test_a_new_workspace_starts_with_a_main_location_and_its_owner_on_staff(): void
+    {
+        $user = User::factory()->create(['first_name' => 'Amina', 'last_name' => 'Rahman', 'email' => 'amina@example.com']);
+        Sanctum::actingAs($user);
+
+        // As registration starts the first business.
+        $workspace = Workspace::findOrFail($this->postJson('/api/v1/workspaces', $this->payload())->assertCreated()->json('data.id'));
+
+        $location = $workspace->locations()->sole();
+        $this->assertSame(['Main Location', null, null, $user->id], [$location->name, $location->country, $location->state, $location->user_id]);
+
+        $staff = $workspace->staff()->sole();
+        $this->assertSame('Amina Rahman', $staff->name);
+        $this->assertSame('amina@example.com', $staff->email);
+        $this->assertSame(1, $staff->status);
+        $this->assertSame([$workspace->id], $staff->assigned_workspaces);
+        $this->assertSame($user->id, $staff->user_id);
+    }
+
+    public function test_each_new_workspace_gets_its_own_and_the_others_keep_theirs(): void
+    {
+        $user  = User::factory()->create();
+        $first = $this->workspaceOf($user, ['name' => 'First Business']);
+        $first->locations()->create(['user_id' => $user->id, 'name' => 'Head Office']);
+        Sanctum::actingAs($user);
+
+        $second = $this->postJson('/api/v1/workspaces', $this->payload(['name' => 'Second Business']))->json('data.id');
+
+        // What each business's own pages list.
+        $this->getJson('/api/v1/locations', [ResolveWorkspace::HEADER => (string) $second])->assertJsonPath('data.*.name', ['Main Location']);
+        $this->getJson('/api/v1/user-staff', [ResolveWorkspace::HEADER => (string) $second])->assertJsonPath('data.*.email', [$user->email]);
+        $this->getJson('/api/v1/locations', [ResolveWorkspace::HEADER => (string) $first->id])->assertJsonPath('data.*.name', ['Head Office']);
+        $this->getJson('/api/v1/user-staff', [ResolveWorkspace::HEADER => (string) $first->id])->assertJsonPath('data', []);
+    }
+
     public function test_apps_and_plans_are_not_set_from_here(): void
     {
         $user = User::factory()->create();
@@ -162,7 +198,7 @@ class WorkspacesApiTest extends TestCase
         $this->assertSame(1, $attacker->workspaces()->count());
     }
 
-    public function test_a_workspace_has_no_staff_member_of_its_own(): void
+    public function test_a_staff_id_sent_with_a_new_workspace_is_ignored(): void
     {
         $user  = User::factory()->create();
         $staff = $this->workspaceOf($user, ['name' => 'First Business'])->staff()->create([
@@ -218,7 +254,7 @@ class WorkspacesApiTest extends TestCase
         $this->postJson('/api/v1/workspaces', ['name' => str_repeat('a', 255)])->assertCreated();
 
         // activity_logs.description is 255 characters wide.
-        $this->assertLessThanOrEqual(255, strlen(ActivityLog::latest('id')->value('description')));
+        $this->assertLessThanOrEqual(255, strlen(ActivityLog::where('model_type', Workspace::class)->latest('id')->value('description')));
     }
 
     /* ---------------------------------------------------------- update */
@@ -413,12 +449,17 @@ class WorkspacesApiTest extends TestCase
         $this->deleteJson("/api/v1/workspaces/{$id}")->assertOk();
 
         // One descriptive entry per write, and no generic `api_auto` one on top.
+        // Adding the business also adds its Main Location and its owner as
+        // staff, and those are logged as registration logs them.
         $logs = ActivityLog::where('user_id', $user->id)->orderBy('id')->get();
 
-        $this->assertCount(3, $logs);
+        $this->assertCount(5, $logs);
         $this->assertSame(['created', 'Added workspace "Main Workspace"'], [$logs[0]->action, $logs[0]->description]);
-        $this->assertSame(['updated', 'Updated workspace "Renamed"'], [$logs[1]->action, $logs[1]->description]);
-        $this->assertSame(['name'], $logs[1]->properties['fields']);
-        $this->assertSame(['deleted', 'Deleted workspace "Renamed"'], [$logs[2]->action, $logs[2]->description]);
+        $this->assertSame(['created', 'Added location "Main Location"'], [$logs[1]->action, $logs[1]->description]);
+        $this->assertSame(['created', "Added staff member \"{$user->name}\""], [$logs[2]->action, $logs[2]->description]);
+        $this->assertSame(['api', 'api', 'api'], $logs->take(3)->pluck('properties.source')->all());
+        $this->assertSame(['updated', 'Updated workspace "Renamed"'], [$logs[3]->action, $logs[3]->description]);
+        $this->assertSame(['name'], $logs[3]->properties['fields']);
+        $this->assertSame(['deleted', 'Deleted workspace "Renamed"'], [$logs[4]->action, $logs[4]->description]);
     }
 }
