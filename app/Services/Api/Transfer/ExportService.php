@@ -25,17 +25,15 @@ class ExportService
     {
         $transfer = $this->importService->transfer($kind);
         $columns  = $transfer->exportColumns($workspace);
-        $query    = $transfer->exportQuery($workspace, $filters);
-
-        $count = $query->count();
+        $count    = $transfer->exportCount($workspace, $filters);
 
         ActivityLogService::record('exported', "Exported {$count} ".Str::plural(Str::singular($transfer->plural()), $count), $workspace, [
             'source'  => 'api',
             'filters' => array_filter($filters, fn ($value) => $value !== null && $value !== ''),
         ]);
 
-        $rows = (function () use ($query, $columns) {
-            foreach ($query->lazy(500) as $record) {
+        $rows = (function () use ($transfer, $workspace, $filters, $columns) {
+            foreach ($transfer->exportRecords($workspace, $filters) as $record) {
                 yield array_map(fn (callable $value) => $value($record), array_values($columns));
             }
         })();

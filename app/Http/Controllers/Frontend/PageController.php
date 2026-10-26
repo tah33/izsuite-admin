@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Frontend;
 
 use App\Http\Controllers\Controller;
-use App\Repositories\Admin\PageRepository;
+use App\Services\Admin\PageService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class PageController extends Controller
 {
     public function __construct(
-        protected PageRepository $pageRepository,
+        protected PageService $pageService,
     ) {}
 
     /**
@@ -18,15 +18,21 @@ class PageController extends Controller
      */
     public function show(Request $request, string $slug): View
     {
-        $page = $this->pageRepository->findBySlug($slug);
+        try {
+            $page = $this->pageService->findPublished($slug);
 
-        if (! $page) {
-            abort(404);
+            if (! $page) {
+                abort(404);
+            }
+
+            return view('page', [
+                'page'     => $page,
+                'siteName' => setting('site_name', config('brand.name')),
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
         }
-
-        return view('page', [
-            'page'     => $page,
-            'siteName' => setting('site_name', config('brand.name')),
-        ]);
     }
 }

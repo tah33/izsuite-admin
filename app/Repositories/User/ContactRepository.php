@@ -6,6 +6,7 @@ use App\Models\User\Contact;
 use App\Models\User\Workspace;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\LazyCollection;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
@@ -30,6 +31,18 @@ class ContactRepository
     public function paginateFor(Workspace $workspace, array $filters, int $perPage, bool $withTaxId): LengthAwarePaginator
     {
         return $this->queryFor($workspace, $filters, $withTaxId)->paginate($perPage);
+    }
+
+    /** How many contacts the list holds with $filters - for an export. */
+    public function countFor(Workspace $workspace, array $filters, bool $withTaxId): int
+    {
+        return $this->queryFor($workspace, $filters, $withTaxId)->count();
+    }
+
+    /** The list's contacts with $filters, read 500 at a time - for an export. */
+    public function lazyFor(Workspace $workspace, array $filters, bool $withTaxId): LazyCollection
+    {
+        return $this->queryFor($workspace, $filters, $withTaxId)->lazy(500);
     }
 
     /** The list's contacts, searched and filtered the same way, in its order - for an export, whole. */
@@ -103,6 +116,12 @@ class ContactRepository
         $contact->update($data);
 
         return $contact;
+    }
+
+    /** Clears $column - a default currency - on the contacts where it is outside $currencies. */
+    public function clearCurrencyOutside(Workspace $workspace, string $column, array $currencies): void
+    {
+        $workspace->contacts()->whereNotNull($column)->whereNotIn($column, $currencies)->update([$column => null]);
     }
 
     public function delete(Contact $contact): void

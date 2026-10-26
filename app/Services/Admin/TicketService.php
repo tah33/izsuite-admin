@@ -8,6 +8,7 @@ use App\Repositories\User\TicketRepository;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\UploadedFile;
 
 class TicketService
 {
@@ -29,6 +30,14 @@ class TicketService
     public function find(int $id): ?Ticket
     {
         return $this->ticketRepo->findWithMessages($id);
+    }
+
+    /**
+     * How many tickets the ticket's requester has opened, this one included.
+     */
+    public function requesterTicketCount(Ticket $ticket): int
+    {
+        return $this->ticketRepo->countForUser($ticket->user);
     }
 
     /**
@@ -66,6 +75,23 @@ class TicketService
         ]);
 
         return $ticket;
+    }
+
+    /**
+     * Stores the files attached to a reply on the public disk: their paths,
+     * or null when none came.
+     */
+    public function storeAttachments(array $files): ?array
+    {
+        $paths = [];
+
+        foreach ($files as $file) {
+            if ($file instanceof UploadedFile) {
+                $paths[] = $file->store('ticket-attachments', 'public');
+            }
+        }
+
+        return $paths ?: null;
     }
 
     /**

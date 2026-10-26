@@ -3,9 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Billing\Package;
-use App\Services\Shared\ActivityLogService;
-use Illuminate\Http\Request;
+use App\Http\Requests\Admin\UpdatePackageRequest;
+use App\Services\Admin\PackageService;
 
 /**
  * Billing Starter, Standard and Premium. Their keys and ranks are fixed (the
@@ -14,10 +13,14 @@ use Illuminate\Http\Request;
  */
 class PackageController extends Controller
 {
+    public function __construct(
+        protected PackageService $packageService,
+    ) {}
+
     public function index()
     {
         try {
-            $packages = Package::withCount(['apps', 'workspaces'])->orderBy('rank')->get();
+            $packages = $this->packageService->listWithCounts();
 
             return view('admin.packages.index', compact('packages'));
 
@@ -30,7 +33,7 @@ class PackageController extends Controller
     public function edit(int $id)
     {
         try {
-            $package = Package::findOrFail($id);
+            $package = $this->packageService->findOrFail($id);
 
             return view('admin.packages.edit', compact('package'));
 
@@ -40,29 +43,12 @@ class PackageController extends Controller
         }
     }
 
-    public function update(Request $request, int $id)
+    public function update(UpdatePackageRequest $request, int $id)
     {
         try {
-            $package = Package::findOrFail($id);
+            $package = $this->packageService->findOrFail($id);
 
-            $request->merge(['is_active' => $request->boolean('is_active')]);
-
-            // The storage limit is in MB; left empty, the package has no limit.
-            // A business already over a lower one keeps its files - it only
-            // cannot upload more (Doc 13 section 13.14).
-            $validated = $request->validate([
-                'name'             => ['required', 'string', 'max:255'],
-                'description'      => ['nullable', 'string', 'max:2000'],
-                'storage_limit_mb' => ['nullable', 'integer', 'min:1', 'max:100000000'],
-                'is_active'        => ['boolean'],
-            ], [
-                'storage_limit_mb.integer' => 'Enter the storage limit as a whole number of MB, or leave it empty for no limit.',
-                'storage_limit_mb.min'     => 'Enter the storage limit as a whole number of MB, or leave it empty for no limit.',
-            ]);
-
-            $package->update($validated);
-
-            ActivityLogService::record('updated', "Updated plan \"{$package->name}\"", $package);
+            $this->packageService->update($package, $request->validated());
 
             return $this->adminSuccess($request, 'Plan updated successfully.', route('admin.packages.index'));
 

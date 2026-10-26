@@ -8,6 +8,8 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceApp;
 use App\Models\User\WorkspaceAppLog;
+use App\Repositories\User\WorkspaceAppRepository;
+use App\Repositories\User\WorkspaceRepository;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -24,6 +26,8 @@ class ActivateApp
 {
     public function __construct(
         private AppDependencies $dependencies,
+        private WorkspaceAppRepository $workspaceApps,
+        private WorkspaceRepository $workspaces,
     ) {}
 
     /**
@@ -57,12 +61,12 @@ class ActivateApp
         }
 
         $replaced = DB::transaction(function () use ($workspace, $app, $by): ?Application {
-            $row = $workspace->workspaceApps()->where('family_key', $app->family_key)->lockForUpdate()->first();
+            $row = $this->workspaceApps->lockRow($workspace, $app->family_key);
 
             // The edition this one takes over from - Sales Lite, for Sales.
             $replaced = $row?->isActive() ? $row->app : null;
 
-            $workspace->workspaceApps()->updateOrCreate(['family_key' => $app->family_key], [
+            $this->workspaceApps->saveForFamily($workspace, $app->family_key, [
                 'app_id'         => $app->id,
                 'status'         => WorkspaceApp::STATUS_ACTIVE,
                 'activated_by'   => $by->id,
@@ -70,14 +74,14 @@ class ActivateApp
                 'deactivated_at' => null,
             ]);
 
-            $workspace->appLogs()->create([
+            $this->workspaceApps->log($workspace, [
                 'app_id'      => $app->id,
                 'from_app_id' => $replaced?->id,
                 'action'      => $replaced ? WorkspaceAppLog::REPLACED : WorkspaceAppLog::ACTIVATED,
                 'user_id'     => $by->id,
             ]);
 
-            $workspace->increment('nav_version');
+            $this->workspaces->bumpNavVersion($workspace);
 
             return $replaced;
         });

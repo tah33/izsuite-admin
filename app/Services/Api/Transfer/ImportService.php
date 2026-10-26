@@ -8,6 +8,8 @@ use App\Models\User\Import;
 use App\Models\User\ImportRow;
 use App\Models\User\User;
 use App\Models\User\Workspace;
+use App\Repositories\User\ImportRepository;
+use App\Repositories\User\UserRepository;
 use App\Services\Shared\ActivityLogService;
 use App\Support\Csv;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -42,6 +44,8 @@ class ImportService
     public function __construct(
         protected ContactTransfer $contactTransfer,
         protected ItemTransfer $itemTransfer,
+        protected ImportRepository $importRepository,
+        protected UserRepository $userRepository,
     ) {}
 
     public function transfer(string $kind): Transfer
@@ -55,8 +59,23 @@ class ImportService
     /** One of the business's imports; another business's answers like one that does not exist. */
     public function find(Workspace $workspace, int $id): Import
     {
-        return Import::where('workspace_id', $workspace->id)->find($id)
+        return $this->importRepository->findFor($workspace, $id)
             ?? abort(404, 'Import not found.');
+    }
+
+    /** Any business's import, for the jobs that work through one. */
+    public function findById(int $id): ?Import
+    {
+        return $this->importRepository->find($id);
+    }
+
+    /** Marks import $id failed - a job's last word when it gives up. */
+    public function markFailed(int $id, string $error): void
+    {
+        $this->importRepository->updateById($id, [
+            'status' => Import::FAILED,
+            'error'  => $error,
+        ]);
     }
 
     /**
@@ -106,7 +125,7 @@ class ImportService
         // A column without a name gets one, so it can be matched.
         $headers = array_map(fn (string $header, int $index) => $header === '' ? 'Column '.($index + 1) : Str::limit($header, 100, ''), $headers, array_keys($headers));
 
-        return Import::create([
+        return $this->importRepository->create([
             'workspace_id' => $workspace->id,
             'user_id'      => $user?->id,
             'kind'         => $kind,
@@ -159,8 +178,8 @@ class ImportService
         }
 
         DB::transaction(function () use ($import, $mapping, $fields) {
-            $import->rows()->delete();
-            $import->update([
+            $this->importRepository->deleteRows($import);
+            $this->importRepository->update($import, [
                 'mapping'   => array_map(fn ($column) => $column === null ? null : (int) $column, array_replace(array_fill_keys(array_keys($fields), null), $mapping)),
                 'status'    => Import::CHECKING,
                 'processed' => 0,
@@ -170,7 +189,7 @@ class ImportService
 
         CheckImportRows::dispatch($import->id)->afterCommit();
 
-        return $import->refresh();
+        return $this->importRepository->refresh($import);
     }
 
     /**
@@ -228,10 +247,10 @@ class ImportService
 
         DB::transaction(function () use ($import, $rows) {
             if ($rows) {
-                ImportRow::insert($rows);
+                $this->importRepository->insertRows($rows);
             }
 
-            $import->update(['processed' => $import->processed + count($rows)]);
+            $this->importRepository->update($import, ['processed' => $import->processed + count($rows)]);
         });
 
         if ($rows && $import->processed < $import->row_count) {
@@ -260,14 +279,13 @@ class ImportService
         }
 
         DB::transaction(function () use ($import, $include) {
-            $import->rows()->update(['include' => false]);
-            $import->rows()->whereNotNull('duplicates')->whereIn('line', array_map('intval', $include))->update(['include' => true]);
-            $import->update(['status' => Import::IMPORTING, 'processed' => 0, 'result' => null]);
+            $this->importRepository->includeDuplicates($import, array_map('intval', $include));
+            $this->importRepository->update($import, ['status' => Import::IMPORTING, 'processed' => 0, 'result' => null]);
         });
 
         RunImportRows::dispatch($import->id)->afterCommit();
 
-        return $import->refresh();
+        return $this->importRepository->refresh($import);
     }
 
     /**
@@ -280,11 +298,11 @@ class ImportService
     {
         $workspace = $import->workspace;
         $transfer  = $this->transfer($import->kind);
-        $rows      = $import->rows()->whereNull('outcome')->limit(self::CHUNK)->get();
+        $rows      = $this->importRepository->rowsToAdd($import, self::CHUNK);
 
         foreach ($rows as $row) {
             if ($row->errors || ($row->duplicates && ! $row->include)) {
-                $row->update(['outcome' => ImportRow::SKIPPED, 'message' => $row->errors ? 'It has errors.' : 'It may be a duplicate.']);
+                $this->importRepository->updateRow($row, ['outcome' => ImportRow::SKIPPED, 'message' => $row->errors ? 'It has errors.' : 'It may be a duplicate.']);
 
                 continue;
             }
@@ -293,17 +311,17 @@ class ImportService
                 DB::transaction(function () use ($row, $transfer, $workspace) {
                     $record = $transfer->create($workspace, $row->data);
 
-                    $row->update(['outcome' => ImportRow::CREATED, 'record_id' => $record->getKey()]);
+                    $this->importRepository->updateRow($row, ['outcome' => ImportRow::CREATED, 'record_id' => $record->getKey()]);
                 });
             } catch (\Throwable $e) {
                 report($e);
-                $row->update(['outcome' => ImportRow::FAILED, 'message' => 'It could not be added - most likely something in it changed since the check. Add it from the form.']);
+                $this->importRepository->updateRow($row, ['outcome' => ImportRow::FAILED, 'message' => 'It could not be added - most likely something in it changed since the check. Add it from the form.']);
             }
         }
 
-        $import->update(['processed' => $import->processed + $rows->count()]);
+        $this->importRepository->update($import, ['processed' => $import->processed + $rows->count()]);
 
-        if ($rows->count() === self::CHUNK && $import->rows()->whereNull('outcome')->exists()) {
+        if ($rows->count() === self::CHUNK && $this->importRepository->hasRowsToAdd($import)) {
             return true;
         }
 
@@ -315,12 +333,7 @@ class ImportService
     /** @return LengthAwarePaginator<ImportRow> */
     public function rows(Import $import, string $show, int $perPage): LengthAwarePaginator
     {
-        return $import->rows()
-            ->when($show === 'ready', fn ($query) => $query->whereNull('errors')->whereNull('duplicates'))
-            ->when($show === 'duplicates', fn ($query) => $query->whereNull('errors')->whereNotNull('duplicates'))
-            ->when($show === 'errors', fn ($query) => $query->whereNotNull('errors'))
-            ->when(in_array($show, [ImportRow::CREATED, ImportRow::SKIPPED, ImportRow::FAILED], true), fn ($query) => $query->where('outcome', $show))
-            ->paginate($perPage);
+        return $this->importRepository->paginateRows($import, $show, $perPage);
     }
 
     /** The first rows of the file, cell by cell, for matching its columns by what they hold. */
@@ -354,7 +367,7 @@ class ImportService
     {
         $this->ensureNotBusy($import);
 
-        $import->delete();
+        $this->importRepository->delete($import);
     }
 
     /**
@@ -368,7 +381,7 @@ class ImportService
         $uniques = [];
         $looks   = [];
 
-        foreach ($import->rows()->get() as $row) {
+        foreach ($this->importRepository->rows($import) as $row) {
             if ($row->errors) {
                 continue;
             }
@@ -402,19 +415,17 @@ class ImportService
             }
 
             if ($errors) {
-                $row->update(['errors' => $errors, 'duplicates' => null]);
+                $this->importRepository->updateRow($row, ['errors' => $errors, 'duplicates' => null]);
             } elseif ($duplicates !== ($row->duplicates ?? [])) {
-                $row->update(['duplicates' => $duplicates]);
+                $this->importRepository->updateRow($row, ['duplicates' => $duplicates]);
             }
         }
 
-        $import->update([
+        $this->importRepository->update($import, [
             'status'  => Import::READY,
             'summary' => [
-                'rows'       => $import->row_count,
-                'ready'      => $import->rows()->whereNull('errors')->whereNull('duplicates')->count(),
-                'duplicates' => $import->rows()->whereNull('errors')->whereNotNull('duplicates')->count(),
-                'errors'     => $import->rows()->whereNotNull('errors')->count(),
+                'rows' => $import->row_count,
+                ...$this->importRepository->checkCounts($import),
             ],
         ]);
     }
@@ -422,9 +433,9 @@ class ImportService
     /** The import's result, its one log entry, and the end of its file. */
     private function finish(Import $import, Transfer $transfer): void
     {
-        $count = fn (string $outcome) => $import->rows()->where('outcome', $outcome)->count();
+        $count = fn (string $outcome) => $this->importRepository->countWithOutcome($import, $outcome);
 
-        $import->update([
+        $this->importRepository->update($import, [
             'status' => Import::DONE,
             'result' => [
                 'created' => $count(ImportRow::CREATED),
@@ -442,7 +453,7 @@ class ImportService
             "Imported {$created} ".Str::plural(Str::singular($transfer->plural()), $created).' from "'.Str::limit($import->file_name, 80).'"',
             $import->workspace,
             ['source' => 'api', 'import_id' => $import->id, ...$import->result],
-            User::find($import->user_id),
+            $this->userRepository->findById($import->user_id),
         );
     }
 

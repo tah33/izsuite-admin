@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StorePageRequest;
 use App\Http\Requests\Admin\UpdatePageRequest;
-use App\Services\Shared\ActivityLogService;
 use App\Services\Admin\PageService;
 
 class PageController extends Controller
@@ -53,11 +52,8 @@ class PageController extends Controller
             $validated                   = $request->validated();
 
             $validated['show_in_footer'] = $request->boolean('show_in_footer');
-            $validated['sort_order']     = $validated['sort_order'] ?? 0;
 
-            $page                        = $this->pageService->create($validated);
-
-            ActivityLogService::record('created', "Created page \"{$page->title}\"", $page);
+            $this->pageService->create($validated);
 
             return redirect()->route('admin.pages.index')
                 ->with('success', 'Page created successfully.');
@@ -103,11 +99,8 @@ class PageController extends Controller
             $validated                   = $request->validated();
 
             $validated['show_in_footer'] = $request->boolean('show_in_footer');
-            $validated['sort_order']     = $validated['sort_order'] ?? 0;
 
             $this->pageService->update($page, $validated);
-
-            ActivityLogService::record('updated', "Updated page \"{$page->title}\"", $page);
 
             return redirect()->route('admin.pages.index')
                 ->with('success', 'Page updated successfully.');
@@ -124,16 +117,13 @@ class PageController extends Controller
     public function destroy(int $id)
     {
         try {
-            $page  = $this->pageService->find($id);
+            $page = $this->pageService->find($id);
 
             if (! $page) {
                 abort(404);
             }
 
-            $title = $page->title;
             $this->pageService->delete($page);
-
-            ActivityLogService::record('deleted', "Deleted page \"{$title}\"");
 
             return redirect()->route('admin.pages.index')
                 ->with('success', 'Page deleted successfully.');

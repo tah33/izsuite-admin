@@ -6,10 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\DestroyAdminProfileRequest;
 use App\Http\Requests\Admin\UpdateAdminProfilePasswordRequest;
 use App\Http\Requests\Admin\UpdateAdminProfileRequest;
-use Illuminate\Support\Facades\Hash;
+use App\Services\Admin\ProfileService;
 
 class ProfileController extends Controller
 {
+    public function __construct(
+        protected ProfileService $profileService,
+    ) {}
+
     public function show()
     {
         try {
@@ -26,10 +30,7 @@ class ProfileController extends Controller
     public function update(UpdateAdminProfileRequest $request)
     {
         try {
-            $user      = auth()->user();
-            $validated = $request->validated();
-
-            $user->update($validated);
+            $this->profileService->update(auth()->user(), $request->validated());
 
             return back()->with('success', __('Profile updated successfully.'));
 
@@ -42,9 +43,7 @@ class ProfileController extends Controller
     public function updatePassword(UpdateAdminProfilePasswordRequest $request)
     {
         try {
-            auth()->user()->update([
-                'password' => Hash::make($request->password),
-            ]);
+            $this->profileService->changePassword(auth()->user(), $request->password);
 
             return back()->with('success', __('Password changed successfully.'));
 
@@ -59,12 +58,12 @@ class ProfileController extends Controller
         try {
             $user = $request->user();
 
-            if ($user->isSuperAdmin()) {
-                return back()->with('error', __('The super admin account cannot be deleted.'));
+            if ($problem = $this->profileService->deletionProblem($user)) {
+                return back()->with('error', $problem);
             }
 
             auth()->logout();
-            $user->delete();
+            $this->profileService->delete($user);
 
             $request->session()->invalidate();
             $request->session()->regenerateToken();

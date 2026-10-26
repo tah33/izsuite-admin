@@ -180,14 +180,14 @@ class AppSystemTest extends TestCase
         $this->assertSame([
             'id'             => $this->workspace->id,
             'name'           => 'Main Business',
-            'package'        => ['key' => 'starter', 'name' => 'Billing Starter'],
+            'package'        => ['name' => 'Billing Starter'],
             'base_currency'  => 'USD',
             'currencies'     => ['USD'],
             'tax_mode'       => 'later',
             'brands_enabled' => false,
         ], $nav['workspace']);
         $this->assertSame(
-            ['app_key' => 'sales_lite', 'name' => 'Sales Lite', 'edition' => 'lite', 'status' => 'active', 'has_history' => true],
+            ['edition' => 'lite', 'status' => 'active', 'has_history' => true],
             $nav['apps']['sales'],
         );
     }

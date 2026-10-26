@@ -6,6 +6,7 @@ use App\Enums\FileCollection;
 use App\Jobs\DeleteStoredFiles;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceFile;
+use App\Repositories\User\WorkspaceFileRepository;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
@@ -34,6 +35,7 @@ class FileStorage
     public function __construct(
         private StorageUsage $usage,
         private Thumbnails $thumbnails,
+        private WorkspaceFileRepository $files,
     ) {}
 
     /** The disk new public or private files go to. */
@@ -55,7 +57,7 @@ class FileStorage
      */
     public function store(Workspace $workspace, Model $owner, FileCollection $collection, array $uploads, string $field): Collection
     {
-        $replaced = $collection->isSingle() ? $owner->filesIn($collection)->get() : new Collection;
+        $replaced = $collection->isSingle() ? $this->files->inCollection($owner, $collection) : new Collection;
 
         $this->usage->ensureRoomFor(
             $workspace,
@@ -71,7 +73,7 @@ class FileStorage
             $rows = array_map(fn (UploadedFile $upload) => $this->put($workspace, $collection, $upload, $written), $uploads);
 
             return DB::transaction(function () use ($workspace, $owner, $collection, $rows, $replaced) {
-                $files = new Collection(array_map(fn (array $row) => $owner->files()->create([
+                $files = new Collection(array_map(fn (array $row) => $this->files->createFor($owner, [
                     ...$row,
                     'workspace_id' => $workspace->id,
                     'collection'   => $collection,
@@ -101,7 +103,7 @@ class FileStorage
 
         foreach ($files as $file) {
             $objects = [...$objects, ...$this->objectsOf($file)];
-            $file->delete();
+            $this->files->delete($file);
         }
 
         if ($objects) {
@@ -190,7 +192,7 @@ class FileStorage
             }
         }
 
-        $file->update(['disk' => $target]);
+        $this->files->update($file, ['disk' => $target]);
 
         $this->forget($old);
 

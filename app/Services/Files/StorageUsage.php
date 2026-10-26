@@ -3,7 +3,7 @@
 namespace App\Services\Files;
 
 use App\Models\User\Workspace;
-use App\Models\User\WorkspaceFile;
+use App\Repositories\User\WorkspaceFileRepository;
 use App\Support\Bytes;
 use Illuminate\Validation\ValidationException;
 
@@ -18,9 +18,13 @@ use Illuminate\Validation\ValidationException;
  */
 class StorageUsage
 {
+    public function __construct(
+        private WorkspaceFileRepository $files,
+    ) {}
+
     public function usedBytes(Workspace $workspace): int
     {
-        return (int) WorkspaceFile::where('workspace_id', $workspace->id)->sum('size');
+        return $this->files->usedBytes($workspace);
     }
 
     /** Null: no limit. */

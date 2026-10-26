@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Enums\Edition;
 use App\Models\Frontend\Application;
+use App\Repositories\Admin\AppRepository;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -28,7 +29,7 @@ class StoreAppRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        $app = $this->route('id') ? Application::find($this->route('id')) : null;
+        $app = $this->route('id') ? app(AppRepository::class)->find((int) $this->route('id')) : null;
 
         if ($app) {
             $this->merge([

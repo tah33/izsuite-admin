@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Files\FileLinkResource;
 use App\Models\User\WorkspaceFile;
+use App\Services\Api\Files\FileLinkService;
 use App\Services\Files\FileStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,6 +21,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class FileController extends Controller
 {
     public function __construct(
+        protected FileLinkService $fileLinkService,
         protected FileStorage $fileStorage,
     ) {}
 
@@ -26,15 +29,10 @@ class FileController extends Controller
     public function link(Request $request, int $id): JsonResponse
     {
         try {
-            $file = WorkspaceFile::where('workspace_id', $this->currentWorkspace($request)->id)->find($id)
-                ?? abort(404, 'File not found.');
+            $file = $this->fileLinkService->find($this->currentWorkspace($request), $id);
 
             return response()->json([
-                'data' => [
-                    'url'        => $file->isPublic() ? $this->fileStorage->url($file) : $this->fileStorage->downloadLink($file),
-                    'name'       => $file->name,
-                    'expires_at' => $file->isPublic() ? null : now()->addMinutes(config('files.link_minutes', 5))->toIso8601String(),
-                ],
+                'data' => new FileLinkResource($this->fileLinkService->link($file)),
             ]);
 
         } catch (\Throwable $e) {

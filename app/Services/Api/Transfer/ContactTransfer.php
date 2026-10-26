@@ -3,15 +3,15 @@
 namespace App\Services\Api\Transfer;
 
 use App\Http\Requests\Api\Contacts\SaveContactRequest;
-use App\Models\Admin\Language;
 use App\Models\User\Contact;
 use App\Models\User\Workspace;
+use App\Repositories\Admin\LanguageRepository;
 use App\Repositories\User\ContactRepository;
 use App\Services\Api\Contacts\ContactDuplicates;
 use App\Services\Api\Contacts\ContactService;
 use App\Support\Countries;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\LazyCollection;
 
 /**
  * Contacts in and out of CSV (Doc 03 section 15). Countries are written by
@@ -38,6 +38,7 @@ class ContactTransfer implements Transfer
         protected ContactRepository $contactRepository,
         protected ContactService $contactService,
         protected ContactDuplicates $contactDuplicates,
+        protected LanguageRepository $languageRepository,
     ) {}
 
     public function plural(): string
@@ -151,9 +152,14 @@ class ContactTransfer implements Transfer
         ];
     }
 
-    public function exportQuery(Workspace $workspace, array $filters): Builder
+    public function exportCount(Workspace $workspace, array $filters): int
     {
-        return $this->contactRepository->queryFor($workspace, $filters, $workspace->usesTaxes());
+        return $this->contactRepository->countFor($workspace, $filters, $workspace->usesTaxes());
+    }
+
+    public function exportRecords(Workspace $workspace, array $filters): LazyCollection
+    {
+        return $this->contactRepository->lazyFor($workspace, $filters, $workspace->usesTaxes());
     }
 
     public function payload(Workspace $workspace, array $cells): array
@@ -205,9 +211,7 @@ class ContactTransfer implements Transfer
 
         $language = $this->text($cells, 'preferred_language');
 
-        $payload['preferred_language'] = $language === null ? null : Language::active()
-            ->where(fn ($query) => $query->whereRaw('LOWER(code) = ?', [mb_strtolower($language)])->orWhereRaw('LOWER(name) = ?', [mb_strtolower($language)]))
-            ->value('code');
+        $payload['preferred_language'] = $language === null ? null : $this->languageRepository->activeCodeFor($language);
 
         if ($language !== null && $payload['preferred_language'] === null) {
             $errors['preferred_language'] = "\"{$language}\" is not one of the available languages.";

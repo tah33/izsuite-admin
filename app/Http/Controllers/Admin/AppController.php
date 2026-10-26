@@ -6,23 +6,13 @@ use App\Enums\Edition;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreAppDependencyRequest;
 use App\Http\Requests\Admin\StoreAppRequest;
-use App\Models\Frontend\AppCategory;
-use App\Models\Frontend\AppDependency;
-use App\Models\Frontend\Application;
-use App\Models\User\WorkspaceApp;
-use App\Services\Admin\AppCatalogRules;
 use App\Services\Admin\AppService;
-use App\Services\Shared\ActivityLogService;
-use App\Services\Support\ImageService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class AppController extends Controller
 {
     public function __construct(
         protected AppService $appService,
-        protected ImageService $imageService,
-        protected AppCatalogRules $rules,
     ) {}
 
     /**
@@ -37,7 +27,7 @@ class AppController extends Controller
             );
 
             // Families that already have a Full edition, for "Add Full edition".
-            $hasFull = Application::where('edition', Edition::Full)->pluck('family_key')->flip();
+            $hasFull = $this->appService->familiesWithFull();
 
             return view('admin.apps.index', compact('apps', 'hasFull'));
 
@@ -55,22 +45,9 @@ class AppController extends Controller
     public function create(Request $request)
     {
         try {
-            $app  = new Application(['status' => 'available', 'is_active' => true, 'edition' => Edition::Full]);
-            $lite = $request->integer('full_of') ? Application::find($request->integer('full_of')) : null;
+            $app = $this->appService->newApp($request->integer('full_of') ?: null);
 
-            if ($lite && $lite->edition === Edition::Lite) {
-                $app->fill([
-                    'name'        => trim(Str::replaceLast(' Lite', '', $lite->name)),
-                    'family_key'  => $lite->family_key,
-                    'app_key'     => $lite->family_key,
-                    'category_id' => $lite->category_id,
-                    'icon'        => $lite->icon,
-                    'sort_order'  => $lite->sort_order,
-                    'description' => $lite->description,
-                ]);
-            }
-
-            return view('admin.apps.create', ['app' => $app, 'categories' => $this->categories()]);
+            return view('admin.apps.create', ['app' => $app, 'categories' => $this->appService->categoryNames()]);
 
         } catch (\Throwable $e) {
             report($e);
@@ -84,16 +61,7 @@ class AppController extends Controller
     public function store(StoreAppRequest $request)
     {
         try {
-            $validated = $request->validated();
-
-            if ($request->hasFile('image')) {
-                $validated['logo_url'] = $this->imageService->storePublic($request->file('image'), 'apps');
-            }
-            unset($validated['image']);
-
-            $app = $this->appService->create($validated);
-
-            ActivityLogService::record('created', "Created app \"{$app->name}\"", $app);
+            $app = $this->appService->create($request->validated());
 
             return $this->adminSuccess(
                 $request,
@@ -119,20 +87,11 @@ class AppController extends Controller
                 abort(404);
             }
 
-            $app->load(['dependencies', 'packages']);
-
-            // Every other family, by its Full name (else Lite), for "Requires".
-            $families = Application::where('family_key', '!=', $app->family_key)
-                ->orderBy('name')
-                ->get()
-                ->groupBy('family_key')
-                ->map(fn ($editions) => $editions->sortByDesc(fn (Application $e) => $e->edition->rank())->first()->name)
-                ->sort();
-
             return view('admin.apps.edit', [
-                'app'        => $app,
-                'categories' => $this->categories(),
-                'families'   => $families,
+                'app'        => $this->appService->withRequirements($app),
+                'categories' => $this->appService->categoryNames(),
+                // Every other family, by its Full name (else Lite), for "Requires".
+                'families'   => $this->appService->otherFamilyNames($app),
             ]);
 
         } catch (\Throwable $e) {
@@ -153,16 +112,7 @@ class AppController extends Controller
                 abort(404);
             }
 
-            $validated = $request->validated();
-
-            if ($request->hasFile('image')) {
-                $validated['logo_url'] = $this->imageService->storePublic($request->file('image'), 'apps', $app->logo_url);
-            }
-            unset($validated['image']);
-
-            $this->appService->update($app, $validated);
-
-            ActivityLogService::record('updated', "Updated app \"{$app->name}\"", $app);
+            $this->appService->update($app, $request->validated());
 
             return $this->adminSuccess(
                 $request,
@@ -188,15 +138,11 @@ class AppController extends Controller
                 abort(404);
             }
 
-            if (WorkspaceApp::where('app_id', $app->id)->exists()) {
-                return $this->adminFailure(request(), 'Businesses have used this app, and its records point at it. Set it inactive instead.', 422);
+            if ($problem = $this->appService->deletionProblem($app)) {
+                return $this->adminFailure(request(), $problem, 422);
             }
 
-            $name = $app->name;
-            $this->imageService->deletePublic($app->logo_url);
             $this->appService->delete($app);
-
-            ActivityLogService::record('deleted', "Deleted app \"{$name}\"");
 
             return $this->adminSuccess(
                 request(),
@@ -225,13 +171,11 @@ class AppController extends Controller
             $family = $request->validated('requires_family');
             $min    = Edition::from($request->validated('min_edition'));
 
-            if ($problem = $this->rules->dependencyProblem($app, $family, $min)) {
+            if ($problem = $this->appService->requirementProblem($app, $family, $min)) {
                 return $this->adminFailure($request, $problem, 422);
             }
 
-            $app->dependencies()->updateOrCreate(['requires_family' => $family], ['min_edition' => $min]);
-
-            ActivityLogService::record('updated', "Set \"{$app->name}\" to require {$family}", $app);
+            $this->appService->saveRequirement($app, $family, $min);
 
             return $this->adminSuccess($request, 'Requirement saved.', route('admin.apps.edit', $app->id));
 
@@ -244,13 +188,9 @@ class AppController extends Controller
     public function destroyDependency(Request $request, int $id, int $dependencyId)
     {
         try {
-            $dependency = AppDependency::where('app_id', $id)->find($dependencyId);
-
-            if (! $dependency) {
+            if (! $this->appService->deleteRequirement($id, $dependencyId)) {
                 abort(404);
             }
-
-            $dependency->delete();
 
             return $this->adminSuccess($request, 'Requirement removed.', route('admin.apps.edit', $id));
 
@@ -258,11 +198,5 @@ class AppController extends Controller
             report($e);
             throw $e;
         }
-    }
-
-    /** Active categories, in the Apps Center's order: id => name. */
-    private function categories()
-    {
-        return AppCategory::where('is_active', true)->orderBy('sort_order')->orderBy('name')->pluck('name', 'id');
     }
 }

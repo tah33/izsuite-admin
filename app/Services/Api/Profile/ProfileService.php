@@ -12,6 +12,12 @@ class ProfileService
         protected UserRepository $userRepository,
     ) {}
 
+    /** The signed-in account, with its role, for the profile page. */
+    public function show(User $user): User
+    {
+        return $this->userRepository->loadRole($user);
+    }
+
     /**
      * Save the editable profile fields of the signed-in account.
      *
@@ -31,6 +37,6 @@ class ProfileService
             'fields' => array_keys(array_diff_key($user->getChanges(), ['updated_at' => true])),
         ]);
 
-        return $updated;
+        return $this->userRepository->loadRole($updated);
     }
 }

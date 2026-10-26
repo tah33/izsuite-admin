@@ -5,6 +5,8 @@ namespace App\Services\User\Apps;
 use App\Models\Frontend\AppCategory;
 use App\Models\Frontend\Application;
 use App\Models\User\Workspace;
+use App\Repositories\Admin\AppCategoryRepository;
+use App\Repositories\Admin\AppRepository;
 use Illuminate\Support\Collection;
 
 /**
@@ -25,12 +27,14 @@ class AppsCenter
     public function __construct(
         private AppDependencies $dependencies,
         private DeactivateApp $deactivate,
+        private AppRepository $catalog,
+        private AppCategoryRepository $categories,
     ) {}
 
     public function for(Workspace $workspace): array
     {
         $apps     = WorkspaceApps::for($workspace);
-        $families = Application::with('dependencies')->where('is_active', true)->get()->groupBy('family_key');
+        $families = $this->catalog->activeWithDependencies()->groupBy('family_key');
 
         return [
             'workspace' => [
@@ -41,7 +45,7 @@ class AppsCenter
                     'name' => $workspace->package->name,
                 ] : null,
             ],
-            'categories' => AppCategory::where('is_active', true)->orderBy('sort_order')->orderBy('name')->get()
+            'categories' => $this->categories->activeInOrder()
                 ->map(fn (AppCategory $category) => [
                     'id'       => $category->id,
                     'name'     => $category->name,

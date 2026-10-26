@@ -3,6 +3,9 @@
 namespace App\Services\Api\BusinessSetup;
 
 use App\Models\User\Workspace;
+use App\Repositories\User\ContactRepository;
+use App\Repositories\User\PaymentAccountRepository;
+use App\Repositories\User\WorkspaceRepository;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -16,6 +19,12 @@ use Illuminate\Validation\ValidationException;
  */
 class BusinessSetupService
 {
+    public function __construct(
+        protected WorkspaceRepository $workspaceRepository,
+        protected PaymentAccountRepository $paymentAccountRepository,
+        protected ContactRepository $contactRepository,
+    ) {}
+
     public function currencies(Workspace $workspace): array
     {
         return [
@@ -39,7 +48,7 @@ class BusinessSetupService
         sort($additional);
 
         $kept   = [$data['base_currency'], ...$additional];
-        $orphan = $workspace->paymentAccounts()->whereNotIn('currency', $kept)->orderBy('name')->first();
+        $orphan = $this->paymentAccountRepository->firstOutside($workspace, $kept);
 
         if ($orphan) {
             throw ValidationException::withMessages([
@@ -48,17 +57,17 @@ class BusinessSetupService
         }
 
         DB::transaction(function () use ($workspace, $data, $additional, $kept) {
-            $workspace->forceFill([
+            $this->workspaceRepository->forceUpdate($workspace, [
                 'base_currency'         => $data['base_currency'],
                 'additional_currencies' => $additional ?: null,
-            ])->save();
+            ]);
 
             // A contact's default currency that the business stops using gives
             // way to the base currency, which is what no default means (Doc 03
             // section 7). Only new transactions follow defaults, so nothing
             // already issued changes.
             foreach (['sales_currency', 'purchase_currency'] as $column) {
-                $workspace->contacts()->whereNotNull($column)->whereNotIn($column, $kept)->update([$column => null]);
+                $this->contactRepository->clearCurrencyOutside($workspace, $column, $kept);
             }
         });
 
@@ -84,7 +93,7 @@ class BusinessSetupService
      */
     public function saveTaxes(Workspace $workspace, string $mode): array
     {
-        $workspace->forceFill(['tax_mode' => $mode])->save();
+        $this->workspaceRepository->forceUpdate($workspace, ['tax_mode' => $mode]);
 
         ActivityLogService::record('updated', "Set taxes to \"{$mode}\"", $workspace, [
             'source' => 'api',

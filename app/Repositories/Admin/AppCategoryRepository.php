@@ -4,6 +4,8 @@ namespace App\Repositories\Admin;
 
 use App\Models\Frontend\AppCategory;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Collection;
 
 class AppCategoryRepository
 {
@@ -39,6 +41,35 @@ class AppCategoryRepository
     public function find(int $id): ?AppCategory
     {
         return AppCategory::find($id);
+    }
+
+    /** Active categories, in the Apps Center's order: id => name. */
+    public function activeNames(): Collection
+    {
+        return AppCategory::where('is_active', true)->orderBy('sort_order')->orderBy('name')->pluck('name', 'id');
+    }
+
+    /**
+     * Every category with its apps, both in the Apps Center's order - a
+     * family's Lite edition before its Full one.
+     */
+    public function allWithApps(): EloquentCollection
+    {
+        return AppCategory::with(['apps' => fn ($q) => $q->orderBy('sort_order')->orderBy('family_key')
+            ->orderByRaw("case when edition = 'lite' then 1 else 2 end")])
+            ->orderBy('sort_order')->orderBy('name')->get();
+    }
+
+    /** Active categories, in the Apps Center's order. */
+    public function activeInOrder(): EloquentCollection
+    {
+        return AppCategory::where('is_active', true)->orderBy('sort_order')->orderBy('name')->get();
+    }
+
+    /** Whether any app is filed under $appCategory. */
+    public function hasApps(AppCategory $appCategory): bool
+    {
+        return $appCategory->apps()->exists();
     }
 
     public function create(array $data): AppCategory

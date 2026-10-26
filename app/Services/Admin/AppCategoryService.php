@@ -4,6 +4,7 @@ namespace App\Services\Admin;
 
 use App\Models\Frontend\AppCategory;
 use App\Repositories\Admin\AppCategoryRepository;
+use App\Services\Shared\ActivityLogService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class AppCategoryService
@@ -33,7 +34,11 @@ class AppCategoryService
      */
     public function create(array $data): AppCategory
     {
-        return $this->appCategoryRepository->create($data);
+        $appCategory = $this->appCategoryRepository->create($data);
+
+        ActivityLogService::record('created', "Created app category \"{$appCategory->name}\"", $appCategory);
+
+        return $appCategory;
     }
 
     /**
@@ -41,7 +46,11 @@ class AppCategoryService
      */
     public function update(AppCategory $appCategory, array $data): AppCategory
     {
-        return $this->appCategoryRepository->update($appCategory, $data);
+        $updated = $this->appCategoryRepository->update($appCategory, $data);
+
+        ActivityLogService::record('updated', "Updated app category \"{$appCategory->name}\"", $appCategory);
+
+        return $updated;
     }
 
     /**
@@ -49,7 +58,12 @@ class AppCategoryService
      */
     public function toggleActive(AppCategory $appCategory): AppCategory
     {
-        return $this->appCategoryRepository->toggleActive($appCategory);
+        $appCategory = $this->appCategoryRepository->toggleActive($appCategory);
+        $state       = $appCategory->is_active ? 'activated' : 'deactivated';
+
+        ActivityLogService::record('updated', "Toggled app category \"{$appCategory->name}\" to {$state}", $appCategory);
+
+        return $appCategory;
     }
 
     /**
@@ -57,6 +71,30 @@ class AppCategoryService
      */
     public function delete(AppCategory $appCategory): ?bool
     {
-        return $this->appCategoryRepository->delete($appCategory);
+        $name    = $appCategory->name;
+        $deleted = $this->appCategoryRepository->delete($appCategory);
+
+        ActivityLogService::record('deleted', "Deleted app category \"{$name}\"");
+
+        return $deleted;
+    }
+
+    /**
+     * Why the category cannot be deleted, if it cannot: its apps would be left
+     * without a group in the Apps Center.
+     */
+    public function deletionProblem(AppCategory $appCategory): ?string
+    {
+        return $this->hasApps($appCategory)
+            ? 'This category still has apps. Move them, or set the category inactive instead.'
+            : null;
+    }
+
+    /**
+     * Whether any app sits in the category.
+     */
+    public function hasApps(AppCategory $appCategory): bool
+    {
+        return $this->appCategoryRepository->hasApps($appCategory);
     }
 }

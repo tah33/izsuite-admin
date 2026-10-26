@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\BusinessSetup\SaveBusinessTaxesRequest;
+use App\Http\Resources\BusinessSetup\BusinessTaxesResource;
 use App\Services\Api\BusinessSetup\BusinessSetupService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,7 +22,7 @@ class BusinessTaxController extends Controller
     {
         try {
             return response()->json([
-                'data' => $this->businessSetupService->taxes($this->currentWorkspace($request)),
+                'data' => new BusinessTaxesResource($this->businessSetupService->taxes($this->currentWorkspace($request))),
             ]);
 
         } catch (\Throwable $e) {
@@ -37,7 +38,7 @@ class BusinessTaxController extends Controller
 
             return response()->json([
                 'message' => 'Tax settings saved successfully.',
-                'data'    => $taxes,
+                'data'    => new BusinessTaxesResource($taxes),
             ]);
 
         } catch (\Throwable $e) {

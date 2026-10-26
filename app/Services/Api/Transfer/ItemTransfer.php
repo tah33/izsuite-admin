@@ -10,9 +10,9 @@ use App\Models\User\Workspace;
 use App\Repositories\User\ItemLabelRepository;
 use App\Repositories\User\ItemRepository;
 use App\Services\Api\Items\ItemService;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\LazyCollection;
 
 /**
  * Items in and out of CSV (Doc 04 section 17). Types, usages, delivery
@@ -191,9 +191,14 @@ class ItemTransfer implements Transfer
         ];
     }
 
-    public function exportQuery(Workspace $workspace, array $filters): Builder
+    public function exportCount(Workspace $workspace, array $filters): int
     {
-        return $this->itemRepository->queryFor($workspace, $filters, (bool) $workspace->brands_enabled);
+        return $this->itemRepository->countFor($workspace, $filters, (bool) $workspace->brands_enabled);
+    }
+
+    public function exportRecords(Workspace $workspace, array $filters): LazyCollection
+    {
+        return $this->itemRepository->lazyFor($workspace, $filters, (bool) $workspace->brands_enabled);
     }
 
     public function payload(Workspace $workspace, array $cells): array
@@ -298,11 +303,7 @@ class ItemTransfer implements Transfer
             return [];
         }
 
-        return Item::where('workspace_id', $workspace->id)
-            ->whereRaw('LOWER(name) = ?', [mb_strtolower($payload['name'])])
-            ->orderBy('id')
-            ->limit(5)
-            ->get(['id', 'item_number', 'name'])
+        return $this->itemRepository->namedLike($workspace, $payload['name'], 5)
             ->map(fn (Item $item) => ['id' => $item->id, 'number' => $item->item_number, 'name' => $item->name, 'matched_on' => ['name']])
             ->all();
     }

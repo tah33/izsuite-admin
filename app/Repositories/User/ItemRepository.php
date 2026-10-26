@@ -7,6 +7,9 @@ use App\Models\User\ItemComponent;
 use App\Models\User\Workspace;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection as SupportCollection;
+use Illuminate\Support\LazyCollection;
 
 /**
  * Items belong to one business (workspace). Every lookup is scoped to it, so
@@ -35,6 +38,28 @@ class ItemRepository
     public function paginateFor(Workspace $workspace, array $filters, int $perPage, bool $withBrands): LengthAwarePaginator
     {
         return $this->queryFor($workspace, $filters, $withBrands)->paginate($perPage);
+    }
+
+    /** How many items the list holds with $filters - for an export. */
+    public function countFor(Workspace $workspace, array $filters, bool $withBrands): int
+    {
+        return $this->queryFor($workspace, $filters, $withBrands)->count();
+    }
+
+    /** The list's items with $filters, read 500 at a time - for an export. */
+    public function lazyFor(Workspace $workspace, array $filters, bool $withBrands): LazyCollection
+    {
+        return $this->queryFor($workspace, $filters, $withBrands)->lazy(500);
+    }
+
+    /** The business's items named $name, any case - the first $limit of them. */
+    public function namedLike(Workspace $workspace, string $name, int $limit): Collection
+    {
+        return Item::where('workspace_id', $workspace->id)
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->orderBy('id')
+            ->limit($limit)
+            ->get(['id', 'item_number', 'name']);
     }
 
     /** The list's items, searched and filtered the same way, in its order - for an export, whole. */
@@ -110,6 +135,30 @@ class ItemRepository
             ->pluck('quantity', 'component_id')
             ->map(fn ($quantity) => (string) $quantity)
             ->all();
+    }
+
+    /** An item of business $workspaceId - none when there is no business. */
+    public function findInWorkspace(?int $workspaceId, int $id): ?Item
+    {
+        return Item::where('workspace_id', $workspaceId)->find($id);
+    }
+
+    /** The items among $ids of business $workspaceId. */
+    public function findManyInWorkspace(?int $workspaceId, SupportCollection|array $ids): Collection
+    {
+        return Item::where('workspace_id', $workspaceId)->whereIn('id', $ids)->get();
+    }
+
+    /** The ids of $combo's components. */
+    public function componentIdsOf(Item $combo): array
+    {
+        return ItemComponent::where('combo_id', $combo->id)->pluck('component_id')->all();
+    }
+
+    /** The first combo $item is a component of, with just its id and name - for a message naming it. */
+    public function firstComboNamedUsing(Item $item): ?Item
+    {
+        return $item->usedInCombos()->with('combo:id,name')->first()?->combo;
     }
 
     /** The first combo $item is a component of, if any. */

@@ -2,6 +2,7 @@
 
 namespace App\Services\User\Workspaces;
 
+use App\Repositories\User\WorkspaceSequenceRepository;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -14,29 +15,23 @@ use Illuminate\Support\Facades\DB;
  */
 class WorkspaceSequence
 {
+    public function __construct(
+        private WorkspaceSequenceRepository $sequences,
+    ) {}
+
     public function next(int $workspaceId, string $name): int
     {
         return DB::transaction(function () use ($workspaceId, $name): int {
             $now = now();
 
             // Made on first use. Two first uses at once both try; one wins.
-            DB::table('workspace_sequences')->insertOrIgnore([
-                'workspace_id' => $workspaceId,
-                'name'         => $name,
-                'last_value'   => 0,
-                'created_at'   => $now,
-                'updated_at'   => $now,
-            ]);
+            $this->sequences->ensure($workspaceId, $name, $now);
 
-            $counter = DB::table('workspace_sequences')
-                ->where('workspace_id', $workspaceId)
-                ->where('name', $name)
-                ->lockForUpdate()
-                ->first();
+            $counter = $this->sequences->lock($workspaceId, $name);
 
             $next = $counter->last_value + 1;
 
-            DB::table('workspace_sequences')->where('id', $counter->id)->update(['last_value' => $next, 'updated_at' => $now]);
+            $this->sequences->setLastValue($counter->id, $next, $now);
 
             return $next;
         });

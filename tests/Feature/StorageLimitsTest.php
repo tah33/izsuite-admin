@@ -64,7 +64,7 @@ class StorageLimitsTest extends TestCase
         $this->assertSame(['starter' => 100, 'standard' => null, 'premium' => null], Package::orderBy('rank')->pluck('storage_limit_mb', 'key')->all());
 
         $this->assertSame([
-            'package' => ['key' => 'starter', 'name' => 'Billing Starter'],
+            'package' => ['name' => 'Billing Starter'],
             'storage' => ['used_bytes' => 0, 'limit_bytes' => 100 * 1024 * 1024, 'percent' => 0, 'state' => 'ok'],
         ], $this->usage());
     }

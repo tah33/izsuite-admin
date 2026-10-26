@@ -4,8 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreDepartmentRequest;
-use App\Models\User\User;
-use App\Services\Shared\ActivityLogService;
 use App\Services\Admin\DepartmentService;
 use Illuminate\Http\Request;
 
@@ -19,7 +17,7 @@ class DepartmentController extends Controller
     {
         try {
             $departments = $this->departmentService->getFilteredDepartments($request->input('recruiter_id'));
-            $recruiters  = User::whereHas('role', fn ($q) => $q->where('slug', 'recruiter'))->get();
+            $recruiters  = $this->departmentService->recruiters();
 
             return view('admin.departments.index', compact('departments', 'recruiters'));
 
@@ -32,7 +30,7 @@ class DepartmentController extends Controller
     public function create()
     {
         try {
-            $recruiters = User::whereHas('role', fn ($q) => $q->where('slug', 'recruiter'))->get();
+            $recruiters = $this->departmentService->recruiters();
 
             return view('admin.departments.create', compact('recruiters'));
 
@@ -45,9 +43,7 @@ class DepartmentController extends Controller
     public function store(StoreDepartmentRequest $request)
     {
         try {
-            $department = $this->departmentService->create($request->validated());
-
-            ActivityLogService::record('created', "Created department \"{$department->name}\"", $department);
+            $this->departmentService->create($request->validated());
 
             return redirect()->route('admin.departments.index')
                 ->with('success', 'Department created successfully.');
@@ -67,7 +63,7 @@ class DepartmentController extends Controller
                 abort(404);
             }
 
-            $recruiters = User::whereHas('role', fn ($q) => $q->where('slug', 'recruiter'))->get();
+            $recruiters = $this->departmentService->recruiters();
 
             return view('admin.departments.edit', compact('department', 'recruiters'));
 
@@ -88,8 +84,6 @@ class DepartmentController extends Controller
 
             $this->departmentService->update($department, $request->validated());
 
-            ActivityLogService::record('updated', "Updated department \"{$department->name}\"", $department);
-
             return redirect()->route('admin.departments.index')
                 ->with('success', 'Department updated successfully.');
 
@@ -108,10 +102,7 @@ class DepartmentController extends Controller
                 abort(404);
             }
 
-            $name       = $department->name;
             $this->departmentService->delete($department);
-
-            ActivityLogService::record('deleted', "Deleted department \"{$name}\"");
 
             return redirect()->route('admin.departments.index')
                 ->with('success', 'Department deleted successfully.');

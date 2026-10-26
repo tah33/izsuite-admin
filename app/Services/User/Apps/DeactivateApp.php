@@ -9,6 +9,8 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceApp;
 use App\Models\User\WorkspaceAppLog;
+use App\Repositories\User\WorkspaceAppRepository;
+use App\Repositories\User\WorkspaceRepository;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -24,6 +26,8 @@ class DeactivateApp
 {
     public function __construct(
         private AppDependencies $dependencies,
+        private WorkspaceAppRepository $workspaceApps,
+        private WorkspaceRepository $workspaces,
     ) {}
 
     /**
@@ -48,20 +52,20 @@ class DeactivateApp
         }
 
         DB::transaction(function () use ($workspace, $app, $fallback, $by) {
-            $row = $workspace->workspaceApps()->where('family_key', $app->family_key)->lockForUpdate()->firstOrFail();
+            $row = $this->workspaceApps->lockRowOrFail($workspace, $app->family_key);
 
             $fallback
-                ? $row->update(['app_id' => $fallback->id])                                                    // Sales → Sales Lite
-                : $row->update(['status' => WorkspaceApp::STATUS_INACTIVE, 'deactivated_at' => now()]);      // records kept
+                ? $this->workspaceApps->update($row, ['app_id' => $fallback->id])                                                    // Sales → Sales Lite
+                : $this->workspaceApps->update($row, ['status' => WorkspaceApp::STATUS_INACTIVE, 'deactivated_at' => now()]);      // records kept
 
-            $workspace->appLogs()->create([
+            $this->workspaceApps->log($workspace, [
                 'app_id'      => $fallback?->id ?? $app->id,
                 'from_app_id' => $app->id,
                 'action'      => $fallback ? WorkspaceAppLog::FALLBACK : WorkspaceAppLog::DEACTIVATED,
                 'user_id'     => $by->id,
             ]);
 
-            $workspace->increment('nav_version');
+            $this->workspaces->bumpNavVersion($workspace);
         });
 
         ActivityLogService::record(

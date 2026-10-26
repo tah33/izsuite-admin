@@ -9,6 +9,8 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceApp;
 use App\Models\User\WorkspaceAppLog;
+use App\Repositories\User\WorkspaceAppRepository;
+use App\Repositories\User\WorkspaceRepository;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -22,17 +24,22 @@ use Illuminate\Support\Facades\DB;
  */
 class SyncAppsWithPackage
 {
+    public function __construct(
+        private WorkspaceAppRepository $workspaceApps,
+        private WorkspaceRepository $workspaces,
+    ) {}
+
     /** Puts the business on $package, then brings its apps within it. */
     public function changePackage(Workspace $workspace, Package $package, ?User $by = null): void
     {
-        $workspace->package()->associate($package)->save();
+        $this->workspaces->setPackage($workspace, $package);
 
         $this->handle($workspace, $by);
     }
 
     public function handle(Workspace $workspace, ?User $by = null): void
     {
-        $package = $workspace->package()->first();
+        $package = $this->workspaces->packageOf($workspace);
         $moved   = [];
 
         DB::transaction(function () use ($workspace, $package, $by, &$moved) {
@@ -46,13 +53,13 @@ class SyncAppsWithPackage
                 $lite = $from->edition === Edition::Full ? $from->liteEdition() : null;
 
                 if ($lite && $lite->isAvailable() && $package?->allows($lite)) {
-                    $row->update(['app_id' => $lite->id]);                                                    // Sales → Sales Lite
+                    $this->workspaceApps->update($row, ['app_id' => $lite->id]);                                                    // Sales → Sales Lite
                 } else {
                     $lite = null;
-                    $row->update(['status' => WorkspaceApp::STATUS_INACTIVE, 'deactivated_at' => now()]);      // read-only
+                    $this->workspaceApps->update($row, ['status' => WorkspaceApp::STATUS_INACTIVE, 'deactivated_at' => now()]);      // read-only
                 }
 
-                $workspace->appLogs()->create([
+                $this->workspaceApps->log($workspace, [
                     'app_id'      => $lite?->id ?? $from->id,
                     'from_app_id' => $from->id,
                     'action'      => $lite ? WorkspaceAppLog::FALLBACK : WorkspaceAppLog::DEACTIVATED,
@@ -62,7 +69,7 @@ class SyncAppsWithPackage
                 $moved[] = $from;
             }
 
-            $workspace->increment('nav_version');
+            $this->workspaces->bumpNavVersion($workspace);
         });
 
         foreach ($moved as $app) {

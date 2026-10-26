@@ -56,12 +56,24 @@ class ContactController extends Controller
 
     public function activate(Request $request, int $id): JsonResponse
     {
-        return $this->setActive($request, $id, true);
+        try {
+            return $this->setActive($request, $id, true);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
     }
 
     public function deactivate(Request $request, int $id): JsonResponse
     {
-        return $this->setActive($request, $id, false);
+        try {
+            return $this->setActive($request, $id, false);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
     }
 
     public function store(SaveContactRequest $request): JsonResponse
@@ -111,19 +123,14 @@ class ContactController extends Controller
         }
     }
 
+    /** The answer for activate() and deactivate(), which catch around it. */
     private function setActive(Request $request, int $id, bool $active): JsonResponse
     {
-        try {
-            $contact = $this->contactService->setActive($this->currentWorkspace($request), $id, $active);
+        $contact = $this->contactService->setActive($this->currentWorkspace($request), $id, $active);
 
-            return response()->json([
-                'message' => $active ? 'Contact activated.' : 'Contact deactivated.',
-                'data'    => new ContactResource($contact),
-            ]);
-
-        } catch (\Throwable $e) {
-            report($e);
-            throw $e;
-        }
+        return response()->json([
+            'message' => $active ? 'Contact activated.' : 'Contact deactivated.',
+            'data'    => new ContactResource($contact),
+        ]);
     }
 }

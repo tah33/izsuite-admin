@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Items\SaveItemSettingsRequest;
+use App\Http\Resources\Items\ItemSettingsResource;
 use App\Services\Api\Items\ItemSettingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,7 +23,7 @@ class ItemSettingController extends Controller
     {
         try {
             return response()->json([
-                'data' => $this->itemSettingService->settings($this->currentWorkspace($request)),
+                'data' => new ItemSettingsResource($this->itemSettingService->settings($this->currentWorkspace($request))),
             ]);
 
         } catch (\Throwable $e) {
@@ -38,7 +39,7 @@ class ItemSettingController extends Controller
 
             return response()->json([
                 'message' => 'Item settings saved successfully.',
-                'data'    => $settings,
+                'data'    => new ItemSettingsResource($settings),
             ]);
 
         } catch (\Throwable $e) {

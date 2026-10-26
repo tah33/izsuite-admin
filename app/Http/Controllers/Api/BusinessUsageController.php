@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\BusinessSetup\BusinessUsageResource;
 use App\Services\Files\StorageUsage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,10 +25,7 @@ class BusinessUsageController extends Controller
             $workspace = $this->currentWorkspace($request);
 
             return response()->json([
-                'data' => [
-                    'package' => $workspace->package ? ['key' => $workspace->package->key, 'name' => $workspace->package->name] : null,
-                    'storage' => $this->storageUsage->summary($workspace),
-                ],
+                'data' => new BusinessUsageResource($workspace, $this->storageUsage->summary($workspace)),
             ]);
 
         } catch (\Throwable $e) {

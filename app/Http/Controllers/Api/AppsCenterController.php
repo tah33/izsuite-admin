@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Apps\AppsCenterResource;
 use App\Services\User\Apps\AppsCenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,7 +25,7 @@ class AppsCenterController extends Controller
 
             abort_if($workspace === null, 404, 'Create a workspace first.');
 
-            return response()->json(['data' => $this->appsCenter->for($workspace)]);
+            return response()->json(['data' => new AppsCenterResource($this->appsCenter->for($workspace))]);
 
         } catch (\Throwable $e) {
             report($e);

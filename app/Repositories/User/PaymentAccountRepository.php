@@ -24,6 +24,17 @@ class PaymentAccountRepository
         return $workspace->paymentAccounts()->find($id);
     }
 
+    public function existsFor(Workspace $workspace): bool
+    {
+        return $workspace->paymentAccounts()->exists();
+    }
+
+    /** The first account, by name, in a currency outside $currencies. */
+    public function firstOutside(Workspace $workspace, array $currencies): ?PaymentAccount
+    {
+        return $workspace->paymentAccounts()->whereNotIn('currency', $currencies)->orderBy('name')->first();
+    }
+
     /** Made through the business, so its workspace is never read from $data. */
     public function create(Workspace $workspace, array $data): PaymentAccount
     {

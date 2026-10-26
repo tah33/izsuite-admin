@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\User\WorkspaceFile;
+use App\Repositories\User\WorkspaceFileRepository;
 use App\Services\Files\FileStorage;
 use Illuminate\Console\Command;
 
@@ -24,7 +24,7 @@ class MoveFiles extends Command
 
     protected $description = "Move businesses' files between this server and DigitalOcean Spaces";
 
-    public function handle(FileStorage $fileStorage): int
+    public function handle(FileStorage $fileStorage, WorkspaceFileRepository $files): int
     {
         $to = (string) $this->option('to');
 
@@ -34,15 +34,11 @@ class MoveFiles extends Command
             return self::INVALID;
         }
 
-        $files = WorkspaceFile::query()
-            ->when($this->option('workspace'), fn ($query, $id) => $query->where('workspace_id', $id))
-            ->orderBy('id');
-
         $moved   = 0;
         $already = 0;
         $failed  = 0;
 
-        foreach ($files->lazyById() as $file) {
+        foreach ($files->lazyAll($this->option('workspace')) as $file) {
             if ($fileStorage->diskFor($file->isPublic(), $to) === $file->disk) {
                 $already++;
 

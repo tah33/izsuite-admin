@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Models\User\User;
+use App\Repositories\User\UserRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\User\Workspaces\SetUpNewWorkspace;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -26,9 +26,9 @@ class CreateMainLocation implements ShouldQueue
         public int $userId,
     ) {}
 
-    public function handle(WorkspaceRepository $workspaces, SetUpNewWorkspace $setUp): void
+    public function handle(UserRepository $users, WorkspaceRepository $workspaces, SetUpNewWorkspace $setUp): void
     {
-        $user = User::find($this->userId);
+        $user = $users->findById($this->userId);
 
         // Deleted before the queue reached it: there is nobody to set up.
         if (! $user) {

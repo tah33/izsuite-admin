@@ -3,8 +3,9 @@
 namespace App\Http\Requests\Admin;
 
 use App\Enums\Edition;
-use App\Models\Frontend\Application;
 use App\Models\Frontend\MenuItem;
+use App\Repositories\Admin\AppRepository;
+use App\Repositories\Admin\MenuItemRepository;
 use App\Services\User\Apps\ShowIfRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -77,12 +78,12 @@ class StoreMenuItemRequest extends FormRequest
                 }
 
                 if ($family !== null && $this->input('min_edition') === Edition::Full->value
-                    && ! Application::where('family_key', $family)->where('edition', Edition::Full)->exists()) {
+                    && ! app(AppRepository::class)->hasEdition($family, Edition::Full)) {
                     $validator->errors()->add('min_edition', __('This family has no Full edition.'));
                 }
 
                 if ($parentId = $this->input('parent_id')) {
-                    $parent = MenuItem::find($parentId);
+                    $parent = app(MenuItemRepository::class)->find((int) $parentId);
 
                     if ($parent->parent_id !== null
                         || $parent->section !== $this->input('section')

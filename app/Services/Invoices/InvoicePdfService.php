@@ -3,16 +3,20 @@
 namespace App\Services\Invoices;
 
 use App\Models\Billing\Invoice;
+use App\Repositories\Billing\InvoiceRepository;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Log;
 
 class InvoicePdfService
 {
+    public function __construct(
+        protected InvoiceRepository $invoiceRepository,
+    ) {}
+
     public function download(Invoice $invoice): Response
     {
-        $invoice->loadMissing(['user', 'subscription']);
+        $this->invoiceRepository->loadForPdf($invoice);
 
         $filename = $this->filename($invoice);
         $html     = $this->renderTemplate([
@@ -62,15 +66,11 @@ class InvoicePdfService
         );
     }
 
+    // A view like any other, so the template can keep its parts in partials
+    // (pdf/invoices/recruiter/).
     private function renderTemplate(array $data): string
     {
-        $template = file_get_contents(resource_path('views/pdf/invoices/recruiter.blade.php'));
-
-        ob_start();
-        extract($data, EXTR_SKIP);
-        eval('?>'.Blade::compileString($template));
-
-        return (string) ob_get_clean();
+        return view('pdf.invoices.recruiter', $data)->render();
     }
 
     private function filename(Invoice $invoice): string

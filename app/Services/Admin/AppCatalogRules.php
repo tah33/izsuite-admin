@@ -3,11 +3,11 @@
 namespace App\Services\Admin;
 
 use App\Enums\Edition;
-use App\Models\Billing\Package;
 use App\Models\Frontend\AppDependency;
 use App\Models\Frontend\Application;
+use App\Repositories\Admin\AppRepository;
+use App\Repositories\Billing\PackageRepository;
 use App\Services\User\Apps\AppDependencies;
-use Illuminate\Support\Facades\DB;
 
 /**
  * The catalog's own rules, checked when an admin edits dependencies or plan
@@ -22,6 +22,8 @@ class AppCatalogRules
 {
     public function __construct(
         private AppDependencies $dependencies,
+        private AppRepository $appRepository,
+        private PackageRepository $packageRepository,
     ) {}
 
     /** Why $app cannot need $family at $min - or null when it can. */
@@ -31,7 +33,7 @@ class AppCatalogRules
             return 'An app cannot require its own family.';
         }
 
-        $editions = Application::where('family_key', $family)->get();
+        $editions = $this->appRepository->editionsOf($family);
         $enough   = $editions->filter(fn (Application $edition) => $edition->edition->covers($min));
 
         if ($enough->isEmpty()) {
@@ -67,7 +69,7 @@ class AppCatalogRules
      */
     public function accessProblems(array $lowest): array
     {
-        $apps     = Application::with('dependencies')->get()->keyBy('id');
+        $apps     = $this->appRepository->allWithDependencies()->keyBy('id');
         $problems = [];
 
         foreach ($apps as $app) {
@@ -100,17 +102,11 @@ class AppCatalogRules
     /** @return array<int, int> app id => rank of the lowest plan that includes it */
     public function lowestRanks(): array
     {
-        return DB::table('package_apps')
-            ->join('packages', 'packages.id', '=', 'package_apps.package_id')
-            ->groupBy('package_apps.app_id')
-            ->selectRaw('package_apps.app_id as app_id, min(packages.`rank`) as lowest')
-            ->pluck('lowest', 'app_id')
-            ->map(fn ($rank) => (int) $rank)
-            ->all();
+        return $this->packageRepository->lowestRanks();
     }
 
     private function planName(int $rank): string
     {
-        return Package::where('rank', $rank)->value('name') ?? "plan {$rank}";
+        return $this->packageRepository->nameOfRank($rank) ?? "plan {$rank}";
     }
 }

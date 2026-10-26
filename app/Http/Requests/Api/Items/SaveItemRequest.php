@@ -3,7 +3,7 @@
 namespace App\Http\Requests\Api\Items;
 
 use App\Models\User\Item;
-use App\Models\User\ItemComponent;
+use App\Repositories\User\ItemRepository;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -82,7 +82,7 @@ class SaveItemRequest extends FormRequest
     {
         return [function (Validator $validator) {
             $edited = $this->route('id')
-                ? Item::where('workspace_id', $this->attributes->get('workspace')?->id)->find($this->route('id'))
+                ? app(ItemRepository::class)->findInWorkspace($this->attributes->get('workspace')?->id, (int) $this->route('id'))
                 : null;
 
             if ($this->route('id') && ! $edited) {
@@ -108,8 +108,8 @@ class SaveItemRequest extends FormRequest
         }
 
         $ids   = collect($rows)->pluck('item_id')->filter(fn ($id) => is_numeric($id))->map(fn ($id) => (int) $id);
-        $items = Item::where('workspace_id', $this->attributes->get('workspace')?->id)->whereIn('id', $ids)->get()->keyBy('id');
-        $kept  = $edited ? ItemComponent::where('combo_id', $edited->id)->pluck('component_id')->all() : [];
+        $items = app(ItemRepository::class)->findManyInWorkspace($this->attributes->get('workspace')?->id, $ids)->keyBy('id');
+        $kept  = $edited ? app(ItemRepository::class)->componentIdsOf($edited) : [];
 
         foreach ($rows as $index => $row) {
             $key = "components.{$index}.item_id";
@@ -141,7 +141,7 @@ class SaveItemRequest extends FormRequest
             return;
         }
 
-        $combo = $edited->usedInCombos()->with('combo:id,name')->first()?->combo;
+        $combo = app(ItemRepository::class)->firstComboNamedUsing($edited);
 
         if (! $combo) {
             return;

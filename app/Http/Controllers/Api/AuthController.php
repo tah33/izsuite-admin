@@ -39,7 +39,7 @@ class AuthController extends Controller
                 'action'             => 'verification_required',
                 'sent_to'            => $user->email,
                 'expires_in_minutes' => EmailVerificationService::OTP_TTL_MINUTES,
-                'user'               => new UserResource($user->loadMissing('role')),
+                'user'               => new UserResource($user),
             ], 201);
 
         } catch (\Throwable $e) {
@@ -57,7 +57,7 @@ class AuthController extends Controller
                 'token'      => $token->plainTextToken,
                 'token_type' => 'Bearer',
                 'expires_at' => to_display_timezone_iso($token->accessToken->expires_at),
-                'user'       => new UserResource($user->loadMissing('role')),
+                'user'       => new UserResource($user),
             ]);
 
         } catch (\Throwable $e) {
@@ -69,7 +69,7 @@ class AuthController extends Controller
     {
         try {
             return response()->json([
-                'user' => new UserResource($request->user()->loadMissing('role')),
+                'user' => new UserResource($this->authService->currentUser($request->user())),
             ]);
 
         } catch (\Throwable $e) {

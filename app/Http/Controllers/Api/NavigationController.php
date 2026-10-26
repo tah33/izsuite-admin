@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Navigation\NavigationResource;
 use App\Services\User\Apps\NavigationBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,7 +22,7 @@ class NavigationController extends Controller
     {
         try {
             return response()->json([
-                'data' => $this->navigation->for($request->attributes->get('workspace'), $request->user()),
+                'data' => new NavigationResource($this->navigation->for($request->attributes->get('workspace'), $request->user())),
             ]);
 
         } catch (\Throwable $e) {

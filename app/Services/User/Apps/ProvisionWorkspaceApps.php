@@ -2,12 +2,14 @@
 
 namespace App\Services\User\Apps;
 
-use App\Enums\Edition;
 use App\Models\Frontend\Application;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceApp;
 use App\Models\User\WorkspaceAppLog;
+use App\Repositories\Billing\PackageRepository;
+use App\Repositories\User\WorkspaceAppRepository;
+use App\Repositories\User\WorkspaceRepository;
 
 /**
  * Turns on what a new business starts with: every Lite app its plan includes -
@@ -19,6 +21,12 @@ use App\Models\User\WorkspaceAppLog;
  */
 class ProvisionWorkspaceApps
 {
+    public function __construct(
+        private WorkspaceAppRepository $workspaceApps,
+        private WorkspaceRepository $workspaces,
+        private PackageRepository $packages,
+    ) {}
+
     public function handle(Workspace $workspace, ?User $by = null): void
     {
         $package = $workspace->package;
@@ -27,13 +35,9 @@ class ProvisionWorkspaceApps
             return;
         }
 
-        $taken = $workspace->workspaceApps()->pluck('family_key');
+        $taken = $this->workspaceApps->families($workspace);
 
-        $lite = $package->apps()
-            ->where('edition', Edition::Lite)
-            ->where('is_active', true)
-            ->where('status', 'available')
-            ->get()
+        $lite = $this->packages->availableLiteApps($package)
             ->reject(fn (Application $app) => $taken->contains($app->family_key));
 
         if ($lite->isEmpty()) {
@@ -41,7 +45,7 @@ class ProvisionWorkspaceApps
         }
 
         foreach ($lite as $app) {
-            $workspace->workspaceApps()->create([
+            $this->workspaceApps->create($workspace, [
                 'family_key'   => $app->family_key,
                 'app_id'       => $app->id,
                 'status'       => WorkspaceApp::STATUS_ACTIVE,
@@ -49,13 +53,13 @@ class ProvisionWorkspaceApps
                 'activated_at' => now(),
             ]);
 
-            $workspace->appLogs()->create([
+            $this->workspaceApps->log($workspace, [
                 'app_id'  => $app->id,
                 'action'  => WorkspaceAppLog::ACTIVATED,
                 'user_id' => $by?->id,
             ]);
         }
 
-        $workspace->increment('nav_version');
+        $this->workspaces->bumpNavVersion($workspace);
     }
 }

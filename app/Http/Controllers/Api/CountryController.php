@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Countries\CountryResource;
 use App\Support\Countries;
 use Illuminate\Http\JsonResponse;
 
@@ -16,7 +17,7 @@ class CountryController extends Controller
     {
         try {
             return response()->json([
-                'data' => Countries::all(),
+                'data' => CountryResource::collection(Countries::all()),
             ]);
 
         } catch (\Throwable $e) {

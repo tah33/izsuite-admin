@@ -22,7 +22,7 @@ class RunImportRows implements ShouldQueue
 
     public function handle(ImportService $imports): void
     {
-        $import = Import::find($this->importId);
+        $import = $imports->findById($this->importId);
 
         if ($import?->status !== Import::IMPORTING) {
             return;
@@ -35,9 +35,6 @@ class RunImportRows implements ShouldQueue
 
     public function failed(?\Throwable $e): void
     {
-        Import::whereKey($this->importId)->update([
-            'status' => Import::FAILED,
-            'error'  => 'The import stopped part-way. The rows already added are kept; check the list before importing the file again.',
-        ]);
+        app(ImportService::class)->markFailed($this->importId, 'The import stopped part-way. The rows already added are kept; check the list before importing the file again.');
     }
 }

@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\User\Workspace;
+use App\Repositories\User\WorkspaceRepository;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -24,15 +24,18 @@ class ResolveWorkspace
 {
     public const HEADER = 'X-Workspace-Id';
 
+    public function __construct(
+        protected WorkspaceRepository $workspaceRepository,
+    ) {}
+
     public function handle(Request $request, Closure $next, ?string $need = null): Response
     {
-        $id    = (string) $request->header(self::HEADER, '');
-        $query = Workspace::where('user_id', $request->user()->id)->with('package');
+        $id = (string) $request->header(self::HEADER, '');
 
         if ($id === '') {
-            $workspace = $query->orderBy('id')->first();
+            $workspace = $this->workspaceRepository->oldestForUserWithPackage($request->user());
         } else {
-            $workspace = ctype_digit($id) ? $query->find((int) $id) : null;
+            $workspace = ctype_digit($id) ? $this->workspaceRepository->findForUserWithPackage($request->user(), (int) $id) : null;
 
             abort_if($workspace === null, 404, 'Workspace not found.');
         }

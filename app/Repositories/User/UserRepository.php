@@ -5,9 +5,12 @@ namespace App\Repositories\User;
 use App\Models\Admin\Role;
 use App\Models\User\User;
 use App\QueryFilters\SearchFilter;
+use DateTimeInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pipeline\Pipeline;
+use Laravel\Sanctum\NewAccessToken;
 
 class UserRepository
 {
@@ -66,9 +69,48 @@ class UserRepository
         return User::with(['role', 'currentPlanSubscription'])->find($id);
     }
 
+    /** Just the user - nothing loaded with it. */
+    public function findById(?int $id): ?User
+    {
+        return User::find($id);
+    }
+
+    public function findWithRoleOrFail(int $id): User
+    {
+        return User::with('role')->findOrFail($id);
+    }
+
+    /** Every user with the role $roleSlug. */
+    public function allWithRole(string $roleSlug): Collection
+    {
+        return User::whereHas('role', fn ($query) => $query->where('slug', $roleSlug))->get();
+    }
+
+    /** Everyone but the admins, by first name - who a plan can be given to. */
+    public function nonAdmins(): Collection
+    {
+        return User::query()
+            ->select(['id', 'first_name', 'last_name', 'email'])
+            ->whereHas('role', fn ($query) => $query->whereNotIn('slug', ['super-admin', 'admin']))
+            ->orderBy('first_name')
+            ->get();
+    }
+
+    /** $user with its role, which the API's user payload shows. */
+    public function loadRole(User $user): User
+    {
+        return $user->loadMissing('role');
+    }
+
     public function findByEmail(string $email): ?User
     {
         return User::with('role')->where('email', strtolower($email))->first();
+    }
+
+    /** Like findByEmail, but with the email as given - the way Auth::attempt looks it up. */
+    public function findByGivenEmail(string $email): ?User
+    {
+        return User::with('role')->where('email', $email)->first();
     }
 
     public function emailExists(string $email): bool
@@ -88,6 +130,11 @@ class UserRepository
         return $user->fresh(['role']);
     }
 
+    public function delete(User $user): ?bool
+    {
+        return $user->delete();
+    }
+
     public function updateLoginMeta(User $user, ?string $avatar = null): User
     {
         $user->forceFill([
@@ -96,6 +143,42 @@ class UserRepository
         ])->save();
 
         return $user->fresh('role');
+    }
+
+    /** Sets $attributes, fillable or not, and saves. */
+    public function forceUpdate(User $user, array $attributes): void
+    {
+        $user->forceFill($attributes)->save();
+    }
+
+    /**
+     * Ends the user's API sessions - every one, or every one but $except
+     * (the token the request came with). Returns how many ended.
+     */
+    public function revokeTokens(User $user, ?object $except = null): int
+    {
+        return $user->tokens()
+            ->when($except, fn ($q) => $q->where('id', '!=', $except->id))
+            ->delete();
+    }
+
+    /** A new API session for $user: its token, and the plain text the client keeps. */
+    public function createToken(User $user, string $name, array $abilities, ?DateTimeInterface $expiresAt): NewAccessToken
+    {
+        return $user->createToken($name, $abilities, $expiresAt);
+    }
+
+    /** Ends the session the request came with. */
+    public function revokeCurrentToken(User $user): void
+    {
+        $user->currentAccessToken()?->delete();
+    }
+
+    public function touchLastLogin(User $user): void
+    {
+        $user->forceFill([
+            'last_login_at' => now(),
+        ])->save();
     }
 
     public function toggleStatus(User $user): User

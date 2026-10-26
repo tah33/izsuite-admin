@@ -5,6 +5,7 @@ namespace App\Services\User\Apps;
 use App\Enums\Edition;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceApp;
+use App\Repositories\User\WorkspaceAppRepository;
 use Illuminate\Support\Collection;
 
 /**
@@ -22,7 +23,7 @@ class WorkspaceApps
     public function __construct(
         public readonly Workspace $workspace,
     ) {
-        $this->rows = $workspace->workspaceApps()->with('app.dependencies')->get()->keyBy('family_key');
+        $this->rows = app(WorkspaceAppRepository::class)->rowsByFamily($workspace);
     }
 
     public static function for(Workspace $workspace): self

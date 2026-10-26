@@ -11,7 +11,6 @@ use App\Services\Api\Files\RecordFileService;
 use App\Services\Api\Items\ItemService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 
 /**
  * A digital product's files (Doc 04 section 12): what its customers receive,
@@ -47,9 +46,7 @@ class ItemFileController extends Controller
             $workspace = $this->currentWorkspace($request);
             $item      = $this->itemService->find($workspace, $id);
 
-            if ($item->type !== Item::TYPE_DIGITAL) {
-                throw ValidationException::withMessages(['files' => 'Only a digital product has files to deliver.']);
-            }
+            $this->itemService->ensureTakesFiles($item);
 
             $files = $this->recordFileService->add($workspace, $item, FileCollection::DigitalFiles, $request->uploads(), $request->field(), $this->record($item));
 

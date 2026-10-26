@@ -5,6 +5,7 @@ namespace App\Services\Api\Files;
 use App\Enums\FileCollection;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceFile;
+use App\Repositories\User\WorkspaceFileRepository;
 use App\Services\Files\FileStorage;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Database\Eloquent\Collection;
@@ -22,12 +23,13 @@ class RecordFileService
 {
     public function __construct(
         protected FileStorage $fileStorage,
+        protected WorkspaceFileRepository $workspaceFileRepository,
     ) {}
 
     /** @return Collection<int, WorkspaceFile> */
     public function list(Model $owner, FileCollection $collection): Collection
     {
-        return $owner->filesIn($collection)->with('uploader')->get();
+        return $this->workspaceFileRepository->inCollectionWithUploader($owner, $collection);
     }
 
     /**
@@ -48,13 +50,13 @@ class RecordFileService
             }, $owner, ['source' => 'api', 'file' => $file->name, 'size' => $file->size]);
         }
 
-        return $files->load('uploader');
+        return $this->workspaceFileRepository->loadUploader($files);
     }
 
     /** One of $owner's files of $collection; another record's - or business's - answers like one that does not exist. */
     public function find(Model $owner, FileCollection $collection, int $id): WorkspaceFile
     {
-        return $owner->filesIn($collection)->find($id)
+        return $this->workspaceFileRepository->findInCollection($owner, $collection, $id)
             ?? abort(404, 'File not found.');
     }
 

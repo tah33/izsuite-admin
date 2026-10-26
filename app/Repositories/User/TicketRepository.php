@@ -38,6 +38,12 @@ class TicketRepository
         return Ticket::with(['user', 'assignee', 'messages.user'])->find($id);
     }
 
+    /** How many tickets $user has opened. */
+    public function countForUser(User $user): int
+    {
+        return $user->tickets()->count();
+    }
+
     public function create(array $data): Ticket
     {
         return Ticket::create($data);

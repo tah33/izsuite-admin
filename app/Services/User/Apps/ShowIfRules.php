@@ -3,6 +3,7 @@
 namespace App\Services\User\Apps;
 
 use App\Models\User\Workspace;
+use App\Repositories\User\PaymentAccountRepository;
 
 /**
  * The conditions a menu item can be shown on ("Show if" in the Menu Builder).
@@ -12,6 +13,10 @@ use App\Models\User\Workspace;
  */
 class ShowIfRules
 {
+    public function __construct(
+        private PaymentAccountRepository $paymentAccounts,
+    ) {}
+
     /** key => label, for the Menu Builder's dropdown. */
     public function options(): array
     {
@@ -27,7 +32,7 @@ class ShowIfRules
             // section 6.2). The first one made and the last one deleted bump
             // the business's nav_version (see PaymentAccount), so the cached
             // sidebar follows.
-            'has_payment_account' => (bool) $workspace?->paymentAccounts()->exists(),
+            'has_payment_account' => $workspace !== null && $this->paymentAccounts->existsFor($workspace),
             default               => false,
         };
     }

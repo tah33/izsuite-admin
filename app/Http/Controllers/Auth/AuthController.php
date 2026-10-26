@@ -4,14 +4,16 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\AdminLoginRequest;
-use App\Models\User\User;
-use App\Services\Shared\ActivityLogService;
+use App\Services\Admin\AdminLoginService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        protected AdminLoginService $adminLoginService,
+    ) {}
+
     public function showLogin()
     {
         try {
@@ -32,9 +34,7 @@ class AuthController extends Controller
         try {
             $credentials = $request->validated();
 
-            $user        = User::with('role')->where('email', $credentials['email'])->first();
-
-            if (! $user || ! $user->isAdmin() || ! Hash::check($credentials['password'], $user->password)) {
+            if (! $this->adminLoginService->credentialsMatchAnAdmin($credentials['email'], $credentials['password'])) {
                 return back()->withErrors([
                     'email' => 'The provided credentials do not match our records.',
                 ])->onlyInput('email');
@@ -46,11 +46,7 @@ class AuthController extends Controller
             ], $request->boolean('remember'))) {
                 $request->session()->regenerate();
 
-                $request->user()->forceFill([
-                    'last_login_at' => now(),
-                ])->save();
-
-                ActivityLogService::record('login', 'Logged into the web dashboard');
+                $this->adminLoginService->recordLogin($request->user());
 
                 return redirect()->intended(route('admin.overview'));
             }
@@ -68,7 +64,7 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         try {
-            ActivityLogService::record('logout', 'Logged out from the admin panel');
+            $this->adminLoginService->recordLogout();
 
             Auth::logout();
 

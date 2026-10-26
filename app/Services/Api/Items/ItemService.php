@@ -11,6 +11,7 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class ItemService
 {
@@ -134,6 +135,18 @@ class ItemService
         $this->itemRepository->delete($item);
 
         ActivityLogService::record('deleted', "Deleted item {$this->quoted($item)}", $item, ['source' => 'api']);
+    }
+
+    /**
+     * Only a digital product has files to deliver (Doc 04 section 12), so only
+     * one takes new files - a 422 on files for any other item. One that stops
+     * being digital keeps the files it has.
+     */
+    public function ensureTakesFiles(Item $item): void
+    {
+        if ($item->type !== Item::TYPE_DIGITAL) {
+            throw ValidationException::withMessages(['files' => 'Only a digital product has files to deliver.']);
+        }
     }
 
     /** Only a combo has a pricing and display method. */

@@ -7,6 +7,7 @@ use App\Models\Frontend\MenuItem;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceApp;
+use App\Repositories\Admin\MenuItemRepository;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
@@ -29,6 +30,7 @@ class NavigationBuilder
 {
     public function __construct(
         private ShowIfRules $rules,
+        private MenuItemRepository $menuItems,
     ) {}
 
     public function for(?Workspace $workspace, User $user): array
@@ -49,7 +51,7 @@ class NavigationBuilder
         $apps = $workspace ? WorkspaceApps::for($workspace) : null;
         $on   = $apps?->active() ?? collect();
 
-        $items = MenuItem::where('is_active', true)->orderBy('sort_order')->orderBy('id')->get()
+        $items = $this->menuItems->activeOrdered()
             ->filter(fn (MenuItem $item) => $item->family_key === null
                 || ($on->has($item->family_key)
                     && $on[$item->family_key]->app->edition->covers($item->min_edition ?? Edition::Lite)))

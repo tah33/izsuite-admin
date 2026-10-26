@@ -3,7 +3,7 @@
 namespace App\Services\Api\Transfer;
 
 use App\Models\User\Workspace;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\LazyCollection;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -35,8 +35,11 @@ interface Transfer
     /** The export's columns: header => what a record shows there. */
     public function exportColumns(Workspace $workspace): array;
 
+    /** How many records an export holds: those the list shows with $filters. */
+    public function exportCount(Workspace $workspace, array $filters): int;
+
     /** The records an export holds: those the list shows with $filters, in its order. */
-    public function exportQuery(Workspace $workspace, array $filters): Builder;
+    public function exportRecords(Workspace $workspace, array $filters): LazyCollection;
 
     /**
      * A row's cells, by field key, as the API takes them, and the cells that

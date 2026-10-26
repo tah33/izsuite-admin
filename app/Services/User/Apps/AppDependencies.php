@@ -6,6 +6,7 @@ use App\Enums\Edition;
 use App\Models\Frontend\AppDependency;
 use App\Models\Frontend\Application;
 use App\Models\User\WorkspaceApp;
+use App\Repositories\Admin\AppRepository;
 use Illuminate\Support\Collection;
 
 /**
@@ -14,6 +15,10 @@ use Illuminate\Support\Collection;
  */
 class AppDependencies
 {
+    public function __construct(
+        private AppRepository $apps,
+    ) {}
+
     /**
      * Names of what $app needs that is off, or on below the edition it needs.
      *
@@ -51,9 +56,7 @@ class AppDependencies
      */
     public function wouldLoop(Application $app, string $family): bool
     {
-        $needs = AppDependency::query()
-            ->join('apps', 'apps.id', '=', 'app_dependencies.app_id')
-            ->get(['apps.family_key as family', 'app_dependencies.requires_family as requires'])
+        $needs = $this->apps->requirementPairs()
             ->groupBy('family')
             ->map(fn (Collection $rows) => $rows->pluck('requires')->unique()->all());
 
@@ -81,8 +84,8 @@ class AppDependencies
     /** What to call a requirement: its edition's name, else any of the family's. */
     public function familyName(string $family, Edition $min): string
     {
-        return Application::where('family_key', $family)->where('edition', $min)->value('name')
-            ?? Application::where('family_key', $family)->value('name')
+        return $this->apps->editionName($family, $min)
+            ?? $this->apps->anyEditionName($family)
             ?? $family;
     }
 }

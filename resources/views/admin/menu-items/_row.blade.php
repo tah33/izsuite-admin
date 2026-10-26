@@ -37,7 +37,7 @@
     <x-confirm-modal
         id="delete-menu-item-{{ $item->id }}"
         :title="__('Delete Menu Item?')"
-        :message="__('Delete') . ' &quot;' . e($item->label) . '&quot;' . ($item->children()->exists() ? ' ' . __('and the items under it') : '') . '? ' . __('To hide it for now, edit it and switch it off instead.')"
+        :message="__('Delete') . ' &quot;' . e($item->label) . '&quot;' . (in_array($item->id, $parentIds, true) ? ' ' . __('and the items under it') : '') . '? ' . __('To hide it for now, edit it and switch it off instead.')"
         :action="route('admin.menu-items.destroy', $item->id)"
         method="DELETE"
         :confirm-text="__('Delete')"

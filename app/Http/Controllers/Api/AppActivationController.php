@@ -3,11 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Frontend\Application;
+use App\Http\Resources\Navigation\NavigationResource;
 use App\Models\User\Workspace;
-use App\Services\User\Apps\ActivateApp;
-use App\Services\User\Apps\DeactivateApp;
-use App\Services\User\Apps\NavigationBuilder;
+use App\Services\Api\Apps\AppActivationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -18,21 +16,17 @@ use Illuminate\Http\Request;
 class AppActivationController extends Controller
 {
     public function __construct(
-        protected ActivateApp $activateApp,
-        protected DeactivateApp $deactivateApp,
-        protected NavigationBuilder $navigation,
+        protected AppActivationService $appActivationService,
     ) {}
 
     public function activate(Request $request, string $appKey): JsonResponse
     {
         try {
-            $workspace = $this->workspace($request);
-            $app       = $this->app($appKey);
-            $replaced  = $this->activateApp->handle($workspace, $app, $request->user());
+            $result = $this->appActivationService->activate($this->workspace($request), $appKey, $request->user());
 
             return response()->json([
-                'message' => $replaced ? "{$app->name} replaced {$replaced->name}." : "{$app->name} is on.",
-                'data'    => $this->navigation->for($workspace, $request->user()),
+                'message' => $result['message'],
+                'data'    => new NavigationResource($result['navigation']),
             ]);
 
         } catch (\Throwable $e) {
@@ -44,13 +38,11 @@ class AppActivationController extends Controller
     public function deactivate(Request $request, string $appKey): JsonResponse
     {
         try {
-            $workspace = $this->workspace($request);
-            $app       = $this->app($appKey);
-            $fallback  = $this->deactivateApp->handle($workspace, $app, $request->user());
+            $result = $this->appActivationService->deactivate($this->workspace($request), $appKey, $request->user());
 
             return response()->json([
-                'message' => $fallback ? "{$app->name} is off. {$fallback->name} is back." : "{$app->name} is off. Its records are kept.",
-                'data'    => $this->navigation->for($workspace, $request->user()),
+                'message' => $result['message'],
+                'data'    => new NavigationResource($result['navigation']),
             ]);
 
         } catch (\Throwable $e) {
@@ -66,15 +58,5 @@ class AppActivationController extends Controller
         abort_if($workspace === null, 404, 'Create a workspace first.');
 
         return $workspace;
-    }
-
-    /** By its key, listed or not: an app hidden from the catalog can still be turned off. */
-    private function app(string $appKey): Application
-    {
-        $app = Application::where('app_key', $appKey)->first();
-
-        abort_if($app === null, 404, 'App not found.');
-
-        return $app;
     }
 }

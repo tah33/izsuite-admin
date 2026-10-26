@@ -25,6 +25,28 @@ class RoleRepository
         return Role::where('slug', $slug)->first();
     }
 
+    public function idOf(string $slug): ?int
+    {
+        return Role::where('slug', $slug)->value('id');
+    }
+
+    /** @return array<int, int> */
+    public function idsOf(string $slug): array
+    {
+        return Role::where('slug', $slug)->pluck('id')->all();
+    }
+
+    /**
+     * Roles suitable for staff assignment (exclude Super Admin & User).
+     */
+    public function staffRoles(): Collection
+    {
+        return Role::where('id', '!=', Role::SUPER_ADMIN_ID)
+            ->whereNotIn('slug', ['recruiter', 'candidate'])
+            ->orderBy('name')
+            ->get();
+    }
+
     public function create(array $data): Role
     {
         return Role::create($data);

@@ -36,6 +36,14 @@ class SettingRepository
     }
 
     /**
+     * Get a group's values, keyed by setting key.
+     */
+    public function valuesOf(string $group): array
+    {
+        return Setting::where('group', $group)->pluck('value', 'key')->toArray();
+    }
+
+    /**
      * Get a single setting value.
      */
     public function get(string $key, mixed $default = null): mixed
@@ -52,11 +60,32 @@ class SettingRepository
     }
 
     /**
+     * Update a setting's columns.
+     */
+    public function update(Setting $setting, array $data): void
+    {
+        $setting->update($data);
+    }
+
+    /**
      * Set a single setting.
      */
     public function set(string $key, mixed $value, string $group = 'general'): Setting
     {
         return Setting::set($key, $value, $group);
+    }
+
+    /**
+     * Set several settings, key => value, each in the general group - the way
+     * setting([...]) writes them.
+     */
+    public function setMany(array $values): void
+    {
+        foreach ($values as $key => $value) {
+            Setting::set($key, $value);
+        }
+
+        Setting::clearCache();
     }
 
     /**

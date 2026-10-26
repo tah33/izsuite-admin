@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Models\Billing\PaymentMethod;
+use App\Repositories\Admin\PaymentMethodRepository;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdatePaymentMethodRequest extends FormRequest
@@ -15,7 +15,7 @@ class UpdatePaymentMethodRequest extends FormRequest
     public function rules(): array
     {
         $id     = (int) $this->route('id');
-        $method = PaymentMethod::query()->find($id);
+        $method = app(PaymentMethodRepository::class)->find($id);
 
         if (! $method) {
             return [];

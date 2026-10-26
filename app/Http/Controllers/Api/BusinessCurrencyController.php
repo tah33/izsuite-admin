@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\BusinessSetup\SaveBusinessCurrenciesRequest;
+use App\Http\Resources\BusinessSetup\BusinessCurrenciesResource;
 use App\Services\Api\BusinessSetup\BusinessSetupService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,7 +23,7 @@ class BusinessCurrencyController extends Controller
     {
         try {
             return response()->json([
-                'data' => $this->businessSetupService->currencies($this->currentWorkspace($request)),
+                'data' => new BusinessCurrenciesResource($this->businessSetupService->currencies($this->currentWorkspace($request))),
             ]);
 
         } catch (\Throwable $e) {
@@ -38,7 +39,7 @@ class BusinessCurrencyController extends Controller
 
             return response()->json([
                 'message' => 'Currencies saved successfully.',
-                'data'    => $currencies,
+                'data'    => new BusinessCurrenciesResource($currencies),
             ]);
 
         } catch (\Throwable $e) {

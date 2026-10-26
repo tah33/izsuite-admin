@@ -3,6 +3,7 @@
 namespace App\Services\Api\Items;
 
 use App\Models\User\Workspace;
+use App\Repositories\User\WorkspaceRepository;
 use App\Services\Shared\ActivityLogService;
 
 /**
@@ -13,6 +14,10 @@ use App\Services\Shared\ActivityLogService;
  */
 class ItemSettingService
 {
+    public function __construct(
+        protected WorkspaceRepository $workspaceRepository,
+    ) {}
+
     public function settings(Workspace $workspace): array
     {
         return ['brands_enabled' => (bool) $workspace->brands_enabled];
@@ -21,7 +26,7 @@ class ItemSettingService
     /** Turning brands off hides them; the brands and the items' choices are kept. */
     public function save(Workspace $workspace, bool $brandsEnabled): array
     {
-        $workspace->forceFill(['brands_enabled' => $brandsEnabled])->save();
+        $this->workspaceRepository->forceUpdate($workspace, ['brands_enabled' => $brandsEnabled]);
 
         // Logged here, like every save, so LogApiWriteActivity does not write
         // its own vaguer entry.

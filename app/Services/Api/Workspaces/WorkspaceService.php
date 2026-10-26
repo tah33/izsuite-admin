@@ -5,6 +5,7 @@ namespace App\Services\Api\Workspaces;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\UserStaffRepository;
+use App\Repositories\User\WorkspaceFileRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\Files\FileStorage;
 use App\Services\Shared\ActivityLogService;
@@ -20,6 +21,7 @@ class WorkspaceService
         protected UserStaffRepository $userStaffRepository,
         protected FileStorage $fileStorage,
         protected SetUpNewWorkspace $setUpNewWorkspace,
+        protected WorkspaceFileRepository $workspaceFileRepository,
     ) {}
 
     public function list(User $user): Collection
@@ -70,7 +72,7 @@ class WorkspaceService
         // payment accounts, the rows of its files - goes with it: the database
         // cascades. The stored files do not, so they are removed once the rows
         // are gone.
-        $files = $workspace->businessFiles()->get();
+        $files = $this->workspaceFileRepository->allFor($workspace);
 
         $this->workspaceRepository->delete($workspace);
 

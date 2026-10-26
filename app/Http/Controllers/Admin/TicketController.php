@@ -88,9 +88,10 @@ class TicketController extends Controller
                 abort(404);
             }
 
-            $staff  = $this->ticketService->getStaff();
+            $staff            = $this->ticketService->getStaff();
+            $requesterTickets = $this->ticketService->requesterTicketCount($ticket);
 
-            return view('admin.tickets.show', compact('ticket', 'staff'));
+            return view('admin.tickets.show', compact('ticket', 'staff', 'requesterTickets'));
 
         } catch (\Throwable $e) {
             report($e);
@@ -104,22 +105,15 @@ class TicketController extends Controller
     public function reply(ReplyTicketRequest $request, int $id)
     {
         try {
-            $ticket          = $this->ticketService->find($id);
+            $ticket = $this->ticketService->find($id);
             if (! $ticket) {
                 abort(404);
-            }
-
-            $attachmentPaths = [];
-            if ($request->hasFile('attachments')) {
-                foreach ($request->file('attachments') as $file) {
-                    $attachmentPaths[] = $file->store('ticket-attachments', 'public');
-                }
             }
 
             $this->ticketService->reply(
                 $ticket,
                 $request->message,
-                ! empty($attachmentPaths) ? $attachmentPaths : null
+                $this->ticketService->storeAttachments($request->file('attachments', []))
             );
 
             return back()->with('success', 'Reply sent successfully.');
