@@ -2,19 +2,25 @@
 
 namespace App\Models\User;
 
+use App\Enums\FileCollection;
 use App\Models\Admin\Currency;
 use App\Models\Billing\Package;
+use App\Models\Concerns\HasFiles;
 use App\Services\User\Apps\ProvisionWorkspaceApps;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 /**
  * A business workspace: the business's plan, the apps it has turned on, its
  * base currency and tax choice, and its own data - locations, settings, staff,
- * contacts, items and payment accounts - kept apart from the owner's other
- * businesses. Deleting it deletes that data too.
+ * contacts, items, payment accounts and files - kept apart from the owner's
+ * other businesses. Deleting it deletes that data too.
+ *
+ * Its own files are its logo (the "logo" collection); businessFiles() is every
+ * file of the business, whatever record it belongs to.
  *
  * Only name and user_id are fillable: the plan changes through
  * SyncAppsWithPackage's callers, nav_version only ever goes up by one, and the
@@ -22,6 +28,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  */
 class Workspace extends Model
 {
+    use HasFiles;
+
     /** Taxes are used: tax fields show (Doc 01 section 12). */
     public const TAXES_ENABLED = 'enabled';
 
@@ -140,6 +148,18 @@ class Workspace extends Model
     public function paymentAccounts(): HasMany
     {
         return $this->hasMany(PaymentAccount::class);
+    }
+
+    /** Every file the business keeps, whichever record it belongs to - what its storage counts. */
+    public function businessFiles(): HasMany
+    {
+        return $this->hasMany(WorkspaceFile::class);
+    }
+
+    /** The logo on its documents and pages (Settings > Business). */
+    public function logo(): MorphOne
+    {
+        return $this->fileIn(FileCollection::Logo);
     }
 
     /**

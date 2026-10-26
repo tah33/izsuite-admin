@@ -35,6 +35,13 @@ class ItemLabelRepository
         return $label->model()::create(['workspace_id' => $workspace->id, 'name' => $name])->loadCount('items');
     }
 
+    /** The one named $name, whatever its case - made when the business has none yet (an import). */
+    public function findOrCreateNamed(Workspace $workspace, ItemLabel $label, string $name): ItemCategory|ItemBrand
+    {
+        return $label->model()::where('workspace_id', $workspace->id)->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first()
+            ?? $label->model()::create(['workspace_id' => $workspace->id, 'name' => $name]);
+    }
+
     public function update(ItemCategory|ItemBrand $row, string $name): ItemCategory|ItemBrand
     {
         $row->update(['name' => $name]);

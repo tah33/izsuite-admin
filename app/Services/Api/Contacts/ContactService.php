@@ -52,6 +52,15 @@ class ContactService
     }
 
     /**
+     * A contact from an import: checked, and its possible duplicates already
+     * shown. Added without a log entry of its own - the import logs once.
+     */
+    public function import(Workspace $workspace, array $data): Contact
+    {
+        return $this->contactRepository->create($workspace, $this->withoutOwnShipping($data));
+    }
+
+    /**
      * Checked for duplicates again only when the edit changes what could make
      * it look like another contact - a new address does not repeat a warning
      * that was already given.

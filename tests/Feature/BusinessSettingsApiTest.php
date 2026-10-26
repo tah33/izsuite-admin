@@ -9,6 +9,7 @@ use App\Models\Shared\ActivityLog;
 use App\Models\User\BusinessSetting;
 use App\Models\User\User;
 use App\Models\User\Workspace;
+use App\Models\User\WorkspaceFile;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -87,9 +88,10 @@ class BusinessSettingsApiTest extends TestCase
         return $user;
     }
 
+    /** Where the logo is stored: the business's file in the "logo" collection. */
     private function logoPathOf(User $user): ?string
     {
-        return BusinessSetting::where('user_id', $user->id)->value('logo');
+        return WorkspaceFile::whereIn('workspace_id', $user->workspaces()->pluck('id'))->where('collection', 'logo')->value('path');
     }
 
     /* ---------------------------------------------------------- auth */
@@ -420,9 +422,11 @@ class BusinessSettingsApiTest extends TestCase
 
         $path = $this->logoPathOf($user);
 
-        $this->assertStringStartsWith('business-logos/', $path);
+        // In the business's own folder, counted toward its storage like every file.
+        $this->assertStringStartsWith('workspaces/'.$user->workspaces()->value('id').'/logo/', $path);
         Storage::disk('public')->assertExists($path);
         $this->assertStringEndsWith('/storage/'.$path, $response->json('data.logo_url'));
+        $this->assertContains('logo', ActivityLog::latest('id')->first()->properties['fields']);
     }
 
     public function test_replacing_the_logo_removes_the_old_file(): void

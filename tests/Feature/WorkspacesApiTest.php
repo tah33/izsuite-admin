@@ -374,6 +374,15 @@ class WorkspacesApiTest extends TestCase
             $logo = "business-logos/{$business->id}.png";
             Storage::disk('public')->put($logo, 'logo');
 
+            $business->files()->create([
+                'workspace_id' => $business->id,
+                'collection'   => 'logo',
+                'disk'         => 'public',
+                'path'         => $logo,
+                'visibility'   => 'public',
+                'name'         => 'logo.png',
+                'size'         => 4,
+            ]);
             $business->locations()->create(['user_id' => $user->id, 'name' => "{$business->name} Depot"]);
             $business->staff()->create(['user_id' => $user->id, 'name' => "{$business->name} Staff", 'status' => 1]);
             $business->businessSetting()->create([
@@ -381,7 +390,6 @@ class WorkspacesApiTest extends TestCase
                 'business_name'              => $business->name,
                 'currency'                   => 'USD',
                 'language'                   => 'en',
-                'logo'                       => $logo,
                 'country'                    => 'Bangladesh',
                 'state'                      => 'Dhaka',
                 'city'                       => 'Dhaka',
@@ -397,7 +405,7 @@ class WorkspacesApiTest extends TestCase
 
         $this->deleteJson("/api/v1/workspaces/{$leaving->id}")->assertOk();
 
-        foreach (['locations', 'user_staff', 'business_settings'] as $table) {
+        foreach (['locations', 'user_staff', 'business_settings', 'workspace_files'] as $table) {
             $this->assertDatabaseMissing($table, ['workspace_id' => $leaving->id]);
             $this->assertDatabaseHas($table, ['workspace_id' => $staying->id]);
         }

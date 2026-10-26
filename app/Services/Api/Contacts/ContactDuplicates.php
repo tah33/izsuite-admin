@@ -55,6 +55,25 @@ class ContactDuplicates
             ->all();
     }
 
+    /**
+     * What $fields would be compared on, as keys two contacts share when one
+     * might be the other: "name:uddin traders", "phone:711000000",
+     * "email:…", "tax:…". For rows of one import, which are not stored yet.
+     *
+     * @return list<string>
+     */
+    public function keys(array $fields): array
+    {
+        $probe = $this->probe($fields);
+
+        return array_values(array_filter([
+            ...array_map(fn (string $name) => "name:{$name}", $probe['names']),
+            ...array_map(fn (string $phone) => "phone:{$phone}", $probe['phones']),
+            $probe['email'] ? "email:{$probe['email']}" : null,
+            $probe['tax'] ? "tax:{$probe['tax']}" : null,
+        ]));
+    }
+
     /** What to compare, tidied the way the stored values are compared. */
     private function probe(array $fields): array
     {

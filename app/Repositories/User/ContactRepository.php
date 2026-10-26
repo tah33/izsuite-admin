@@ -29,14 +29,19 @@ class ContactRepository
      */
     public function paginateFor(Workspace $workspace, array $filters, int $perPage, bool $withTaxId): LengthAwarePaginator
     {
+        return $this->queryFor($workspace, $filters, $withTaxId)->paginate($perPage);
+    }
+
+    /** The list's contacts, searched and filtered the same way, in its order - for an export, whole. */
+    public function queryFor(Workspace $workspace, array $filters, bool $withTaxId): Builder
+    {
         return Contact::where('workspace_id', $workspace->id)
             ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $query->where(fn (Builder $query) => $this->search($query, $search, $withTaxId)))
             ->when($filters['role'] ?? null, fn (Builder $query, string $role) => $query->ofRole($role))
             ->when($filters['type'] ?? null, fn (Builder $query, string $type) => $query->where('contact_type', $type))
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('is_active', $status === 'active'))
             ->orderBy('name')
-            ->orderBy('id')
-            ->paginate($perPage);
+            ->orderBy('id');
     }
 
     public function findFor(Workspace $workspace, int $id): ?Contact

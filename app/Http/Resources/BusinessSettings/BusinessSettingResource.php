@@ -2,7 +2,7 @@
 
 namespace App\Http\Resources\BusinessSettings;
 
-use App\Services\Support\ImageService;
+use App\Services\Files\FileStorage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -10,10 +10,9 @@ class BusinessSettingResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        // logo is stored as a disk path; expose an absolute URL instead, the
-        // same way UserResource does for the avatar, so the frontend never has
-        // to know about the storage layout.
-        $logoPath = app(ImageService::class)->publicUrl($this->logo);
+        // The logo is the workspace's file; its address is wherever that file
+        // is stored, so the frontend never has to know about the storage.
+        $logo = $this->workspace?->logo;
 
         return [
             'business_name'              => $this->business_name,
@@ -23,7 +22,7 @@ class BusinessSettingResource extends JsonResource
             'start_date'                 => $this->start_date?->toDateString(),
 
             'language'                   => $this->language,
-            'logo_url'                   => $logoPath ? url($logoPath) : null,
+            'logo_url'                   => $logo ? app(FileStorage::class)->url($logo) : null,
             'website'                    => $this->website,
             'business_contact_number'    => $this->business_contact_number,
             'alternate_contact_number'   => $this->alternate_contact_number,

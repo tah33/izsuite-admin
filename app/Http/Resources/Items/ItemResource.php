@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Items;
 
 use App\Models\User\ItemComponent;
+use App\Services\Files\FileStorage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -13,12 +14,16 @@ class ItemResource extends JsonResource
      * name. Prices go out as strings with two decimals ("12.50") - never as
      * floats, which cannot hold every cent.
      *
-     * A combo carries its components, and component_total: what they add up
-     * to at today's sales prices, which is its price when it is priced as
-     * their sum. Expects category, brand and components.component loaded.
+     * Its image, when it has one, comes with its address and a thumbnail's,
+     * for lists. A combo carries its components, and component_total: what
+     * they add up to at today's sales prices, which is its price when it is
+     * priced as their sum. Expects category, brand, image and
+     * components.component loaded.
      */
     public function toArray(Request $request): array
     {
+        $storage = app(FileStorage::class);
+
         return [
             'id'                    => $this->id,
             'item_number'           => $this->item_number,
@@ -32,6 +37,11 @@ class ItemResource extends JsonResource
             'category'              => $this->category ? ['id' => $this->category->id, 'name' => $this->category->name] : null,
             'brand_id'              => $this->brand_id,
             'brand'                 => $this->brand ? ['id' => $this->brand->id, 'name' => $this->brand->name] : null,
+            'image'                 => $this->image ? [
+                'id'            => $this->image->id,
+                'url'           => $storage->url($this->image),
+                'thumbnail_url' => $storage->url($this->image, true),
+            ] : null,
             'description'           => $this->description,
             'sale_price'            => $this->sale_price,
             'sales_description'     => $this->sales_description,

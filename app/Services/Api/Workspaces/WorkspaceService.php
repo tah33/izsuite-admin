@@ -6,8 +6,8 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\UserStaffRepository;
 use App\Repositories\User\WorkspaceRepository;
+use App\Services\Files\FileStorage;
 use App\Services\Shared\ActivityLogService;
-use App\Services\Support\ImageService;
 use App\Services\User\Workspaces\SetUpNewWorkspace;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +18,7 @@ class WorkspaceService
     public function __construct(
         protected WorkspaceRepository $workspaceRepository,
         protected UserStaffRepository $userStaffRepository,
-        protected ImageService $imageService,
+        protected FileStorage $fileStorage,
         protected SetUpNewWorkspace $setUpNewWorkspace,
     ) {}
 
@@ -67,13 +67,14 @@ class WorkspaceService
         $workspace = $this->findOwned($user, $id);
 
         // The business's own data - locations, settings, staff, contacts, items,
-        // payment accounts - goes with it: the database cascades. Its logo file
-        // does not, so it is removed once the rows are gone.
-        $logo = $workspace->businessSetting()->value('logo');
+        // payment accounts, the rows of its files - goes with it: the database
+        // cascades. The stored files do not, so they are removed once the rows
+        // are gone.
+        $files = $workspace->businessFiles()->get();
 
         $this->workspaceRepository->delete($workspace);
 
-        $this->imageService->deletePublic($logo);
+        $this->fileStorage->forgetLater($files);
 
         // Staff of the owner's other businesses must not go on listing a workspace that is gone.
         $this->userStaffRepository->forgetWorkspace($user, $id);

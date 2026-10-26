@@ -52,6 +52,16 @@ class ItemService
     }
 
     /**
+     * An item from an import - never a combo - already checked, its category
+     * and brand found or made. Added without a log entry of its own: the
+     * import logs once.
+     */
+    public function import(Workspace $workspace, array $data): Item
+    {
+        return $this->itemRepository->create($workspace, $this->withoutComboFields($data));
+    }
+
+    /**
      * An item that stops being a combo gives up its components and its combo
      * settings: they describe a package it no longer is. Everything else a
      * form hides - a warranty, a delivery method - is kept.

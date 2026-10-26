@@ -2,10 +2,13 @@
 
 namespace App\Models\User;
 
+use App\Enums\FileCollection;
+use App\Models\Concerns\HasFiles;
 use App\Services\User\Workspaces\WorkspaceSequence;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 /**
  * A product or service one business sells or buys (Doc 04) - the one record
@@ -16,9 +19,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * is made and never given out again. Its usage - sales, purchase or both -
  * decides where it can be picked. A combo is sold as a package of two or more
  * other items, its components; it is never part of another combo itself.
+ *
+ * Its image and a digital product's files are files in the "image" and
+ * "digital_files" collections.
  */
 class Item extends Model
 {
+    use HasFiles;
+
     public const TYPE_PHYSICAL = 'physical';
 
     public const TYPE_DIGITAL = 'digital';
@@ -160,6 +168,12 @@ class Item extends Model
     public function brand(): BelongsTo
     {
         return $this->belongsTo(ItemBrand::class);
+    }
+
+    /** Its picture (Doc 04 section 6) - one at most. */
+    public function image(): MorphOne
+    {
+        return $this->fileIn(FileCollection::Image);
     }
 
     /** A combo's components, in the order they were given. */

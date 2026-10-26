@@ -12,7 +12,9 @@ use Illuminate\Support\Collection;
 
 /**
  * A plan a business can be on: Billing Starter, Standard or Premium. Decides
- * which apps the business may turn on - not which ones are on.
+ * which apps the business may turn on - not which ones are on - and how much
+ * file storage it has (storage_limit_mb; empty is no limit). Both are set in
+ * the admin, never in the code (Doc 13 section 13.2).
  */
 class Package extends Model
 {
@@ -24,12 +26,14 @@ class Package extends Model
     protected $fillable = [
         'name',
         'description',
+        'storage_limit_mb',
         'is_active',
     ];
 
     protected $casts = [
-        'rank'      => 'integer',
-        'is_active' => 'boolean',
+        'rank'             => 'integer',
+        'storage_limit_mb' => 'integer',
+        'is_active'        => 'boolean',
     ];
 
     /** The app ids, asked for once per instance. */

@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Builder;
 class ItemRepository
 {
     /** What ItemResource shows of an item besides its own columns. */
-    private const SHOWN_WITH = ['category:id,name', 'brand:id,name', 'components.component'];
+    private const SHOWN_WITH = ['category:id,name', 'brand:id,name', 'components.component', 'image'];
 
     /**
      * A page of the business's items, alphabetical with the id as
@@ -34,6 +34,12 @@ class ItemRepository
      */
     public function paginateFor(Workspace $workspace, array $filters, int $perPage, bool $withBrands): LengthAwarePaginator
     {
+        return $this->queryFor($workspace, $filters, $withBrands)->paginate($perPage);
+    }
+
+    /** The list's items, searched and filtered the same way, in its order - for an export, whole. */
+    public function queryFor(Workspace $workspace, array $filters, bool $withBrands): Builder
+    {
         return Item::where('workspace_id', $workspace->id)
             ->with(self::SHOWN_WITH)
             ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $query->where(fn (Builder $query) => $this->search($query, $search, $withBrands)))
@@ -47,8 +53,7 @@ class ItemRepository
                 ->where('type', '!=', Item::TYPE_COMBO)
                 ->where('usage', '!=', Item::USAGE_PURCHASE))
             ->orderBy('name')
-            ->orderBy('id')
-            ->paginate($perPage);
+            ->orderBy('id');
     }
 
     public function findFor(Workspace $workspace, int $id): ?Item

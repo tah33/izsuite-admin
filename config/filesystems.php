@@ -60,6 +60,26 @@ return [
             'report'                  => false,
         ],
 
+        // DigitalOcean Spaces, through the S3 driver: Spaces speaks the S3 API.
+        // Used for businesses' files when FILES_DISK=spaces (see config/files.php).
+        // The endpoint follows the region unless set; the URL - the Space's own
+        // address or its CDN - is where public files are read from. A root keeps
+        // each environment's files apart when they share one Space.
+        'spaces' => [
+            'driver'                  => 's3',
+            'key'                     => env('DO_SPACES_KEY'),
+            'secret'                  => env('DO_SPACES_SECRET'),
+            'region'                  => env('DO_SPACES_REGION', 'sgp1'),
+            'bucket'                  => env('DO_SPACES_BUCKET'),
+            'endpoint'                => env('DO_SPACES_ENDPOINT') ?: 'https://'.env('DO_SPACES_REGION', 'sgp1').'.digitaloceanspaces.com',
+            'url'                     => env('DO_SPACES_URL') ?: null,
+            'root'                    => env('DO_SPACES_ROOT', ''),
+            'use_path_style_endpoint' => false,
+            'visibility'              => 'private',
+            'throw'                   => true,
+            'report'                  => false,
+        ],
+
     ],
 
     /*

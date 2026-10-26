@@ -35,6 +35,15 @@
                 @enderror
             </div>
 
+            <div class="mb-4">
+                <label class="form-label" for="storage_limit_mb">{{ __('Storage limit (MB)') }}</label>
+                <input type="number" id="storage_limit_mb" name="storage_limit_mb" min="1" step="1" value="{{ old('storage_limit_mb', $package->storage_limit_mb) }}" class="form-input" placeholder="{{ __('No limit') }}">
+                @error('storage_limit_mb')
+                    <p class="text-xs mt-1 text-[var(--danger)]">{{ $message }}</p>
+                @enderror
+                <p class="text-xs mt-1 text-[var(--text-muted)]">{{ __('The files a business on this plan may keep: attachments, item images, digital files and its logo. Leave empty for no limit. 1024 MB is 1 GB.') }}</p>
+            </div>
+
             <label class="flex items-center gap-3 cursor-pointer">
                 <input type="checkbox" name="is_active" value="1" class="toggle-switch" @checked(old('is_active', $package->is_active))>
                 <span class="form-label mb-0">{{ __('Offered') }}</span>

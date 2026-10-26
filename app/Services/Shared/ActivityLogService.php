@@ -58,6 +58,16 @@ class ActivityLogService
         return app(static::class)->log($action, $description, $subject, $properties, $actor);
     }
 
+    /**
+     * Keeps LogApiWriteActivity from writing its generic entry for this
+     * request, which changes nothing worth one - or is logged later, by name,
+     * once its work is done in the background (an import).
+     */
+    public static function skipForThisRequest(): void
+    {
+        app(static::class)->markRequestAsActivityLogged();
+    }
+
     private function shouldSkipAdminActivity(?User $actor, ?Model $subject): bool
     {
         if ($actor?->isAdmin()) {

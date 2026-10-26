@@ -2,6 +2,7 @@
 
 namespace App\Models\User;
 
+use App\Models\Concerns\HasFiles;
 use App\Services\User\Workspaces\WorkspaceSequence;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -15,10 +16,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Each has a Contact Number, C-00001 onwards within its business, given when
  * it is made and never given out again. Its addresses and tax country are
  * country codes (see App\Support\Countries); a shipping address marked "same
- * as billing" is the billing one, and its own fields stay empty.
+ * as billing" is the billing one, and its own fields stay empty. Its
+ * attachments are files in the "attachments" collection.
  */
 class Contact extends Model
 {
+    use HasFiles;
+
     public const TYPE_BUSINESS = 'business';
 
     public const TYPE_INDIVIDUAL = 'individual';

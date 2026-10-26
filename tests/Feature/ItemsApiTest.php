@@ -119,7 +119,7 @@ class ItemsApiTest extends TestCase
 
         $this->assertSame([
             'id', 'item_number', 'type', 'usage', 'name', 'sku', 'barcode', 'unit', 'category_id', 'category',
-            'brand_id', 'brand', 'description', 'sale_price', 'sales_description', 'purchase_price',
+            'brand_id', 'brand', 'image', 'description', 'sale_price', 'sales_description', 'purchase_price',
             'purchase_description', 'delivery_method', 'delivery_instructions', 'warranty_available',
             'warranty_period', 'warranty_unit', 'warranty_start_rule', 'warranty_terms', 'combo_pricing',
             'combo_display', 'components', 'component_total', 'is_active',

@@ -5,6 +5,10 @@ namespace App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * A business's profile and defaults (Settings > Business). Its logo is the
+ * workspace's file in the "logo" collection, not a column here.
+ */
 class BusinessSetting extends Model
 {
     /** What the stock_accounting_method column can hold - the enum in the migration. */
@@ -16,7 +20,6 @@ class BusinessSetting extends Model
         'business_name',
         'start_date',
         'language',
-        'logo',
         'website',
         'business_contact_number',
         'alternate_contact_number',

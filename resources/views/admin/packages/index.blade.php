@@ -20,6 +20,7 @@
                         <th>{{ __('Plan') }}</th>
                         <th>{{ __('Key') }}</th>
                         <th>{{ __('Apps') }}</th>
+                        <th>{{ __('Storage') }}</th>
                         <th>{{ __('Businesses') }}</th>
                         <th>{{ __('Offered') }}</th>
                         <th class="text-end">{{ __('Actions') }}</th>
@@ -37,6 +38,13 @@
                             </td>
                             <td><code class="text-xs">{{ $package->key }}</code></td>
                             <td class="text-sm">{{ $package->apps_count }}</td>
+                            <td class="text-sm">
+                                @if($package->storage_limit_mb === null)
+                                    <span class="text-[var(--text-muted)]">{{ __('No limit') }}</span>
+                                @else
+                                    {{ \App\Support\Bytes::format($package->storage_limit_mb * 1024 * 1024) }}
+                                @endif
+                            </td>
                             <td class="text-sm">{{ $package->workspaces_count }}</td>
                             <td>
                                 @if($package->is_active)
