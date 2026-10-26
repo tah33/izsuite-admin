@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Api\BusinessSettings;
 
-use App\Models\Admin\Currency;
 use App\Models\Admin\Language;
 use App\Models\User\BusinessSetting;
 use Illuminate\Foundation\Http\FormRequest;
@@ -16,25 +15,13 @@ class SaveBusinessSettingsRequest extends FormRequest
     }
 
     /**
-     * ISO 4217 codes are upper case by definition, and MySQL's case-insensitive
-     * comparison would let "usd" past the exists rule and into the column,
-     * where it would never match the "USD" the currency list offers.
-     *
-     * Language codes are not touched: their casing is meaningful ("pt-BR").
-     */
-    protected function prepareForValidation(): void
-    {
-        if ($this->filled('currency')) {
-            $this->merge(['currency' => strtoupper((string) $this->input('currency'))]);
-        }
-    }
-
-    /**
      * Every field the business_settings table marks NOT NULL is required here,
      * because the Settings > Business form writes the whole row in one go.
      *
-     * Currency and language must be among the ones an admin has left active -
-     * the same lists GET /currencies and GET /languages hand the form.
+     * The language must be one an admin has left active - the same list GET
+     * /languages hands the form. The business's currency is not here: it is
+     * the business's base currency, set under Settings > Currencies
+     * (BusinessCurrencyController).
      *
      * The logo is deliberately raster-only, unlike the admin panel's image
      * uploads: those come from staff, these from any account, and an SVG can
@@ -45,7 +32,6 @@ class SaveBusinessSettingsRequest extends FormRequest
         return [
             'business_name'              => ['required', 'string', 'max:255'],
             'start_date'                 => ['nullable', 'date_format:Y-m-d'],
-            'currency'                   => ['required', 'string', Rule::exists(Currency::class, 'code')->where('is_active', true)],
             'language'                   => ['required', 'string', Rule::exists(Language::class, 'code')->where('is_active', true)],
             'logo'                       => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'website'                    => ['nullable', 'url:http,https', 'max:255'],
@@ -85,7 +71,6 @@ class SaveBusinessSettingsRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'currency.exists' => 'Choose one of the available currencies.',
             'language.exists' => 'Choose one of the available languages.',
             'logo.mimes'      => 'The logo must be a JPG, PNG or WebP image.',
             'logo.image'      => 'The logo must be a JPG, PNG or WebP image.',

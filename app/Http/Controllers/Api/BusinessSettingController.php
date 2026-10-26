@@ -16,13 +16,13 @@ class BusinessSettingController extends Controller
     ) {}
 
     /**
-     * The signed-in account's business settings - `data` is null until they
-     * have saved them once, which is not an error: the form simply starts blank.
+     * The business's settings - `data` is null until they have been saved once,
+     * which is not an error: the form simply starts blank.
      */
     public function show(Request $request): JsonResponse
     {
         try {
-            $settings = $this->businessSettingService->show($request->user());
+            $settings = $this->businessSettingService->show($this->currentWorkspace($request));
 
             return response()->json([
                 'data' => $settings ? new BusinessSettingResource($settings) : null,
@@ -40,7 +40,7 @@ class BusinessSettingController extends Controller
     public function save(SaveBusinessSettingsRequest $request): JsonResponse
     {
         try {
-            $settings = $this->businessSettingService->save($request->user(), $request->validated());
+            $settings = $this->businessSettingService->save($this->currentWorkspace($request), $request->validated());
 
             return response()->json([
                 'message' => 'Business settings saved successfully.',

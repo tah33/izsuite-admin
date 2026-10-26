@@ -24,6 +24,12 @@ class LanguageRepository
             ->get();
     }
 
+    /** The active ones by name, for a dropdown. */
+    public function activeByName(): Collection
+    {
+        return Language::active()->orderBy('name')->get();
+    }
+
     public function getPaginated(?string $search = null, int $perPage = 10): LengthAwarePaginator
     {
         return app(Pipeline::class)
@@ -41,6 +47,34 @@ class LanguageRepository
     public function find(int $id): ?Language
     {
         return Language::find($id);
+    }
+
+    /**
+     * The code of the active language whose code or name is $text, in any case.
+     */
+    public function activeCodeFor(string $text): ?string
+    {
+        return Language::active()
+            ->where(fn ($query) => $query->whereRaw('LOWER(code) = ?', [mb_strtolower($text)])->orWhereRaw('LOWER(name) = ?', [mb_strtolower($text)]))
+            ->value('code');
+    }
+
+    /**
+     * The active language with code $code, if there is one.
+     */
+    public function findActiveByCode(string $code): ?Language
+    {
+        return Language::where('code', $code)->where('is_active', true)->first();
+    }
+
+    /**
+     * Leave no language the default - apart from $except, when given.
+     */
+    public function clearDefault(?Language $except = null): void
+    {
+        Language::where('is_default', true)
+            ->when($except, fn ($query) => $query->where('id', '!=', $except->id))
+            ->update(['is_default' => false]);
     }
 
     public function create(array $data): Language

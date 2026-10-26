@@ -18,12 +18,17 @@
 
         <div class="mb-4">
             <label for="email" class="form-label">Email Address</label>
-            <input type="email" id="email" name="email" value="{{ old('email') }}" class="form-input" placeholder="you@example.com" required autofocus>
+            {{-- Same form-input-group shape <x-password-input> renders below,
+                 so the two fields carry matching leading icons. --}}
+            <div class="form-input-group">
+                <i data-lucide="mail"></i>
+                <input type="email" id="email" name="email" value="{{ old('email') }}" class="form-input form-input-icon-start" placeholder="you@example.com" required autofocus>
+            </div>
         </div>
 
         <div class="mb-4">
             <label for="password" class="form-label">Password</label>
-            <input type="password" id="password" name="password" class="form-input" placeholder="********" required>
+            <x-password-input id="password" name="password" placeholder="********" autocomplete="current-password" required />
         </div>
 
         <div class="flex items-center justify-between mb-6">

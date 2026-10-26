@@ -31,12 +31,15 @@
             <form action="{{ route('admin.tickets.update', $ticket->id) }}" method="POST">
                 @csrf
                 @method('PUT')
-                <select name="status" onchange="this.form.submit()" class="form-select text-sm py-1 ps-2 pe-8 border-[var(--border-color)]">
-                    <option value="open" {{ $ticket->status === 'open' ? 'selected' : '' }}>{{ __('Open') }}</option>
-                    <option value="in_progress" {{ $ticket->status === 'in_progress' ? 'selected' : '' }}>{{ __('In Progress') }}</option>
-                    <option value="resolved" {{ $ticket->status === 'resolved' ? 'selected' : '' }}>{{ __('Resolved') }}</option>
-                    <option value="closed" {{ $ticket->status === 'closed' ? 'selected' : '' }}>{{ __('Closed') }}</option>
-                </select>
+                {{-- A Select2 fills its container, so the container sets the width --}}
+                <div class="w-36">
+                    <select name="status" onchange="this.form.submit()" class="form-select select-sm" aria-label="{{ __('Status') }}">
+                        <option value="open" {{ $ticket->status === 'open' ? 'selected' : '' }}>{{ __('Open') }}</option>
+                        <option value="in_progress" {{ $ticket->status === 'in_progress' ? 'selected' : '' }}>{{ __('In Progress') }}</option>
+                        <option value="resolved" {{ $ticket->status === 'resolved' ? 'selected' : '' }}>{{ __('Resolved') }}</option>
+                        <option value="closed" {{ $ticket->status === 'closed' ? 'selected' : '' }}>{{ __('Closed') }}</option>
+                    </select>
+                </div>
             </form>
         </div>
     </div>
@@ -46,62 +49,7 @@
         <div class="lg:col-span-2 space-y-6">
             <div class="space-y-4">
                 @foreach($ticket->messages as $message)
-                    @php
-                        $isStaff = $message->user_id !== $ticket->user_id;
-                    @endphp
-
-                    <div class="flex gap-4 {{ $isStaff ? 'flex-row-reverse' : '' }}">
-                        <div class="flex-shrink-0">
-                            <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-[{{ $isStaff ? 'var(--primary)' : '#94a3b8' }}]">
-                                {{ substr($message->user->name, 0, 1) }}
-                            </div>
-                        </div>
-
-                        <div class="max-w-[85%]">
-                            <div class="flex items-baseline gap-2 mb-1 {{ $isStaff ? 'justify-end' : '' }}">
-                                <span class="font-semibold text-sm">{{ $message->user->name }}</span>
-                                @if($isStaff)
-                                    <span class="px-1.5 py-0.5 text-xs rounded bg-blue-100 text-blue-700 font-medium">{{ __('Staff') }}</span>
-                                @endif
-                                <span class="text-xs text-muted">{{ $message->created_at->format('M d, Y, h:i A') }}</span>
-                            </div>
-
-                            <div class="p-4 rounded-lg shadow-sm text-sm leading-relaxed
-                                {{ $isStaff
-                                    ? 'ticket-msg-staff rounded-tr-none'
-                                    : 'ticket-msg-user rounded-tl-none'
-                                }}">
-                                <div class="ticket-msg-content">{!! $message->message !!}</div>
-                            </div>
-
-                            {{-- Attachments (below the bubble) --}}
-                            @if(!empty($message->attachment_path) && is_array($message->attachment_path))
-                                <div class="flex flex-wrap gap-1.5 mt-1.5">
-                                    @foreach($message->attachment_path as $path)
-                                        @php
-                                            $filename = basename($path);
-                                            $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-                                            $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg']);
-                                            $size = null;
-                                            $fullPath = storage_path('app/public/' . $path);
-                                            if (file_exists($fullPath)) {
-                                                $bytes = filesize($fullPath);
-                                                $size = $bytes >= 1048576 ? round($bytes / 1048576, 1) . ' MB' : round($bytes / 1024, 1) . ' KB';
-                                            }
-                                        @endphp
-                                        <a href="{{ asset('storage/' . $path) }}" target="_blank"
-                                           class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium
-                                                  bg-gray-100 text-gray-600 hover:bg-gray-200
-                                                  transition no-underline">
-                                            <i data-lucide="{{ $isImage ? 'image' : 'file' }}" class="w-3.5 h-3.5 flex-shrink-0"></i>
-                                            <span class="truncate max-w-[150px]">{{ $filename }}</span>
-                                            @if($size)<span class="opacity-60">({{ $size }})</span>@endif
-                                        </a>
-                                    @endforeach
-                                </div>
-                            @endif
-                        </div>
-                    </div>
+                    @include('admin.tickets._message')
                 @endforeach
             </div>
 
@@ -140,78 +88,7 @@
         </div>
 
         {{-- Sidebar Info --}}
-        <div class="space-y-6">
-            {{-- User Info --}}
-            <div class="card">
-                <h3 class="section-title text-sm uppercase tracking-wider mb-4 border-b pb-2">{{ __('Requester info') }}</h3>
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-xl font-bold text-gray-600">
-                        {{ substr($ticket->user->name, 0, 1) }}
-                    </div>
-                    <div>
-                        <div class="font-bold">{{ $ticket->user->name }}</div>
-                        <div class="text-sm text-muted">{{ $ticket->user->email }}</div>
-                    </div>
-                </div>
-                <div class="text-sm">
-                    <div class="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700">
-                        <span class="text-muted">{{ __('Registered') }}</span>
-                        <span>{{ $ticket->user->created_at->format('M d, Y') }}</span>
-                    </div>
-                    <div class="flex justify-between py-2">
-                        <span class="text-muted">{{ __('Total Tickets') }}</span>
-                        <span>{{ $ticket->user->tickets()->count() }}</span>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Ticket Info --}}
-            <div class="card">
-                 <h3 class="section-title text-sm uppercase tracking-wider mb-4 border-b pb-2">{{ __('Ticket Details') }}</h3>
-                 <div class="text-sm space-y-3">
-                    <div class="flex justify-between">
-                         <span class="text-muted">{{ __('Created') }}</span>
-                         <span>{{ $ticket->created_at->format('M d, Y H:i') }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                         <span class="text-muted">{{ __('Last Activity') }}</span>
-                         <span>{{ $ticket->updated_at->diffForHumans() }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                         <span class="text-muted">{{ __('Priority') }}</span>
-                         <span class="px-2 py-0.5 rounded text-xs font-medium {{ $priorityColors[$ticket->priority] }}">
-                             {{ ucfirst($ticket->priority) }}
-                         </span>
-                    </div>
-                    <div class="flex justify-between">
-                         <span class="text-muted">{{ __('Messages') }}</span>
-                         <span>{{ $ticket->messages->count() }}</span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                         <span class="text-muted">{{ __('Assigned to') }}</span>
-                         <span class="font-medium">{{ $ticket->assignee?->name ?? __('Unassigned') }}</span>
-                    </div>
-                 </div>
-
-                 {{-- Reassignment --}}
-                 <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
-                     <form action="{{ route('admin.tickets.update', $ticket->id) }}" method="POST">
-                         @csrf
-                         @method('PUT')
-                         <input type="hidden" name="status" value="{{ $ticket->status }}">
-                         <label class="block text-xs font-medium mb-1 text-muted">{{ __('Reassign') }}</label>
-                         <select name="assigned_to" onchange="this.form.submit()" class="form-select w-full text-sm">
-                             <option value="">{{ __('Unassigned') }}</option>
-                             @foreach($staff as $member)
-                                 <option value="{{ $member->id }}" {{ $ticket->assigned_to == $member->id ? 'selected' : '' }}>
-                                     {{ $member->name }}
-                                 </option>
-                             @endforeach
-                         </select>
-                     </form>
-                 </div>
-            </div>
-        </div>
+        @include('admin.tickets._sidebar')
     </div>
 @endsection
 

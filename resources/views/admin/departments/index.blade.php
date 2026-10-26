@@ -2,18 +2,11 @@
 @section('title', __('Departments'))
 
 @section('content')
-    <div class="mb-6 flex justify-end">
-        <a href="{{ route('admin.departments.create') }}" class="btn btn-primary">
-            <i data-lucide="plus" class="w-4 h-4"></i> {{ __('New Department') }}
-        </a>
-    </div>
-
-    {{-- Filters --}}
-    <div class="card mb-3">
-        <form action="{{ route('admin.departments.index') }}" method="GET" class="flex flex-wrap items-end gap-4">
-            <div class="mb-0">
-                <label for="recruiter_id" class="form-label text-sm">{{ __('Filter by Recruiter') }}</label>
-                <select name="recruiter_id" id="recruiter_id" class="form-input" onchange="this.form.submit()">
+    {{-- One toolbar row: filters on the left, page actions on the right. --}}
+    <div class="flex flex-wrap items-center gap-3 mb-4">
+        <form action="{{ route('admin.departments.index') }}" method="GET" class="flex flex-1 max-md:basis-full flex-wrap items-center gap-2 min-w-0">
+            <div class="w-full sm:w-80">
+                <select name="recruiter_id" id="recruiter_id" class="form-input" onchange="this.form.submit()" aria-label="{{ __('Filter by Recruiter') }}">
                     <option value="">{{ __('All Recruiters') }}</option>
                     @foreach($recruiters as $recruiter)
                         <option value="{{ $recruiter->id }}" {{ request('recruiter_id') == $recruiter->id ? 'selected' : '' }}>
@@ -28,6 +21,10 @@
                 </a>
             @endif
         </form>
+
+        <a href="{{ route('admin.departments.create') }}" class="btn btn-primary">
+            <i data-lucide="plus" class="w-4 h-4"></i> {{ __('New Department') }}
+        </a>
     </div>
 
     {{-- Departments Table --}}

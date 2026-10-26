@@ -25,9 +25,14 @@ class ActivityLogService
         return $this->repo->getDistinctActions();
     }
 
-    public function log(string $action, string $description, ?Model $subject = null, ?array $properties = null): ?ActivityLog
+    /**
+     * $actor is who did it, and defaults to whoever is signed in. Pass it for
+     * work done with nobody signed in - a queued job acting for an account -
+     * or the entry would belong to no one.
+     */
+    public function log(string $action, string $description, ?Model $subject = null, ?array $properties = null, ?User $actor = null): ?ActivityLog
     {
-        $actor = auth()->user();
+        $actor ??= auth()->user();
 
         if ($this->shouldSkipAdminActivity($actor, $subject)) {
             return null;
@@ -48,9 +53,19 @@ class ActivityLogService
         return $log;
     }
 
-    public static function record(string $action, string $description, ?Model $subject = null, ?array $properties = null): ?ActivityLog
+    public static function record(string $action, string $description, ?Model $subject = null, ?array $properties = null, ?User $actor = null): ?ActivityLog
     {
-        return app(static::class)->log($action, $description, $subject, $properties);
+        return app(static::class)->log($action, $description, $subject, $properties, $actor);
+    }
+
+    /**
+     * Keeps LogApiWriteActivity from writing its generic entry for this
+     * request, which changes nothing worth one - or is logged later, by name,
+     * once its work is done in the background (an import).
+     */
+    public static function skipForThisRequest(): void
+    {
+        app(static::class)->markRequestAsActivityLogged();
     }
 
     private function shouldSkipAdminActivity(?User $actor, ?Model $subject): bool

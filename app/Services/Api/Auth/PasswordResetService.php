@@ -5,6 +5,7 @@ namespace App\Services\Api\Auth;
 use App\Mail\PasswordChanged;
 use App\Mail\PasswordResetOtp;
 use App\Models\User\User;
+use App\Repositories\User\PasswordResetRepository;
 use App\Repositories\User\UserRepository;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -69,6 +70,7 @@ class PasswordResetService
 
     public function __construct(
         protected UserRepository $userRepository,
+        protected PasswordResetRepository $passwordResetRepository,
     ) {}
 
     /**
@@ -100,9 +102,9 @@ class PasswordResetService
         DB::transaction(function () use ($user, $otp) {
             // One live code per address: a new request retires the old one, so
             // an earlier email cannot still be spent.
-            DB::table('password_reset_otps')->where('email', $user->email)->delete();
+            $this->passwordResetRepository->deleteCode($user->email);
 
-            DB::table('password_reset_otps')->insert([
+            $this->passwordResetRepository->insertCode([
                 'email'      => $user->email,
                 'otp'        => Hash::make($otp),
                 'expires_at' => now()->addMinutes(self::OTP_TTL_MINUTES),
@@ -131,7 +133,7 @@ class PasswordResetService
      */
     public function verifyCode(string $email, string $otp): string
     {
-        $record     = DB::table('password_reset_otps')->where('email', $email)->first();
+        $record     = $this->passwordResetRepository->findCode($email);
 
         if (! $record || ! Hash::check($otp, $record->otp)) {
             $this->reject(self::WRONG_CODE_MESSAGE, self::WRONG_CODE_ACTION);
@@ -146,12 +148,9 @@ class PasswordResetService
         DB::transaction(function () use ($email, $resetToken) {
             // The code is spent the moment it buys a token: it must not be able
             // to open a second reset.
-            DB::table('password_reset_otps')->where('email', $email)->delete();
+            $this->passwordResetRepository->deleteCode($email);
 
-            DB::table('password_reset_tokens')->updateOrInsert(
-                ['email' => $email],
-                ['token' => Hash::make($resetToken), 'created_at' => now()],
-            );
+            $this->passwordResetRepository->saveToken($email, ['token' => Hash::make($resetToken), 'created_at' => now()]);
         });
 
         return $resetToken;
@@ -169,7 +168,7 @@ class PasswordResetService
      */
     public function resetPassword(string $email, string $resetToken, string $password): User
     {
-        $record   = DB::table('password_reset_tokens')->where('email', $email)->first();
+        $record   = $this->passwordResetRepository->findToken($email);
 
         if (! $record || ! Hash::check($resetToken, $record->token)) {
             $this->reject(self::BAD_TOKEN_MESSAGE, self::BAD_TOKEN_ACTION);
@@ -178,7 +177,7 @@ class PasswordResetService
         $issuedAt = Carbon::parse($record->created_at);
 
         if (now()->greaterThan($issuedAt->addMinutes(self::RESET_TOKEN_TTL_MINUTES))) {
-            DB::table('password_reset_tokens')->where('email', $email)->delete();
+            $this->passwordResetRepository->deleteToken($email);
 
             $this->reject(self::BAD_TOKEN_MESSAGE, self::BAD_TOKEN_ACTION);
         }
@@ -195,11 +194,11 @@ class PasswordResetService
             // account that has never confirmed its address still has not
             // confirmed it. An unverified account that resets here is sent
             // through /auth/email/resend before it can sign in.
-            $user->forceFill(['password' => $password])->save();
+            $this->userRepository->forceUpdate($user, ['password' => $password]);
 
-            $user->tokens()->delete();
+            $this->userRepository->revokeTokens($user);
 
-            DB::table('password_reset_tokens')->where('email', $email)->delete();
+            $this->passwordResetRepository->deleteToken($email);
         });
 
         ActivityLogService::record('updated', 'Reset their password', $user, [
@@ -224,7 +223,7 @@ class PasswordResetService
      */
     private function cooldownRemaining(string $email): int
     {
-        $record  = DB::table('password_reset_otps')->where('email', $email)->first();
+        $record  = $this->passwordResetRepository->findCode($email);
 
         if (! $record || blank($record->created_at)) {
             return 0;

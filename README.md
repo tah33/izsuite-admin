@@ -8,7 +8,7 @@ Redis, or Node on the server or your local machine.
 
 | Component | Version |
 |---|---|
-| Runtime | FrankenPHP 1.x / PHP 8.4 |
+| Runtime | FrankenPHP 1.x / PHP 8.4.27 |
 | Framework | Laravel 12 |
 | Database | MySQL 8.4 |
 | Cache / sessions / queue | Redis 7 |

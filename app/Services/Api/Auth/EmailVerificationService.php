@@ -63,10 +63,10 @@ class EmailVerificationService
     {
         $otp = $this->generateOtp();
 
-        $user->forceFill([
+        $this->userRepository->forceUpdate($user, [
             'verification_otp'            => Hash::make($otp),
             'verification_otp_expires_at' => now()->addMinutes(self::OTP_TTL_MINUTES),
-        ])->save();
+        ]);
 
         try {
             Mail::to($user->email)->send(new VerifyEmailOtp($otp, self::OTP_TTL_MINUTES));
@@ -141,11 +141,11 @@ class EmailVerificationService
             $this->reject(self::EXPIRED_CODE_MESSAGE, self::EXPIRED_CODE_ACTION);
         }
 
-        $user->forceFill([
+        $this->userRepository->forceUpdate($user, [
             'email_verified_at'           => now(),
             'verification_otp'            => null,
             'verification_otp_expires_at' => null,
-        ])->save();
+        ]);
 
         ActivityLogService::record('updated', 'Verified their email address', $user, [
             'source' => 'api',

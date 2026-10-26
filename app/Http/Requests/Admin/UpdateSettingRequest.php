@@ -43,6 +43,40 @@ class UpdateSettingRequest extends FormRequest
         }, ARRAY_FILTER_USE_KEY);
     }
 
+    /**
+     * The settings to save: what was sent - validated where a rule covers it
+     * - with the group's switches as '1' or '0', since an unticked checkbox
+     * sends nothing.
+     */
+    public function settingsToSave(): array
+    {
+        $group    = $this->input('_group');
+        $settings = $this->validated()['settings'] ?? $this->input('settings', []);
+
+        $keys     = [
+            'ai'     => ['ai_openai_enabled', 'ai_gemini_enabled'],
+            'mail'   => ['smtp_enabled'],
+            'social' => ['google_login_enabled', 'linkedin_login_enabled'],
+        ];
+
+        if ($group && isset($keys[$group])) {
+            foreach ($keys[$group] as $key) {
+                $settings[$key] = $this->boolean("settings.$key") ? '1' : '0';
+            }
+        } elseif (! $group) {
+            // Fallback for global update if needed
+            foreach ($keys as $groupKeys) {
+                foreach ($groupKeys as $key) {
+                    if ($this->has("settings.$key")) {
+                        $settings[$key] = $this->boolean("settings.$key") ? '1' : '0';
+                    }
+                }
+            }
+        }
+
+        return $settings;
+    }
+
     public function attributes(): array
     {
         return [

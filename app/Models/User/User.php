@@ -100,9 +100,13 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class);
     }
 
-    public function businessSetting(): HasOne
+    // Business settings, locations and staff each belong to one of the
+    // account's workspaces; these reach across all of them. The APIs go
+    // through the workspace instead (see Workspace).
+
+    public function businessSettings(): HasMany
     {
-        return $this->hasOne(BusinessSetting::class);
+        return $this->hasMany(BusinessSetting::class);
     }
 
     public function locations(): HasMany

@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\ResolveWorkspace;
 use App\Models\Frontend\Application;
 use App\Models\Shared\ActivityLog;
 use App\Models\User\User;
 use App\Models\User\UserStaff;
 use App\Models\User\Workspace;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
@@ -15,6 +17,16 @@ use Tests\TestCase;
 class UserStaffApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Seeded with the others, super-admin keeps id 1 - a "user" role made
+        // first by the factory would take it, and every account would pass for
+        // an admin, whose activity is not logged.
+        $this->seed(RoleSeeder::class);
+    }
 
     private function payload(array $overrides = []): array
     {
@@ -29,9 +41,24 @@ class UserStaffApiTest extends TestCase
         ], $overrides);
     }
 
+    /** The account's first business - the one the API answers for when none is picked. */
+    private function businessOf(User $user): Workspace
+    {
+        return $user->workspaces()->orderBy('id')->first()
+            ?? $user->workspaces()->create(['name' => 'Main Business']);
+    }
+
+    private function signIn(User $user): User
+    {
+        $this->businessOf($user);
+        Sanctum::actingAs($user);
+
+        return $user;
+    }
+
     private function staffOf(User $user, array $overrides = []): UserStaff
     {
-        return $user->userStaff()->create($this->payload($overrides));
+        return $this->businessOf($user)->staff()->create([...$this->payload($overrides), 'user_id' => $user->id]);
     }
 
     private function app(string $name, bool $active = true): Application
@@ -72,7 +99,7 @@ class UserStaffApiTest extends TestCase
 
     public function test_a_new_account_has_no_staff(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         $this->getJson('/api/v1/user-staff')
             ->assertOk()
@@ -89,7 +116,7 @@ class UserStaffApiTest extends TestCase
         $this->staffOf($user, ['name' => 'Alpha', 'email' => null, 'phone' => null, 'address' => null, 'state' => null, 'country' => null, 'status' => 0]);
         $this->staffOf($other, ['name' => 'Not Mine']);
 
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $response = $this->getJson('/api/v1/user-staff')
             ->assertOk()
@@ -114,7 +141,7 @@ class UserStaffApiTest extends TestCase
         $first  = $this->staffOf($user, ['name' => 'Same Name', 'email' => 'one@example.com']);
         $second = $this->staffOf($user, ['name' => 'Same Name', 'email' => 'two@example.com']);
 
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $response = $this->getJson('/api/v1/user-staff')->assertOk();
 
@@ -126,7 +153,7 @@ class UserStaffApiTest extends TestCase
     public function test_store_creates_a_staff_member_for_the_signed_in_user(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $this->postJson('/api/v1/user-staff', $this->payload())
             ->assertCreated()
@@ -143,7 +170,7 @@ class UserStaffApiTest extends TestCase
             ->assertJsonStructure(['data' => ['id']])
             ->assertJsonMissingPath('data.user_id');
 
-        $this->assertDatabaseHas('user_staff', array_merge(['user_id' => $user->id], $this->payload()));
+        $this->assertDatabaseHas('user_staff', array_merge(['user_id' => $user->id, 'workspace_id' => $this->businessOf($user)->id], $this->payload()));
     }
 
     public function test_the_signed_in_user_is_always_the_owner(): void
@@ -151,10 +178,10 @@ class UserStaffApiTest extends TestCase
         $first  = User::factory()->create();
         $second = User::factory()->create();
 
-        Sanctum::actingAs($first);
+        $this->signIn($first);
         $this->postJson('/api/v1/user-staff', $this->payload(['name' => 'First Owner Staff']))->assertCreated();
 
-        Sanctum::actingAs($second);
+        $this->signIn($second);
         $this->postJson('/api/v1/user-staff', $this->payload(['name' => 'Second Owner Staff']))->assertCreated();
 
         $this->assertDatabaseHas('user_staff', ['user_id' => $first->id, 'name' => 'First Owner Staff']);
@@ -165,7 +192,7 @@ class UserStaffApiTest extends TestCase
     {
         $victim   = User::factory()->create();
         $attacker = User::factory()->create();
-        Sanctum::actingAs($attacker);
+        $this->signIn($attacker);
 
         $this->postJson('/api/v1/user-staff', $this->payload(['user_id' => $victim->id]))->assertCreated();
 
@@ -176,7 +203,7 @@ class UserStaffApiTest extends TestCase
     public function test_the_address_state_and_country_are_optional(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $this->postJson('/api/v1/user-staff', ['name' => 'Required Only', 'email' => 'required@example.com', 'phone' => '+8801700000001', 'status' => 1])
             ->assertCreated()
@@ -200,7 +227,7 @@ class UserStaffApiTest extends TestCase
 
     public function test_the_name_email_phone_and_status_are_each_required(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         foreach (['name', 'email', 'phone', 'status'] as $field) {
             $without = $this->payload();
@@ -219,7 +246,7 @@ class UserStaffApiTest extends TestCase
 
     public function test_blank_optional_fields_are_stored_as_null_not_as_empty_text(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         $this->postJson('/api/v1/user-staff', $this->payload([
             'name'    => 'Blanks',
@@ -239,7 +266,7 @@ class UserStaffApiTest extends TestCase
     public function test_a_staff_member_can_be_added_as_inactive(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $response = $this->postJson('/api/v1/user-staff', $this->payload(['status' => 0]))->assertCreated();
 
@@ -249,7 +276,7 @@ class UserStaffApiTest extends TestCase
 
     public function test_the_status_is_kept_as_a_number_even_when_it_arrives_as_text(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         foreach ([0, 1] as $status) {
             $response = $this->postJson('/api/v1/user-staff', $this->payload(['status' => (string) $status]))->assertCreated();
@@ -260,7 +287,7 @@ class UserStaffApiTest extends TestCase
 
     public function test_the_status_must_be_one_or_zero(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         // Not a whole number, or not one of the two.
         foreach ([2, -1, 10, 1.5, 'active', 'inactive', 'yes', 'abc', [1], [0]] as $status) {
@@ -283,7 +310,7 @@ class UserStaffApiTest extends TestCase
     public function test_two_staff_members_may_share_a_name(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $this->postJson('/api/v1/user-staff', $this->payload())->assertCreated();
         $this->postJson('/api/v1/user-staff', $this->payload(['email' => 'another@example.com']))->assertCreated();
@@ -293,7 +320,7 @@ class UserStaffApiTest extends TestCase
 
     public function test_the_name_is_required_and_limited(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         $this->postJson('/api/v1/user-staff', [])
             ->assertUnprocessable()
@@ -308,7 +335,7 @@ class UserStaffApiTest extends TestCase
 
     public function test_a_name_of_only_spaces_counts_as_empty(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         $this->postJson('/api/v1/user-staff', $this->payload(['name' => '    ']))
             ->assertUnprocessable()
@@ -317,7 +344,7 @@ class UserStaffApiTest extends TestCase
 
     public function test_the_email_must_look_like_one(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         foreach (['not-an-email', 'missing@', '@missing.com', 'two words@example.com'] as $email) {
             $this->postJson('/api/v1/user-staff', $this->payload(['email' => $email]))
@@ -335,7 +362,7 @@ class UserStaffApiTest extends TestCase
 
     public function test_each_field_is_limited_to_what_its_column_holds(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         // One over the column width is refused, on that field and no other.
         foreach (['phone' => 30, 'address' => 255, 'state' => 100, 'country' => 100] as $field => $max) {
@@ -350,7 +377,7 @@ class UserStaffApiTest extends TestCase
 
     public function test_the_longest_values_are_accepted_and_the_log_entry_still_fits(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         $this->postJson('/api/v1/user-staff', [
             'name'    => str_repeat('n', 255),
@@ -372,7 +399,7 @@ class UserStaffApiTest extends TestCase
     {
         $user  = User::factory()->create();
         $staff = $this->staffOf($user);
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $this->putJson("/api/v1/user-staff/{$staff->id}", [
             'name'    => 'Karim Hossain',
@@ -409,7 +436,7 @@ class UserStaffApiTest extends TestCase
     {
         $user  = User::factory()->create();
         $staff = $this->staffOf($user);
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         // Cleared both ways: an explicit null, and a blank the form sends for an emptied input.
         $this->putJson("/api/v1/user-staff/{$staff->id}", $this->payload([
@@ -439,7 +466,7 @@ class UserStaffApiTest extends TestCase
     {
         $user  = User::factory()->create();
         $staff = $this->staffOf($user);
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         foreach (['name', 'email', 'phone', 'status'] as $field) {
             $without = $this->payload();
@@ -466,7 +493,7 @@ class UserStaffApiTest extends TestCase
     {
         $user  = User::factory()->create();
         $staff = $this->staffOf($user, ['status' => 0]);
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         // The required four, and nothing about the address, state or country.
         $this->putJson("/api/v1/user-staff/{$staff->id}", [
@@ -491,7 +518,7 @@ class UserStaffApiTest extends TestCase
     {
         $user  = User::factory()->create();
         $staff = $this->staffOf($user);
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $response = $this->putJson("/api/v1/user-staff/{$staff->id}", $this->payload(['status' => 0]))->assertOk();
 
@@ -508,7 +535,7 @@ class UserStaffApiTest extends TestCase
     {
         $user  = User::factory()->create();
         $staff = $this->staffOf($user, ['status' => 0]);
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         foreach ([null, '', 2, 'active'] as $status) {
             $this->putJson("/api/v1/user-staff/{$staff->id}", $this->payload(['status' => $status]))
@@ -523,7 +550,7 @@ class UserStaffApiTest extends TestCase
     {
         $user  = User::factory()->create();
         $staff = $this->staffOf($user);
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $this->putJson("/api/v1/user-staff/{$staff->id}", $this->payload(['name' => '', 'email' => 'nope']))
             ->assertUnprocessable()
@@ -537,7 +564,7 @@ class UserStaffApiTest extends TestCase
         $owner = User::factory()->create();
         $other = User::factory()->create();
         $staff = $this->staffOf($owner);
-        Sanctum::actingAs($owner);
+        $this->signIn($owner);
 
         $this->putJson("/api/v1/user-staff/{$staff->id}", $this->payload(['name' => 'Renamed', 'user_id' => $other->id]))->assertOk();
 
@@ -551,7 +578,7 @@ class UserStaffApiTest extends TestCase
     {
         $owner = User::factory()->create();
         $staff = $this->staffOf($owner);
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         $this->putJson("/api/v1/user-staff/{$staff->id}", $this->payload(['name' => 'Hijacked']))
             ->assertNotFound()
@@ -562,7 +589,7 @@ class UserStaffApiTest extends TestCase
 
     public function test_updating_a_staff_member_that_does_not_exist_is_a_404(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         $this->putJson('/api/v1/user-staff/999999', $this->payload())
             ->assertNotFound()
@@ -576,7 +603,7 @@ class UserStaffApiTest extends TestCase
         $user  = User::factory()->create();
         $staff = $this->staffOf($user);
         $kept  = $this->staffOf($user, ['name' => 'Keep Me']);
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $this->deleteJson("/api/v1/user-staff/{$staff->id}")
             ->assertOk()
@@ -593,7 +620,7 @@ class UserStaffApiTest extends TestCase
     {
         $owner = User::factory()->create();
         $staff = $this->staffOf($owner);
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         $this->deleteJson("/api/v1/user-staff/{$staff->id}")
             ->assertNotFound()
@@ -606,7 +633,7 @@ class UserStaffApiTest extends TestCase
     {
         $user  = User::factory()->create();
         $staff = $this->staffOf($user);
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $this->deleteJson("/api/v1/user-staff/{$staff->id}")->assertOk();
         $this->deleteJson("/api/v1/user-staff/{$staff->id}")->assertNotFound();
@@ -614,7 +641,7 @@ class UserStaffApiTest extends TestCase
 
     public function test_an_id_that_is_not_a_number_is_a_plain_404(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->signIn(User::factory()->create());
 
         $this->putJson('/api/v1/user-staff/abc', $this->payload())->assertNotFound();
         $this->deleteJson('/api/v1/user-staff/abc')->assertNotFound();
@@ -633,6 +660,54 @@ class UserStaffApiTest extends TestCase
         $this->assertSame([$kept->id], UserStaff::pluck('id')->all());
     }
 
+    /* ---------------------------------------------------------- one business at a time */
+
+    public function test_each_business_keeps_its_own_staff(): void
+    {
+        $user = User::factory()->create();
+        $this->staffOf($user, ['name' => 'First Business Staff']);
+
+        $second = $user->workspaces()->create(['name' => 'Second Business']);
+        $header = [ResolveWorkspace::HEADER => (string) $second->id];
+        $this->signIn($user);
+
+        $this->getJson('/api/v1/user-staff', $header)->assertOk()->assertExactJson(['data' => []]);
+        $this->postJson('/api/v1/user-staff', $this->payload(['name' => 'Second Business Staff']), $header)->assertCreated();
+
+        // No business picked: the oldest one's.
+        $this->assertSame(['First Business Staff'], array_column($this->getJson('/api/v1/user-staff')->json('data'), 'name'));
+        $this->assertSame(['Second Business Staff'], array_column($this->getJson('/api/v1/user-staff', $header)->json('data'), 'name'));
+        $this->assertSame(['Second Business Staff'], $second->staff()->pluck('name')->all());
+    }
+
+    public function test_a_staff_member_cannot_be_reached_from_another_business_of_the_same_owner(): void
+    {
+        $user   = User::factory()->create();
+        $staff  = $this->staffOf($user);
+        $second = $user->workspaces()->create(['name' => 'Second Business']);
+        $header = [ResolveWorkspace::HEADER => (string) $second->id];
+        $this->signIn($user);
+
+        $this->putJson("/api/v1/user-staff/{$staff->id}", $this->payload(['name' => 'Moved']), $header)
+            ->assertNotFound()
+            ->assertExactJson(['message' => 'Staff member not found.']);
+        $this->deleteJson("/api/v1/user-staff/{$staff->id}", [], $header)->assertNotFound();
+
+        $this->assertDatabaseHas('user_staff', ['id' => $staff->id, 'name' => 'Rahim Uddin', 'workspace_id' => $this->businessOf($user)->id]);
+    }
+
+    public function test_an_account_with_no_workspace_is_asked_to_create_one(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->getJson('/api/v1/user-staff')
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Create a workspace first.');
+        $this->postJson('/api/v1/user-staff', $this->payload())->assertNotFound();
+
+        $this->assertDatabaseCount('user_staff', 0);
+    }
+
     /* ---------------------------------------------------------- assignments */
 
     public function test_the_apps_and_workspaces_a_staff_member_is_assigned_to_are_saved(): void
@@ -642,7 +717,7 @@ class UserStaffApiTest extends TestCase
         $purchases = $this->app('Purchases Lite');
         $main      = $this->workspaceOf($user, 'Main');
         $branch    = $this->workspaceOf($user, 'Branch');
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $response = $this->postJson('/api/v1/user-staff', $this->payload([
             'assigned_apps'       => [$purchases->id, $sales->id],
@@ -669,7 +744,7 @@ class UserStaffApiTest extends TestCase
     public function test_assignments_are_optional_and_come_back_as_empty_lists(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         foreach ([[], ['assigned_apps' => null, 'assigned_workspaces' => null], ['assigned_apps' => [], 'assigned_workspaces' => []]] as $extra) {
             $response = $this->postJson('/api/v1/user-staff', $this->payload($extra))->assertCreated();
@@ -694,7 +769,7 @@ class UserStaffApiTest extends TestCase
         $b    = $this->app('B');
         $w1   = $this->workspaceOf($user, 'One');
         $w2   = $this->workspaceOf($user, 'Two');
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         // Text, and out of order: what a form may send.
         $response = $this->postJson('/api/v1/user-staff', $this->payload([
@@ -714,7 +789,7 @@ class UserStaffApiTest extends TestCase
         $w1    = $this->workspaceOf($user, 'One');
         $w2    = $this->workspaceOf($user, 'Two');
         $staff = $this->staffOf($user, ['assigned_apps' => [$a->id], 'assigned_workspaces' => [$w1->id]]);
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $this->putJson("/api/v1/user-staff/{$staff->id}", $this->payload(['assigned_apps' => [$b->id], 'assigned_workspaces' => [$w1->id, $w2->id]]))
             ->assertOk()
@@ -739,7 +814,7 @@ class UserStaffApiTest extends TestCase
         $a     = $this->app('A');
         $w1    = $this->workspaceOf($user, 'One');
         $staff = $this->staffOf($user, ['assigned_apps' => [$a->id], 'assigned_workspaces' => [$w1->id]]);
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $this->putJson("/api/v1/user-staff/{$staff->id}", $this->payload(['name' => 'Renamed']))
             ->assertOk()
@@ -755,7 +830,7 @@ class UserStaffApiTest extends TestCase
         $user    = User::factory()->create();
         $active  = $this->app('Active');
         $retired = $this->app('Retired', false);
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         // An app an admin has switched off, one that does not exist, and a non-id.
         foreach ([[$retired->id], [999999], ['sales'], [$active->id, 999999]] as $apps) {
@@ -781,7 +856,7 @@ class UserStaffApiTest extends TestCase
         $user      = User::factory()->create();
         $mine      = $this->workspaceOf($user, 'Mine');
         $someoneElses = $this->workspaceOf(User::factory()->create(), 'Not Mine');
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         foreach ([[$someoneElses->id], [999999], [$mine->id, $someoneElses->id]] as $workspaces) {
             $this->postJson('/api/v1/user-staff', $this->payload(['assigned_workspaces' => $workspaces]))
@@ -815,7 +890,7 @@ class UserStaffApiTest extends TestCase
         $neither  = $this->staffOf($user, ['name' => 'Neither', 'assigned_workspaces' => [$w1->id]]);
         // Another account's staff member cannot really hold this id; if one somehow does, it is not ours to edit.
         $foreign  = $this->staffOf($other, ['name' => 'Foreign', 'assigned_workspaces' => [$w2->id]]);
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $this->deleteJson("/api/v1/workspaces/{$w2->id}")->assertOk();
 
@@ -837,7 +912,7 @@ class UserStaffApiTest extends TestCase
         $a     = $this->app('A');
         $b     = $this->app('B');
         $staff = $this->staffOf($user, ['assigned_apps' => [$a->id, $b->id]]);
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         // The same two apps, sent the other way round, with a new name: only the name changed.
         $this->putJson("/api/v1/user-staff/{$staff->id}", $this->payload(['name' => 'Renamed', 'assigned_apps' => [$b->id, $a->id]]))->assertOk();
@@ -853,7 +928,7 @@ class UserStaffApiTest extends TestCase
     public function test_each_write_is_logged_once_by_name(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $id = $this->postJson('/api/v1/user-staff', $this->payload())->json('data.id');
         $this->putJson("/api/v1/user-staff/{$id}", $this->payload(['name' => 'Renamed']))->assertOk();
@@ -873,7 +948,7 @@ class UserStaffApiTest extends TestCase
     {
         $user  = User::factory()->create();
         $staff = $this->staffOf($user);
-        Sanctum::actingAs($user);
+        $this->signIn($user);
 
         $this->putJson("/api/v1/user-staff/{$staff->id}", $this->payload(['status' => 0]))->assertOk();
 

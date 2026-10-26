@@ -2,35 +2,26 @@
 @section('title', __('Apps'))
 
 @section('content')
-    <div class="mb-6 flex justify-end">
+    {{-- One toolbar row: filters on the left, page actions on the right. --}}
+    <div class="flex flex-wrap items-center gap-3 mb-4">
+        <form action="{{ route('admin.apps.index') }}" method="GET" class="flex flex-1 max-md:basis-full flex-wrap items-center gap-2 min-w-0">
+            <div class="search-input-wrapper flex-1 min-w-[200px]">
+                <i data-lucide="search" class="search-icon"></i>
+                <input type="text" name="search" value="{{ request('search') }}" placeholder="{{ __('Search apps...') }}" class="form-input search-input w-full">
+            </div>
+            <x-per-page-select />
+            <button type="submit" class="btn btn-secondary">
+                <i data-lucide="search" class="w-4 h-4"></i>{{ __('Filter') }}
+            </button>
+            <a href="{{ route('admin.apps.index') }}" class="btn btn-secondary self-stretch" title="{{ __('Reset') }}">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </a>
+        </form>
+
         <a href="{{ route('admin.apps.create') }}" class="btn btn-primary">
             <i data-lucide="plus" class="w-4 h-4"></i> {{ __('Add App') }}
         </a>
     </div>
-
-    <form action="{{ route('admin.apps.index') }}" method="GET" class="card mb-3">
-        <div class="flex flex-col md:flex-row md:items-end gap-3 w-full">
-            <div class="search-input-wrapper flex-1 min-w-0 ![max-width:none]">
-                <i data-lucide="search" class="search-icon"></i>
-                <input type="text" name="search" value="{{ request('search') }}" placeholder="{{ __('Search apps...') }}" class="form-input search-input w-full">
-            </div>
-            <div class="md:w-[140px] shrink-0">
-                <select name="per_page" class="form-select w-full" onchange="this.form.submit()">
-                    @foreach([10, 15, 25, 50, 100] as $option)
-                        <option value="{{ $option }}" {{ (int) request('per_page', 15) === $option ? 'selected' : '' }}>{{ $option }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="flex gap-2 shrink-0">
-                <button type="submit" class="btn btn-primary">
-                    <i data-lucide="search" class="w-4 h-4 me-1"></i>{{ __('Filter') }}
-                </button>
-                <a href="{{ route('admin.apps.index') }}" class="btn btn-secondary">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </a>
-            </div>
-        </div>
-    </form>
 
     {{-- Apps Table --}}
     <div class="card overflow-visible">
@@ -40,12 +31,12 @@
                     <tr>
                         <th>#</th>
                         <th>{{ __('App') }}</th>
-                        <th>{{ __('Edition') }}</th>
+                        <th>{{ __('Family / Edition') }}</th>
                         <th>{{ __('Category') }}</th>
-                        <th>{{ __('Price') }}</th>
+                        <th>{{ __('Plans') }}</th>
                         <th>{{ __('Status') }}</th>
                         <th>{{ __('Active') }}</th>
-                        <th>{{ __('Created') }}</th>
+                        <th>{{ __('Order') }}</th>
                         <th class="text-end">{{ __('Actions') }}</th>
                     </tr>
                 </thead>
@@ -58,43 +49,42 @@
                                     @if($app->logo_url)
                                         <img src="{{ asset('storage/'.$app->logo_url) }}" alt="{{ $app->name }}" class="w-9 h-9 rounded-lg object-cover shrink-0">
                                     @else
-                                        <div class="user-avatar w-9 h-9">
-                                            {{ strtoupper(substr($app->name, 0, 1)) }}
+                                        <div class="w-9 h-9 rounded-lg shrink-0 flex items-center justify-center bg-[var(--primary-light)] text-[var(--primary)]">
+                                            <i data-lucide="{{ $app->icon ?: 'app-window' }}" class="w-4 h-4"></i>
                                         </div>
                                     @endif
                                     <div>
                                         <span class="font-semibold text-[var(--text-primary)]">{{ $app->name }}</span>
-                                        @if($app->description)
-                                            <span class="block text-xs text-[var(--text-muted)] line-clamp-1">{{ \Illuminate\Support\Str::limit($app->description, 50) }}</span>
-                                        @endif
+                                        <span class="block text-xs text-[var(--text-muted)]">{{ $app->app_key }}</span>
                                     </div>
                                 </div>
                             </td>
                             <td>
-                                @if($app->edition)
-                                    <span class="badge badge-active">{{ __($app->editionLabel()) }}</span>
-                                    <span class="block text-xs mt-1 text-[var(--text-muted)]">{{ $app->family_key }} · #{{ $app->sort_order }}</span>
-                                @else
-                                    <span class="text-[var(--text-muted)]">—</span>
-                                @endif
+                                <span class="badge {{ $app->edition === \App\Enums\Edition::Full ? 'badge-active' : 'badge-trial' }}">{{ __($app->editionLabel()) }}</span>
+                                <span class="block text-xs mt-1 text-[var(--text-muted)]">{{ $app->family_key }}</span>
                             </td>
                             <td>
                                 @if($app->category)
-                                    <span class="badge badge-info">{{ $app->category }}</span>
+                                    <span class="badge badge-info">{{ $app->category->name }}</span>
                                 @else
                                     <span class="text-[var(--text-muted)]">—</span>
                                 @endif
                             </td>
                             <td>
-                                <span class="text-sm font-medium">{{ number_format((float) $app->price, 2) }}</span>
+                                {{-- Its lowest plan is what matters: every plan above it includes it too. --}}
+                                @php
+                                    $lowest = $app->packages->sortBy('rank')->first();
+                                @endphp
+                                @if($lowest)
+                                    <span class="text-sm">{{ $lowest->name }}{{ $app->packages->count() > 1 ? ' +' : '' }}</span>
+                                @else
+                                    <span class="text-xs text-[var(--text-muted)]">{{ __('No plan') }}</span>
+                                @endif
                             </td>
                             <td>
                                 @php
                                     $statusBadge = [
-                                        'included'    => 'badge-success',
-                                        'active'      => 'badge-active',
                                         'available'   => 'badge-trial',
-                                        'locked'      => 'badge-cancelled',
                                         'coming_soon' => 'badge-warning',
                                     ][$app->status] ?? 'badge-inactive';
                                 @endphp
@@ -107,9 +97,7 @@
                                     <span class="badge badge-inactive">{{ __('No') }}</span>
                                 @endif
                             </td>
-                            <td class="text-sm text-[var(--text-muted)]">
-                                {{ $app->created_at->format('M d, Y') }}
-                            </td>
+                            <td class="text-sm text-[var(--text-muted)]">{{ $app->sort_order }}</td>
                             <td class="text-end">
                                 <div class="action-dropdown-wrapper relative inline-block">
                                     <button class="action-dropdown-trigger" onclick="toggleDropdown(this)">
@@ -119,6 +107,11 @@
                                         <a href="{{ route('admin.apps.edit', $app->id) }}" class="action-dropdown-item">
                                             <i data-lucide="edit-2" class="w-4 h-4"></i> {{ __('Edit') }}
                                         </a>
+                                        @if($app->edition === \App\Enums\Edition::Lite && ! $hasFull->has($app->family_key))
+                                            <a href="{{ route('admin.apps.create', ['full_of' => $app->id]) }}" class="action-dropdown-item">
+                                                <i data-lucide="arrow-up-circle" class="w-4 h-4"></i> {{ __('Add Full edition') }}
+                                            </a>
+                                        @endif
                                         <button type="button" class="action-dropdown-item w-full" onclick="openConfirmModal('delete-app-{{ $app->id }}')">
                                             <i data-lucide="trash-2" class="w-4 h-4"></i> {{ __('Delete') }}
                                         </button>

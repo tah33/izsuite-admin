@@ -3,41 +3,46 @@
 namespace App\Repositories\User;
 
 use App\Models\User\Location;
-use App\Models\User\User;
+use App\Models\User\Workspace;
 use Illuminate\Database\Eloquent\Collection;
 
+/**
+ * Locations belong to one business (workspace). Every lookup is scoped to it,
+ * so another business's location - the same owner's or anyone else's - is
+ * simply not found.
+ */
 class LocationRepository
 {
     /**
      * Alphabetical, with the id as tie-breaker so two locations sharing a name
      * always come back in the same order.
      */
-    public function getForUser(User $user): Collection
+    public function getFor(Workspace $workspace): Collection
     {
-        return Location::where('user_id', $user->id)->orderBy('name')->orderBy('id')->get();
+        return $workspace->locations()->orderBy('name')->orderBy('id')->get();
+    }
+
+    public function findFor(Workspace $workspace, int $id): ?Location
+    {
+        return $workspace->locations()->find($id);
     }
 
     /**
-     * Scoped to the owner: another account's id finds nothing, so callers
-     * cannot tell "not yours" from "does not exist".
+     * Made through the business, so its workspace and owner are always the
+     * business's own - never read from $data.
      */
-    public function findForUser(User $user, int $id): ?Location
+    public function create(Workspace $workspace, array $data): Location
     {
-        return Location::where('user_id', $user->id)->find($id);
-    }
-
-    public function create(User $user, array $data): Location
-    {
-        return $user->locations()->create($data);
+        return $workspace->locations()->create([...$data, 'user_id' => $workspace->user_id]);
     }
 
     /**
-     * The owner's location matching $attributes, made from them if there is none
-     * yet - for something that may run twice and must still leave only one.
+     * The business's location matching $attributes, made from them if there is
+     * none yet - for something that may run twice and must still leave only one.
      */
-    public function firstOrCreateForUser(User $user, array $attributes): Location
+    public function firstOrCreateFor(Workspace $workspace, array $attributes): Location
     {
-        return $user->locations()->firstOrCreate($attributes);
+        return $workspace->locations()->firstOrCreate($attributes, ['user_id' => $workspace->user_id]);
     }
 
     public function update(Location $location, array $data): Location

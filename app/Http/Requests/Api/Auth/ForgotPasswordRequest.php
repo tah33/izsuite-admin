@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Api\Auth;
 
-use App\Models\Admin\Role;
+use App\Repositories\Admin\RoleRepository;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -53,7 +53,7 @@ class ForgotPasswordRequest extends FormRequest
      */
     private function userRoleIds(): array
     {
-        return Role::where('slug', 'user')->pluck('id')->all();
+        return app(RoleRepository::class)->idsOf('user');
     }
 
     public function messages(): array

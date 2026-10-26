@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreAppCategoryRequest;
 use App\Models\Frontend\AppCategory;
-use App\Services\Shared\ActivityLogService;
 use App\Services\Admin\AppCategoryService;
 use Illuminate\Http\Request;
 
@@ -59,9 +58,7 @@ class AppCategoryController extends Controller
             $validated = $request->validated();
             $validated['is_active'] = $request->boolean('is_active');
 
-            $appCategory = $this->appCategoryService->create($validated);
-
-            ActivityLogService::record('created', "Created app category \"{$appCategory->name}\"", $appCategory);
+            $this->appCategoryService->create($validated);
 
             return $this->adminSuccess(
                 $request,
@@ -112,8 +109,6 @@ class AppCategoryController extends Controller
 
             $this->appCategoryService->update($appCategory, $validated);
 
-            ActivityLogService::record('updated', "Updated app category \"{$appCategory->name}\"", $appCategory);
-
             return $this->adminSuccess(
                 $request,
                 'App category updated successfully.',
@@ -142,8 +137,6 @@ class AppCategoryController extends Controller
 
             $state = $appCategory->is_active ? 'activated' : 'deactivated';
 
-            ActivityLogService::record('updated', "Toggled app category \"{$appCategory->name}\" to {$state}", $appCategory);
-
             return $this->adminSuccess(
                 $request,
                 "\"{$appCategory->name}\" has been {$state}.",
@@ -168,10 +161,11 @@ class AppCategoryController extends Controller
                 abort(404);
             }
 
-            $name = $appCategory->name;
-            $this->appCategoryService->delete($appCategory);
+            if ($problem = $this->appCategoryService->deletionProblem($appCategory)) {
+                return $this->adminFailure(request(), $problem, 422);
+            }
 
-            ActivityLogService::record('deleted', "Deleted app category \"{$name}\"");
+            $this->appCategoryService->delete($appCategory);
 
             return $this->adminSuccess(
                 request(),

@@ -4,8 +4,8 @@ namespace App\Services\Api\Auth;
 
 use App\Events\UserRegistered;
 use App\Mail\PasswordChanged;
-use App\Models\Admin\Role;
 use App\Models\User\User;
+use App\Repositories\Admin\RoleRepository;
 use App\Repositories\User\UserRepository;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -40,6 +40,7 @@ class AuthService
     public function __construct(
         protected UserRepository $userRepository,
         protected EmailVerificationService $emailVerification,
+        protected RoleRepository $roleRepository,
     ) {}
 
     /**
@@ -91,7 +92,7 @@ class AuthService
 
         $this->emailVerification->issue($user);
 
-        return $user;
+        return $this->userRepository->loadRole($user);
     }
 
     /**
@@ -127,7 +128,8 @@ class AuthService
             $this->rejectUnverifiedEmail();
         }
 
-        $token = $user->createToken(
+        $token = $this->userRepository->createToken(
+            $user,
             $data['device_name'] ?? self::DEFAULT_DEVICE_NAME,
             ['*'],
             $this->tokenExpiry((bool) ($data['remember'] ?? false)),
@@ -143,7 +145,13 @@ class AuthService
             'token_name' => $token->accessToken->name,
         ]);
 
-        return ['user' => $user, 'token' => $token];
+        return ['user' => $this->userRepository->loadRole($user), 'token' => $token];
+    }
+
+    /** The account holding the request's token, with its role, for the client. */
+    public function currentUser(User $user): User
+    {
+        return $this->userRepository->loadRole($user);
     }
 
     /**
@@ -152,7 +160,7 @@ class AuthService
      */
     public function logout(User $user): void
     {
-        $user->currentAccessToken()?->delete();
+        $this->userRepository->revokeCurrentToken($user);
 
         ActivityLogService::record('logout', 'Signed out of the izSuite frontend', $user, [
             'source' => 'api',
@@ -171,13 +179,9 @@ class AuthService
      */
     public function changePassword(User $user, string $password): int
     {
-        $current = $user->currentAccessToken();
+        $revoked = $this->userRepository->revokeTokens($user, $user->currentAccessToken());
 
-        $revoked = $user->tokens()
-            ->when($current, fn ($q) => $q->where('id', '!=', $current->id))
-            ->delete();
-
-        $user->forceFill(['password' => $password])->save();
+        $this->userRepository->forceUpdate($user, ['password' => $password]);
 
         ActivityLogService::record('updated', 'Changed their password', $user, [
             'source'         => 'api',
@@ -202,7 +206,7 @@ class AuthService
      */
     public function logoutFromAllDevices(User $user): int
     {
-        $revoked = $user->tokens()->delete();
+        $revoked = $this->userRepository->revokeTokens($user);
 
         ActivityLogService::record('logout', 'Signed out of every izSuite device', $user, [
             'source'         => 'api',
@@ -239,7 +243,7 @@ class AuthService
      */
     private function frontendRoleId(): int
     {
-        $roleId = Role::where('slug', self::FRONTEND_ROLE_SLUG)->value('id');
+        $roleId = $this->roleRepository->idOf(self::FRONTEND_ROLE_SLUG);
 
         if (! $roleId) {
             throw new RuntimeException(sprintf(

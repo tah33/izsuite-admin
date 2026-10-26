@@ -27,7 +27,7 @@ class ProfileController extends Controller
     {
         try {
             return response()->json([
-                'user' => new UserResource($request->user()->loadMissing('role')),
+                'user' => new UserResource($this->profileService->show($request->user())),
             ]);
 
         } catch (\Throwable $e) {
@@ -43,7 +43,7 @@ class ProfileController extends Controller
 
             return response()->json([
                 'message' => 'Profile updated successfully.',
-                'user'    => new UserResource($user->loadMissing('role')),
+                'user'    => new UserResource($user),
             ]);
 
         } catch (\Throwable $e) {

@@ -72,6 +72,12 @@ class PlanRepository
         return Plan::active()->ordered()->get();
     }
 
+    /** An active plan; any other id is a 404. */
+    public function findActiveOrFail(int $id): Plan
+    {
+        return Plan::query()->where('is_active', true)->findOrFail($id);
+    }
+
     /**
      * Find a plan by ID with related data.
      */
@@ -106,5 +112,21 @@ class PlanRepository
     public function delete(Plan $plan): bool
     {
         return $plan->delete();
+    }
+
+    /**
+     * Remove every payment provider entry of a plan.
+     */
+    public function deletePaymentProviders(Plan $plan): void
+    {
+        $plan->paymentProviders()->delete();
+    }
+
+    /**
+     * Add a payment provider entry to a plan.
+     */
+    public function addPaymentProvider(Plan $plan, array $entry): void
+    {
+        $plan->paymentProviders()->create($entry);
     }
 }

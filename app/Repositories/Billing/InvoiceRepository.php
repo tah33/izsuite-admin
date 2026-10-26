@@ -45,6 +45,12 @@ class InvoiceRepository
         return $invoice->fresh();
     }
 
+    /** $invoice with what its PDF shows: the customer and the subscription. */
+    public function loadForPdf(Invoice $invoice): Invoice
+    {
+        return $invoice->loadMissing(['user', 'subscription']);
+    }
+
     public function latestForSubscription(int $subscriptionId): ?Invoice
     {
         return Invoice::where('subscription_id', $subscriptionId)

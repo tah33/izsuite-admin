@@ -5,17 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreOfflinePaymentMethodRequest;
 use App\Http\Requests\Admin\UpdatePaymentMethodRequest;
-use App\Models\Billing\PaymentMethod;
-use App\Services\Shared\ActivityLogService;
 use App\Services\Admin\PaymentMethodService;
-use App\Services\Support\ImageService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class PaymentMethodController extends Controller
 {
     public function __construct(
-        private readonly ImageService $imageService,
         protected PaymentMethodService $methodService,
     ) {}
 
@@ -57,21 +52,10 @@ class PaymentMethodController extends Controller
     public function store(StoreOfflinePaymentMethodRequest $request)
     {
         try {
-            $validated               = $request->validated();
+            $validated              = $request->validated();
+            $validated['is_active'] = $request->boolean('is_active');
 
-            $validated['type']       = 'offline';
-            $validated['slug']       = Str::slug($validated['name']);
-            $validated['is_active']  = $request->boolean('is_active');
-            $validated['sort_order'] = $validated['sort_order'] ?? 0;
-
-            if ($request->hasFile('image')) {
-                $validated['logo_url'] = $this->imageService->storePublic($request->file('image'), 'payment-methods');
-            }
-            unset($validated['image']);
-
-            $method                  = $this->methodService->create($validated);
-
-            ActivityLogService::record('created', "Created offline payment method \"{$method->name}\"", $method);
+            $this->methodService->createOffline($validated);
 
             return redirect()->route('admin.payment-methods.index', ['tab' => 'offline'])
                 ->with('success', 'Offline method created.');
@@ -112,11 +96,22 @@ class PaymentMethodController extends Controller
             $method = $this->methodService->find($id);
             abort_unless($method, 404);
 
+            $validated              = $request->validated();
+            $validated['is_active'] = $request->boolean('is_active');
+
             if ($method->type === 'online') {
-                return $this->updateOnline($request, $method);
+                $validated['is_sandbox'] = $request->boolean('is_sandbox');
+
+                $this->methodService->updateOnline($method, $validated);
+
+                return redirect()->route('admin.payment-methods.index', ['tab' => 'online'])
+                    ->with('success', "{$method->name} settings saved.");
             }
 
-            return $this->updateOffline($request, $method);
+            $this->methodService->updateOffline($method, $validated);
+
+            return redirect()->route('admin.payment-methods.index', ['tab' => 'offline'])
+                ->with('success', 'Offline method updated.');
 
         } catch (\Throwable $e) {
             report($e);
@@ -133,15 +128,11 @@ class PaymentMethodController extends Controller
             $method = $this->methodService->find($id);
             abort_unless($method, 404);
 
-            if ($method->type === 'online') {
-                return back()->with('error', 'Online gateways cannot be deleted — only deactivated.');
+            if ($problem = $this->methodService->deletionProblem($method)) {
+                return back()->with('error', $problem);
             }
 
-            $name   = $method->name;
-            $this->imageService->deletePublic($method->logo_url);
-            $this->methodService->delete($method);
-
-            ActivityLogService::record('deleted', "Deleted offline payment method \"{$name}\"");
+            $this->methodService->deleteOffline($method);
 
             return redirect()->route('admin.payment-methods.index', ['tab' => 'offline'])
                 ->with('success', 'Offline method deleted.');
@@ -150,46 +141,5 @@ class PaymentMethodController extends Controller
             report($e);
             throw $e;
         }
-    }
-
-    // ── Private ──
-
-    private function updateOffline(UpdatePaymentMethodRequest $request, PaymentMethod $method)
-    {
-        $validated               = $request->validated();
-
-        $validated['slug']       = Str::slug($validated['name']);
-        $validated['is_active']  = $request->boolean('is_active');
-        $validated['sort_order'] = $validated['sort_order'] ?? 0;
-
-        if ($request->hasFile('image')) {
-            $validated['logo_url'] = $this->imageService->storePublic($request->file('image'), 'payment-methods', $method->logo_url);
-        }
-        unset($validated['image']);
-
-        $this->methodService->update($method, $validated);
-
-        ActivityLogService::record('updated', "Updated offline payment method \"{$method->name}\"", $method);
-
-        return redirect()->route('admin.payment-methods.index', ['tab' => 'offline'])
-            ->with('success', 'Offline method updated.');
-    }
-
-    private function updateOnline(UpdatePaymentMethodRequest $request, PaymentMethod $method)
-    {
-        $validated = $request->validated();
-
-        $data      = [
-            'is_active'   => $request->boolean('is_active'),
-            'is_sandbox'  => $request->boolean('is_sandbox'),
-            'credentials' => $validated['credentials'] ?? [],
-        ];
-
-        $this->methodService->update($method, $data);
-
-        ActivityLogService::record('updated', "Updated online gateway \"{$method->name}\"", $method);
-
-        return redirect()->route('admin.payment-methods.index', ['tab' => 'online'])
-            ->with('success', "{$method->name} settings saved.");
     }
 }

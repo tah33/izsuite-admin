@@ -5,9 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreStaffRequest;
 use App\Http\Requests\Admin\UpdateStaffRequest;
-use App\Models\Admin\Role;
 use App\Services\Admin\StaffService;
-use App\Services\Shared\ActivityLogService;
 use Illuminate\Http\Request;
 
 class StaffController extends Controller
@@ -40,7 +38,7 @@ class StaffController extends Controller
     public function create()
     {
         try {
-            $roles = $this->getAdminRoles();
+            $roles = $this->staffService->assignableRoles();
 
             return view('admin.staff.create', compact('roles'));
 
@@ -56,18 +54,7 @@ class StaffController extends Controller
     public function store(StoreStaffRequest $request)
     {
         try {
-            $validated = $request->validated();
-
-            // Prevent assigning Super Admin role
-            if ((int) $validated['role_id'] === Role::SUPER_ADMIN_ID) {
-                abort(403);
-            }
-
-            $staff     = $this->staffService->create($validated);
-
-            // $staff->name is the composed accessor, so it reflects whatever
-            // first/last name actually landed on the row.
-            ActivityLogService::record('created', "Created staff member \"{$staff->name}\"", $staff);
+            $this->staffService->create($request->validated());
 
             return $this->adminSuccess(
                 $request,
@@ -87,13 +74,13 @@ class StaffController extends Controller
     public function edit(int $id)
     {
         try {
-            $staffUser = $this->staffService->find($id);
+            $staffUser = $this->staffService->findEditable($id);
 
-            if (! $staffUser || $staffUser->isSuperAdmin()) {
+            if (! $staffUser) {
                 abort(404);
             }
 
-            $roles     = $this->getAdminRoles();
+            $roles     = $this->staffService->assignableRoles();
 
             return view('admin.staff.edit', compact('staffUser', 'roles'));
 
@@ -109,22 +96,13 @@ class StaffController extends Controller
     public function update(UpdateStaffRequest $request, int $id)
     {
         try {
-            $staffUser = $this->staffService->find($id);
+            $staffUser = $this->staffService->findEditable($id);
 
-            if (! $staffUser || $staffUser->isSuperAdmin()) {
+            if (! $staffUser) {
                 abort(403);
             }
 
-            $validated = $request->validated();
-
-            // Prevent assigning Super Admin role
-            if ((int) $validated['role_id'] === Role::SUPER_ADMIN_ID) {
-                abort(403);
-            }
-
-            $this->staffService->update($staffUser, $validated);
-
-            ActivityLogService::record('updated', "Updated staff member \"{$staffUser->name}\"", $staffUser);
+            $this->staffService->update($staffUser, $request->validated());
 
             return $this->adminSuccess(
                 $request,
@@ -144,17 +122,15 @@ class StaffController extends Controller
     public function toggleStatus(int $id)
     {
         try {
-            $staffUser = $this->staffService->find($id);
+            $staffUser = $this->staffService->findEditable($id);
 
-            if (! $staffUser || $staffUser->isSuperAdmin()) {
+            if (! $staffUser) {
                 abort(403);
             }
 
             $this->staffService->toggleStatus($staffUser);
 
             $status    = $staffUser->status === 'active' ? 'activated' : 'deactivated';
-
-            ActivityLogService::record('updated', "Toggled staff \"{$staffUser->name}\" to {$status}", $staffUser);
 
             return $this->adminSuccess(
                 request(),
@@ -174,21 +150,17 @@ class StaffController extends Controller
     public function destroy(int $id)
     {
         try {
-            $staffUser = $this->staffService->find($id);
+            $staffUser = $this->staffService->findEditable($id);
 
-            if (! $staffUser || $staffUser->isSuperAdmin()) {
+            if (! $staffUser) {
                 abort(403);
             }
 
-            // Prevent deleting self
-            if ($staffUser->id === auth()->id()) {
-                return $this->adminFailure(request(), 'You cannot delete yourself.', 400);
+            if ($problem = $this->staffService->deletionProblem($staffUser)) {
+                return $this->adminFailure(request(), $problem, 400);
             }
 
-            $name      = $staffUser->name;
             $this->staffService->delete($staffUser);
-
-            ActivityLogService::record('deleted', "Deleted staff member \"{$name}\"");
 
             return $this->adminSuccess(
                 request(),
@@ -200,16 +172,5 @@ class StaffController extends Controller
             report($e);
             throw $e;
         }
-    }
-
-    /**
-     * Get roles suitable for staff assignment (exclude Super Admin & User).
-     */
-    protected function getAdminRoles()
-    {
-        return Role::where('id', '!=', Role::SUPER_ADMIN_ID)
-            ->whereNotIn('slug', ['recruiter', 'candidate'])
-            ->orderBy('name')
-            ->get();
     }
 }

@@ -24,6 +24,12 @@ class CurrencyRepository
             ->get();
     }
 
+    /** The active ones by name, for a dropdown. */
+    public function activeByName(): Collection
+    {
+        return Currency::active()->orderBy('name')->get();
+    }
+
     public function getPaginated(?string $search = null, int $perPage = 10): LengthAwarePaginator
     {
         return app(Pipeline::class)
@@ -41,6 +47,24 @@ class CurrencyRepository
     public function find(int $id): ?Currency
     {
         return Currency::find($id);
+    }
+
+    /**
+     * The active currency with code $code, if there is one.
+     */
+    public function findActiveByCode(string $code): ?Currency
+    {
+        return Currency::where('code', $code)->where('is_active', true)->first();
+    }
+
+    /**
+     * Leave no currency the default - apart from $except, when given.
+     */
+    public function clearDefault(?Currency $except = null): void
+    {
+        Currency::where('is_default', true)
+            ->when($except, fn ($query) => $query->where('id', '!=', $except->id))
+            ->update(['is_default' => false]);
     }
 
     public function create(array $data): Currency

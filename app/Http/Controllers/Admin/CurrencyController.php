@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\SaveCurrencyFormattingRequest;
 use App\Http\Requests\Admin\StoreCurrencyRequest;
 use App\Http\Requests\Admin\UpdateCurrencyRequest;
-use App\Services\Shared\ActivityLogService;
 use App\Services\Admin\CurrencyService;
 use Illuminate\Http\Request;
 
@@ -48,9 +47,7 @@ class CurrencyController extends Controller
             $validated['is_active']  = $request->boolean('is_active');
             $validated['is_default'] = $request->boolean('is_default');
 
-            $currency                = $this->currencyService->create($validated);
-
-            ActivityLogService::record('created', "Created currency \"{$currency->name}\"", $currency);
+            $this->currencyService->create($validated);
 
             return redirect()->route('admin.currencies.index')
                 ->with('success', 'Currency created.');
@@ -88,8 +85,6 @@ class CurrencyController extends Controller
 
             $this->currencyService->update($currency, $validated);
 
-            ActivityLogService::record('updated', "Updated currency \"{$currency->name}\"", $currency);
-
             return redirect()->route('admin.currencies.index')
                 ->with('success', 'Currency updated.');
 
@@ -105,14 +100,11 @@ class CurrencyController extends Controller
             $currency = $this->currencyService->find($id);
             abort_unless($currency, 404);
 
-            if ($currency->is_default) {
-                return back()->with('error', 'Cannot delete the default currency.');
+            if ($problem = $this->currencyService->deletionProblem($currency)) {
+                return back()->with('error', $problem);
             }
 
-            $name     = $currency->name;
             $this->currencyService->delete($currency);
-
-            ActivityLogService::record('deleted', "Deleted currency \"{$name}\"");
 
             return redirect()->route('admin.currencies.index')
                 ->with('success', 'Currency deleted.');
@@ -129,11 +121,7 @@ class CurrencyController extends Controller
     public function saveFormatting(SaveCurrencyFormattingRequest $request)
     {
         try {
-            $data = $request->validated();
-
-            setting($data);
-
-            ActivityLogService::record('updated', 'Updated currency formatting settings');
+            $this->currencyService->saveFormatting($request->validated());
 
             return redirect()->route('admin.currencies.index')
                 ->with('success', 'Formatting settings saved.');

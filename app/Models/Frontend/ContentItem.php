@@ -27,16 +27,6 @@ class ContentItem extends Model
     public const SECTION_TESTIMONIALS = 'testimonials';
 
     /**
-     * Get all items for a given section, ordered by sort_order.
-     */
-    public static function forSection(string $section)
-    {
-        return static::where('section', $section)
-            ->orderBy('sort_order')
-            ->get();
-    }
-
-    /**
      * Helper to get values from the JSON data attribute.
      */
     public function get(string $key, mixed $default = null): mixed

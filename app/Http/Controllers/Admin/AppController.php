@@ -2,24 +2,21 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\Edition;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\StoreAppDependencyRequest;
 use App\Http\Requests\Admin\StoreAppRequest;
-use App\Models\Frontend\AppCategory;
-use App\Models\Frontend\Application;
-use App\Services\Shared\ActivityLogService;
 use App\Services\Admin\AppService;
-use App\Services\Support\ImageService;
 use Illuminate\Http\Request;
 
 class AppController extends Controller
 {
     public function __construct(
         protected AppService $appService,
-        protected ImageService $imageService,
     ) {}
 
     /**
-     * List all apps.
+     * List all apps, families together.
      */
     public function index(Request $request)
     {
@@ -29,7 +26,10 @@ class AppController extends Controller
                 (int) $request->query('per_page', 15),
             );
 
-            return view('admin.apps.index', compact('apps'));
+            // Families that already have a Full edition, for "Add Full edition".
+            $hasFull = $this->appService->familiesWithFull();
+
+            return view('admin.apps.index', compact('apps', 'hasFull'));
 
         } catch (\Throwable $e) {
             report($e);
@@ -38,15 +38,16 @@ class AppController extends Controller
     }
 
     /**
-     * Show create form.
+     * Show create form - blank, or for the Full edition of a Lite app
+     * (?full_of={id}), which starts from the Lite app's family, category, icon
+     * and order.
      */
-    public function create()
+    public function create(Request $request)
     {
         try {
-            $app        = new Application();
-            $categories = AppCategory::where('is_active', true)->orderBy('name')->pluck('name', 'name');
+            $app = $this->appService->newApp($request->integer('full_of') ?: null);
 
-            return view('admin.apps.create', compact('app', 'categories'));
+            return view('admin.apps.create', ['app' => $app, 'categories' => $this->appService->categoryNames()]);
 
         } catch (\Throwable $e) {
             report($e);
@@ -60,21 +61,12 @@ class AppController extends Controller
     public function store(StoreAppRequest $request)
     {
         try {
-            $validated = $request->validated();
-
-            if ($request->hasFile('image')) {
-                $validated['logo_url'] = $this->imageService->storePublic($request->file('image'), 'apps');
-            }
-            unset($validated['image']);
-
-            $app = $this->appService->create($validated);
-
-            ActivityLogService::record('created', "Created app \"{$app->name}\"", $app);
+            $app = $this->appService->create($request->validated());
 
             return $this->adminSuccess(
                 $request,
                 'App created successfully.',
-                route('admin.apps.index')
+                route('admin.apps.edit', $app->id)
             );
 
         } catch (\Throwable $e) {
@@ -84,7 +76,7 @@ class AppController extends Controller
     }
 
     /**
-     * Show edit form.
+     * Show edit form, with the app's dependencies.
      */
     public function edit(int $id)
     {
@@ -95,9 +87,12 @@ class AppController extends Controller
                 abort(404);
             }
 
-            $categories = AppCategory::where('is_active', true)->orderBy('name')->pluck('name', 'name');
-
-            return view('admin.apps.edit', compact('app', 'categories'));
+            return view('admin.apps.edit', [
+                'app'        => $this->appService->withRequirements($app),
+                'categories' => $this->appService->categoryNames(),
+                // Every other family, by its Full name (else Lite), for "Requires".
+                'families'   => $this->appService->otherFamilyNames($app),
+            ]);
 
         } catch (\Throwable $e) {
             report($e);
@@ -117,16 +112,7 @@ class AppController extends Controller
                 abort(404);
             }
 
-            $validated = $request->validated();
-
-            if ($request->hasFile('image')) {
-                $validated['logo_url'] = $this->imageService->storePublic($request->file('image'), 'apps', $app->logo_url);
-            }
-            unset($validated['image']);
-
-            $this->appService->update($app, $validated);
-
-            ActivityLogService::record('updated', "Updated app \"{$app->name}\"", $app);
+            $this->appService->update($app, $request->validated());
 
             return $this->adminSuccess(
                 $request,
@@ -141,7 +127,7 @@ class AppController extends Controller
     }
 
     /**
-     * Remove the specified app from storage.
+     * Remove the specified app - only one no business has ever turned on.
      */
     public function destroy(int $id)
     {
@@ -152,17 +138,61 @@ class AppController extends Controller
                 abort(404);
             }
 
-            $name = $app->name;
-            $this->imageService->deletePublic($app->logo_url);
-            $this->appService->delete($app);
+            if ($problem = $this->appService->deletionProblem($app)) {
+                return $this->adminFailure(request(), $problem, 422);
+            }
 
-            ActivityLogService::record('deleted', "Deleted app \"{$name}\"");
+            $this->appService->delete($app);
 
             return $this->adminSuccess(
                 request(),
                 'App deleted successfully.',
                 route('admin.apps.index')
             );
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /**
+     * Add something the app needs turned on first.
+     */
+    public function storeDependency(StoreAppDependencyRequest $request, int $id)
+    {
+        try {
+            $app = $this->appService->find($id);
+
+            if (! $app) {
+                abort(404);
+            }
+
+            $family = $request->validated('requires_family');
+            $min    = Edition::from($request->validated('min_edition'));
+
+            if ($problem = $this->appService->requirementProblem($app, $family, $min)) {
+                return $this->adminFailure($request, $problem, 422);
+            }
+
+            $this->appService->saveRequirement($app, $family, $min);
+
+            return $this->adminSuccess($request, 'Requirement saved.', route('admin.apps.edit', $app->id));
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    public function destroyDependency(Request $request, int $id, int $dependencyId)
+    {
+        try {
+            if (! $this->appService->deleteRequirement($id, $dependencyId)) {
+                abort(404);
+            }
+
+            return $this->adminSuccess($request, 'Requirement removed.', route('admin.apps.edit', $id));
 
         } catch (\Throwable $e) {
             report($e);

@@ -3,9 +3,11 @@
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\CheckEmailVerified;
 use App\Http\Middleware\ConvertAdminRedirectsToJson;
+use App\Http\Middleware\EnsureAppActive;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\LogApiWriteActivity;
 use App\Http\Middleware\PermissionCheckMiddleware;
+use App\Http\Middleware\ResolveWorkspace;
 use App\Http\Middleware\SetSessionLocale;
 use App\Http\Middleware\SetUserTimezone;
 use Illuminate\Auth\AuthenticationException;
@@ -43,6 +45,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => PermissionCheckMiddleware::class,
             'role'       => EnsureRole::class,
             'verified'   => CheckEmailVerified::class,
+            'workspace'  => ResolveWorkspace::class,
+            'app'        => EnsureAppActive::class,
         ]);
 
         $middleware->web(append: [

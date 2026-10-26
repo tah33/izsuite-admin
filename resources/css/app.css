@@ -297,28 +297,70 @@ body {
 /* ============================================
    CARDS
    ============================================ */
+/* Same values as the wwp admin panel. This rule is unlayered, so it beats
+   Tailwind utilities (which live in @layer utilities): `card p-0` / `card p-4`
+   do not change the padding, in wwp or here. */
 .card {
     background: var(--card-bg);
     border: 1px solid var(--card-border);
-    border-radius: 12px;
+    border-radius: var(--card-radius, 16px);
     box-shadow: var(--card-shadow);
-    padding: 0.75rem;
-    transition: box-shadow 0.2s ease;
+    padding: 1.5rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* wwp also lifts cards (translateY) on hover. Not here: the list pages open
+   action menus and confirm modals as position:fixed elements *inside* the
+   card, and a transformed ancestor becomes their containing block, so they
+   would open in the wrong place. wwp portals its menus to <body> instead. */
 .card:hover {
-    box-shadow: var(--card-shadow-hover);
+    box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.08), 0 4px 12px -5px rgba(0, 0, 0, 0.03);
+    border-color: var(--primary-a20);
 }
 
 .stat-card {
-    background: var(--card-bg);
+    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(255, 255, 255, 0.9) 100%);
     border: 1px solid var(--card-border);
-    border-radius: 12px;
+    border-radius: var(--card-radius, 16px);
     box-shadow: var(--card-shadow);
     padding: 1.25rem 1.5rem;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--primary), transparent 97%) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.stat-card:hover {
+    box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.08);
+    transform: translateY(-3px);
+    border-color: var(--primary-a25);
+}
+
+/* Dashboard card container horizontal scroll */
+.dashboard-cards {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    display: flex;
+    gap: 1.5rem;
+    padding-bottom: 1rem;
+}
+.dashboard-cards > * {
+    scroll-snap-align: start;
+    flex: 0 0 auto;
 }
 
 .stat-card .stat-value {
@@ -495,6 +537,11 @@ body {
     color: #991B1B;
 }
 
+.badge-danger {
+    background: var(--danger-light);
+    color: #991B1B;
+}
+
 .badge-trial {
     background: var(--info-light);
     color: #093C9A;
@@ -519,6 +566,41 @@ body {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px var(--primary-a15);
 }
+
+select.form-input {
+    padding: 0.625rem 2rem 0.625rem 0.875rem;
+    background: var(--card-bg) url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") no-repeat right 0.75rem center/12px;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
+.form-input-group { position: relative; }
+.form-input-group .form-input-icon-start { padding-left: 2.5rem; }
+.form-input-group .form-input-icon-end   { padding-right: 2.5rem; }
+.form-input-group > svg,
+.form-input-group > i {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+.form-input-group > svg:first-of-type,
+.form-input-group > i:first-of-type { left: 0.875rem; }
+.form-input-group > button.form-input-action {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    cursor: pointer;
+    pointer-events: auto;
+    display: inline-flex;
+}
+.form-input-group > button.form-input-action:hover { color: var(--text-primary); }
 
 .form-label {
     display: block;
@@ -547,6 +629,320 @@ body {
 }
 
 /* ============================================
+   SELECT2 — theme (same as the wwp admin, in the izSuite brand colours)
+   ============================================ */
+/*
+ * app.js turns every <select> in the panel into a Select2. The goal: a Select2
+ * sat next to a plain <input class="form-input"> is indistinguishable in
+ * height, border, radius, type and focus ring.
+ *
+ * Every rule carries `body ` in front, as in wwp: whatever order the vendor
+ * sheet and this file end up loading in, these win every tie - and they still
+ * match the open list, which Select2 renders as a direct child of <body>.
+ */
+body .select2-container {
+    font-size: 0.875rem;
+}
+/* The control next to the <select> fills its form cell (each one is set up
+   with width:'100%'). Never force a width on `.select2-container` in general:
+   the open list is ALSO a `.select2-container`, appended to <body> and placed
+   at the trigger's left edge - a 100% width there makes it a viewport-wide box
+   hanging off the right of the page. */
+select.select2-hidden-accessible + .select2-container {
+    display: block;
+}
+
+body .select2-container--default .select2-selection--single,
+body .select2-container--default .select2-selection--multiple {
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    min-height: 0;
+    height: auto;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+/* ── Single ── */
+body .select2-container--default .select2-selection--single {
+    padding: 0.625rem 2rem 0.625rem 0.875rem;   /* right pad = room for the chevron, same as select.form-input */
+}
+
+body .select2-container--default .select2-selection--single .select2-selection__rendered {
+    padding: 0;
+    line-height: 1.5;   /* the line height a .form-input inherits, so the two match to the pixel */
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+}
+
+body .select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: var(--text-muted);
+}
+
+/* The chevron: the same SVG, size and offset select.form-input draws with. */
+body .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 100%;
+    top: 0;
+    right: 0.75rem;
+    width: 12px;
+    background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") no-repeat center/12px;
+    transition: transform 0.15s ease;
+}
+body .select2-container--default .select2-selection--single .select2-selection__arrow b { display: none; }
+body .select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow {
+    transform: rotate(180deg);
+}
+/* Right-to-left pages: the chevron and its room move to the left. */
+body .select2-container--default[dir="rtl"] .select2-selection--single {
+    padding: 0.625rem 0.875rem 0.625rem 2rem;
+}
+body .select2-container--default[dir="rtl"] .select2-selection--single .select2-selection__arrow {
+    right: auto;
+    left: 0.75rem;
+}
+
+/* A compact one (class="select-sm" on the <select>) for tight spots - the
+   topbar's Rows picker, a status switch in a page header. */
+body .select2-container--default .select2-selection--single.s2-sm {
+    padding-top: 0.4375rem;
+    padding-bottom: 0.4375rem;
+    font-size: 0.8125rem;
+}
+
+/* ── Multiple: picks as pills, capped so a long list scrolls instead of
+   shoving the rest of the form down ── */
+body .select2-container--default .select2-selection--multiple {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.375rem 0.5rem;
+    max-height: 7.5rem;
+    overflow-y: auto;
+    cursor: text;
+}
+
+body .select2-container--default .select2-selection--multiple .select2-selection__rendered {
+    display: contents;   /* the pills and the search field share the flex row */
+}
+
+body .select2-container--default .select2-selection--multiple .select2-selection__choice {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin: 0;
+    padding: 0.125rem 0.375rem;
+    background: var(--primary-light);
+    color: var(--primary);
+    border: 1px solid var(--primary-a25);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    line-height: 1.125rem;
+    font-weight: 500;
+}
+
+body .select2-container--default .select2-selection--multiple .select2-selection__choice__display {
+    padding: 0;
+}
+
+body .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    position: static;
+    order: 2;
+    border: 0;
+    border-left: 1px solid var(--primary-a25);
+    border-radius: 0 4px 4px 0;
+    padding: 0 0.3rem;
+    margin-left: 0.125rem;
+    color: inherit;
+    opacity: 0.7;
+    font-size: 1rem;
+    line-height: 1;
+    background: transparent;
+}
+body .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+    background: var(--primary-a10);
+    color: inherit;
+    opacity: 1;
+}
+
+body .select2-container--default .select2-selection--multiple .select2-selection__clear { display: none; }
+
+body .select2-container--default .select2-search--inline {
+    display: inline-flex;
+    flex: 1 1 4rem;
+}
+body .select2-container--default .select2-search--inline .select2-search__field {
+    margin: 0;
+    height: 1.25rem;
+    font-size: 0.875rem;
+    font-family: inherit;
+    color: var(--text-primary);
+    background: transparent;
+}
+body .select2-container--default .select2-search--inline .select2-search__field::placeholder {
+    color: var(--text-muted);
+}
+
+/* ── Focus ring identical to .form-input:focus ── */
+body .select2-container--default.select2-container--focus .select2-selection,
+body .select2-container--default.select2-container--open .select2-selection {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-a15);
+    outline: none;
+}
+
+body .select2-container--default.select2-container--disabled .select2-selection {
+    background: var(--content-bg);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+/* A field the server sent back an error for (app.js marks it) */
+body .select2-container--default.has-error .select2-selection {
+    border-color: var(--danger);
+    background-color: var(--danger-light);
+}
+body .select2-container--default.has-error.select2-container--focus .select2-selection,
+body .select2-container--default.has-error.select2-container--open .select2-selection {
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+/* ── Dropdown ── */
+body .select2-container--open {
+    /* Rendered on <body>, so it sits above the modals (50) and the toasts
+       (9999) it may open over. */
+    z-index: 100000;
+}
+
+body .select2-container--default .select2-dropdown {
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    background: var(--card-bg);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+}
+body .select2-container--default .select2-dropdown--below { margin-top: 0.375rem; }
+body .select2-container--default .select2-dropdown--above { margin-top: -0.375rem; }
+
+body .select2-container--default .select2-search--dropdown {
+    padding: 0.5rem 0.5rem 0.25rem;
+}
+body .select2-container--default .select2-search--dropdown .select2-search__field {
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.875rem;
+    font-family: inherit;
+    color: var(--text-primary);
+    background: var(--card-bg);
+    outline: none;
+}
+body .select2-container--default .select2-search--dropdown .select2-search__field:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-a15);
+}
+
+/* The vendor caps the list at 200px, which cuts the last row clean in half and
+   makes the panel look truncated rather than scrollable. */
+body .select2-container--default .select2-results > .select2-results__options {
+    max-height: 17rem;
+    padding: 0.25rem 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-a35) transparent;
+}
+body .select2-container--default .select2-results > .select2-results__options::-webkit-scrollbar { width: 6px; }
+body .select2-container--default .select2-results > .select2-results__options::-webkit-scrollbar-track { background: transparent; }
+body .select2-container--default .select2-results > .select2-results__options::-webkit-scrollbar-thumb {
+    background: var(--primary-a35);
+    border-radius: 10px;
+}
+
+body .select2-container--default .select2-results__option {
+    padding: 0.5rem 0.875rem;
+    font-size: 0.875rem;
+    line-height: 1.35;
+    color: var(--text-primary);
+}
+body .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
+    background: var(--primary-light);
+    color: var(--primary-dark);
+}
+body .select2-container--default .select2-results__option--selected {
+    background: var(--content-bg);
+    font-weight: 600;
+}
+body .select2-container--default .select2-results__option--highlighted.select2-results__option--selected {
+    background: var(--primary-light);
+}
+body .select2-container--default .select2-results__message,
+body .select2-container--default .select2-results__option--disabled {
+    color: var(--text-muted);
+}
+
+/* ============================================
+   BRANDED CHECKBOX
+   Global — every <input type="checkbox"> in the admin panel gets this
+   automatically, no class needed. (Deliberately a bare type/attribute
+   selector, not a class, so existing markup needs zero changes; any
+   leftover sizing/color utility classes on individual checkboxes just
+   become harmless no-ops.)
+   ============================================ */
+input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    border: 1.5px solid var(--card-border);
+    border-radius: 4px;
+    background: var(--card-bg);
+    display: inline-block;
+    vertical-align: middle;
+    position: relative;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+input[type="checkbox"]:hover { border-color: var(--primary); }
+input[type="checkbox"]:checked,
+input[type="checkbox"]:indeterminate {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 1px;
+    width: 5px;
+    height: 9px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+input[type="checkbox"]:indeterminate::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 7px;
+    width: 10px;
+    height: 2px;
+    background: #fff;
+}
+input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+input[type="checkbox"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ============================================
    TABLES
    ============================================ */
 .table-container {
@@ -562,7 +958,7 @@ body {
 }
 
 .data-table thead th {
-    padding: 0.2rem 0.75rem;
+    padding: 0.75rem 1rem;
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -574,7 +970,7 @@ body {
 }
 
 .data-table tbody td {
-    padding: 0.3rem 0.75rem;
+    padding: 0.875rem 1rem;
     font-size: 0.875rem;
     color: var(--text-primary);
     border-bottom: 1px solid var(--card-border);
@@ -871,7 +1267,9 @@ body {
     display: none;
     position: fixed;
     inset: 0;
-    z-index: 100;
+    /* Always the topmost layer: a confirmation is opened from whatever is
+       already on screen. Below toasts (9999). */
+    z-index: 1000;
     background: rgba(0, 0, 0, 0.45);
     backdrop-filter: blur(4px);
     align-items: center;
@@ -1125,9 +1523,51 @@ body {
     padding: 0.75rem;
 }
 
+/* Pasted content (a designed email, a newsletter) brings fixed-width tables
+   and full-size images that would push the editor past its card. Scale images
+   to the box and let anything still too wide scroll inside the editor.
+   Display only — the stored markup is untouched. */
+.note-editor .note-editable img {
+    max-width: 100%;
+    height: auto;
+}
+
+.note-editor .note-editable {
+    overflow-x: auto;
+    overflow-wrap: break-word;
+}
+
 .note-editor .note-toolbar {
     border-radius: 0.5rem 0.5rem 0 0 !important;
     background: var(--bg-secondary) !important;
+}
+
+/* Summernote ships its own hardcoded coral "primary" (#fa6362) for modal
+   action buttons (e.g. Insert Image), which clashes with the panel and reads
+   as broken. Also gives the genuinely-disabled state a clear grayed-out look. */
+.note-modal-content .note-btn-primary,
+.note-modal-content .note-btn-primary:hover,
+.note-modal-content .note-btn-primary:focus {
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+    transition: none !important;
+}
+.note-modal-content .note-btn-primary:disabled,
+.note-modal-content .note-btn-primary:disabled:hover {
+    background: #cbd5e1 !important;
+    border-color: #cbd5e1 !important;
+    color: #fff !important;
+    cursor: not-allowed !important;
+}
+
+/* Summernote's dialog footer is a fixed 40px box holding a floated button
+   taller than itself, so the button escapes it and lands flush against the
+   modal's bottom edge. Size the footer to its content and pad it to match the
+   dialog body. */
+.note-modal-footer {
+    height: auto !important;
+    padding: 18px 30px 22px !important;
+    overflow: hidden;
 }
 
 /* File Drop Zone */
@@ -1520,6 +1960,69 @@ input.is-loading .admin-spinner {
     font-size: 12px;
     margin-top: 4px;
     line-height: 1.4;
+}
+
+/* ============================================
+   BUTTON CURSOR  (admin panel default)
+   Tailwind 4's preflight resets buttons to cursor: default.
+   ============================================ */
+button:not(:disabled),
+[role="switch"]:not(:disabled),
+[type="submit"]:not(:disabled),
+[type="button"]:not(:disabled) {
+    cursor: pointer;
+}
+
+button:disabled,
+[type="submit"]:disabled,
+[type="button"]:disabled {
+    cursor: not-allowed;
+}
+
+/* ============================================
+   TOGGLE SWITCH
+   ============================================ */
+.admin-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    height: 1.5rem;       /* 24px */
+    width: 2.75rem;       /* 44px */
+    padding: 0;
+    border: 0;
+    border-radius: 9999px;
+    background-color: #d1d5db;
+    transition: background-color 0.2s ease;
+    cursor: pointer;
+}
+
+.admin-toggle:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.admin-toggle.is-on {
+    background-color: var(--success);
+}
+
+.admin-toggle__thumb {
+    display: inline-block;
+    width: 1rem;          /* 16px */
+    height: 1rem;
+    border-radius: 9999px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transform: translateX(0.25rem);
+    transition: transform 0.2s ease;
+}
+
+.admin-toggle.is-on .admin-toggle__thumb {
+    transform: translateX(1.5rem);
+}
+
+.admin-toggle.is-toggling {
+    opacity: 0.6;
+    cursor: progress;
 }
 
 /* UI Effects */

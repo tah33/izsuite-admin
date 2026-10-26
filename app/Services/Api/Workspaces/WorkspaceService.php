@@ -5,9 +5,13 @@ namespace App\Services\Api\Workspaces;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\UserStaffRepository;
+use App\Repositories\User\WorkspaceFileRepository;
 use App\Repositories\User\WorkspaceRepository;
+use App\Services\Files\FileStorage;
 use App\Services\Shared\ActivityLogService;
+use App\Services\User\Workspaces\SetUpNewWorkspace;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class WorkspaceService
@@ -15,6 +19,9 @@ class WorkspaceService
     public function __construct(
         protected WorkspaceRepository $workspaceRepository,
         protected UserStaffRepository $userStaffRepository,
+        protected FileStorage $fileStorage,
+        protected SetUpNewWorkspace $setUpNewWorkspace,
+        protected WorkspaceFileRepository $workspaceFileRepository,
     ) {}
 
     public function list(User $user): Collection
@@ -22,15 +29,24 @@ class WorkspaceService
         return $this->workspaceRepository->getForUser($user);
     }
 
+    /**
+     * A business added here starts the way registration starts the first one:
+     * with its Main Location, and its owner on its staff. All of it is made
+     * together or not at all, so a business never exists without them.
+     */
     public function create(User $user, array $data): Workspace
     {
-        $workspace = $this->workspaceRepository->create($user, $data);
+        return DB::transaction(function () use ($user, $data): Workspace {
+            $workspace = $this->workspaceRepository->create($user, $data);
 
-        // Each write is logged here, by name, so LogApiWriteActivity does not
-        // add its own vaguer "POST api/v1/workspaces" entry for the same request.
-        ActivityLogService::record('created', "Added workspace {$this->quoted($workspace)}", $workspace, ['source' => 'api']);
+            // Each write is logged here, by name, so LogApiWriteActivity does not
+            // add its own vaguer "POST api/v1/workspaces" entry for the same request.
+            ActivityLogService::record('created', "Added workspace {$this->quoted($workspace)}", $workspace, ['source' => 'api']);
 
-        return $workspace;
+            $this->setUpNewWorkspace->handle($workspace, $user, 'api');
+
+            return $workspace;
+        });
     }
 
     public function update(User $user, int $id, array $data): Workspace
@@ -41,7 +57,8 @@ class WorkspaceService
 
         ActivityLogService::record('updated', "Updated workspace {$this->quoted($workspace)}", $workspace, [
             'source' => 'api',
-            'fields' => array_keys(array_diff_key($workspace->getChanges(), ['updated_at' => true])),
+            // nav_version goes up with a rename - bookkeeping, not something the user changed.
+            'fields' => array_keys(array_diff_key($workspace->getChanges(), ['updated_at' => true, 'nav_version' => true])),
         ]);
 
         return $workspace;
@@ -51,9 +68,17 @@ class WorkspaceService
     {
         $workspace = $this->findOwned($user, $id);
 
+        // The business's own data - locations, settings, staff, contacts, items,
+        // payment accounts, the rows of its files - goes with it: the database
+        // cascades. The stored files do not, so they are removed once the rows
+        // are gone.
+        $files = $this->workspaceFileRepository->allFor($workspace);
+
         $this->workspaceRepository->delete($workspace);
 
-        // The staff it was assigned to must not go on listing a workspace that is gone.
+        $this->fileStorage->forgetLater($files);
+
+        // Staff of the owner's other businesses must not go on listing a workspace that is gone.
         $this->userStaffRepository->forgetWorkspace($user, $id);
 
         ActivityLogService::record('deleted', "Deleted workspace {$this->quoted($workspace)}", $workspace, ['source' => 'api']);

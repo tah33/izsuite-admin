@@ -2,35 +2,26 @@
 @section('title', __('App Categories'))
 
 @section('content')
-    <div class="mb-6 flex justify-end">
+    {{-- One toolbar row: filters on the left, page actions on the right. --}}
+    <div class="flex flex-wrap items-center gap-3 mb-4">
+        <form action="{{ route('admin.app-categories.index') }}" method="GET" class="flex flex-1 max-md:basis-full flex-wrap items-center gap-2 min-w-0">
+            <div class="search-input-wrapper flex-1 min-w-[200px]">
+                <i data-lucide="search" class="search-icon"></i>
+                <input type="text" name="search" value="{{ request('search') }}" placeholder="{{ __('Search categories...') }}" class="form-input search-input w-full">
+            </div>
+            <x-per-page-select />
+            <button type="submit" class="btn btn-secondary">
+                <i data-lucide="search" class="w-4 h-4"></i>{{ __('Filter') }}
+            </button>
+            <a href="{{ route('admin.app-categories.index') }}" class="btn btn-secondary self-stretch" title="{{ __('Reset') }}">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </a>
+        </form>
+
         <a href="{{ route('admin.app-categories.create') }}" class="btn btn-primary">
             <i data-lucide="plus" class="w-4 h-4"></i> {{ __('Add Category') }}
         </a>
     </div>
-
-    <form action="{{ route('admin.app-categories.index') }}" method="GET" class="card mb-3">
-        <div class="flex flex-col md:flex-row md:items-end gap-3 w-full">
-            <div class="search-input-wrapper flex-1 min-w-0 ![max-width:none]">
-                <i data-lucide="search" class="search-icon"></i>
-                <input type="text" name="search" value="{{ request('search') }}" placeholder="{{ __('Search categories...') }}" class="form-input search-input w-full">
-            </div>
-            <div class="md:w-[140px] shrink-0">
-                <select name="per_page" class="form-select w-full" onchange="this.form.submit()">
-                    @foreach([10, 15, 25, 50, 100] as $option)
-                        <option value="{{ $option }}" {{ (int) request('per_page', 15) === $option ? 'selected' : '' }}>{{ $option }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="flex gap-2 shrink-0">
-                <button type="submit" class="btn btn-primary">
-                    <i data-lucide="search" class="w-4 h-4 me-1"></i>{{ __('Filter') }}
-                </button>
-                <a href="{{ route('admin.app-categories.index') }}" class="btn btn-secondary">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </a>
-            </div>
-        </div>
-    </form>
 
     {{-- App Categories Table --}}
     <div class="card overflow-visible">
@@ -38,8 +29,9 @@
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>#</th>
+                        <th>{{ __('Order') }}</th>
                         <th>{{ __('Category Name') }}</th>
+                        <th>{{ __('Apps') }}</th>
                         <th>{{ __('Active') }}</th>
                         <th>{{ __('Created') }}</th>
                         <th class="text-end">{{ __('Actions') }}</th>
@@ -48,10 +40,14 @@
                 <tbody>
                     @forelse($categories as $category)
                         <tr>
-                            <td class="text-sm text-[var(--text-muted)]">{{ $categories->firstItem() + $loop->index }}</td>
+                            <td class="text-sm text-[var(--text-muted)]">{{ $category->sort_order }}</td>
                             <td>
-                                <span class="font-semibold text-[var(--text-primary)]">{{ $category->name }}</span>
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="{{ $category->icon ?: 'folder' }}" class="w-4 h-4 text-[var(--text-muted)]"></i>
+                                    <span class="font-semibold text-[var(--text-primary)]">{{ $category->name }}</span>
+                                </div>
                             </td>
+                            <td class="text-sm">{{ $category->apps_count ?? 0 }}</td>
                             <td>
                                 <form action="{{ route('admin.app-categories.toggle-status', $category->id) }}" method="POST" class="inline-block" onchange="this.request ? this.requestSubmit() : this.submit()">
                                     @csrf
@@ -93,7 +89,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-center py-8 text-[var(--text-muted)]">
+                            <td colspan="6" class="text-center py-8 text-[var(--text-muted)]">
                                 <i data-lucide="tags" class="w-8 h-8 mx-auto mb-2 opacity-40"></i>
                                 <p>{{ __('No app categories found.') }}</p>
                             </td>

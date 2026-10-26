@@ -2,21 +2,20 @@
 @section('title', __('Payment Methods'))
 
 @section('content')
-    <div class="mb-6 flex justify-end">
-        <a href="{{ route('admin.payment-methods.create') }}" class="btn btn-primary">
-            <i data-lucide="plus" class="w-4 h-4"></i>
-            {{ __('New Offline Method') }}
-        </a>
-    </div>
-
-    {{-- Tabs --}}
-    <div class="flex items-center gap-1 mb-4 border-b border-[var(--card-border)]">
+    {{-- Tabs, with the page action at the end of the same row. items-end keeps
+         the tabs' underline on the divider while the taller button sits above it. --}}
+    <div class="flex items-end gap-1 mb-4 border-b border-[var(--card-border)]">
         <button type="button" class="pm-tab px-4 py-2 text-sm font-medium rounded-t-lg transition-all border-b-2 -mb-[1px] {{ $tab === 'offline' ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]' }}" data-tab="offline">
             <i data-lucide="banknote" class="w-4 h-4 inline-block me-1"></i> {{ __('Offline Methods') }}
         </button>
         <button type="button" class="pm-tab px-4 py-2 text-sm font-medium rounded-t-lg transition-all border-b-2 -mb-[1px] {{ $tab === 'online' ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]' }}" data-tab="online">
             <i data-lucide="credit-card" class="w-4 h-4 inline-block me-1"></i> {{ __('Online Gateways') }}
         </button>
+
+        <a href="{{ route('admin.payment-methods.create') }}" class="btn btn-primary ms-auto mb-2">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            {{ __('New Offline Method') }}
+        </a>
     </div>
 
     {{-- Offline Tab --}}

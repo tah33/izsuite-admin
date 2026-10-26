@@ -3,21 +3,24 @@
 namespace App\Repositories\User;
 
 use App\Models\User\BusinessSetting;
-use App\Models\User\User;
+use App\Models\User\Workspace;
 
 class BusinessSettingRepository
 {
-    public function findForUser(User $user): ?BusinessSetting
+    public function findFor(Workspace $workspace): ?BusinessSetting
     {
-        return BusinessSetting::where('user_id', $user->id)->first();
+        return $workspace->businessSetting()->first();
     }
 
     /**
-     * One row per account (user_id is unique), so saving is "write over it, or
-     * create it the first time" - never a second row.
+     * One row per business (workspace_id is unique), so saving is "write over
+     * it, or create it the first time" - never a second row.
      */
-    public function save(User $user, array $data): BusinessSetting
+    public function save(Workspace $workspace, array $data): BusinessSetting
     {
-        return BusinessSetting::updateOrCreate(['user_id' => $user->id], $data);
+        return BusinessSetting::updateOrCreate(
+            ['workspace_id' => $workspace->id],
+            [...$data, 'user_id' => $workspace->user_id],
+        );
     }
 }

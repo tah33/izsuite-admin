@@ -9,7 +9,14 @@
 # would mean editing a dependency set owned by another repo, plus auditing the
 # app for state that leaks between requests. If Octane is wanted later it is a
 # one-line change in docker/entrypoint.sh.
-FROM dunglas/frankenphp:1-php8.4 AS base
+#
+# Pinned to an exact PHP patch rather than the floating `1-php8.4` tag: PHP
+# 8.4.27 (21 Oct 2026) fixes CVE-2026-109618 and CVE-2026-109619, two
+# unauthenticated remote code execution flaws in PHP core, both CVSS 9.2. With a
+# floating tag a build on a host whose image cache predates the release quietly
+# ships the vulnerable 8.4.26, and nothing in the build output says so. Bump
+# this deliberately at the next security release.
+FROM dunglas/frankenphp:1-php8.4.27 AS base
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
@@ -27,14 +34,38 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Node 22 for the Vite/Tailwind 4 build. Present in base because the dev target
 # needs it at runtime; the production target keeps it only because assets are
 # compiled in the builder stage and copied across.
+#
+# NODE_MIN and PHP_MIN are the 21 Oct 2026 security releases, asserted rather
+# than pinned. NodeSource serves the newest 22.x, so the install normally lands
+# on 22.23.4 or later; an exact deb version pin would break the build whenever
+# NodeSource prunes that package, while a stale apt mirror handing back an older
+# nodejs would otherwise ship the Brotli decoder out-of-bounds write
+# (CVE-2026-111497) and two TLS hostname bypasses without a word in the log.
+# The PHP assertion guards the base image tag above the same way, so reverting
+# that tag to a floating one cannot silently reintroduce the PHP core RCEs.
+ARG NODE_MIN=22.23.4
+ARG PHP_MIN=8.4.27
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && node_have="$(node -v | tr -d v)" \
+    && [ "$(printf '%s\n%s\n' "$NODE_MIN" "$node_have" | sort -V | head -1)" = "$NODE_MIN" ] \
+        || { echo "==> Node $node_have predates the $NODE_MIN security release"; exit 1; } \
+    && php_have="$(php -r 'echo PHP_VERSION;')" \
+    && [ "$(printf '%s\n%s\n' "$PHP_MIN" "$php_have" | sort -V | head -1)" = "$PHP_MIN" ] \
+        || { echo "==> PHP $php_have predates the $PHP_MIN security release"; exit 1; }
 
 # Refresh install-php-extensions before use: the copy baked into the base image
-# resolves phpredis through PECL's REST API, which intermittently returns
-# "does not have REST xml available". The current release pulls from GitHub
-# tarballs instead.
+# is older than the release below.
+#
+# phpredis is built from a git clone of its release tag, not from PECL. The
+# installer resolves `redis` through PECL's REST API, which intermittently
+# fails with "does not have REST xml/dependency information available" or "No
+# releases available" (its CDN answers 504 after 20s) and takes the whole build
+# down with it. A clone rather than the installer's `phpredis/phpredis@<tag>`
+# shorthand: that fetches GitHub's tag archive, which omits the liblzf
+# submodule package.xml lists, so the install fails. Bump the tag deliberately
+# when upgrading.
 #
 # Extension set is driven by composer.json and the code:
 #   pdo_mysql          DB_CONNECTION=mysql
@@ -49,6 +80,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
 RUN curl -sSLf https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions \
         -o /usr/local/bin/install-php-extensions \
     && chmod +x /usr/local/bin/install-php-extensions \
+    && git -c advice.detachedHead=false clone --quiet --depth 1 --branch 6.3.0 \
+        --recurse-submodules --shallow-submodules \
+        https://github.com/phpredis/phpredis.git /tmp/phpredis \
     && install-php-extensions \
         pdo_mysql \
         zip \
@@ -57,9 +91,10 @@ RUN curl -sSLf https://github.com/mlocati/docker-php-extension-installer/release
         intl \
         exif \
         mbstring \
-        redis \
+        /tmp/phpredis \
         opcache \
-        pcntl
+        pcntl \
+    && rm -rf /tmp/phpredis
 
 COPY docker/php/uploads.ini /usr/local/etc/php/conf.d/99-uploads.ini
 

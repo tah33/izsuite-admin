@@ -2,7 +2,7 @@
 @section('title', __('Currencies'))
 
 @section('content')
-    <div class="mb-6 flex items-center justify-end gap-2">
+    <div class="mb-4 flex items-center justify-end gap-2">
         <button type="button" class="btn btn-secondary" onclick="openModal('formatting-modal')">
             <i data-lucide="settings" class="w-4 h-4"></i>
             {{ __('Formatting Settings') }}

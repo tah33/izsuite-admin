@@ -5,6 +5,10 @@ namespace App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * A business's profile and defaults (Settings > Business). Its logo is the
+ * workspace's file in the "logo" collection, not a column here.
+ */
 class BusinessSetting extends Model
 {
     /** What the stock_accounting_method column can hold - the enum in the migration. */
@@ -12,11 +16,10 @@ class BusinessSetting extends Model
 
     protected $fillable = [
         'user_id',
+        'workspace_id',
         'business_name',
         'start_date',
-        'currency',
         'language',
-        'logo',
         'website',
         'business_contact_number',
         'alternate_contact_number',
@@ -41,8 +44,15 @@ class BusinessSetting extends Model
 
     // ── Relationships ──
 
+    /** The account that owns the business. */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** The business it belongs to. */
+    public function workspace(): BelongsTo
+    {
+        return $this->belongsTo(Workspace::class);
     }
 }

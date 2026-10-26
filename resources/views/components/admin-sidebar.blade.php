@@ -33,7 +33,7 @@
             <span>{{ __('Tickets') }}</span>
         </a>
 
-        <div class="sidebar-section-title">{{ __('Management') }}</div>
+        <div class="sidebar-section-title">{{ __('App System') }}</div>
 
         <a href="{{ route('admin.app-categories.index') }}" class="sidebar-link {{ request()->routeIs('admin.app-categories.*') ? 'active' : '' }}">
             <i data-lucide="tags" class="icon"></i>
@@ -44,6 +44,28 @@
             <i data-lucide="app-window" class="icon"></i>
             <span>{{ __('Apps') }}</span>
         </a>
+
+        <a href="{{ route('admin.packages.index') }}" class="sidebar-link {{ request()->routeIs('admin.packages.*') ? 'active' : '' }}">
+            <i data-lucide="layers-3" class="icon"></i>
+            <span>{{ __('Packages') }}</span>
+        </a>
+
+        <a href="{{ route('admin.package-access.index') }}" class="sidebar-link {{ request()->routeIs('admin.package-access.*') ? 'active' : '' }}">
+            <i data-lucide="grid-3x3" class="icon"></i>
+            <span>{{ __('Package Access') }}</span>
+        </a>
+
+        <a href="{{ route('admin.menu-items.index') }}" class="sidebar-link {{ request()->routeIs('admin.menu-items.*') ? 'active' : '' }}">
+            <i data-lucide="panel-left" class="icon"></i>
+            <span>{{ __('Menu Builder') }}</span>
+        </a>
+
+        <a href="{{ route('admin.workspaces.index') }}" class="sidebar-link {{ request()->routeIs('admin.workspaces.*') ? 'active' : '' }}">
+            <i data-lucide="building-2" class="icon"></i>
+            <span>{{ __('Business Workspaces') }}</span>
+        </a>
+
+        <div class="sidebar-section-title">{{ __('Management') }}</div>
 
 
         <a href="{{ route('admin.departments.index') }}" class="sidebar-link {{ request()->routeIs('admin.departments.*') ? 'active' : '' }}">
