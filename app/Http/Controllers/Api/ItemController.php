@@ -25,7 +25,7 @@ class ItemController extends Controller
         try {
             $items = $this->itemService->list(
                 $this->currentWorkspace($request),
-                $request->only(['search', 'type', 'status']),
+                $request->only(['search', 'type', 'usage', 'category_id', 'brand_id', 'status', 'for_combo']),
                 requested_per_page(),
             );
 
@@ -38,6 +38,30 @@ class ItemController extends Controller
             report($e);
             throw $e;
         }
+    }
+
+    /** One item, whole - for its profile and its edit form. */
+    public function show(Request $request, int $id): JsonResponse
+    {
+        try {
+            return response()->json([
+                'data' => new ItemResource($this->itemService->find($this->currentWorkspace($request), $id)),
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    public function activate(Request $request, int $id): JsonResponse
+    {
+        return $this->setActive($request, $id, true);
+    }
+
+    public function deactivate(Request $request, int $id): JsonResponse
+    {
+        return $this->setActive($request, $id, false);
     }
 
     public function store(SaveItemRequest $request): JsonResponse
@@ -79,6 +103,22 @@ class ItemController extends Controller
 
             return response()->json([
                 'message' => 'Item deleted successfully.',
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    private function setActive(Request $request, int $id, bool $active): JsonResponse
+    {
+        try {
+            $item = $this->itemService->setActive($this->currentWorkspace($request), $id, $active);
+
+            return response()->json([
+                'message' => $active ? 'Item activated.' : 'Item deactivated.',
+                'data'    => new ItemResource($item),
             ]);
 
         } catch (\Throwable $e) {

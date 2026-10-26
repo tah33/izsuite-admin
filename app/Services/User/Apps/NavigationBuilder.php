@@ -67,9 +67,10 @@ class NavigationBuilder
                     'key'  => $workspace->package->key,
                     'name' => $workspace->package->name,
                 ] : null,
-                'base_currency' => $workspace->base_currency,
-                'currencies'    => $workspace->currencyCodes(),
-                'tax_mode'      => $workspace->tax_mode,
+                'base_currency'  => $workspace->base_currency,
+                'currencies'     => $workspace->currencyCodes(),
+                'tax_mode'       => $workspace->tax_mode,
+                'brands_enabled' => (bool) $workspace->brands_enabled,
             ] : null,
 
             // An object even when empty, so the client always gets a map.

@@ -41,6 +41,7 @@ class Workspace extends Model
     protected $casts = [
         'nav_version'           => 'integer',
         'additional_currencies' => 'array',
+        'brands_enabled'        => 'boolean',
     ];
 
     /**
@@ -57,10 +58,11 @@ class Workspace extends Model
 
         static::created(fn (self $workspace) => app(ProvisionWorkspaceApps::class)->handle($workspace));
 
-        // The cached sidebar carries the business's name, currencies and tax
-        // choice, so a change to any of them needs a fresh one.
+        // The cached sidebar carries the business's name, currencies, tax
+        // choice and whether it uses brands, so a change to any of them needs
+        // a fresh one.
         static::updating(function (self $workspace) {
-            if ($workspace->isDirty(['name', 'base_currency', 'additional_currencies', 'tax_mode'])) {
+            if ($workspace->isDirty(['name', 'base_currency', 'additional_currencies', 'tax_mode', 'brands_enabled'])) {
                 $workspace->nav_version = $workspace->nav_version + 1;
             }
         });
@@ -123,6 +125,16 @@ class Workspace extends Model
     public function items(): HasMany
     {
         return $this->hasMany(Item::class);
+    }
+
+    public function itemCategories(): HasMany
+    {
+        return $this->hasMany(ItemCategory::class);
+    }
+
+    public function itemBrands(): HasMany
+    {
+        return $this->hasMany(ItemBrand::class);
     }
 
     public function paymentAccounts(): HasMany

@@ -14,6 +14,8 @@ use App\Http\Controllers\Api\CountryController;
 use App\Http\Controllers\Api\CurrencyController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\ItemController;
+use App\Http\Controllers\Api\ItemLabelController;
+use App\Http\Controllers\Api\ItemSettingController;
 use App\Http\Controllers\Api\LanguageController;
 use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\NavigationController;
@@ -107,6 +109,10 @@ Route::prefix('v1')->group(function () {
         Route::put('/currencies', [BusinessCurrencyController::class, 'update'])->name('api.business-settings.currencies.update');
         Route::get('/taxes', [BusinessTaxController::class, 'show'])->name('api.business-settings.taxes.show');
         Route::put('/taxes', [BusinessTaxController::class, 'update'])->name('api.business-settings.taxes.update');
+
+        // Settings > Items (Doc 04 section 7): whether the business uses brands.
+        Route::get('/items', [ItemSettingController::class, 'show'])->name('api.business-settings.items.show');
+        Route::put('/items', [ItemSettingController::class, 'update'])->name('api.business-settings.items.update');
     });
 
     /* ----------------------------------------------------------
@@ -173,8 +179,18 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/items', [ItemController::class, 'index'])->name('api.items.index');
         Route::post('/items', [ItemController::class, 'store'])->name('api.items.store');
+        Route::get('/items/{id}', [ItemController::class, 'show'])->whereNumber('id')->name('api.items.show');
         Route::put('/items/{id}', [ItemController::class, 'update'])->whereNumber('id')->name('api.items.update');
         Route::delete('/items/{id}', [ItemController::class, 'destroy'])->whereNumber('id')->name('api.items.destroy');
+        Route::post('/items/{id}/activate', [ItemController::class, 'activate'])->whereNumber('id')->name('api.items.activate');
+        Route::post('/items/{id}/deactivate', [ItemController::class, 'deactivate'])->whereNumber('id')->name('api.items.deactivate');
+
+        // The item categories and brands: /item-categories and /item-brands,
+        // two lists that work the same way (see ItemLabel).
+        Route::get('/item-{label}', [ItemLabelController::class, 'index'])->whereIn('label', ['categories', 'brands'])->name('api.item-labels.index');
+        Route::post('/item-{label}', [ItemLabelController::class, 'store'])->whereIn('label', ['categories', 'brands'])->name('api.item-labels.store');
+        Route::put('/item-{label}/{id}', [ItemLabelController::class, 'update'])->whereIn('label', ['categories', 'brands'])->whereNumber('id')->name('api.item-labels.update');
+        Route::delete('/item-{label}/{id}', [ItemLabelController::class, 'destroy'])->whereIn('label', ['categories', 'brands'])->whereNumber('id')->name('api.item-labels.destroy');
 
         Route::get('/payment-accounts', [PaymentAccountController::class, 'index'])->name('api.payment-accounts.index');
         Route::post('/payment-accounts', [PaymentAccountController::class, 'store'])->name('api.payment-accounts.store');
