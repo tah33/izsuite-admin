@@ -50,12 +50,16 @@ class SetUpNewWorkspace
         return $location;
     }
 
+    /**
+     * The name is cut to fit its column: a first and a last name may each be
+     * as long as that column on their own.
+     */
     public function addOwnerAsStaff(Workspace $workspace, User $owner, string $source): UserStaff
     {
         $staff = $this->staffMembers->firstOrCreateFor(
             $workspace,
             ['email' => $owner->email],
-            ['name' => $owner->name, 'status' => UserStaff::STATUS_ACTIVE],
+            ['name' => Str::limit($owner->name, 255, ''), 'status' => UserStaff::STATUS_ACTIVE],
         );
 
         if ($staff->wasRecentlyCreated) {
