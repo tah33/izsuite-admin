@@ -41,9 +41,16 @@ class PaymentAccountsApiTest extends TestCase
             'name'            => 'City Bank Current',
             'currency'        => 'USD',
             'bank_name'       => 'City Bank',
-            'account_number'  => '0012-3456',
-            'opening_balance' => '1500.5',
+            'account_number'       => '0012-3456',
+            'opening_balance'      => '1500.5',
+            'opening_balance_date' => '2026-10-01',
         ], $overrides);
+    }
+
+    /** An account with nothing in it - the only kind that can be deleted (Doc 05 section 17). */
+    private function emptyAccount(array $overrides = []): array
+    {
+        return $this->payload(['opening_balance' => null, 'opening_balance_date' => null, ...$overrides]);
     }
 
     private function accountOf(User $user, array $overrides = []): PaymentAccount
@@ -85,9 +92,10 @@ class PaymentAccountsApiTest extends TestCase
             ->assertJsonPath('data.is_active', true);
 
         $this->assertSame(
-            ['id', 'type', 'name', 'currency', 'bank_name', 'account_number', 'opening_balance', 'notes', 'is_active'],
+            ['id', 'type', 'name', 'currency', 'bank_name', 'account_number', 'opening_balance', 'opening_balance_date', 'balance', 'has_transactions', 'notes', 'is_active'],
             array_keys($response->json('data')),
         );
+        $this->assertSame(['2026-10-01', '1500.50', false], [$response->json('data.opening_balance_date'), $response->json('data.balance'), $response->json('data.has_transactions')]);
         $this->assertDatabaseHas('payment_accounts', ['id' => $response->json('data.id'), 'workspace_id' => $this->businessOf($user)->id]);
     }
 
@@ -185,6 +193,13 @@ class PaymentAccountsApiTest extends TestCase
             ->assertJsonPath('data.name', 'City Bank Savings')
             ->assertJsonPath('data.is_active', false);
 
+        // An account with an opening balance is deactivated, not deleted (Doc 05 section 17).
+        $this->deleteJson("/api/v1/payment-accounts/{$account->id}")
+            ->assertConflict()
+            ->assertJsonPath('message', 'This account has an opening balance or money recorded through it, so it cannot be deleted. Deactivate it instead.');
+
+        $this->putJson("/api/v1/payment-accounts/{$account->id}", $this->emptyAccount(['name' => 'City Bank Savings']))->assertOk();
+
         $this->deleteJson("/api/v1/payment-accounts/{$account->id}")
             ->assertOk()
             ->assertJsonPath('message', 'Payment account deleted successfully.');
@@ -228,10 +243,10 @@ class PaymentAccountsApiTest extends TestCase
 
         $this->assertSame(['Dashboard'], $core());
 
-        $first  = $this->postJson('/api/v1/payment-accounts', $this->payload())->assertCreated()->json('data.id');
+        $first  = $this->postJson('/api/v1/payment-accounts', $this->emptyAccount())->assertCreated()->json('data.id');
         $this->assertSame(['Dashboard', 'Payment Accounts'], $core());
 
-        $second = $this->postJson('/api/v1/payment-accounts', $this->payload(['name' => 'Cash', 'type' => 'cash']))->json('data.id');
+        $second = $this->postJson('/api/v1/payment-accounts', $this->emptyAccount(['name' => 'Cash', 'type' => 'cash']))->json('data.id');
         $this->deleteJson("/api/v1/payment-accounts/{$first}")->assertOk();
         $this->assertSame(['Dashboard', 'Payment Accounts'], $core());
 
@@ -263,8 +278,8 @@ class PaymentAccountsApiTest extends TestCase
     {
         $user = $this->signIn();
 
-        $id = $this->postJson('/api/v1/payment-accounts', $this->payload())->json('data.id');
-        $this->putJson("/api/v1/payment-accounts/{$id}", $this->payload(['account_number' => '9999']))->assertOk();
+        $id = $this->postJson('/api/v1/payment-accounts', $this->emptyAccount())->json('data.id');
+        $this->putJson("/api/v1/payment-accounts/{$id}", $this->emptyAccount(['account_number' => '9999']))->assertOk();
         $this->deleteJson("/api/v1/payment-accounts/{$id}")->assertOk();
 
         $logs = ActivityLog::where('user_id', $user->id)->orderBy('id')->get();

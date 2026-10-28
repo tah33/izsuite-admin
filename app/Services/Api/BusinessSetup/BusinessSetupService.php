@@ -3,6 +3,7 @@
 namespace App\Services\Api\BusinessSetup;
 
 use App\Models\User\Workspace;
+use App\Repositories\User\AccountTransactionRepository;
 use App\Repositories\User\ContactRepository;
 use App\Repositories\User\PaymentAccountRepository;
 use App\Repositories\User\SalesDocumentRepository;
@@ -25,6 +26,7 @@ class BusinessSetupService
         protected PaymentAccountRepository $paymentAccountRepository,
         protected ContactRepository $contactRepository,
         protected SalesDocumentRepository $salesDocumentRepository,
+        protected AccountTransactionRepository $accountTransactionRepository,
     ) {}
 
     public function currencies(Workspace $workspace): array
@@ -51,9 +53,10 @@ class BusinessSetupService
         sort($additional);
 
         if ($data['base_currency'] !== $workspace->base_currency
-            && ($this->salesDocumentRepository->hasTransactions($workspace) || $this->paymentAccountRepository->hasOpeningBalance($workspace))) {
+            && ($this->salesDocumentRepository->hasTransactions($workspace) || $this->paymentAccountRepository->hasOpeningBalance($workspace)
+                || $this->accountTransactionRepository->existsForWorkspace($workspace))) {
             throw ValidationException::withMessages([
-                'base_currency' => 'The base currency cannot change once documents have been issued or sent, or a payment account has an opening balance.',
+                'base_currency' => 'The base currency cannot change once documents have been issued or sent, or a payment account has an opening balance or money recorded through it.',
             ]);
         }
 

@@ -7,7 +7,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * Settings > Taxes: whether the business uses taxes, and its tax options - its
- * default sales and purchase tax by id, null for none.
+ * default sales and purchase tax by id, null for none - and whether it uses
+ * withholding tax.
  */
 class BusinessTaxesResource extends JsonResource
 {
@@ -19,6 +20,7 @@ class BusinessTaxesResource extends JsonResource
             'tax_rounding'            => $this->resource['tax_rounding'],
             'default_sales_tax_id'    => $this->resource['default_sales_tax_id'],
             'default_purchase_tax_id' => $this->resource['default_purchase_tax_id'],
+            'withholding_tax'         => $this->resource['withholding_tax'],
         ];
     }
 }

@@ -48,7 +48,7 @@ class SalesDocumentFlowTest extends TestCase
             ->assertJsonPath('message', 'Invoice INV-00001 issued.')
             ->json('data');
 
-        $this->assertSame(['issued', 'INV-00001', 'unpaid', '335.50', ['void']], [$data['status'], $data['number'], $data['payment_status'], $data['balance_due'], $data['actions']]);
+        $this->assertSame(['issued', 'INV-00001', 'unpaid', '335.50', ['record_payment', 'credit_note', 'void']], [$data['status'], $data['number'], $data['payment_status'], $data['balance_due'], $data['actions']]);
         $this->assertSame(['Uddin Traders', 'Main Business'], [$data['customer']['name'], $data['business']['name']]);
         // Its country as printed, by name.
         $this->assertSame(['Dhaka', 'Bangladesh'], $data['customer']['billing_address']);

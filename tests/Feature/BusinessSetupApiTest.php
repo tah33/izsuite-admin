@@ -54,6 +54,7 @@ class BusinessSetupApiTest extends TestCase
                 'tax_rounding'            => 'line',
                 'default_sales_tax_id'    => null,
                 'default_purchase_tax_id' => null,
+                'withholding_tax'         => false,
             ]]);
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Sales;
 
+use App\Enums\DocumentType;
 use App\Models\User\SalesDocument;
 use App\Services\Api\Sales\SalesSnapshots;
 use App\Services\Sales\SalesDocumentRules;
@@ -12,10 +13,12 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * A sales document whole - for its page and its edit form: the header, the
  * lines, the totals and tax breakdown, where it came from and what was made
  * from it, and the actions its status allows now (see SalesDocumentRules).
+ * An invoice also carries its payments and credit notes; a credit note its
+ * refunds, with what it may still refund.
  *
  * The customer and business are as they were when it was numbered; a draft
- * shows the customer as they are. Expects lines, contact, location, source
- * and conversions loaded.
+ * shows the customer as they are. Expects lines, contact, location, source,
+ * conversions, creditNotes and payments.account loaded.
  */
 class SalesDocumentResource extends JsonResource
 {
@@ -63,13 +66,27 @@ class SalesDocumentResource extends JsonResource
             'base_grand_total'     => $this->base_grand_total,
             'taxes'                => $this->taxes ?? [],
             'amount_paid'          => $this->amount_paid,
+            'withholding_amount'   => $this->withholding_amount,
+            'credited_amount'      => $this->credited_amount,
+            'applied_amount'       => $this->applied_amount,
+            'refunded_amount'      => $this->refunded_amount,
             'balance_due'          => $this->balance_due,
+            'refundable'           => $this->type === DocumentType::CreditNote ? $rules->refundable($this->resource) : null,
             'notes'                => $this->notes,
             'terms'                => $this->terms,
             'payment_instructions' => $this->payment_instructions,
             'status_reason'        => $this->status_reason,
+            'reason'               => $this->reason,
             'source'               => $this->source ? $this->link($this->source) : null,
             'conversions'          => $this->conversions->map(fn (SalesDocument $document) => $this->link($document))->all(),
+            'credit_notes'         => $this->creditNotes->map(fn (SalesDocument $note) => [
+                ...$this->link($note),
+                'document_date'  => $note->document_date,
+                'grand_total'    => $note->grand_total,
+                'balance_due'    => $note->balance_due,
+                'payment_status' => $note->payment_status,
+            ])->all(),
+            'payments'             => SalesPaymentListResource::collection($this->payments),
             'issued_at'            => $this->issued_at?->toIso8601String(),
         ];
     }

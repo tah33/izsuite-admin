@@ -15,12 +15,26 @@ class PaymentAccountController extends Controller
         protected PaymentAccountService $paymentAccountService,
     ) {}
 
-    /** The business's payment accounts, alphabetical. Not paginated: a business has a handful. */
+    /** The business's payment accounts, alphabetical, with their recorded balances. Not paginated: a business has a handful. */
     public function index(Request $request): JsonResponse
     {
         try {
             return response()->json([
                 'data' => PaymentAccountResource::collection($this->paymentAccountService->list($this->currentWorkspace($request))),
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** One account with its recorded balance - its page. */
+    public function show(Request $request, int $id): JsonResponse
+    {
+        try {
+            return response()->json([
+                'data' => new PaymentAccountResource($this->paymentAccountService->find($this->currentWorkspace($request), $id)),
             ]);
 
         } catch (\Throwable $e) {

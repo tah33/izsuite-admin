@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Sales;
 
+use App\Enums\DocumentType;
 use App\Services\Sales\SalesDocumentRules;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -40,6 +41,7 @@ class SalesDocumentListResource extends JsonResource
             'grand_total'    => $this->grand_total,
             'amount_paid'    => $this->amount_paid,
             'balance_due'    => $this->balance_due,
+            'invoice'        => $this->when($this->type === DocumentType::CreditNote, fn () => ['id' => $this->source_id, 'number' => $this->source?->number]),
         ];
     }
 }

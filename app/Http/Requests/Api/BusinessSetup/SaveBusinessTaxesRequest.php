@@ -34,6 +34,7 @@ class SaveBusinessTaxesRequest extends FormRequest
             'tax_rounding'            => ['sometimes', 'required', Rule::in(Workspace::TAX_ROUNDINGS)],
             'default_sales_tax_id'    => ['sometimes', 'nullable', 'integer', $rateFor(TaxRate::SALES)],
             'default_purchase_tax_id' => ['sometimes', 'nullable', 'integer', $rateFor(TaxRate::PURCHASES)],
+            'withholding_tax'         => ['sometimes', 'boolean'],
         ];
     }
 

@@ -26,15 +26,25 @@ use Illuminate\Database\Eloquent\Collection;
  */
 class SalesDocumentRepository
 {
-    /** What a document's page shows with it. */
-    private const SHOWN_WITH = ['lines', 'contact', 'location:id,name', 'source:id,type,number,status', 'conversions:id,source_id,type,number,status'];
+    /**
+     * What a document's page shows with it: an invoice its payments and credit
+     * notes, a credit note its refunds and - for what it may still refund -
+     * what its invoice was paid.
+     */
+    private const SHOWN_WITH = [
+        'lines', 'contact', 'location:id,name',
+        'source:id,type,number,status,amount_paid,refunded_amount',
+        'conversions:id,source_id,type,number,status',
+        'creditNotes:id,source_id,type,number,status,document_date,grand_total,applied_amount,refunded_amount,balance_due,payment_status',
+        'payments.account:id,name,currency',
+    ];
 
     public function paginateFor(Workspace $workspace, DocumentType $type, array $filters, int $perPage, string $today): LengthAwarePaginator
     {
         return SalesDocument::query()
             ->where('workspace_id', $workspace->id)
             ->where('type', $type->value)
-            ->with(['contact:id,name', 'location:id,name'])
+            ->with(['contact:id,name', 'location:id,name', 'source:id,number'])
             ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $query->where(fn (Builder $query) => $query
                 ->where('number', 'like', "%{$search}%")
                 ->orWhere('customer_reference', 'like', "%{$search}%")
@@ -71,6 +81,39 @@ class SalesDocumentRepository
     public function loadLineTaxes(SalesDocument $document): SalesDocument
     {
         return $document->load('lines.taxRate');
+    }
+
+    /** An invoice's issued credit notes, in the order they were issued - the order they settle it in. */
+    public function issuedCreditNotesOf(SalesDocument $invoice): Collection
+    {
+        return SalesDocument::query()
+            ->where('source_id', $invoice->id)
+            ->where('type', DocumentType::CreditNote->value)
+            ->where('status', SalesDocumentStatus::Issued->value)
+            ->orderBy('issued_at')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /** The lines of $invoice's issued credit notes - what each invoice line has been credited already. */
+    public function creditedLinesOf(SalesDocument $invoice): Collection
+    {
+        return SalesDocumentLine::query()
+            ->whereIn('source_line_id', $invoice->lines->pluck('id'))
+            ->whereHas('document', fn (Builder $query) => $query
+                ->where('type', DocumentType::CreditNote->value)
+                ->where('status', SalesDocumentStatus::Issued->value))
+            ->get(['id', 'source_line_id', 'quantity', 'amount']);
+    }
+
+    /** An issued invoice of the business, with its lines - one a credit note can be made from. */
+    public function findIssuedInvoiceFor(Workspace $workspace, int $id): ?SalesDocument
+    {
+        return $workspace->salesDocuments()
+            ->where('type', DocumentType::Invoice->value)
+            ->where('status', SalesDocumentStatus::Issued->value)
+            ->with(['lines', 'contact'])
+            ->find($id);
     }
 
     /** Whether one of the business's $type documents already has $number. */

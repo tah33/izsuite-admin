@@ -44,10 +44,16 @@ class SalesDocumentFlow
         protected SalesDocumentRules $salesDocumentRules,
         protected SalesSnapshots $salesSnapshots,
         protected DocumentNumbers $documentNumbers,
+        protected CreditNoteService $creditNoteService,
     ) {}
 
+    /** A credit note is issued against its invoice - see CreditNoteService. */
     public function issue(Workspace $workspace, DocumentType $type, int $id, User $user): SalesDocument
     {
+        if ($type === DocumentType::CreditNote) {
+            return $this->creditNoteService->issue($workspace, $id, $user);
+        }
+
         $document = $this->allowed($workspace, $type, $id, 'issue', 'Only a draft invoice can be issued.');
 
         $this->checkReady($document);
@@ -94,10 +100,21 @@ class SalesDocumentFlow
         return $this->move($workspace, $type, $id, $user, 'cancel', SalesDocumentStatus::Cancelled, $reason, 'This cannot be cancelled. A draft is deleted instead.', 'Cancelled %s');
     }
 
-    /** A void invoice owes nothing and counts as no sale (Doc 08 section 24). */
+    /**
+     * A void invoice owes nothing and counts as no sale (Doc 08 section 24).
+     * Only one nothing has settled yet: payments are reversed and credit
+     * notes voided first (section 8). A credit note is voided by
+     * CreditNoteService.
+     */
     public function void(Workspace $workspace, DocumentType $type, int $id, User $user, ?string $reason): SalesDocument
     {
-        $document = $this->allowed($workspace, $type, $id, 'void', 'Only an issued invoice can be voided. A draft is deleted instead.');
+        if ($type === DocumentType::CreditNote) {
+            return $this->creditNoteService->void($workspace, $id, $user, $reason);
+        }
+
+        $document = $this->allowed($workspace, $type, $id, 'void', $this->salesDocumentService->find($workspace, $type, $id)->status === SalesDocumentStatus::Issued
+            ? 'Payments or credit notes have settled some of this invoice. Reverse its payments and void its credit notes first.'
+            : 'Only an issued invoice can be voided. A draft is deleted instead.');
 
         $this->salesDocumentRepository->update($document, [
             'status'         => SalesDocumentStatus::Void,

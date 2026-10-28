@@ -29,7 +29,7 @@ class SalesDocumentFlowController extends Controller
         try {
             $document = $this->salesDocumentFlow->issue($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user());
 
-            return $this->answer($request, $document, "Invoice {$document->number} issued.");
+            return $this->answer($request, $document, "{$document->type->label()} {$document->number} issued.");
 
         } catch (\Throwable $e) {
             report($e);
@@ -94,7 +94,7 @@ class SalesDocumentFlowController extends Controller
         try {
             $document = $this->salesDocumentFlow->void($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user(), $request->validated('reason'));
 
-            return $this->answer($request, $document, "Invoice {$document->number} voided.");
+            return $this->answer($request, $document, "{$document->type->label()} {$document->number} voided.");
 
         } catch (\Throwable $e) {
             report($e);

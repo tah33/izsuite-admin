@@ -60,6 +60,7 @@ class Workspace extends Model
         'nav_version'           => 'integer',
         'additional_currencies' => 'array',
         'brands_enabled'        => 'boolean',
+        'withholding_tax'       => 'boolean',
     ];
 
     /**
@@ -79,10 +80,10 @@ class Workspace extends Model
         static::created(fn (self $workspace) => app(ProvisionWorkspaceApps::class)->handle($workspace));
 
         // The cached sidebar carries the business's name, currencies, tax
-        // choice and whether it uses brands, so a change to any of them needs
+        // choices and whether it uses brands, so a change to any of them needs
         // a fresh one.
         static::updating(function (self $workspace) {
-            if ($workspace->isDirty(['name', 'base_currency', 'additional_currencies', 'tax_mode', 'brands_enabled'])) {
+            if ($workspace->isDirty(['name', 'base_currency', 'additional_currencies', 'tax_mode', 'withholding_tax', 'brands_enabled'])) {
                 $workspace->nav_version = $workspace->nav_version + 1;
             }
         });
@@ -185,10 +186,32 @@ class Workspace extends Model
         return $this->hasMany(DocumentNumbering::class);
     }
 
-    /** Its quotations, proforma invoices and invoices. */
+    /** Its quotations, proforma invoices, invoices and credit notes. */
     public function salesDocuments(): HasMany
     {
         return $this->hasMany(SalesDocument::class);
+    }
+
+    public function withholdingTaxes(): HasMany
+    {
+        return $this->hasMany(WithholdingTax::class);
+    }
+
+    /** Customer payments and the refunds paid out of credit notes. */
+    public function salesPayments(): HasMany
+    {
+        return $this->hasMany(SalesPayment::class);
+    }
+
+    public function accountTransfers(): HasMany
+    {
+        return $this->hasMany(AccountTransfer::class);
+    }
+
+    /** Every account's history: each money in or out. */
+    public function accountTransactions(): HasMany
+    {
+        return $this->hasMany(AccountTransaction::class);
     }
 
     /** Every file the business keeps, whichever record it belongs to - what its storage counts. */

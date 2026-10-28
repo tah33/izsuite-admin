@@ -14,11 +14,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * A combo whose display shows its components keeps them (components), and a
  * physical product its warranty (warranty), as they were (Doc 04 sections 11
- * and 14).
+ * and 14). A credit note's line points at the invoice line it credits
+ * (source_line_id), whose tax it reverses.
  */
 class SalesDocumentLine extends Model
 {
     protected $fillable = [
+        'source_line_id',
         'position',
         'item_id',
         'name',
@@ -41,6 +43,7 @@ class SalesDocumentLine extends Model
     ];
 
     protected $casts = [
+        'source_line_id'  => 'integer',
         'position'        => 'integer',
         'item_id'         => 'integer',
         'quantity'        => 'decimal:3',

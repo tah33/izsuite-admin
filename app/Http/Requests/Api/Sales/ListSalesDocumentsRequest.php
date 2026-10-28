@@ -24,10 +24,15 @@ class ListSalesDocumentsRequest extends FormRequest
     {
         $type = DocumentType::fromKind((string) $this->route('kind')) ?? DocumentType::Invoice;
 
+        // A credit note's "payment status" is what became of its credit.
+        $settled = $type === DocumentType::CreditNote
+            ? ['available', 'partially_applied', 'fully_applied', 'refunded']
+            : ['unpaid', 'partially_paid', 'paid', 'refunded'];
+
         return [
             'search'         => ['nullable', 'string', 'max:100'],
             'status'         => ['nullable', Rule::in(SalesDocumentStatus::filtersFor($type))],
-            'payment_status' => ['nullable', Rule::in(['unpaid', 'partially_paid', 'paid', 'refunded'])],
+            'payment_status' => ['nullable', Rule::in($settled)],
             'overdue'        => ['nullable', 'boolean'],
             'contact_id'     => ['nullable', 'integer'],
             'location_id'    => ['nullable', 'integer'],

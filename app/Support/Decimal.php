@@ -29,6 +29,17 @@ final class Decimal
         return bccomp($a, $b, 10) <= 0 ? $a : $b;
     }
 
+    /**
+     * A number as a database sum returns it - "150.00" from MySQL, 150.5 or
+     * 5.0E-17 from SQLite, null for no rows - as a decimal string bcmath takes.
+     */
+    public static function of(mixed $value): string
+    {
+        $text = (string) ($value ?? '0');
+
+        return preg_match('/^-?\d+(\.\d+)?$/', $text) ? $text : sprintf('%.10F', (float) $text);
+    }
+
     /** Sums $values to $scale places - "0.00" for none. */
     public static function sum(iterable $values, int $scale = 2): string
     {

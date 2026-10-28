@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\DocumentType;
+use App\Http\Controllers\Api\AccountTransferController;
 use App\Http\Controllers\Api\AppActivationController;
 use App\Http\Controllers\Api\AppCategoryController;
 use App\Http\Controllers\Api\AppController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\Api\ContactAttachmentController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\ContactMessageController;
 use App\Http\Controllers\Api\CountryController;
+use App\Http\Controllers\Api\CreditNoteController;
 use App\Http\Controllers\Api\CurrencyController;
 use App\Http\Controllers\Api\DocumentNumberingController;
 use App\Http\Controllers\Api\EmailVerificationController;
@@ -31,6 +33,7 @@ use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\NavigationController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PaymentAccountController;
+use App\Http\Controllers\Api\PaymentAccountTransactionController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\SalesConversionController;
@@ -39,9 +42,13 @@ use App\Http\Controllers\Api\SalesDocumentController;
 use App\Http\Controllers\Api\SalesDocumentFlowController;
 use App\Http\Controllers\Api\SalesDocumentRevisionController;
 use App\Http\Controllers\Api\SalesFormController;
+use App\Http\Controllers\Api\SalesPaymentAttachmentController;
+use App\Http\Controllers\Api\SalesPaymentController;
+use App\Http\Controllers\Api\SalesRefundController;
 use App\Http\Controllers\Api\SalesSettingController;
 use App\Http\Controllers\Api\TaxRateController;
 use App\Http\Controllers\Api\UserStaffController;
+use App\Http\Controllers\Api\WithholdingTaxController;
 use App\Http\Controllers\Api\WorkspaceController;
 use Illuminate\Support\Facades\Route;
 
@@ -258,8 +265,19 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/payment-accounts', [PaymentAccountController::class, 'index'])->name('api.payment-accounts.index');
         Route::post('/payment-accounts', [PaymentAccountController::class, 'store'])->name('api.payment-accounts.store');
+        Route::get('/payment-accounts/{id}', [PaymentAccountController::class, 'show'])->whereNumber('id')->name('api.payment-accounts.show');
         Route::put('/payment-accounts/{id}', [PaymentAccountController::class, 'update'])->whereNumber('id')->name('api.payment-accounts.update');
         Route::delete('/payment-accounts/{id}', [PaymentAccountController::class, 'destroy'])->whereNumber('id')->name('api.payment-accounts.destroy');
+
+        // An account's history, and transfers between accounts (Doc 05 sections 11 and 13).
+        Route::get('/payment-accounts/{id}/transactions', [PaymentAccountTransactionController::class, 'index'])->whereNumber('id')->name('api.payment-accounts.transactions.index');
+        Route::get('/payment-accounts/{id}/transactions/export', [PaymentAccountTransactionController::class, 'export'])->whereNumber('id')->name('api.payment-accounts.transactions.export');
+        Route::post('/account-transfers', [AccountTransferController::class, 'store'])->name('api.account-transfers.store');
+        Route::get('/account-transfers/{id}', [AccountTransferController::class, 'show'])->whereNumber('id')->name('api.account-transfers.show');
+        Route::put('/account-transfers/{id}', [AccountTransferController::class, 'update'])->whereNumber('id')->name('api.account-transfers.update');
+        Route::delete('/account-transfers/{id}', [AccountTransferController::class, 'destroy'])->whereNumber('id')->name('api.account-transfers.destroy');
+        Route::post('/account-transfers/{id}/complete', [AccountTransferController::class, 'complete'])->whereNumber('id')->name('api.account-transfers.complete');
+        Route::post('/account-transfers/{id}/void', [AccountTransferController::class, 'void'])->whereNumber('id')->name('api.account-transfers.void');
 
         // Tax rates and exchange rates (Doc 11 sections 7 and 10), all at once:
         // a business has a handful of each.
@@ -268,43 +286,72 @@ Route::prefix('v1')->group(function () {
         Route::put('/tax-rates/{id}', [TaxRateController::class, 'update'])->whereNumber('id')->name('api.tax-rates.update');
         Route::delete('/tax-rates/{id}', [TaxRateController::class, 'destroy'])->whereNumber('id')->name('api.tax-rates.destroy');
 
+        Route::get('/withholding-taxes', [WithholdingTaxController::class, 'index'])->name('api.withholding-taxes.index');
+        Route::post('/withholding-taxes', [WithholdingTaxController::class, 'store'])->name('api.withholding-taxes.store');
+        Route::put('/withholding-taxes/{id}', [WithholdingTaxController::class, 'update'])->whereNumber('id')->name('api.withholding-taxes.update');
+        Route::delete('/withholding-taxes/{id}', [WithholdingTaxController::class, 'destroy'])->whereNumber('id')->name('api.withholding-taxes.destroy');
+
         Route::get('/exchange-rates', [ExchangeRateController::class, 'index'])->name('api.exchange-rates.index');
         Route::post('/exchange-rates', [ExchangeRateController::class, 'store'])->name('api.exchange-rates.store');
         Route::delete('/exchange-rates/{id}', [ExchangeRateController::class, 'destroy'])->whereNumber('id')->name('api.exchange-rates.destroy');
     });
 
     /* ----------------------------------------------------------
-     | Sales Lite (Doc 08): quotations, proforma invoices and invoices,
-     | addressed by their kind - /sales/quotations, /sales/proformas,
-     | /sales/invoices - while Sales Lite or Sales is on
+     | Sales Lite (Doc 08): quotations, proforma invoices, invoices and
+     | credit notes, addressed by their kind - /sales/quotations,
+     | /sales/proformas, /sales/invoices, /sales/credit-notes - while Sales
+     | Lite or Sales is on
      |
-     | A new document is a draft. issue (an invoice), send, accept, reject,
-     | cancel and void change its status, each only where its status allows
-     | (see SalesDocumentRules); convert makes a draft proforma or invoice from
-     | it. The form asks /sales/{kind}/defaults and /sales/calculate as it is
-     | filled in. Another business's documents are a 404.
+     | A new document is a draft. issue (an invoice or credit note), send,
+     | accept, reject, cancel and void change its status, each only where its
+     | status allows (see SalesDocumentRules); convert makes a draft proforma
+     | or invoice from it. The form asks /sales/{kind}/defaults and
+     | /sales/calculate as it is filled in.
+     |
+     | An issued invoice takes payments and credit notes; a credit note pays
+     | refunds. Payments Received lists the payments; a payment or refund is
+     | reversed, never deleted. Another business's records are a 404.
      | -------------------------------------------------------- */
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:sales'])->prefix('sales')->group(function () {
         Route::post('/calculate', [SalesFormController::class, 'calculate'])->name('api.sales.calculate');
 
+        Route::get('/payments', [SalesPaymentController::class, 'index'])->name('api.sales.payments.index');
+        Route::get('/payments/{id}', [SalesPaymentController::class, 'show'])->whereNumber('id')->name('api.sales.payments.show');
+        Route::post('/payments/{id}/reverse', [SalesPaymentController::class, 'reverse'])->whereNumber('id')->name('api.sales.payments.reverse');
+        Route::get('/payments/{id}/attachments', [SalesPaymentAttachmentController::class, 'index'])->whereNumber('id')->name('api.sales.payments.attachments.index');
+        Route::post('/payments/{id}/attachments', [SalesPaymentAttachmentController::class, 'store'])->whereNumber('id')->name('api.sales.payments.attachments.store');
+        Route::delete('/payments/{id}/attachments/{fileId}', [SalesPaymentAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.sales.payments.attachments.destroy');
+
+        Route::post('/invoices/{id}/payments', [SalesPaymentController::class, 'store'])->whereNumber('id')->name('api.sales.invoices.payments.store');
+        Route::get('/invoices/{id}/credit-note-defaults', [CreditNoteController::class, 'defaults'])->whereNumber('id')->name('api.sales.credit-notes.defaults');
+        Route::post('/invoices/{id}/credit-notes/calculate', [CreditNoteController::class, 'calculate'])->whereNumber('id')->name('api.sales.credit-notes.calculate');
+        Route::post('/invoices/{id}/credit-notes', [CreditNoteController::class, 'store'])->whereNumber('id')->name('api.sales.credit-notes.store');
+        Route::put('/credit-notes/{id}', [CreditNoteController::class, 'update'])->whereNumber('id')->name('api.sales.credit-notes.update');
+        Route::post('/credit-notes/{id}/refunds', [SalesRefundController::class, 'store'])->whereNumber('id')->name('api.sales.credit-notes.refunds.store');
+
+        // Every kind.
         Route::prefix('{kind}')->where(['kind' => implode('|', array_keys(DocumentType::KINDS))])->group(function () {
             Route::get('/', [SalesDocumentController::class, 'index'])->name('api.sales.index');
-            Route::post('/', [SalesDocumentController::class, 'store'])->name('api.sales.store');
-            Route::get('/defaults', [SalesFormController::class, 'defaults'])->name('api.sales.defaults');
             Route::get('/{id}', [SalesDocumentController::class, 'show'])->whereNumber('id')->name('api.sales.show');
-            Route::put('/{id}', [SalesDocumentController::class, 'update'])->whereNumber('id')->name('api.sales.update');
             Route::delete('/{id}', [SalesDocumentController::class, 'destroy'])->whereNumber('id')->name('api.sales.destroy');
 
             foreach (['issue', 'send', 'accept', 'reject', 'cancel', 'void'] as $action) {
                 Route::post("/{id}/{$action}", [SalesDocumentFlowController::class, $action])->whereNumber('id')->name("api.sales.{$action}");
             }
 
-            Route::post('/{id}/convert', [SalesConversionController::class, 'store'])->whereNumber('id')->name('api.sales.convert');
-            Route::get('/{id}/revisions', [SalesDocumentRevisionController::class, 'index'])->whereNumber('id')->name('api.sales.revisions.index');
-            Route::get('/{id}/revisions/{revision}', [SalesDocumentRevisionController::class, 'show'])->whereNumber(['id', 'revision'])->name('api.sales.revisions.show');
             Route::get('/{id}/attachments', [SalesDocumentAttachmentController::class, 'index'])->whereNumber('id')->name('api.sales.attachments.index');
             Route::post('/{id}/attachments', [SalesDocumentAttachmentController::class, 'store'])->whereNumber('id')->name('api.sales.attachments.store');
             Route::delete('/{id}/attachments/{fileId}', [SalesDocumentAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.sales.attachments.destroy');
+        });
+
+        // The kinds the sales document form makes and changes - a credit note is made from its invoice.
+        Route::prefix('{kind}')->where(['kind' => implode('|', DocumentType::FORM_KINDS)])->group(function () {
+            Route::post('/', [SalesDocumentController::class, 'store'])->name('api.sales.store');
+            Route::get('/defaults', [SalesFormController::class, 'defaults'])->name('api.sales.defaults');
+            Route::put('/{id}', [SalesDocumentController::class, 'update'])->whereNumber('id')->name('api.sales.update');
+            Route::post('/{id}/convert', [SalesConversionController::class, 'store'])->whereNumber('id')->name('api.sales.convert');
+            Route::get('/{id}/revisions', [SalesDocumentRevisionController::class, 'index'])->whereNumber('id')->name('api.sales.revisions.index');
+            Route::get('/{id}/revisions/{revision}', [SalesDocumentRevisionController::class, 'show'])->whereNumber(['id', 'revision'])->name('api.sales.revisions.show');
         });
     });
 

@@ -4,7 +4,9 @@ namespace Tests\Concerns;
 
 use App\Models\User\Contact;
 use App\Models\User\Item;
+use App\Models\User\PaymentAccount;
 use App\Models\User\TaxRate;
+use Illuminate\Testing\TestResponse;
 
 /**
  * For tests of Sales Lite's documents: a business that uses taxes, with VAT
@@ -60,5 +62,44 @@ trait MakesSalesDocuments
         $payload = $kind === 'invoices' ? $this->invoice($fields) : $this->quotation($fields);
 
         return $this->postJson("/api/v1/sales/{$kind}", $payload)->assertCreated()->json('data.id');
+    }
+
+    /** The base invoice, issued: INV-00001 for 335.50, due - its id. */
+    protected function issuedInvoice(array $fields = []): int
+    {
+        $id = $this->draft('invoices', $fields);
+
+        $this->postJson("/api/v1/sales/invoices/{$id}/issue")->assertOk();
+
+        return $id;
+    }
+
+    /** A payment account of the business: by default "Cash" in USD, empty. */
+    protected function account(array $fields = []): PaymentAccount
+    {
+        return $this->businessOf($this->user)->paymentAccounts()->create([
+            'type'     => 'cash',
+            'name'     => 'Cash',
+            'currency' => 'USD',
+            ...$fields,
+        ]);
+    }
+
+    /** POST a payment of $amount against invoice $id into $account, dated the invoice's day unless told otherwise. */
+    protected function pay(int $id, PaymentAccount $account, string $amount, array $fields = []): TestResponse
+    {
+        return $this->postJson("/api/v1/sales/invoices/{$id}/payments", [
+            'payment_date'       => '2026-10-28',
+            'payment_account_id' => $account->id,
+            'amount'             => $amount,
+            'method'             => 'cash',
+            ...$fields,
+        ]);
+    }
+
+    /** An invoice line's id, by its position (0 for the chairs, 1 for delivery). */
+    protected function lineOf(int $invoiceId, int $index): int
+    {
+        return $this->getJson("/api/v1/sales/invoices/{$invoiceId}")->json("data.lines.{$index}.id");
     }
 }

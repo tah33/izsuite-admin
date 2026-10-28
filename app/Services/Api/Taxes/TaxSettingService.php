@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\DB;
  * Settings > Taxes (Doc 01 section 12, Doc 11 sections 9 and 11): whether the
  * business uses taxes - yes, no, or decide later - and its tax options: whether
  * prices include tax, how tax is rounded, and its default sales and purchase
- * tax. The rates themselves are TaxRateService's.
+ * tax. The rates themselves are TaxRateService's. Withholding tax is switched
+ * on apart from the rest (section 9), and its rates are WithholdingTaxService's.
  *
  * Turning taxes off hides tax fields; it never deletes or changes what is
  * recorded in them. The choice lives on the workspace, and changing it bumps
@@ -35,9 +36,10 @@ class TaxSettingService
     public function settings(Workspace $workspace): array
     {
         $settings = [
-            'tax_mode'       => $workspace->tax_mode,
-            'price_tax_mode' => $workspace->price_tax_mode,
-            'tax_rounding'   => $workspace->tax_rounding,
+            'tax_mode'        => $workspace->tax_mode,
+            'price_tax_mode'  => $workspace->price_tax_mode,
+            'tax_rounding'    => $workspace->tax_rounding,
+            'withholding_tax' => (bool) $workspace->withholding_tax,
         ];
 
         foreach (self::DEFAULT_KEYS as $side => $key) {
@@ -57,7 +59,7 @@ class TaxSettingService
         $before = $this->settings($workspace);
 
         DB::transaction(function () use ($workspace, $data) {
-            $this->workspaceRepository->forceUpdate($workspace, Arr::only($data, ['tax_mode', 'price_tax_mode', 'tax_rounding']));
+            $this->workspaceRepository->forceUpdate($workspace, Arr::only($data, ['tax_mode', 'price_tax_mode', 'tax_rounding', 'withholding_tax']));
 
             foreach (self::DEFAULT_KEYS as $side => $key) {
                 if (array_key_exists($key, $data)) {

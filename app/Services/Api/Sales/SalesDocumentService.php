@@ -143,7 +143,7 @@ class SalesDocumentService
         $document = $this->find($workspace, $type, $id);
 
         if (! $this->salesDocumentRules->allows($document, 'delete', $this->today($workspace))) {
-            $this->refuse('Only a draft can be deleted. '.($type === DocumentType::Invoice ? 'Void an issued invoice instead.' : 'Cancel it instead.'));
+            $this->refuse('Only a draft can be deleted. '.($type->isOffer() ? 'Cancel it instead.' : "Void an issued {$this->noun($type)} instead."));
         }
 
         $this->salesDocumentRepository->delete($document);

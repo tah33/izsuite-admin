@@ -58,10 +58,14 @@ enum DocumentType: string
 
     /** The sales documents Sales Lite makes, by the part of their address that names them: /sales/invoices. */
     public const KINDS = [
-        'quotations' => self::Quotation,
-        'proformas'  => self::Proforma,
-        'invoices'   => self::Invoice,
+        'quotations'   => self::Quotation,
+        'proformas'    => self::Proforma,
+        'invoices'     => self::Invoice,
+        'credit-notes' => self::CreditNote,
     ];
+
+    /** The kinds the sales document form makes and changes. A credit note is made from its invoice instead. */
+    public const FORM_KINDS = ['quotations', 'proformas', 'invoices'];
 
     public static function fromKind(string $kind): ?self
     {

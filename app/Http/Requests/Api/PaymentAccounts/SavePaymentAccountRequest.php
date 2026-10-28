@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api\PaymentAccounts;
 use App\Models\User\PaymentAccount;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class SavePaymentAccountRequest extends FormRequest
 {
@@ -27,28 +28,44 @@ class SavePaymentAccountRequest extends FormRequest
      * under Settings > Currencies.
      *
      * The opening balance may be negative - an overdrawn bank account - and is
-     * to the cent; left empty, it is zero.
+     * to the cent; left empty, it is zero. One that is not zero needs the date
+     * it was the balance on (Doc 05 section 5).
      */
     public function rules(): array
     {
         $workspace = $this->attributes->get('workspace');
 
         return [
-            'type'            => ['required', Rule::in(PaymentAccount::TYPES)],
-            'name'            => ['required', 'string', 'max:255'],
-            'currency'        => ['required', 'string', Rule::in($workspace?->currencyCodes() ?? [])],
-            'bank_name'       => ['nullable', 'string', 'max:255'],
-            'account_number'  => ['nullable', 'string', 'max:50'],
-            'opening_balance' => ['nullable', 'numeric', 'decimal:0,2', 'between:-9999999999999.99,9999999999999.99'],
-            'notes'           => ['nullable', 'string', 'max:2000'],
-            'is_active'       => ['sometimes', 'boolean'],
+            'type'                 => ['required', Rule::in(PaymentAccount::TYPES)],
+            'name'                 => ['required', 'string', 'max:255'],
+            'currency'             => ['required', 'string', Rule::in($workspace?->currencyCodes() ?? [])],
+            'bank_name'            => ['nullable', 'string', 'max:255'],
+            'account_number'       => ['nullable', 'string', 'max:50'],
+            'opening_balance'      => ['nullable', 'numeric', 'decimal:0,2', 'between:-9999999999999.99,9999999999999.99'],
+            'opening_balance_date' => ['nullable', 'date_format:Y-m-d'],
+            'notes'                => ['nullable', 'string', 'max:2000'],
+            'is_active'            => ['sometimes', 'boolean'],
+        ];
+    }
+
+    public function after(): array
+    {
+        return [
+            function (Validator $validator) {
+                $balance = $this->input('opening_balance');
+
+                if (is_numeric($balance) && (float) $balance !== 0.0 && ! $this->filled('opening_balance_date') && ! $validator->errors()->has('opening_balance')) {
+                    $validator->errors()->add('opening_balance_date', 'Enter the date the opening balance was the balance on.');
+                }
+            },
         ];
     }
 
     public function attributes(): array
     {
         return [
-            'bank_name' => 'bank or provider',
+            'bank_name'            => 'bank or provider',
+            'opening_balance_date' => 'opening balance date',
         ];
     }
 

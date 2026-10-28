@@ -64,6 +64,7 @@ class TaxSettingsApiTest extends TestCase
             'tax_rounding'            => 'total',
             'default_sales_tax_id'    => $vat->id,
             'default_purchase_tax_id' => $input->id,
+            'withholding_tax'         => false,
         ]]);
 
         $log = ActivityLog::where('user_id', $this->user->id)->sole();

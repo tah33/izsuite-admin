@@ -23,8 +23,9 @@ class NavigationResource extends JsonResource
                 'package'        => $workspace['package'] ? ['name' => $workspace['package']['name']] : null,
                 'base_currency'  => $workspace['base_currency'],
                 'currencies'     => $workspace['currencies'],
-                'tax_mode'       => $workspace['tax_mode'],
-                'brands_enabled' => $workspace['brands_enabled'],
+                'tax_mode'        => $workspace['tax_mode'],
+                'withholding_tax' => $workspace['withholding_tax'] ?? false,
+                'brands_enabled'  => $workspace['brands_enabled'],
             ] : null,
 
             // By family. An object even when empty, so the client always gets a map.
