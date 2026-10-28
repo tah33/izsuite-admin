@@ -52,7 +52,7 @@ class AuthService
      *
      * What the account starts with - the "Billing Starter" workspace, the "Main
      * Location", and the owner as a staff member - is not made here: queued
-     * listeners make it (see UserRegistered), so registration takes no longer
+     * jobs make it (see QueueNewAccountSetup), so registration takes no longer
      * for it. By the time the code from the e-mail has been typed in, it is there.
      */
     public function register(array $data): User

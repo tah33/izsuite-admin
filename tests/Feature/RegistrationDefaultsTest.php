@@ -3,14 +3,13 @@
 namespace Tests\Feature;
 
 use App\Events\UserRegistered;
-use App\Listeners\CreateDefaultLocation;
-use App\Listeners\CreateDefaultWorkspace;
-use App\Listeners\CreateOwnerStaffMember;
-use App\Models\Admin\Role;
+use App\Jobs\AddOwnerAsStaff;
+use App\Jobs\CreateMainLocation;
+use App\Jobs\CreateStarterWorkspace;
 use App\Models\Shared\ActivityLog;
 use App\Models\User\User;
 use App\Models\User\UserStaff;
-use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Events\CallQueuedListener;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
@@ -22,14 +21,18 @@ class RegistrationDefaultsTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const LISTENERS = [CreateDefaultWorkspace::class, CreateDefaultLocation::class, CreateOwnerStaffMember::class];
+    /** What QueueNewAccountSetup chains, in the order it runs them. */
+    private const JOBS = [CreateStarterWorkspace::class, CreateMainLocation::class, AddOwnerAsStaff::class];
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        // Registration gives every account this role, and refuses to run without it.
-        Role::create(['name' => 'User', 'slug' => 'user']);
+        // Registration gives every account the "user" role, and refuses to run
+        // without it. Seeded with the others, super-admin keeps id 1 - a "user"
+        // role made first would take that id, and the account would pass for an
+        // admin, whose activity is not logged.
+        $this->seed(RoleSeeder::class);
     }
 
     private function register(array $overrides = []): TestResponse
@@ -51,11 +54,11 @@ class RegistrationDefaultsTest extends TestCase
         return User::where('email', 'rahim@example.com')->sole();
     }
 
-    /** Runs each listener the way the queue worker would, in the order given. */
-    private function runListeners(int $userId, array $listeners = self::LISTENERS): void
+    /** Runs each job the way the queue worker would, in the order given. */
+    private function runJobs(int $userId, array $jobs = self::JOBS): void
     {
-        foreach ($listeners as $listener) {
-            app($listener)->handle(new UserRegistered($userId));
+        foreach ($jobs as $job) {
+            $job::dispatchSync($userId);
         }
     }
 
@@ -88,13 +91,16 @@ class RegistrationDefaultsTest extends TestCase
 
         $user = $this->registered();
 
-        // One job per listener, each queued once, for this account...
-        Queue::assertPushed(CallQueuedListener::class, count(self::LISTENERS));
+        // One chain, queued once, for this account...
+        Queue::assertPushed(CreateStarterWorkspace::class, 1);
+        Queue::assertPushedWithChain(
+            CreateStarterWorkspace::class,
+            [CreateMainLocation::class, AddOwnerAsStaff::class],
+            fn (CreateStarterWorkspace $job) => $job->userId === $user->id,
+        );
 
-        foreach (self::LISTENERS as $listener) {
-            Queue::assertPushed(CallQueuedListener::class, fn (CallQueuedListener $job) => $job->class === $listener
-                && $job->data[0]->userId === $user->id);
-        }
+        // ...no queued listener setting the account up a second way...
+        Queue::assertNotPushed(CallQueuedListener::class, fn (CallQueuedListener $job) => $job->data[0] instanceof UserRegistered);
 
         // ...and nothing made during the request itself: that is what keeps
         // registration as quick as it was.
@@ -131,13 +137,15 @@ class RegistrationDefaultsTest extends TestCase
 
     public function test_the_owner_is_assigned_to_the_workspace_whichever_job_runs_first(): void
     {
+        // The workspace always comes first - the location and the staff member
+        // both belong to it - but the two jobs after it do not depend on each other.
         foreach ([
-            'workspace first' => [CreateDefaultWorkspace::class, CreateOwnerStaffMember::class],
-            'staff first'     => [CreateOwnerStaffMember::class, CreateDefaultWorkspace::class],
-        ] as $order => $listeners) {
+            'location first' => [CreateStarterWorkspace::class, CreateMainLocation::class, AddOwnerAsStaff::class],
+            'staff first'    => [CreateStarterWorkspace::class, AddOwnerAsStaff::class, CreateMainLocation::class],
+        ] as $order => $jobs) {
             $user = User::factory()->create();
 
-            $this->runListeners($user->id, $listeners);
+            $this->runJobs($user->id, $jobs);
 
             $this->assertSame([$user->workspaces()->sole()->id], $user->userStaff()->sole()->assigned_workspaces, $order);
         }
@@ -147,7 +155,7 @@ class RegistrationDefaultsTest extends TestCase
     {
         $user = User::factory()->create(['first_name' => str_repeat('a', 200), 'last_name' => str_repeat('b', 200)]);
 
-        $this->runListeners($user->id, [CreateOwnerStaffMember::class]);
+        $this->runJobs($user->id, [CreateStarterWorkspace::class, AddOwnerAsStaff::class]);
 
         $this->assertSame(255, strlen($user->userStaff()->sole()->name));
     }
@@ -158,8 +166,7 @@ class RegistrationDefaultsTest extends TestCase
 
         $user = $this->registered();
 
-        // The account itself first, then what it was given - in whatever order
-        // the queue got to the three, which do not depend on one another.
+        // The account itself first, then what it was given.
         $descriptions = ActivityLog::where('user_id', $user->id)->orderBy('id')->pluck('description')->all();
 
         $this->assertSame('Registered an izSuite account', array_shift($descriptions));
@@ -179,8 +186,8 @@ class RegistrationDefaultsTest extends TestCase
         $user = User::factory()->create();
 
         // A retried job, or the event announced twice.
-        $this->runListeners($user->id);
-        $this->runListeners($user->id);
+        $this->runJobs($user->id);
+        $this->runJobs($user->id);
 
         $this->assertSame(1, $user->workspaces()->count());
         $this->assertSame(1, $user->locations()->count());
@@ -195,7 +202,7 @@ class RegistrationDefaultsTest extends TestCase
         $id   = $user->id;
         $user->delete();
 
-        $this->runListeners($id);
+        $this->runJobs($id);
 
         $this->assertDatabaseCount('workspaces', 0);
         $this->assertDatabaseCount('locations', 0);
@@ -211,10 +218,13 @@ class RegistrationDefaultsTest extends TestCase
         Event::assertNotDispatched(UserRegistered::class);
     }
 
-    public function test_each_listener_is_queued_after_the_account_is_committed(): void
+    public function test_the_setup_is_queued_after_the_account_is_committed(): void
     {
-        foreach (self::LISTENERS as $listener) {
-            $this->assertInstanceOf(ShouldQueueAfterCommit::class, app($listener), $listener);
-        }
+        Queue::fake();
+
+        $this->register()->assertCreated();
+
+        // The chain's first job waits for the commit; it queues the rest itself.
+        Queue::assertPushed(CreateStarterWorkspace::class, fn (CreateStarterWorkspace $job) => $job->afterCommit === true);
     }
 }
