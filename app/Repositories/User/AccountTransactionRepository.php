@@ -53,6 +53,17 @@ class AccountTransactionRepository
             ->all();
     }
 
+    /** The same, of what was dated on or before $date - the balances as they stood that day. */
+    public function netByAccountUntil(Workspace $workspace, string $date): array
+    {
+        return $workspace->accountTransactions()
+            ->selectRaw('payment_account_id, SUM('.self::NET.') as net')
+            ->where('transaction_date', '<=', $date)
+            ->groupBy('payment_account_id')
+            ->pluck('net', 'payment_account_id')
+            ->all();
+    }
+
     /** The net of one account's completed history, as the database sums it. */
     public function netFor(PaymentAccount $account): mixed
     {

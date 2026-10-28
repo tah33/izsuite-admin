@@ -17,6 +17,8 @@ use App\Http\Controllers\Api\ContactMessageController;
 use App\Http\Controllers\Api\CountryController;
 use App\Http\Controllers\Api\CreditNoteController;
 use App\Http\Controllers\Api\CurrencyController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\DocumentIndexController;
 use App\Http\Controllers\Api\DocumentNumberingController;
 use App\Http\Controllers\Api\DocumentSignatureController;
 use App\Http\Controllers\Api\DocumentTemplateController;
@@ -39,6 +41,7 @@ use App\Http\Controllers\Api\PaymentAccountController;
 use App\Http\Controllers\Api\PaymentAccountTransactionController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SalesConversionController;
 use App\Http\Controllers\Api\SalesDocumentAttachmentController;
 use App\Http\Controllers\Api\SalesDocumentController;
@@ -227,6 +230,25 @@ Route::prefix('v1')->group(function () {
         Route::post('/', [UserStaffController::class, 'store'])->name('api.user-staff.store');
         Route::put('/{id}', [UserStaffController::class, 'update'])->whereNumber('id')->name('api.user-staff.update');
         Route::delete('/{id}', [UserStaffController::class, 'destroy'])->whereNumber('id')->name('api.user-staff.destroy');
+    });
+
+    /* ----------------------------------------------------------
+     | The Core Workspace's overview pages (Doc 01 section 10): the
+     | Dashboard (Doc 02), Documents (Doc 06) and Reports (Doc 07)
+     |
+     | Each reads what the business's apps keep - Sales Lite's so far - and
+     | changes nothing. Totals are in the base currency.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required'])->group(function () {
+        Route::get('/dashboard', DashboardController::class)->name('api.dashboard');
+
+        Route::get('/documents', [DocumentIndexController::class, 'index'])->name('api.documents.index');
+        Route::get('/documents/export', [DocumentIndexController::class, 'export'])->name('api.documents.export');
+
+        Route::get('/reports', [ReportController::class, 'index'])->name('api.reports.index');
+        Route::get('/reports/{report}', [ReportController::class, 'show'])->where('report', '[a-z-]+')->name('api.reports.show');
+        Route::get('/reports/{report}/export', [ReportController::class, 'export'])->where('report', '[a-z-]+')->name('api.reports.export');
+        Route::get('/reports/{report}/pdf', [ReportController::class, 'pdf'])->where('report', '[a-z-]+')->middleware('throttle:30,1')->name('api.reports.pdf');
     });
 
     /* ----------------------------------------------------------

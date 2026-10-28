@@ -11,9 +11,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * the mark, in UTF-8 or Windows-1252.
  *
  * A cell a spreadsheet would run as a formula - one starting with =, +, -,
- * @ or a tab - is written with an apostrophe in front, so opening an export
- * never runs anything ("+880 1711-000000" stays a phone number). Reading
- * takes the apostrophe back off.
+ * @ or a tab, other than a plain negative number - is written with an
+ * apostrophe in front, so opening an export never runs anything ("+880
+ * 1711-000000" stays a phone number). Reading takes the apostrophe back off.
  */
 final class Csv
 {
@@ -36,7 +36,11 @@ final class Csv
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
-    /** A value as a cell: text, safe from formulas. */
+    /**
+     * A value as a cell: text, safe from formulas. A plain negative number -
+     * a report's "-25.00" - is a number to a spreadsheet, never a formula, so
+     * it stays as it is.
+     */
     public static function cell(mixed $value): string
     {
         $text = match (true) {
@@ -44,6 +48,10 @@ final class Csv
             is_bool($value)  => $value ? 'Yes' : 'No',
             default          => (string) $value,
         };
+
+        if (preg_match('/^-\d+(\.\d+)?$/', $text)) {
+            return $text;
+        }
 
         return $text !== '' && in_array($text[0], ['=', '+', '-', '@', "\t", "\r"], true) ? "'{$text}" : $text;
     }

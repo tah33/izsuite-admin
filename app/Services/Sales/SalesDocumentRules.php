@@ -35,6 +35,13 @@ final class SalesDocumentRules
         return $status->value;
     }
 
+    /** Whether it has a balance to show: an issued invoice's still to pay, an issued credit note's credit left. */
+    public function holdsBalance(SalesDocument $document): bool
+    {
+        return $document->status === SalesDocumentStatus::Issued
+            && in_array($document->type, [DocumentType::Invoice, DocumentType::CreditNote], true);
+    }
+
     /** An issued invoice past its due date with something still to pay (Doc 08 section 7). */
     public function overdue(SalesDocument $document, string $today): bool
     {

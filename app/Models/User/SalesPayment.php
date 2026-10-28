@@ -125,6 +125,12 @@ class SalesPayment extends Model
         return $this->belongsTo(PaymentAccount::class, 'payment_account_id');
     }
 
+    /** Its document's location, which reports filter and show it by. */
+    public function location(): BelongsTo
+    {
+        return $this->belongsTo(Location::class);
+    }
+
     public function withholdingTax(): BelongsTo
     {
         return $this->belongsTo(WithholdingTax::class);
