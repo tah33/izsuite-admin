@@ -3,14 +3,13 @@
 namespace App\Services\Api\Documents;
 
 use App\Enums\DocumentType;
-use App\Enums\Edition;
 use App\Models\User\DocumentNumbering;
 use App\Models\User\Workspace;
 use App\Repositories\User\DocumentNumberingRepository;
 use App\Services\Documents\DocumentNumbers;
+use App\Services\Documents\DocumentTypes;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\BusinessCalendar;
-use App\Services\User\Apps\WorkspaceApps;
 
 /**
  * Settings > Documents > Numbering (Doc 11 section 21): how each kind of
@@ -28,22 +27,19 @@ class NumberingService
         protected DocumentNumberingRepository $documentNumberingRepository,
         protected DocumentNumbers $documentNumbers,
         protected BusinessCalendar $businessCalendar,
+        protected DocumentTypes $documentTypes,
     ) {}
 
     /** @return list<array{scheme: DocumentNumbering, next_number: string}> */
     public function list(Workspace $workspace): array
     {
-        return array_map(fn (DocumentType $type) => $this->row($workspace, $this->documentNumbers->scheme($workspace, $type)), $this->types($workspace));
+        return array_map(fn (DocumentType $type) => $this->row($workspace, $this->documentNumbers->scheme($workspace, $type)), $this->documentTypes->for($workspace));
     }
 
     /** The document type named in the address - 404 for one that is not, or whose app is off. */
     public function type(Workspace $workspace, string $value): DocumentType
     {
-        $type = DocumentType::tryFrom($value);
-
-        abort_unless($type && in_array($type, $this->types($workspace), true), 404, 'There is no such kind of document.');
-
-        return $type;
+        return $this->documentTypes->named($workspace, $value);
     }
 
     /** $data is validated (see SaveNumberingRequest). */
@@ -74,14 +70,6 @@ class NumberingService
             'scheme'      => $scheme,
             'next_number' => $this->documentNumbers->preview($workspace, $scheme, $this->businessCalendar->today($workspace)),
         ];
-    }
-
-    /** The kinds of document of the apps the business has on, in DocumentType's order. */
-    private function types(Workspace $workspace): array
-    {
-        $apps = WorkspaceApps::for($workspace);
-
-        return array_values(array_filter(DocumentType::cases(), fn (DocumentType $type) => $apps->has($type->family(), Edition::Lite)));
     }
 
     private function value(DocumentNumbering $scheme, string $field): string

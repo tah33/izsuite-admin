@@ -13,6 +13,8 @@ enum FileCollection: string
     case Image = 'image';
     case DigitalFiles = 'digital_files';
     case Logo = 'logo';
+    // A document template's signature or stamp image (Doc 06 section 14).
+    case Signature = 'signature';
 
     /**
      * Shown on pages and documents, so anyone with the address may see it.
@@ -27,7 +29,7 @@ enum FileCollection: string
     /** One per record: a new one replaces it. */
     public function isSingle(): bool
     {
-        return $this === self::Image || $this === self::Logo;
+        return $this === self::Image || $this === self::Logo || $this === self::Signature;
     }
 
     /** The largest file, in kilobytes. */
@@ -38,6 +40,7 @@ enum FileCollection: string
             self::Image        => 2 * 1024,
             self::DigitalFiles => 100 * 1024,
             self::Logo         => 2 * 1024,
+            self::Signature    => 1024,
         };
     }
 
@@ -49,6 +52,7 @@ enum FileCollection: string
             self::Image        => ['jpg', 'jpeg', 'png', 'webp'],
             self::DigitalFiles => null,
             self::Logo         => ['jpg', 'jpeg', 'png', 'webp'],
+            self::Signature    => ['jpg', 'jpeg', 'png', 'webp'],
         };
     }
 
@@ -60,6 +64,7 @@ enum FileCollection: string
             self::Image        => 'image',
             self::DigitalFiles => 'file',
             self::Logo         => 'logo',
+            self::Signature    => 'signature',
         };
     }
 }

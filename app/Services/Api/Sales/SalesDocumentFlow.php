@@ -8,8 +8,10 @@ use App\Models\User\SalesDocument;
 use App\Models\User\SalesDocumentLine;
 use App\Models\User\User;
 use App\Models\User\Workspace;
+use App\Repositories\User\DocumentLinkRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Services\Documents\DocumentNumbers;
+use App\Services\Documents\DocumentTemplates;
 use App\Services\Sales\SalesDocumentRules;
 use App\Services\Shared\ActivityLogService;
 use Carbon\CarbonImmutable;
@@ -45,6 +47,8 @@ class SalesDocumentFlow
         protected SalesSnapshots $salesSnapshots,
         protected DocumentNumbers $documentNumbers,
         protected CreditNoteService $creditNoteService,
+        protected DocumentTemplates $documentTemplates,
+        protected DocumentLinkRepository $documentLinkRepository,
     ) {}
 
     /** A credit note is issued against its invoice - see CreditNoteService. */
@@ -116,13 +120,18 @@ class SalesDocumentFlow
             ? 'Payments or credit notes have settled some of this invoice. Reverse its payments and void its credit notes first.'
             : 'Only an issued invoice can be voided. A draft is deleted instead.');
 
-        $this->salesDocumentRepository->update($document, [
-            'status'         => SalesDocumentStatus::Void,
-            'payment_status' => SalesDocument::PAYMENT_NOT_APPLICABLE,
-            'balance_due'    => '0',
-            'status_reason'  => $reason,
-            'updated_by'     => $user->id,
-        ]);
+        DB::transaction(function () use ($document, $user, $reason) {
+            $this->salesDocumentRepository->update($document, [
+                'status'         => SalesDocumentStatus::Void,
+                'payment_status' => SalesDocument::PAYMENT_NOT_APPLICABLE,
+                'balance_due'    => '0',
+                'status_reason'  => $reason,
+                'updated_by'     => $user->id,
+            ]);
+
+            // Its secure links stop working with it.
+            $this->documentLinkRepository->revokeFor($document);
+        });
 
         return $this->logged($document, 'Voided '.$this->salesDocumentService->describe($document));
     }
@@ -132,7 +141,14 @@ class SalesDocumentFlow
     {
         $document = $this->allowed($workspace, $type, $id, $action, $refusal);
 
-        $this->salesDocumentRepository->update($document, ['status' => $status, 'status_reason' => $reason, 'updated_by' => $user->id]);
+        DB::transaction(function () use ($document, $user, $status, $reason) {
+            $this->salesDocumentRepository->update($document, ['status' => $status, 'status_reason' => $reason, 'updated_by' => $user->id]);
+
+            // A cancelled document's secure links stop working with it.
+            if ($status === SalesDocumentStatus::Cancelled) {
+                $this->documentLinkRepository->revokeFor($document);
+            }
+        });
 
         return $this->logged($document, sprintf($log, $this->salesDocumentService->describe($document)));
     }
@@ -165,6 +181,7 @@ class SalesDocumentFlow
             'issued_at'         => $document->issued_at ?? now(),
             'business_snapshot' => $this->salesSnapshots->business($workspace, $document->location),
             'customer_snapshot' => $this->salesSnapshots->customer($document->contact),
+            'template_snapshot' => $this->documentTemplates->snapshot($workspace, $document->type),
         ];
     }
 

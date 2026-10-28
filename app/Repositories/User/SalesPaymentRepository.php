@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Collection;
 class SalesPaymentRepository
 {
     /** What a receipt's page shows with it. */
-    private const SHOWN_WITH = ['document:id,type,number,currency,grand_total,balance_due,source_id', 'contact:id,name', 'account:id,name,currency', 'creator:id,first_name,last_name', 'reverser:id,first_name,last_name'];
+    private const SHOWN_WITH = ['document:id,type,number,currency,grand_total,balance_due,source_id', 'contact:id,name', 'account:id,name,currency', 'creator:id,first_name,last_name', 'reverser:id,first_name,last_name', 'emails.sender:id,first_name,last_name'];
 
     /** Payments Received (Doc 08 section 2): payments only, newest first, searched and filtered. */
     public function paginatePaymentsFor(Workspace $workspace, array $filters, int $perPage): LengthAwarePaginator
@@ -50,6 +50,12 @@ class SalesPaymentRepository
     public function loadShown(SalesPayment $payment): SalesPayment
     {
         return $payment->load(self::SHOWN_WITH);
+    }
+
+    /** With what its receipt shows: its invoice whole - the business and customer it kept - the customer and the account. */
+    public function loadForReceipt(SalesPayment $payment): SalesPayment
+    {
+        return $payment->load(['document.location:id,name', 'contact', 'account:id,name,currency']);
     }
 
     /** Whether one of the business's receipts already has $number. */

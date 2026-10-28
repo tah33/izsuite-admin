@@ -135,6 +135,21 @@ class FileStorage
         return Storage::disk($file->disk)->url($thumbnail && $file->thumbnail_path ? $file->thumbnail_path : $file->path);
     }
 
+    /**
+     * $file as a data: address - for a picture a PDF carries inside itself, so
+     * the PDF maker never fetches anything. Null when it is gone.
+     */
+    public function dataUri(WorkspaceFile $file): ?string
+    {
+        $disk = Storage::disk($file->disk);
+
+        if (! $disk->exists($file->path)) {
+            return null;
+        }
+
+        return 'data:'.$file->mime_type.';base64,'.base64_encode((string) $disk->get($file->path));
+    }
+
     /** A link that downloads $file for the next few minutes, without signing in. */
     public function downloadLink(WorkspaceFile $file): string
     {

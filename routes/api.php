@@ -18,6 +18,9 @@ use App\Http\Controllers\Api\CountryController;
 use App\Http\Controllers\Api\CreditNoteController;
 use App\Http\Controllers\Api\CurrencyController;
 use App\Http\Controllers\Api\DocumentNumberingController;
+use App\Http\Controllers\Api\DocumentSignatureController;
+use App\Http\Controllers\Api\DocumentTemplateController;
+use App\Http\Controllers\Api\EmailSettingController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\ExchangeRateController;
 use App\Http\Controllers\Api\ExportController;
@@ -41,9 +44,12 @@ use App\Http\Controllers\Api\SalesDocumentAttachmentController;
 use App\Http\Controllers\Api\SalesDocumentController;
 use App\Http\Controllers\Api\SalesDocumentFlowController;
 use App\Http\Controllers\Api\SalesDocumentRevisionController;
+use App\Http\Controllers\Api\SalesEmailController;
 use App\Http\Controllers\Api\SalesFormController;
+use App\Http\Controllers\Api\SalesLinkController;
 use App\Http\Controllers\Api\SalesPaymentAttachmentController;
 use App\Http\Controllers\Api\SalesPaymentController;
+use App\Http\Controllers\Api\SalesPdfController;
 use App\Http\Controllers\Api\SalesRefundController;
 use App\Http\Controllers\Api\SalesSettingController;
 use App\Http\Controllers\Api\TaxRateController;
@@ -159,6 +165,20 @@ Route::prefix('v1')->group(function () {
         Route::get('/numbering', [DocumentNumberingController::class, 'index'])->name('api.business-settings.numbering.index');
         Route::put('/numbering/{type}', [DocumentNumberingController::class, 'update'])->name('api.business-settings.numbering.update');
         Route::get('/numbering/{type}/preview', [DocumentNumberingController::class, 'preview'])->name('api.business-settings.numbering.preview');
+
+        // Settings > Documents > Templates (Doc 06 section 14, Doc 11 section
+        // 20): how each kind looks, its signature image, and a PDF of a sample
+        // drawn with settings not saved yet.
+        Route::get('/templates', [DocumentTemplateController::class, 'index'])->name('api.business-settings.templates.index');
+        Route::put('/templates/{type}', [DocumentTemplateController::class, 'update'])->name('api.business-settings.templates.update');
+        Route::post('/templates/{type}/preview', [DocumentTemplateController::class, 'preview'])->middleware('throttle:30,1')->name('api.business-settings.templates.preview');
+        Route::post('/templates/{type}/signature', [DocumentSignatureController::class, 'store'])->name('api.business-settings.templates.signature.store');
+        Route::delete('/templates/{type}/signature', [DocumentSignatureController::class, 'destroy'])->name('api.business-settings.templates.signature.destroy');
+
+        // Settings > Email (Doc 11 sections 15 and 22): the sender name, where
+        // replies go, and what each document's email starts with.
+        Route::get('/email', [EmailSettingController::class, 'show'])->name('api.business-settings.email.show');
+        Route::put('/email', [EmailSettingController::class, 'update'])->name('api.business-settings.email.update');
 
         // Usage and Limits (Doc 13 section 13.14): the package and the storage used.
         Route::get('/usage', BusinessUsageController::class)->name('api.business-settings.usage');
@@ -311,6 +331,10 @@ Route::prefix('v1')->group(function () {
      | An issued invoice takes payments and credit notes; a credit note pays
      | refunds. Payments Received lists the payments; a payment or refund is
      | reversed, never deleted. Another business's records are a 404.
+     |
+     | Each document has its PDF and an email form, and a secure link once it
+     | is numbered (see routes/web.php for what the link opens); a payment's
+     | receipt has its PDF and email.
      | -------------------------------------------------------- */
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:sales'])->prefix('sales')->group(function () {
         Route::post('/calculate', [SalesFormController::class, 'calculate'])->name('api.sales.calculate');
@@ -318,6 +342,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/payments', [SalesPaymentController::class, 'index'])->name('api.sales.payments.index');
         Route::get('/payments/{id}', [SalesPaymentController::class, 'show'])->whereNumber('id')->name('api.sales.payments.show');
         Route::post('/payments/{id}/reverse', [SalesPaymentController::class, 'reverse'])->whereNumber('id')->name('api.sales.payments.reverse');
+        Route::get('/payments/{id}/pdf', [SalesPdfController::class, 'receipt'])->whereNumber('id')->name('api.sales.payments.pdf');
+        Route::get('/payments/{id}/email-draft', [SalesEmailController::class, 'receiptDraft'])->whereNumber('id')->name('api.sales.payments.email-draft');
+        Route::post('/payments/{id}/email', [SalesEmailController::class, 'sendReceipt'])->whereNumber('id')->middleware('throttle:30,1')->name('api.sales.payments.email');
         Route::get('/payments/{id}/attachments', [SalesPaymentAttachmentController::class, 'index'])->whereNumber('id')->name('api.sales.payments.attachments.index');
         Route::post('/payments/{id}/attachments', [SalesPaymentAttachmentController::class, 'store'])->whereNumber('id')->name('api.sales.payments.attachments.store');
         Route::delete('/payments/{id}/attachments/{fileId}', [SalesPaymentAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.sales.payments.attachments.destroy');
@@ -334,6 +361,11 @@ Route::prefix('v1')->group(function () {
             Route::get('/', [SalesDocumentController::class, 'index'])->name('api.sales.index');
             Route::get('/{id}', [SalesDocumentController::class, 'show'])->whereNumber('id')->name('api.sales.show');
             Route::delete('/{id}', [SalesDocumentController::class, 'destroy'])->whereNumber('id')->name('api.sales.destroy');
+            Route::get('/{id}/pdf', [SalesPdfController::class, 'document'])->whereNumber('id')->name('api.sales.pdf');
+            Route::get('/{id}/email-draft', [SalesEmailController::class, 'draft'])->whereNumber('id')->name('api.sales.email-draft');
+            Route::post('/{id}/email', [SalesEmailController::class, 'send'])->whereNumber('id')->middleware('throttle:30,1')->name('api.sales.email');
+            Route::post('/{id}/link', [SalesLinkController::class, 'store'])->whereNumber('id')->name('api.sales.link.store');
+            Route::delete('/{id}/link', [SalesLinkController::class, 'destroy'])->whereNumber('id')->name('api.sales.link.destroy');
 
             foreach (['issue', 'send', 'accept', 'reject', 'cancel', 'void'] as $action) {
                 Route::post("/{id}/{$action}", [SalesDocumentFlowController::class, $action])->whereNumber('id')->name("api.sales.{$action}");

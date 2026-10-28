@@ -1,0 +1,4 @@
+{!! $body !!}
+
+--
+Sent with izSuite

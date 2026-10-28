@@ -86,6 +86,11 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(6)->by('reset-ip|'.$request->ip()),
             Limit::perHour(12)->by('reset|'.$this->emailKey($request)),
         ]);
+
+        // A secure link opens a document without signing in. Its token is 48
+        // random characters, so this is a ceiling on PDFs made for strangers
+        // rather than a guard against guessing: a reader opens a page or two.
+        RateLimiter::for('public-documents', fn (Request $request) => Limit::perMinute(30)->by('public-documents|'.$request->ip()));
     }
 
     /**

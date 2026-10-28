@@ -37,6 +37,7 @@ class SalesDocumentRepository
         'conversions:id,source_id,type,number,status',
         'creditNotes:id,source_id,type,number,status,document_date,grand_total,applied_amount,refunded_amount,balance_due,payment_status',
         'payments.account:id,name,currency',
+        'activeLink', 'emails.sender:id,first_name,last_name',
     ];
 
     public function paginateFor(Workspace $workspace, DocumentType $type, array $filters, int $perPage, string $today): LengthAwarePaginator
@@ -75,6 +76,12 @@ class SalesDocumentRepository
     public function loadShown(SalesDocument $document): SalesDocument
     {
         return $document->load(self::SHOWN_WITH);
+    }
+
+    /** With what its PDF shows - for one drawn away from its page: an email, a secure link. */
+    public function loadForPdf(SalesDocument $document): SalesDocument
+    {
+        return $document->load(['lines', 'contact', 'location:id,name', 'source:id,type,number']);
     }
 
     /** Its lines with the rates their taxes came from, as those are now. */

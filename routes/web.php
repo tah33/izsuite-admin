@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Frontend\PageController;
+use App\Http\Controllers\Frontend\PublicDocumentController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/welcome', fn () => view('welcome'));
@@ -11,6 +12,17 @@ Route::get('/welcome', fn () => view('welcome'));
 |--------------------------------------------------------------------------
 */
 Route::get('/page/{slug}', [PageController::class, 'show'])->name('page.show');
+
+/*
+|--------------------------------------------------------------------------
+| Secure document links (Doc 06 section 9): a customer opens a sales
+| document, and downloads its PDF, without signing in
+|--------------------------------------------------------------------------
+*/
+Route::middleware('throttle:public-documents')->prefix('d')->group(function () {
+    Route::get('/{token}', [PublicDocumentController::class, 'show'])->where('token', '[A-Za-z0-9]{48}')->name('documents.public');
+    Route::get('/{token}/pdf', [PublicDocumentController::class, 'pdf'])->where('token', '[A-Za-z0-9]{48}')->name('documents.public.pdf');
+});
 Route::get('/', function () {
     if (auth()->check() && auth()->user()->isAdmin()) {
         return redirect()->route('admin.overview');

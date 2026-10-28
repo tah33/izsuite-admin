@@ -8,6 +8,8 @@ use App\Models\Concerns\HasFiles;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 /**
  * A quotation, proforma invoice, invoice or credit note of one business (Doc
@@ -78,6 +80,7 @@ class SalesDocument extends Model
         'payment_instructions',
         'business_snapshot',
         'customer_snapshot',
+        'template_snapshot',
         'source_id',
         'status_reason',
         'reason',
@@ -118,6 +121,7 @@ class SalesDocument extends Model
         'balance_due'        => 'decimal:2',
         'business_snapshot' => 'array',
         'customer_snapshot' => 'array',
+        'template_snapshot' => 'array',
         'source_id'         => 'integer',
         'issued_at'         => 'datetime',
     ];
@@ -179,5 +183,23 @@ class SalesDocument extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(SalesPayment::class)->orderBy('payment_date')->orderBy('id');
+    }
+
+    /** It - or a reminder of it - emailed, newest first. */
+    public function emails(): MorphMany
+    {
+        return $this->morphMany(DocumentEmail::class, 'emailable')->latest('id');
+    }
+
+    /** Its secure links, the revoked ones too. */
+    public function links(): MorphMany
+    {
+        return $this->morphMany(DocumentLink::class, 'linkable');
+    }
+
+    /** The secure link that still works, if it has one. */
+    public function activeLink(): MorphOne
+    {
+        return $this->morphOne(DocumentLink::class, 'linkable')->whereNull('revoked_at')->latest('id');
     }
 }

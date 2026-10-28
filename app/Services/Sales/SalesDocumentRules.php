@@ -87,6 +87,31 @@ final class SalesDocumentRules
         return in_array($action, $this->actions($document, $today), true);
     }
 
+    /**
+     * How it may reach the customer (Doc 06 section 15, Doc 08 sections 8 and
+     * 20): `email` - a draft quotation or proforma is sent by emailing it -
+     * `reminder` for an issued invoice that still owes, and `share`, a secure
+     * link, once it is numbered and until it is voided or cancelled.
+     *
+     * @return list<string>
+     */
+    public function delivery(SalesDocument $document, string $today): array
+    {
+        $status = $this->status($document, $today);
+        $email  = $document->type->isOffer() ? in_array($status, ['draft', 'sent', 'accepted', 'converted'], true) : $status === 'issued';
+
+        return array_values(array_filter([
+            $email ? 'email' : null,
+            $document->type === DocumentType::Invoice && $status === 'issued' && $this->positive((string) $document->balance_due) ? 'reminder' : null,
+            $document->number && ! in_array($status, ['draft', 'void', 'cancelled'], true) ? 'share' : null,
+        ]));
+    }
+
+    public function delivers(SalesDocument $document, string $way, string $today): bool
+    {
+        return in_array($way, $this->delivery($document, $today), true);
+    }
+
     /** What is still left to credit on an invoice: its total less its issued credit notes. */
     public function creditable(SalesDocument $invoice): string
     {

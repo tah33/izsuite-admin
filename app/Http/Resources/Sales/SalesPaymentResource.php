@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Sales;
 
+use App\Models\User\SalesPayment;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -11,7 +12,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * account and how, the amounts, what the document had left just after it,
  * and - once reversed - when, by whom and why. Amounts go out as strings to
  * the cent; `amount` is in the account's currency, `applied_amount` in the
- * document's. Expects document, contact, account, creator and reverser loaded.
+ * document's. Expects document, contact, account, creator, reverser and
+ * emails.sender loaded.
  */
 class SalesPaymentResource extends JsonResource
 {
@@ -46,6 +48,9 @@ class SalesPaymentResource extends JsonResource
             'reversed_by'     => $this->reverser ? trim("{$this->reverser->first_name} {$this->reverser->last_name}") : null,
             'reversal_reason' => $this->reversal_reason,
             'actions'         => $this->isCompleted() ? ['reverse'] : [],
+            // A payment's receipt is emailed while the payment stands; a refund has none.
+            'delivery'        => $this->kind === SalesPayment::PAYMENT && $this->isCompleted() ? ['email'] : [],
+            'emails'          => DocumentEmailResource::collection($this->whenLoaded('emails')),
         ];
     }
 }

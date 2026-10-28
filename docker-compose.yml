@@ -64,6 +64,9 @@ x-app-env: &app-env
   PUSHER_APP_CLUSTER: "${PUSHER_APP_CLUSTER:-ap1}"
 
   FILESYSTEM_DISK: "${FILESYSTEM_DISK:-local}"
+
+  # Where the documents' PDFs are made (see the gotenberg service).
+  GOTENBERG_URL: "${GOTENBERG_URL:-http://gotenberg:3000}"
   LOG_CHANNEL: "${LOG_CHANNEL:-stack}"
   LOG_LEVEL: "${LOG_LEVEL:-debug}"
 
@@ -192,6 +195,25 @@ services:
     networks:
       - izsuite-public      # outbound: mail relay, Pusher, external APIs
       - izsuite-internal    # MySQL + Redis
+
+  # ── Gotenberg (PDFs) ───────────────────────────────────────────────────────
+  # Turns the documents' HTML into PDFs with headless Chromium (Doc 14 section
+  # 14.13). Internal network only: everything a document shows - the logo,
+  # a signature - is sent inside its HTML, so Chromium never needs to reach
+  # anything, and with no outbound route it cannot. JavaScript is off.
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: izsuite-gotenberg
+    restart: unless-stopped
+    command:
+      - gotenberg
+      - --chromium-disable-javascript=true
+      - --api-timeout=60s
+      - --log-level=warn
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - izsuite-internal
 
   # ── Scheduler ──────────────────────────────────────────────────────────────
   # Replaces a host crontab entry. `schedule:work` runs in the foreground and

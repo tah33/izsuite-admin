@@ -214,6 +214,28 @@ class Workspace extends Model
         return $this->hasMany(AccountTransaction::class);
     }
 
+    /** How each type of its documents looks - a row only where a default was changed. */
+    public function documentTemplates(): HasMany
+    {
+        return $this->hasMany(DocumentTemplate::class);
+    }
+
+    /** Settings > Email - none until first saved. */
+    public function emailSetting(): HasOne
+    {
+        return $this->hasOne(EmailSetting::class);
+    }
+
+    public function documentEmails(): HasMany
+    {
+        return $this->hasMany(DocumentEmail::class);
+    }
+
+    public function documentLinks(): HasMany
+    {
+        return $this->hasMany(DocumentLink::class);
+    }
+
     /** Every file the business keeps, whichever record it belongs to - what its storage counts. */
     public function businessFiles(): HasMany
     {

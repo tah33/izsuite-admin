@@ -90,6 +90,12 @@ class WorkspaceRepository
         $workspace->delete();
     }
 
+    /** The email address of the account that owns the business. */
+    public function ownerEmail(Workspace $workspace): ?string
+    {
+        return $workspace->user()->value('email');
+    }
+
     /**
      * The admin panel's list of every business, newest first, with its owner,
      * its plan and the apps it has on - searched by its name or its owner's

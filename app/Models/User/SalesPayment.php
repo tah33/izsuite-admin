@@ -5,6 +5,7 @@ namespace App\Models\User;
 use App\Models\Concerns\HasFiles;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 /**
  * Money a customer paid against an issued invoice (kind "payment", Doc 08
@@ -60,6 +61,7 @@ class SalesPayment extends Model
         'withholding_rate',
         'withholding_amount',
         'balance_after',
+        'template_snapshot',
         'status',
         'reversed_at',
         'reversed_by',
@@ -85,6 +87,7 @@ class SalesPayment extends Model
         'withholding_rate'   => 'decimal:4',
         'withholding_amount' => 'decimal:2',
         'balance_after'      => 'decimal:2',
+        'template_snapshot'  => 'array',
         'reversed_at'        => 'datetime',
     ];
 
@@ -135,5 +138,11 @@ class SalesPayment extends Model
     public function reverser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reversed_by');
+    }
+
+    /** Its receipt emailed, newest first. */
+    public function emails(): MorphMany
+    {
+        return $this->morphMany(DocumentEmail::class, 'emailable')->latest('id');
     }
 }

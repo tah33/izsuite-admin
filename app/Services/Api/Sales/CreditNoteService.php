@@ -8,8 +8,10 @@ use App\Models\User\SalesDocument;
 use App\Models\User\SalesDocumentLine;
 use App\Models\User\User;
 use App\Models\User\Workspace;
+use App\Repositories\User\DocumentLinkRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Services\Documents\DocumentNumbers;
+use App\Services\Documents\DocumentTemplates;
 use App\Services\Sales\SalesDocumentRules;
 use App\Services\Shared\ActivityLogService;
 use Carbon\CarbonImmutable;
@@ -39,6 +41,8 @@ class CreditNoteService
         protected InvoiceSettlement $invoiceSettlement,
         protected SalesSnapshots $salesSnapshots,
         protected DocumentNumbers $documentNumbers,
+        protected DocumentTemplates $documentTemplates,
+        protected DocumentLinkRepository $documentLinkRepository,
     ) {}
 
     /**
@@ -151,6 +155,7 @@ class CreditNoteService
                 'issued_at'         => now(),
                 'business_snapshot' => $this->salesSnapshots->business($workspace, $note->location),
                 'customer_snapshot' => $this->salesSnapshots->customer($note->contact),
+                'template_snapshot' => $this->documentTemplates->snapshot($workspace, DocumentType::CreditNote),
                 'updated_by'        => $user->id,
             ]);
 
@@ -186,6 +191,7 @@ class CreditNoteService
                 'updated_by'     => $user->id,
             ]);
 
+            $this->documentLinkRepository->revokeFor($note);
             $this->invoiceSettlement->settle($invoice);
         });
 

@@ -5,6 +5,7 @@ namespace App\Http\Resources\Sales;
 use App\Enums\DocumentType;
 use App\Models\User\SalesDocument;
 use App\Services\Api\Sales\SalesSnapshots;
+use App\Services\Documents\DocumentLinks;
 use App\Services\Sales\SalesDocumentRules;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -14,11 +15,14 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * lines, the totals and tax breakdown, where it came from and what was made
  * from it, and the actions its status allows now (see SalesDocumentRules).
  * An invoice also carries its payments and credit notes; a credit note its
- * refunds, with what it may still refund.
+ * refunds, with what it may still refund. How it may reach the customer -
+ * email, reminder, share - comes as `delivery`, with its working secure link
+ * and the emails it went out in.
  *
  * The customer and business are as they were when it was numbered; a draft
  * shows the customer as they are. Expects lines, contact, location, source,
- * conversions, creditNotes and payments.account loaded.
+ * conversions, creditNotes, payments.account, activeLink and emails.sender
+ * loaded.
  */
 class SalesDocumentResource extends JsonResource
 {
@@ -88,6 +92,9 @@ class SalesDocumentResource extends JsonResource
             ])->all(),
             'payments'             => SalesPaymentListResource::collection($this->payments),
             'issued_at'            => $this->issued_at?->toIso8601String(),
+            'delivery'             => $rules->delivery($this->resource, $this->today),
+            'link'                 => $this->activeLink ? new DocumentLinkResource(['link' => $this->activeLink, 'url' => app(DocumentLinks::class)->url($this->activeLink)]) : null,
+            'emails'               => DocumentEmailResource::collection($this->emails),
         ];
     }
 

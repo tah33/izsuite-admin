@@ -68,4 +68,10 @@ return [
         'model'   => env('GEMINI_MODEL', 'gemini-2.0-flash'),
     ],
 
+    // Makes the documents' PDFs (Doc 14 section 14.13) - see docker-compose.yml.
+    'gotenberg' => [
+        'url'     => env('GOTENBERG_URL', 'http://gotenberg:3000'),
+        'timeout' => (int) env('GOTENBERG_TIMEOUT', 60),
+    ],
+
 ];

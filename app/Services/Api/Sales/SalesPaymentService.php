@@ -14,6 +14,7 @@ use App\Repositories\User\SalesPaymentRepository;
 use App\Repositories\User\WithholdingTaxRepository;
 use App\Services\Api\PaymentAccounts\AccountLedger;
 use App\Services\Documents\DocumentNumbers;
+use App\Services\Documents\DocumentTemplates;
 use App\Services\Sales\SalesDocumentRules;
 use App\Services\Shared\ActivityLogService;
 use App\Support\Decimal;
@@ -51,6 +52,7 @@ class SalesPaymentService
         protected InvoiceSettlement $invoiceSettlement,
         protected AccountLedger $accountLedger,
         protected DocumentNumbers $documentNumbers,
+        protected DocumentTemplates $documentTemplates,
     ) {}
 
     public function list(Workspace $workspace, array $filters, int $perPage): LengthAwarePaginator
@@ -115,6 +117,7 @@ class SalesPaymentService
                 'base_amount'        => $this->accountLedger->baseAmount($workspace, $amount, $account->currency, $applied, $invoice->currency, $data['payment_date'], (string) $invoice->exchange_rate),
                 ...$withholding,
                 'balance_after'      => bcsub(bcsub((string) $invoice->balance_due, $applied, 2), $withholding['withholding_amount'], 2),
+                'template_snapshot'  => $this->documentTemplates->snapshot($workspace, DocumentType::CustomerReceipt),
                 'created_by'         => $user->id,
             ]);
 
