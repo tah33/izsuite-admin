@@ -7,7 +7,9 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Hands out a business's running numbers (see the workspace_sequences table):
- * next() gives the next one of a counter, starting at 1.
+ * next() gives the next one of a counter, starting at 1 - or at $first, which
+ * a counter never goes below. Raising $first jumps the counter ahead; lowering
+ * it never takes it back to numbers already given.
  *
  * The counter's row is locked while it moves on, so two records made at the
  * same moment never get the same number. Called inside the transaction that
@@ -19,9 +21,9 @@ class WorkspaceSequence
         private WorkspaceSequenceRepository $sequences,
     ) {}
 
-    public function next(int $workspaceId, string $name): int
+    public function next(int $workspaceId, string $name, int $first = 1): int
     {
-        return DB::transaction(function () use ($workspaceId, $name): int {
+        return DB::transaction(function () use ($workspaceId, $name, $first): int {
             $now = now();
 
             // Made on first use. Two first uses at once both try; one wins.
@@ -29,11 +31,17 @@ class WorkspaceSequence
 
             $counter = $this->sequences->lock($workspaceId, $name);
 
-            $next = $counter->last_value + 1;
+            $next = max($counter->last_value + 1, $first);
 
             $this->sequences->setLastValue($counter->id, $next, $now);
 
             return $next;
         });
+    }
+
+    /** The number next() would give now, without taking it. */
+    public function peek(int $workspaceId, string $name, int $first = 1): int
+    {
+        return max($this->sequences->lastValue($workspaceId, $name) + 1, $first);
     }
 }

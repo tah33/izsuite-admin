@@ -6,9 +6,11 @@ use App\Enums\ItemLabel;
 use App\Http\Requests\Api\Items\SaveItemRequest;
 use App\Models\User\Item;
 use App\Models\User\ItemComponent;
+use App\Models\User\TaxRate;
 use App\Models\User\Workspace;
 use App\Repositories\User\ItemLabelRepository;
 use App\Repositories\User\ItemRepository;
+use App\Repositories\User\TaxRateRepository;
 use App\Services\Api\Items\ItemService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +28,10 @@ use Illuminate\Support\LazyCollection;
  *
  * A SKU or barcode the business or another row of the file already has
  * cannot be imported; a name it already has is a possible duplicate.
+ *
+ * While the business uses taxes, the sales and purchase tax go in and out by
+ * their codes ("VAT15"): an import names one of the business's active rates
+ * for that side, never makes one.
  */
 class ItemTransfer implements Transfer
 {
@@ -88,10 +94,14 @@ class ItemTransfer implements Transfer
 
     private const STATUSES = ['active' => ['yes', 'enabled'], 'inactive' => ['no', 'disabled']];
 
+    /** The rates an import has looked up, by business and code: a file names the same few again and again. */
+    private array $taxes = [];
+
     public function __construct(
         protected ItemRepository $itemRepository,
         protected ItemService $itemService,
         protected ItemLabelRepository $itemLabelRepository,
+        protected TaxRateRepository $taxRateRepository,
     ) {}
 
     public function plural(): string
@@ -102,6 +112,7 @@ class ItemTransfer implements Transfer
     public function fields(Workspace $workspace): array
     {
         $price = "In the base currency ({$workspace->base_currency}), such as 149.99.";
+        $taxes = $workspace->usesTaxes();
 
         return [
             'type'                  => $this->field('Item Type', true, 'Physical Product, Digital Product or Service. Combos are made in the app.', ['type']),
@@ -114,8 +125,10 @@ class ItemTransfer implements Transfer
             'brand'                 => $this->field('Brand', hint: 'Made if the business does not have it yet.'),
             'description'           => $this->field('General Description', aliases: ['description']),
             'sale_price'            => $this->field('Sales Price', hint: $price, aliases: ['price', 'sale price', 'selling price', 'unit price']),
+            ...($taxes ? ['sales_tax' => $this->field('Sales Tax', hint: 'The code of one of your sales taxes, such as VAT15.', aliases: ['tax', 'vat', 'gst', 'tax code'])] : []),
             'sales_description'     => $this->field('Sales Description'),
             'purchase_price'        => $this->field('Purchase Price', hint: $price, aliases: ['cost', 'cost price', 'buying price']),
+            ...($taxes ? ['purchase_tax' => $this->field('Purchase Tax', hint: 'The code of one of your purchase taxes, such as VAT15.', aliases: ['input tax', 'purchase tax code'])] : []),
             'purchase_description'  => $this->field('Purchase Description'),
             'delivery_method'       => $this->field('Delivery Method', hint: 'Manual Delivery, Downloadable File, License Key or External Link.'),
             'delivery_instructions' => $this->field('Delivery Instructions'),
@@ -163,8 +176,11 @@ class ItemTransfer implements Transfer
             ...($workspace->brands_enabled ? ['Brand' => fn (Item $item) => $item->brand?->name] : []),
             'General Description'   => fn (Item $item) => $item->description,
             'Sales Price'           => fn (Item $item) => $item->isCombo() && $item->combo_pricing === 'sum' ? $item->componentTotal() : $item->sale_price,
+            // The taxes only while the business uses taxes, as on its pages.
+            ...($workspace->usesTaxes() ? ['Sales Tax' => fn (Item $item) => $item->salesTax?->code] : []),
             'Sales Description'     => fn (Item $item) => $item->sales_description,
             'Purchase Price'        => fn (Item $item) => $item->purchase_price,
+            ...($workspace->usesTaxes() ? ['Purchase Tax' => fn (Item $item) => $item->purchaseTax?->code] : []),
             'Purchase Description'  => fn (Item $item) => $item->purchase_description,
             'Delivery Method'       => fn (Item $item) => self::DELIVERY_LABELS[$item->delivery_method] ?? null,
             'Delivery Instructions' => fn (Item $item) => $item->delivery_instructions,
@@ -232,6 +248,16 @@ class ItemTransfer implements Transfer
 
         $payload['sale_price']     = $this->amount($this->text($cells, 'sale_price'));
         $payload['purchase_price'] = $this->amount($this->text($cells, 'purchase_price'));
+
+        if ($workspace->usesTaxes()) {
+            foreach (['sales_tax' => TaxRate::SALES, 'purchase_tax' => TaxRate::PURCHASES] as $key => $side) {
+                [$payload["{$key}_id"], $error] = $this->tax($workspace, $this->text($cells, $key), $side);
+
+                if ($error) {
+                    $errors[$key] = $error;
+                }
+            }
+        }
 
         $delivery                   = $this->choice($this->text($cells, 'delivery_method'), self::DELIVERY);
         $payload['delivery_method'] = $delivery ?: null;
@@ -319,6 +345,28 @@ class ItemTransfer implements Transfer
                 'brand_id'    => $label(ItemLabel::Brand, $payload['brand']),
             ]);
         });
+    }
+
+    /**
+     * The rate a cell names by its code, for $side: its id, or why the cell
+     * cannot be used. An empty cell is no tax.
+     *
+     * @return array{0: ?int, 1: ?string}
+     */
+    private function tax(Workspace $workspace, ?string $code, string $side): array
+    {
+        if ($code === null) {
+            return [null, null];
+        }
+
+        $rate = $this->taxes[$workspace->id.'|'.mb_strtoupper($code)] ??= $this->taxRateRepository->findByCodeFor($workspace, $code);
+
+        return match (true) {
+            $rate === null           => [null, "There is no tax with the code \"{$code}\". Add it under Settings > Taxes first."],
+            ! $rate->{"for_{$side}"} => [null, "{$rate->code} is not a ".($side === TaxRate::SALES ? 'sales' : 'purchase').' tax.'],
+            ! $rate->is_active       => [null, "{$rate->code} is inactive."],
+            default                  => [$rate->id, null],
+        };
     }
 
     /** @return array{label: string, required: bool, aliases: list<string>, hint: ?string} */

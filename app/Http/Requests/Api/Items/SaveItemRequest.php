@@ -3,7 +3,9 @@
 namespace App\Http\Requests\Api\Items;
 
 use App\Models\User\Item;
+use App\Models\User\TaxRate;
 use App\Repositories\User\ItemRepository;
+use App\Repositories\User\TaxRateRepository;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -21,9 +23,11 @@ class SaveItemRequest extends FormRequest
      * business, and an item being edited may keep its own.
      *
      * Prices are in the business's base currency, never negative, to the
-     * cent. An optional field left out of an update is left as it was - how a
-     * form keeps what it hides: the purchase side of an item only sold, a
-     * physical product's warranty once it is something else.
+     * cent. The sales and purchase tax are rates of this business for that
+     * side (Doc 04 sections 8 to 10). An optional field left out of an update
+     * is left as it was - how a form keeps what it hides: the purchase side of
+     * an item only sold, a physical product's warranty once it is something
+     * else, its taxes while taxes are off.
      *
      * A combo is only sold. It needs its pricing and display methods, two or
      * more components with quantities above zero, and - priced on its own - a
@@ -38,6 +42,7 @@ class SaveItemRequest extends FormRequest
         $text       = ['nullable', 'string', 'max:5000'];
         $unique     = fn (string $column) => Rule::unique(Item::class, $column)->where('workspace_id', $workspace?->id)->ignore($this->route('id'));
         $inBusiness = fn (string $table) => Rule::exists($table, 'id')->where('workspace_id', $workspace?->id);
+        $taxFor     = fn (string $side) => Rule::exists(TaxRate::class, 'id')->where('workspace_id', $workspace?->id)->where("for_{$side}", true);
 
         return [
             'type'                  => ['required', Rule::in(Item::TYPES)],
@@ -50,8 +55,10 @@ class SaveItemRequest extends FormRequest
             'brand_id'              => ['nullable', 'integer', $inBusiness('item_brands')],
             'description'           => $text,
             'sale_price'            => [Rule::requiredIf($combo && $this->input('combo_pricing') === 'fixed'), ...$price],
+            'sales_tax_id'          => ['nullable', 'integer', $taxFor(TaxRate::SALES)],
             'sales_description'     => $text,
             'purchase_price'        => $price,
+            'purchase_tax_id'       => ['nullable', 'integer', $taxFor(TaxRate::PURCHASES)],
             'purchase_description'  => $text,
             'delivery_method'       => ['nullable', Rule::in(Item::DELIVERY_METHODS)],
             'delivery_instructions' => $text,
@@ -91,7 +98,29 @@ class SaveItemRequest extends FormRequest
 
             $this->checkComponents($validator, $edited);
             $this->checkUseInCombos($validator, $edited);
+            $this->checkTaxes($validator, $edited);
         }];
+    }
+
+    /**
+     * A tax switched off since the item was given it may stay, so the rest of
+     * the item can still be edited; a newly chosen one must be active.
+     */
+    private function checkTaxes(Validator $validator, ?Item $edited): void
+    {
+        foreach (['sales_tax_id', 'purchase_tax_id'] as $key) {
+            $id = $this->input($key);
+
+            if (! is_numeric($id) || $validator->errors()->has($key) || (int) $id === $edited?->{$key}) {
+                continue;
+            }
+
+            $rate = app(TaxRateRepository::class)->findFor($this->attributes->get('workspace'), (int) $id);
+
+            if ($rate && ! $rate->is_active) {
+                $validator->errors()->add($key, "{$rate->name} is inactive. Choose an active tax.");
+            }
+        }
     }
 
     /**
@@ -162,6 +191,8 @@ class SaveItemRequest extends FormRequest
             'category_id'           => 'category',
             'brand_id'              => 'brand',
             'sale_price'            => 'sales price',
+            'sales_tax_id'          => 'sales tax',
+            'purchase_tax_id'       => 'purchase tax',
             'warranty_period'       => 'warranty period',
             'components.*.item_id'  => 'component',
             'components.*.quantity' => 'quantity',
@@ -177,6 +208,8 @@ class SaveItemRequest extends FormRequest
             'barcode.unique'              => 'Another item of this business already has that barcode.',
             'category_id.exists'          => 'Choose one of this business\'s categories.',
             'brand_id.exists'             => 'Choose one of this business\'s brands.',
+            'sales_tax_id.exists'         => 'Choose one of this business\'s sales taxes.',
+            'purchase_tax_id.exists'      => 'Choose one of this business\'s purchase taxes.',
             'sale_price.required'         => 'A combo with its own price needs a sales price.',
             'components.required'         => 'A combo needs at least two components.',
             'components.min'              => 'A combo needs at least two components.',

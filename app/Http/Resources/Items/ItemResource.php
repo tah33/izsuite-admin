@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Items;
 
 use App\Models\User\ItemComponent;
+use App\Models\User\TaxRate;
 use App\Services\Files\FileStorage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -15,10 +16,11 @@ class ItemResource extends JsonResource
      * floats, which cannot hold every cent.
      *
      * Its image, when it has one, comes with its address and a thumbnail's,
-     * for lists. A combo carries its components, and component_total: what
-     * they add up to at today's sales prices, which is its price when it is
-     * priced as their sum. Expects category, brand, image and
-     * components.component loaded.
+     * for lists. Its default sales and purchase tax come with what the
+     * profile shows of them. A combo carries its components, and
+     * component_total: what they add up to at today's sales prices, which is
+     * its price when it is priced as their sum. Expects category, brand,
+     * salesTax, purchaseTax, image and components.component loaded.
      */
     public function toArray(Request $request): array
     {
@@ -44,8 +46,12 @@ class ItemResource extends JsonResource
             ] : null,
             'description'           => $this->description,
             'sale_price'            => $this->sale_price,
+            'sales_tax_id'          => $this->sales_tax_id,
+            'sales_tax'             => $this->taxShown($this->salesTax),
             'sales_description'     => $this->sales_description,
             'purchase_price'        => $this->purchase_price,
+            'purchase_tax_id'       => $this->purchase_tax_id,
+            'purchase_tax'          => $this->taxShown($this->purchaseTax),
             'purchase_description'  => $this->purchase_description,
             'delivery_method'       => $this->delivery_method,
             'delivery_instructions' => $this->delivery_instructions,
@@ -70,5 +76,16 @@ class ItemResource extends JsonResource
             'component_total'       => $this->componentTotal(),
             'is_active'             => $this->is_active,
         ];
+    }
+
+    /** A default tax as the profile names it: "VAT (15%)", "Exports (Zero-Rated)". */
+    private function taxShown(?TaxRate $rate): ?array
+    {
+        return $rate ? [
+            'name'      => $rate->name,
+            'rate'      => $rate->rate,
+            'treatment' => $rate->treatment->value,
+            'is_active' => $rate->is_active,
+        ] : null;
     }
 }

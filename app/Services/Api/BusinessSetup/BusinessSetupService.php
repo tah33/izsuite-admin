@@ -5,17 +5,18 @@ namespace App\Services\Api\BusinessSetup;
 use App\Models\User\Workspace;
 use App\Repositories\User\ContactRepository;
 use App\Repositories\User\PaymentAccountRepository;
+use App\Repositories\User\SalesDocumentRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * A business's currencies and tax choice (Doc 01 sections 11 and 12): Settings
- * > Currencies and Settings > Taxes.
+ * A business's currencies (Doc 01 section 11): Settings > Currencies. Its tax
+ * choice is TaxSettingService's, and its exchange rates ExchangeRateService's.
  *
- * Both live on the workspace. A change to either bumps its nav_version (see
- * Workspace), because the sidebar's payload carries them to every page.
+ * They live on the workspace. A change bumps its nav_version (see Workspace),
+ * because the sidebar's payload carries them to every page.
  */
 class BusinessSetupService
 {
@@ -23,6 +24,7 @@ class BusinessSetupService
         protected WorkspaceRepository $workspaceRepository,
         protected PaymentAccountRepository $paymentAccountRepository,
         protected ContactRepository $contactRepository,
+        protected SalesDocumentRepository $salesDocumentRepository,
     ) {}
 
     public function currencies(Workspace $workspace): array
@@ -38,14 +40,22 @@ class BusinessSetupService
      * active platform currencies, and none of the additional ones is the base.
      *
      * A currency a payment account uses cannot be dropped - the account would
-     * be left in a currency the business no longer takes. Once transactions
-     * exist, Doc 01 also locks the base currency itself; nothing records
-     * transactions yet, so that check arrives with the first app that does.
+     * be left in a currency the business no longer takes. The base currency
+     * itself changes freely only until the business has issued or sent a
+     * document or given a payment account an opening balance (Doc 11 section
+     * 7): after that its totals are in it.
      */
     public function saveCurrencies(Workspace $workspace, array $data): array
     {
         $additional = array_values(array_unique($data['additional_currencies'] ?? []));
         sort($additional);
+
+        if ($data['base_currency'] !== $workspace->base_currency
+            && ($this->salesDocumentRepository->hasTransactions($workspace) || $this->paymentAccountRepository->hasOpeningBalance($workspace))) {
+            throw ValidationException::withMessages([
+                'base_currency' => 'The base currency cannot change once documents have been issued or sent, or a payment account has an opening balance.',
+            ]);
+        }
 
         $kept   = [$data['base_currency'], ...$additional];
         $orphan = $this->paymentAccountRepository->firstOutside($workspace, $kept);
@@ -80,26 +90,5 @@ class BusinessSetupService
         ]);
 
         return $this->currencies($workspace);
-    }
-
-    public function taxes(Workspace $workspace): array
-    {
-        return ['tax_mode' => $workspace->tax_mode];
-    }
-
-    /**
-     * Turning taxes off hides tax fields; it never deletes or changes tax
-     * details already recorded (Doc 01 section 12).
-     */
-    public function saveTaxes(Workspace $workspace, string $mode): array
-    {
-        $this->workspaceRepository->forceUpdate($workspace, ['tax_mode' => $mode]);
-
-        ActivityLogService::record('updated', "Set taxes to \"{$mode}\"", $workspace, [
-            'source' => 'api',
-            'fields' => $workspace->wasChanged('tax_mode') ? ['tax_mode'] : [],
-        ]);
-
-        return $this->taxes($workspace);
     }
 }

@@ -53,6 +53,9 @@ class ContactRepository
             ->when($filters['role'] ?? null, fn (Builder $query, string $role) => $query->ofRole($role))
             ->when($filters['type'] ?? null, fn (Builder $query, string $type) => $query->where('contact_type', $type))
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('is_active', $status === 'active'))
+            ->when(filter_var($filters['for_sale'] ?? false, FILTER_VALIDATE_BOOLEAN), fn (Builder $query) => $query
+                ->where('role', '!=', Contact::ROLE_SUPPLIER)
+                ->where('is_active', true))
             ->orderBy('name')
             ->orderBy('id');
     }

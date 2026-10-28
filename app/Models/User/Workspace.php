@@ -23,8 +23,9 @@ use Illuminate\Database\Eloquent\Relations\MorphOne;
  * file of the business, whatever record it belongs to.
  *
  * Only name and user_id are fillable: the plan changes through
- * SyncAppsWithPackage's callers, nav_version only ever goes up by one, and the
- * currencies and tax choice through BusinessSetupService.
+ * SyncAppsWithPackage's callers, nav_version only ever goes up by one, the
+ * currencies through BusinessSetupService and the tax settings through
+ * TaxSettingService.
  */
 class Workspace extends Model
 {
@@ -40,6 +41,15 @@ class Workspace extends Model
     public const TAXES_LATER = 'later';
 
     public const TAX_MODES = [self::TAXES_ENABLED, self::TAXES_DISABLED, self::TAXES_LATER];
+
+    /**
+     * Whether prices are entered without tax, which is added on top, or with
+     * it, which is worked out of them (Doc 11 section 9).
+     */
+    public const PRICE_TAX_MODES = ['exclusive', 'inclusive'];
+
+    /** Tax rounded to the cent on each line, or once on a document's total. */
+    public const TAX_ROUNDINGS = ['line', 'total'];
 
     protected $fillable = [
         'name',
@@ -62,6 +72,8 @@ class Workspace extends Model
             $workspace->package_id ??= Package::where('key', Package::STARTER)->value('id');
             $workspace->base_currency ??= Currency::active()->default()->value('code') ?? 'USD';
             $workspace->tax_mode ??= self::TAXES_LATER;
+            $workspace->price_tax_mode ??= 'exclusive';
+            $workspace->tax_rounding ??= 'line';
         });
 
         static::created(fn (self $workspace) => app(ProvisionWorkspaceApps::class)->handle($workspace));
@@ -148,6 +160,35 @@ class Workspace extends Model
     public function paymentAccounts(): HasMany
     {
         return $this->hasMany(PaymentAccount::class);
+    }
+
+    public function taxRates(): HasMany
+    {
+        return $this->hasMany(TaxRate::class);
+    }
+
+    /** The rates of its other currencies, every one entered, by date. */
+    public function exchangeRates(): HasMany
+    {
+        return $this->hasMany(ExchangeRate::class);
+    }
+
+    /** Settings > Sales - none until they are first saved. */
+    public function salesSetting(): HasOne
+    {
+        return $this->hasOne(SalesSetting::class);
+    }
+
+    /** How each kind of document is numbered - a row only where a default was changed. */
+    public function documentNumbering(): HasMany
+    {
+        return $this->hasMany(DocumentNumbering::class);
+    }
+
+    /** Its quotations, proforma invoices and invoices. */
+    public function salesDocuments(): HasMany
+    {
+        return $this->hasMany(SalesDocument::class);
     }
 
     /** Every file the business keeps, whichever record it belongs to - what its storage counts. */

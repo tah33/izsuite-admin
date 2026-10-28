@@ -23,6 +23,15 @@ class WorkspaceSequenceRepository
         ]);
     }
 
+    /** The last number the counter gave out, without locking it - 0 for one not made yet. */
+    public function lastValue(int $workspaceId, string $name): int
+    {
+        return (int) DB::table('workspace_sequences')
+            ->where('workspace_id', $workspaceId)
+            ->where('name', $name)
+            ->value('last_value');
+    }
+
     /** The counter's row, locked until the transaction ends. */
     public function lock(int $workspaceId, string $name): ?object
     {

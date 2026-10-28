@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\DocumentType;
 use App\Http\Controllers\Api\AppActivationController;
 use App\Http\Controllers\Api\AppCategoryController;
 use App\Http\Controllers\Api\AppController;
@@ -14,7 +15,9 @@ use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\ContactMessageController;
 use App\Http\Controllers\Api\CountryController;
 use App\Http\Controllers\Api\CurrencyController;
+use App\Http\Controllers\Api\DocumentNumberingController;
 use App\Http\Controllers\Api\EmailVerificationController;
+use App\Http\Controllers\Api\ExchangeRateController;
 use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\FileController;
 use App\Http\Controllers\Api\ImportController;
@@ -30,6 +33,14 @@ use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PaymentAccountController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\SalesConversionController;
+use App\Http\Controllers\Api\SalesDocumentAttachmentController;
+use App\Http\Controllers\Api\SalesDocumentController;
+use App\Http\Controllers\Api\SalesDocumentFlowController;
+use App\Http\Controllers\Api\SalesDocumentRevisionController;
+use App\Http\Controllers\Api\SalesFormController;
+use App\Http\Controllers\Api\SalesSettingController;
+use App\Http\Controllers\Api\TaxRateController;
 use App\Http\Controllers\Api\UserStaffController;
 use App\Http\Controllers\Api\WorkspaceController;
 use Illuminate\Support\Facades\Route;
@@ -115,8 +126,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/', [BusinessSettingController::class, 'show'])->name('api.business-settings.show');
         Route::post('/', [BusinessSettingController::class, 'save'])->name('api.business-settings.save');
 
-        // Settings > Currencies and Settings > Taxes (Doc 01 sections 11, 12):
-        // the base currency, the other currencies, and whether taxes are used.
+        // Settings > Currencies and Settings > Taxes (Doc 01 sections 11, 12;
+        // Doc 11 section 9): the base currency, the other currencies, whether
+        // taxes are used and the tax options. Exchange rates and tax rates are
+        // at /exchange-rates and /tax-rates.
         Route::get('/currencies', [BusinessCurrencyController::class, 'show'])->name('api.business-settings.currencies.show');
         Route::put('/currencies', [BusinessCurrencyController::class, 'update'])->name('api.business-settings.currencies.update');
         Route::get('/taxes', [BusinessTaxController::class, 'show'])->name('api.business-settings.taxes.show');
@@ -125,6 +138,20 @@ Route::prefix('v1')->group(function () {
         // Settings > Items (Doc 04 section 7): whether the business uses brands.
         Route::get('/items', [ItemSettingController::class, 'show'])->name('api.business-settings.items.show');
         Route::put('/items', [ItemSettingController::class, 'update'])->name('api.business-settings.items.update');
+
+        // Settings > Sales (Doc 11 section 15): what new quotations, proforma
+        // invoices and invoices start with - there while Sales Lite or Sales is on.
+        Route::middleware('app:sales')->group(function () {
+            Route::get('/sales', [SalesSettingController::class, 'show'])->name('api.business-settings.sales.show');
+            Route::put('/sales', [SalesSettingController::class, 'update'])->name('api.business-settings.sales.update');
+        });
+
+        // Settings > Documents > Numbering (Doc 11 section 21): how each kind
+        // of document the business's apps make is numbered, and a preview of
+        // the next number a change would give.
+        Route::get('/numbering', [DocumentNumberingController::class, 'index'])->name('api.business-settings.numbering.index');
+        Route::put('/numbering/{type}', [DocumentNumberingController::class, 'update'])->name('api.business-settings.numbering.update');
+        Route::get('/numbering/{type}/preview', [DocumentNumberingController::class, 'preview'])->name('api.business-settings.numbering.preview');
 
         // Usage and Limits (Doc 13 section 13.14): the package and the storage used.
         Route::get('/usage', BusinessUsageController::class)->name('api.business-settings.usage');
@@ -233,6 +260,52 @@ Route::prefix('v1')->group(function () {
         Route::post('/payment-accounts', [PaymentAccountController::class, 'store'])->name('api.payment-accounts.store');
         Route::put('/payment-accounts/{id}', [PaymentAccountController::class, 'update'])->whereNumber('id')->name('api.payment-accounts.update');
         Route::delete('/payment-accounts/{id}', [PaymentAccountController::class, 'destroy'])->whereNumber('id')->name('api.payment-accounts.destroy');
+
+        // Tax rates and exchange rates (Doc 11 sections 7 and 10), all at once:
+        // a business has a handful of each.
+        Route::get('/tax-rates', [TaxRateController::class, 'index'])->name('api.tax-rates.index');
+        Route::post('/tax-rates', [TaxRateController::class, 'store'])->name('api.tax-rates.store');
+        Route::put('/tax-rates/{id}', [TaxRateController::class, 'update'])->whereNumber('id')->name('api.tax-rates.update');
+        Route::delete('/tax-rates/{id}', [TaxRateController::class, 'destroy'])->whereNumber('id')->name('api.tax-rates.destroy');
+
+        Route::get('/exchange-rates', [ExchangeRateController::class, 'index'])->name('api.exchange-rates.index');
+        Route::post('/exchange-rates', [ExchangeRateController::class, 'store'])->name('api.exchange-rates.store');
+        Route::delete('/exchange-rates/{id}', [ExchangeRateController::class, 'destroy'])->whereNumber('id')->name('api.exchange-rates.destroy');
+    });
+
+    /* ----------------------------------------------------------
+     | Sales Lite (Doc 08): quotations, proforma invoices and invoices,
+     | addressed by their kind - /sales/quotations, /sales/proformas,
+     | /sales/invoices - while Sales Lite or Sales is on
+     |
+     | A new document is a draft. issue (an invoice), send, accept, reject,
+     | cancel and void change its status, each only where its status allows
+     | (see SalesDocumentRules); convert makes a draft proforma or invoice from
+     | it. The form asks /sales/{kind}/defaults and /sales/calculate as it is
+     | filled in. Another business's documents are a 404.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:sales'])->prefix('sales')->group(function () {
+        Route::post('/calculate', [SalesFormController::class, 'calculate'])->name('api.sales.calculate');
+
+        Route::prefix('{kind}')->where(['kind' => implode('|', array_keys(DocumentType::KINDS))])->group(function () {
+            Route::get('/', [SalesDocumentController::class, 'index'])->name('api.sales.index');
+            Route::post('/', [SalesDocumentController::class, 'store'])->name('api.sales.store');
+            Route::get('/defaults', [SalesFormController::class, 'defaults'])->name('api.sales.defaults');
+            Route::get('/{id}', [SalesDocumentController::class, 'show'])->whereNumber('id')->name('api.sales.show');
+            Route::put('/{id}', [SalesDocumentController::class, 'update'])->whereNumber('id')->name('api.sales.update');
+            Route::delete('/{id}', [SalesDocumentController::class, 'destroy'])->whereNumber('id')->name('api.sales.destroy');
+
+            foreach (['issue', 'send', 'accept', 'reject', 'cancel', 'void'] as $action) {
+                Route::post("/{id}/{$action}", [SalesDocumentFlowController::class, $action])->whereNumber('id')->name("api.sales.{$action}");
+            }
+
+            Route::post('/{id}/convert', [SalesConversionController::class, 'store'])->whereNumber('id')->name('api.sales.convert');
+            Route::get('/{id}/revisions', [SalesDocumentRevisionController::class, 'index'])->whereNumber('id')->name('api.sales.revisions.index');
+            Route::get('/{id}/revisions/{revision}', [SalesDocumentRevisionController::class, 'show'])->whereNumber(['id', 'revision'])->name('api.sales.revisions.show');
+            Route::get('/{id}/attachments', [SalesDocumentAttachmentController::class, 'index'])->whereNumber('id')->name('api.sales.attachments.index');
+            Route::post('/{id}/attachments', [SalesDocumentAttachmentController::class, 'store'])->whereNumber('id')->name('api.sales.attachments.store');
+            Route::delete('/{id}/attachments/{fileId}', [SalesDocumentAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.sales.attachments.destroy');
+        });
     });
 
     /* ----------------------------------------------------------

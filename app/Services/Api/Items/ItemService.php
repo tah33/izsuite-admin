@@ -5,6 +5,7 @@ namespace App\Services\Api\Items;
 use App\Models\User\Item;
 use App\Models\User\Workspace;
 use App\Repositories\User\ItemRepository;
+use App\Repositories\User\SalesDocumentRepository;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -17,6 +18,7 @@ class ItemService
 {
     public function __construct(
         protected ItemRepository $itemRepository,
+        protected SalesDocumentRepository $salesDocumentRepository,
     ) {}
 
     /** The brand is searched and filtered only while the business uses brands (Doc 04 section 7). */
@@ -117,9 +119,9 @@ class ItemService
     }
 
     /**
-     * Only an unused item can be deleted (Doc 04 section 18). For now the one
-     * use is being part of a combo - that stops it with a 409 naming the
-     * combo. When documents point at items, being on one will stop it too.
+     * Only an unused item can be deleted (Doc 04 section 18): being part of a
+     * combo stops it with a 409 naming the combo, and so does being on a
+     * sales document.
      */
     public function delete(Workspace $workspace, int $id): void
     {
@@ -129,6 +131,12 @@ class ItemService
         if ($combo) {
             throw new HttpResponseException(response()->json([
                 'message' => "This item is part of the combo {$this->quoted($combo)}. Take it out of the combo first, or deactivate it instead.",
+            ], 409));
+        }
+
+        if ($this->salesDocumentRepository->usesItem($item)) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'This item is on sales documents, so it cannot be deleted. Deactivate it instead.',
             ], 409));
         }
 

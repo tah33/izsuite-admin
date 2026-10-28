@@ -15,7 +15,8 @@ class ListItemRequest extends FormRequest
 
     /**
      * The search and the filters of the Items list (Doc 04 section 4), and
-     * for_combo: only the items a combo can be made of.
+     * for_combo: only the items a combo can be made of; for_sale: only those a
+     * sales line can take - active and sold, combos too.
      */
     public function rules(): array
     {
@@ -27,6 +28,7 @@ class ListItemRequest extends FormRequest
             'brand_id'    => ['nullable', 'integer'],
             'status'      => ['nullable', Rule::in(['active', 'inactive'])],
             'for_combo'   => ['nullable', 'boolean'],
+            'for_sale'    => ['nullable', 'boolean'],
             'per_page'    => ['nullable', 'integer', 'in:10,15,25,50,100'],
             'page'        => ['nullable', 'integer', 'min:1'],
         ];

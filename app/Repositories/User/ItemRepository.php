@@ -19,7 +19,14 @@ use Illuminate\Support\LazyCollection;
 class ItemRepository
 {
     /** What ItemResource shows of an item besides its own columns. */
-    private const SHOWN_WITH = ['category:id,name', 'brand:id,name', 'components.component', 'image'];
+    private const SHOWN_WITH = [
+        'category:id,name',
+        'brand:id,name',
+        'salesTax:id,name,code,rate,treatment,is_active',
+        'purchaseTax:id,name,code,rate,treatment,is_active',
+        'components.component',
+        'image',
+    ];
 
     /**
      * A page of the business's items, alphabetical with the id as
@@ -76,6 +83,9 @@ class ItemRepository
             ->when(filter_var($filters['for_combo'] ?? false, FILTER_VALIDATE_BOOLEAN), fn (Builder $query) => $query
                 ->where('is_active', true)
                 ->where('type', '!=', Item::TYPE_COMBO)
+                ->where('usage', '!=', Item::USAGE_PURCHASE))
+            ->when(filter_var($filters['for_sale'] ?? false, FILTER_VALIDATE_BOOLEAN), fn (Builder $query) => $query
+                ->where('is_active', true)
                 ->where('usage', '!=', Item::USAGE_PURCHASE))
             ->orderBy('name')
             ->orderBy('id');
@@ -147,6 +157,12 @@ class ItemRepository
     public function findManyInWorkspace(?int $workspaceId, SupportCollection|array $ids): Collection
     {
         return Item::where('workspace_id', $workspaceId)->whereIn('id', $ids)->get();
+    }
+
+    /** The items among $ids of business $workspaceId, a combo with its components - for sales lines. */
+    public function findManyWithComponents(?int $workspaceId, SupportCollection|array $ids): Collection
+    {
+        return Item::where('workspace_id', $workspaceId)->whereIn('id', $ids)->with('components.component')->get();
     }
 
     /** The ids of $combo's components. */

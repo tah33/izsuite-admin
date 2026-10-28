@@ -5,14 +5,17 @@ namespace App\Services\Api\Locations;
 use App\Models\User\Location;
 use App\Models\User\Workspace;
 use App\Repositories\User\LocationRepository;
+use App\Repositories\User\SalesDocumentRepository;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Str;
 
 class LocationService
 {
     public function __construct(
         protected LocationRepository $locationRepository,
+        protected SalesDocumentRepository $salesDocumentRepository,
     ) {}
 
     public function list(Workspace $workspace): Collection
@@ -45,9 +48,16 @@ class LocationService
         return $location;
     }
 
+    /** A location used in transactions cannot be deleted (Doc 11 section 6). */
     public function delete(Workspace $workspace, int $id): void
     {
         $location = $this->findOwned($workspace, $id);
+
+        if ($this->salesDocumentRepository->usesLocation($location)) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'Sales documents were made at this location, so it cannot be deleted.',
+            ], 409));
+        }
 
         $this->locationRepository->delete($location);
 

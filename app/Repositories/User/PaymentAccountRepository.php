@@ -29,6 +29,12 @@ class PaymentAccountRepository
         return $workspace->paymentAccounts()->exists();
     }
 
+    /** Whether any account starts with money in it (or owed) - which ties the base currency down. */
+    public function hasOpeningBalance(Workspace $workspace): bool
+    {
+        return $workspace->paymentAccounts()->where('opening_balance', '!=', 0)->exists();
+    }
+
     /** The first account, by name, in a currency outside $currencies. */
     public function firstOutside(Workspace $workspace, array $currencies): ?PaymentAccount
     {

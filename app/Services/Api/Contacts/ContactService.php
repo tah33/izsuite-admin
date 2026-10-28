@@ -5,6 +5,7 @@ namespace App\Services\Api\Contacts;
 use App\Models\User\Contact;
 use App\Models\User\Workspace;
 use App\Repositories\User\ContactRepository;
+use App\Repositories\User\SalesDocumentRepository;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -16,6 +17,7 @@ class ContactService
     public function __construct(
         protected ContactRepository $contactRepository,
         protected ContactDuplicates $contactDuplicates,
+        protected SalesDocumentRepository $salesDocumentRepository,
     ) {}
 
     /** The tax ID is searched only while the business uses taxes (Doc 03 section 3). */
@@ -104,9 +106,16 @@ class ContactService
      * one that is in use must be made inactive instead of deleted (Doc 03
      * section 13).
      */
+    /** Only an unused contact can be deleted (Doc 03): one on a sales document is deactivated instead. */
     public function delete(Workspace $workspace, int $id): void
     {
         $contact = $this->findOwned($workspace, $id);
+
+        if ($this->salesDocumentRepository->usesContact($contact)) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'This contact is on sales documents, so it cannot be deleted. Deactivate it instead.',
+            ], 409));
+        }
 
         $this->contactRepository->delete($contact);
 

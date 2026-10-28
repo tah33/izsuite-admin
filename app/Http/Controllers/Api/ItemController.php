@@ -25,7 +25,7 @@ class ItemController extends Controller
         try {
             $items = $this->itemService->list(
                 $this->currentWorkspace($request),
-                $request->only(['search', 'type', 'usage', 'category_id', 'brand_id', 'status', 'for_combo']),
+                $request->only(['search', 'type', 'usage', 'category_id', 'brand_id', 'status', 'for_combo', 'for_sale']),
                 requested_per_page(),
             );
 

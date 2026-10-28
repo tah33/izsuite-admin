@@ -73,8 +73,10 @@ class Item extends Model
         'brand_id',
         'description',
         'sale_price',
+        'sales_tax_id',
         'sales_description',
         'purchase_price',
+        'purchase_tax_id',
         'purchase_description',
         'delivery_method',
         'delivery_instructions',
@@ -100,7 +102,9 @@ class Item extends Model
         'category_id'        => 'integer',
         'brand_id'           => 'integer',
         'sale_price'         => 'decimal:2',
+        'sales_tax_id'       => 'integer',
         'purchase_price'     => 'decimal:2',
+        'purchase_tax_id'    => 'integer',
         'warranty_available' => 'boolean',
         'warranty_period'    => 'integer',
         'is_active'          => 'boolean',
@@ -168,6 +172,18 @@ class Item extends Model
     public function brand(): BelongsTo
     {
         return $this->belongsTo(ItemBrand::class);
+    }
+
+    /** The tax a new sale of it starts with (Doc 04 section 8). */
+    public function salesTax(): BelongsTo
+    {
+        return $this->belongsTo(TaxRate::class, 'sales_tax_id');
+    }
+
+    /** The tax a new purchase of it starts with (Doc 04 section 9). */
+    public function purchaseTax(): BelongsTo
+    {
+        return $this->belongsTo(TaxRate::class, 'purchase_tax_id');
     }
 
     /** Its picture (Doc 04 section 6) - one at most. */

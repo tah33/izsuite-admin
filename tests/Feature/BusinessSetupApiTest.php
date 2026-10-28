@@ -48,7 +48,13 @@ class BusinessSetupApiTest extends TestCase
 
         $this->getJson('/api/v1/business-settings/taxes')
             ->assertOk()
-            ->assertExactJson(['data' => ['tax_mode' => 'later']]);
+            ->assertExactJson(['data' => [
+                'tax_mode'                => 'later',
+                'price_tax_mode'          => 'exclusive',
+                'tax_rounding'            => 'line',
+                'default_sales_tax_id'    => null,
+                'default_purchase_tax_id' => null,
+            ]]);
     }
 
     public function test_both_need_a_token_and_a_business(): void

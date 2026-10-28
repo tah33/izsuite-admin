@@ -27,6 +27,11 @@ class LocationRepository
         return $workspace->locations()->find($id);
     }
 
+    public function existsFor(Workspace $workspace): bool
+    {
+        return $workspace->locations()->exists();
+    }
+
     /**
      * Made through the business, so its workspace and owner are always the
      * business's own - never read from $data.
