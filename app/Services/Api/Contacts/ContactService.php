@@ -101,12 +101,7 @@ class ContactService
         return $contact;
     }
 
-    /**
-     * Nothing points at a contact yet. When documents do (invoices, bills),
-     * one that is in use must be made inactive instead of deleted (Doc 03
-     * section 13).
-     */
-    /** Only an unused contact can be deleted (Doc 03): one on a sales document is deactivated instead. */
+    /** Only an unused contact can be deleted (Doc 03 section 13): one on a sales document is deactivated instead. */
     public function delete(Workspace $workspace, int $id): void
     {
         $contact = $this->findOwned($workspace, $id);

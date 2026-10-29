@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\ResolveWorkspace;
+use App\Models\Billing\Package;
 use App\Models\Frontend\Application;
 use App\Models\Shared\ActivityLog;
 use App\Models\User\User;
@@ -26,6 +27,9 @@ class UserStaffApiTest extends TestCase
         // first by the factory would take it, and every account would pass for
         // an admin, whose activity is not logged.
         $this->seed(RoleSeeder::class);
+
+        // These are about adding staff, not about the plan's limit on users (see PlanLimitsTest).
+        Package::where('key', Package::STARTER)->update(['user_limit' => null]);
     }
 
     private function payload(array $overrides = []): array

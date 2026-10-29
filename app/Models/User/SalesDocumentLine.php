@@ -13,9 +13,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * changing the item or the rate later never changes the line.
  *
  * A combo whose display shows its components keeps them (components), and a
- * physical product its warranty (warranty), as they were (Doc 04 sections 11
- * and 14). A credit note's line points at the invoice line it credits
- * (source_line_id), whose tax it reverses.
+ * physical product its warranty (warranty: period, unit, start_rule, terms),
+ * as they were (Doc 04 sections 11, 14 and 15). A combo's warranty is a list
+ * instead: one entry for each component with a warranty, its name added. A
+ * credit note's line points at the invoice line it credits (source_line_id),
+ * whose tax it reverses.
  */
 class SalesDocumentLine extends Model
 {

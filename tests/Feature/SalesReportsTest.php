@@ -86,7 +86,7 @@ class SalesReportsTest extends TestCase
         $this->assertSame(['28 Oct 2026', 1, '295.00', '-25.00', '270.00'], array_values(array_diff_key($trend['rows'][27], ['link' => true])));
 
         $this->getJson('/api/v1/reports/top-items')
-            ->assertJsonPath('data.rows.0', ['item' => 'Office Chair', 'quantity' => '2.000', 'invoices' => 1, 'net_sales' => '270.00', 'credit_quantity' => '0', 'credit_amount' => '0.00', 'net' => '270.00', 'link' => null])
+            ->assertJsonPath('data.rows.0', ['item' => 'Office Chair', 'quantity' => '2.000', 'invoices' => 1, 'net_sales' => '270.00', 'credit_quantity' => '0', 'credit_amount' => '0.00', 'net' => '270.00', 'link' => "/items/{$this->chair->id}"])
             ->assertJsonPath('data.rows.1.credit_amount', '25.00')
             ->assertJsonPath('data.rows.1.net', '0.00');
 

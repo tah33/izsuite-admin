@@ -44,6 +44,8 @@
                 <p class="text-xs mt-1 text-[var(--text-muted)]">{{ __('The files a business on this plan may keep: attachments, item images, digital files and its logo. Leave empty for no limit. 1024 MB is 1 GB.') }}</p>
             </div>
 
+            @include('admin.packages.partials.limits')
+
             <label class="flex items-center gap-3 cursor-pointer">
                 <input type="checkbox" name="is_active" value="1" class="toggle-switch" @checked(old('is_active', $package->is_active))>
                 <span class="form-label mb-0">{{ __('Offered') }}</span>

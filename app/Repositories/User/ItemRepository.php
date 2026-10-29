@@ -41,10 +41,12 @@ class ItemRepository
      * - status: active or inactive.
      * - for_combo: only what a combo can be made of - active, sold, and not a
      *   combo itself.
+     *
+     * Each comes with `in_use`: whether a sales document line holds it.
      */
     public function paginateFor(Workspace $workspace, array $filters, int $perPage, bool $withBrands): LengthAwarePaginator
     {
-        return $this->queryFor($workspace, $filters, $withBrands)->paginate($perPage);
+        return $this->queryFor($workspace, $filters, $withBrands)->withExists('salesLines as in_use')->paginate($perPage);
     }
 
     /** How many items the list holds with $filters - for an export. */
@@ -91,9 +93,10 @@ class ItemRepository
             ->orderBy('id');
     }
 
+    /** With `in_use`, as the list has it. */
     public function findFor(Workspace $workspace, int $id): ?Item
     {
-        return $workspace->items()->with(self::SHOWN_WITH)->find($id);
+        return $workspace->items()->with(self::SHOWN_WITH)->withExists('salesLines as in_use')->find($id);
     }
 
     /** The relations ItemResource shows, read again after a save. */

@@ -31,6 +31,12 @@ class PackageRepository
         return Package::findOrFail($id);
     }
 
+    /** Billing Starter - the plan every new business starts on. */
+    public function starter(): ?Package
+    {
+        return Package::where('key', Package::STARTER)->first();
+    }
+
     public function update(Package $package, array $data): Package
     {
         $package->update($data);

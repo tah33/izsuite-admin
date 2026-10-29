@@ -6,6 +6,7 @@ use App\Models\User\UserStaff;
 use App\Models\User\Workspace;
 use App\Repositories\User\UserStaffRepository;
 use App\Services\Shared\ActivityLogService;
+use App\Services\User\Workspaces\PlanLimits;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 
@@ -13,6 +14,7 @@ class UserStaffService
 {
     public function __construct(
         protected UserStaffRepository $userStaffRepository,
+        protected PlanLimits $planLimits,
     ) {}
 
     public function list(Workspace $workspace): Collection
@@ -20,8 +22,11 @@ class UserStaffService
         return $this->userStaffRepository->getFor($workspace);
     }
 
+    /** Only as many users as the business's plan gives it, its owner among them (see PlanLimits). */
     public function create(Workspace $workspace, array $data): UserStaff
     {
+        $this->planLimits->ensureCanAddUser($workspace);
+
         $staff = $this->userStaffRepository->create($workspace, $data);
 
         // Each write is logged here, by name, so LogApiWriteActivity does not

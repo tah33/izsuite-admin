@@ -32,6 +32,9 @@ class ContactTransfer implements Transfer
 
     private const STATUSES = ['active' => ['yes', 'enabled'], 'inactive' => ['no', 'disabled']];
 
+    // Doc 11's treatments (see TaxTreatment), by key or label.
+    private const TREATMENTS = ['standard' => [], 'zero_rated' => ['zero'], 'exempt' => ['exempted'], 'out_of_scope' => ['outside scope'], 'no_tax' => ['none']];
+
     private const SHIPPING = ['line1', 'line2', 'city', 'state', 'postal_code', 'country'];
 
     public function __construct(
@@ -84,6 +87,7 @@ class ContactTransfer implements Transfer
             'supplier_payment_terms'   => $this->field('Supplier Payment Terms', hint: $terms),
             'tax_number'               => $this->field('Tax ID', aliases: ['tax number', 'vat number', 'gst number', 'bin', 'tin']),
             'tax_country'              => $this->field('Tax Country', hint: $country),
+            'tax_treatment'            => $this->field('Tax Treatment', hint: 'Standard, Zero-Rated, Exempt, Out of Scope or No Tax.'),
             'tax_exemption_number'     => $this->field('Tax Exemption Number'),
             'notes'                    => $this->field('Notes', aliases: ['note', 'comments']),
             'status'                   => $this->field('Status', hint: 'Active or Inactive. Empty means Active.'),
@@ -145,6 +149,7 @@ class ContactTransfer implements Transfer
             ...($workspace->usesTaxes() ? [
                 'Tax ID'               => fn (Contact $contact) => $contact->tax_number,
                 'Tax Country'          => fn (Contact $contact) => Countries::name($contact->tax_country),
+                'Tax Treatment'        => fn (Contact $contact) => $contact->tax_treatment?->label(),
                 'Tax Exemption Number' => fn (Contact $contact) => $contact->tax_exemption_number,
             ] : []),
             'Notes'                     => fn (Contact $contact) => $contact->notes,
@@ -176,12 +181,17 @@ class ContactTransfer implements Transfer
             $payload["shipping_{$part}"] = $this->text($cells, "shipping_{$part}");
         }
 
-        $type   = $this->choice($this->text($cells, 'contact_type'), self::TYPES);
-        $role   = $this->choice($this->text($cells, 'role'), self::ROLES);
-        $status = $this->choice($this->text($cells, 'status'), self::STATUSES);
+        $type      = $this->choice($this->text($cells, 'contact_type'), self::TYPES);
+        $role      = $this->choice($this->text($cells, 'role'), self::ROLES);
+        $status    = $this->choice($this->text($cells, 'status'), self::STATUSES);
+        $treatment = $this->choice($this->text($cells, 'tax_treatment'), self::TREATMENTS);
 
         if ($type === false) {
             $errors['contact_type'] = 'Write Business or Individual.';
+        }
+
+        if ($treatment === false) {
+            $errors['tax_treatment'] = 'Write Standard, Zero-Rated, Exempt, Out of Scope or No Tax.';
         }
 
         if ($role === false) {
@@ -192,9 +202,10 @@ class ContactTransfer implements Transfer
             $errors['status'] = 'Write Active or Inactive.';
         }
 
-        $payload['contact_type'] = $type ?: Contact::TYPE_BUSINESS;
-        $payload['role']         = $role ?: Contact::ROLE_CUSTOMER;
-        $payload['is_active']    = $status !== 'inactive';
+        $payload['contact_type']  = $type ?: Contact::TYPE_BUSINESS;
+        $payload['role']          = $role ?: Contact::ROLE_CUSTOMER;
+        $payload['is_active']     = $status !== 'inactive';
+        $payload['tax_treatment'] = $treatment ?: null;
 
         // A website typed without its scheme ("example.com") gets https://, as on the form.
         $website            = $this->text($cells, 'website');

@@ -12,9 +12,11 @@ use Illuminate\Support\Collection;
 
 /**
  * A plan a business can be on: Billing Starter, Standard or Premium. Decides
- * which apps the business may turn on - not which ones are on - and how much
- * file storage it has (storage_limit_mb; empty is no limit). Both are set in
- * the admin, never in the code (Doc 13 section 13.2).
+ * which apps the business may turn on - not which ones are on - and its
+ * limits (Doc 01 section 4): file storage (storage_limit_mb), users and
+ * locations per business, and how many businesses on it one account may own.
+ * Empty is no limit. All of it is set in the admin, never in the code (Doc 13
+ * section 13.2); see PlanLimits for the counting.
  */
 class Package extends Model
 {
@@ -27,12 +29,18 @@ class Package extends Model
         'name',
         'description',
         'storage_limit_mb',
+        'business_limit',
+        'user_limit',
+        'location_limit',
         'is_active',
     ];
 
     protected $casts = [
         'rank'             => 'integer',
         'storage_limit_mb' => 'integer',
+        'business_limit'   => 'integer',
+        'user_limit'       => 'integer',
+        'location_limit'   => 'integer',
         'is_active'        => 'boolean',
     ];
 

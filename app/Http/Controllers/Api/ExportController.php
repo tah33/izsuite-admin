@@ -22,7 +22,7 @@ class ExportController extends Controller
     public function contacts(ListContactRequest $request): StreamedResponse
     {
         try {
-            return $this->exportService->download($this->currentWorkspace($request), 'contacts', $request->only(['search', 'role', 'type', 'status']));
+            return $this->exportService->download($this->currentWorkspace($request), 'contacts', $request->only(['search', 'role', 'type', 'status', 'tax_treatment']));
 
         } catch (\Throwable $e) {
             report($e);

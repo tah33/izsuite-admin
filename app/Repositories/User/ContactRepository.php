@@ -27,10 +27,13 @@ class ContactRepository
      *   contacts that are both.
      * - type: business or individual.
      * - status: active or inactive.
+     * - tax_treatment, when $withTaxId: exactly.
+     *
+     * Each comes with `in_use`: whether a sales document names it.
      */
     public function paginateFor(Workspace $workspace, array $filters, int $perPage, bool $withTaxId): LengthAwarePaginator
     {
-        return $this->queryFor($workspace, $filters, $withTaxId)->paginate($perPage);
+        return $this->queryFor($workspace, $filters, $withTaxId)->withExists('salesDocuments as in_use')->paginate($perPage);
     }
 
     /** How many contacts the list holds with $filters - for an export. */
@@ -53,6 +56,7 @@ class ContactRepository
             ->when($filters['role'] ?? null, fn (Builder $query, string $role) => $query->ofRole($role))
             ->when($filters['type'] ?? null, fn (Builder $query, string $type) => $query->where('contact_type', $type))
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('is_active', $status === 'active'))
+            ->when($withTaxId && ($filters['tax_treatment'] ?? null), fn (Builder $query) => $query->where('tax_treatment', $filters['tax_treatment']))
             ->when(filter_var($filters['for_sale'] ?? false, FILTER_VALIDATE_BOOLEAN), fn (Builder $query) => $query
                 ->where('role', '!=', Contact::ROLE_SUPPLIER)
                 ->where('is_active', true))
@@ -60,9 +64,10 @@ class ContactRepository
             ->orderBy('id');
     }
 
+    /** With `in_use`, as the list has it. */
     public function findFor(Workspace $workspace, int $id): ?Contact
     {
-        return $workspace->contacts()->find($id);
+        return $workspace->contacts()->withExists('salesDocuments as in_use')->find($id);
     }
 
     /**

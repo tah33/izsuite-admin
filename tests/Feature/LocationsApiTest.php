@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\ResolveWorkspace;
+use App\Models\Billing\Package;
 use App\Models\Shared\ActivityLog;
 use App\Models\User\Location;
 use App\Models\User\User;
@@ -24,6 +25,9 @@ class LocationsApiTest extends TestCase
         // first by the factory would take it, and every account would pass for
         // an admin, whose activity is not logged.
         $this->seed(RoleSeeder::class);
+
+        // These are about adding locations, not about the plan's limit on them (see PlanLimitsTest).
+        Package::where('key', Package::STARTER)->update(['location_limit' => null]);
     }
 
     private function payload(array $overrides = []): array

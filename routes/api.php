@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\ItemFileController;
 use App\Http\Controllers\Api\ItemImageController;
 use App\Http\Controllers\Api\ItemLabelController;
 use App\Http\Controllers\Api\ItemSettingController;
+use App\Http\Controllers\Api\ItemTransactionController;
 use App\Http\Controllers\Api\LanguageController;
 use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\NavigationController;
@@ -285,6 +286,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/items/{id}/files', [ItemFileController::class, 'index'])->whereNumber('id')->name('api.items.files.index');
         Route::post('/items/{id}/files', [ItemFileController::class, 'store'])->whereNumber('id')->name('api.items.files.store');
         Route::delete('/items/{id}/files/{fileId}', [ItemFileController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.items.files.destroy');
+        Route::get('/items/{id}/transactions', [ItemTransactionController::class, 'index'])->whereNumber('id')->name('api.items.transactions.index');
 
         // A link that downloads one of the business's files (see FileController).
         Route::get('/files/{id}/link', [FileController::class, 'link'])->whereNumber('id')->name('api.files.link');

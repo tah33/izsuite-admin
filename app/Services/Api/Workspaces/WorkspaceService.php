@@ -9,6 +9,7 @@ use App\Repositories\User\WorkspaceFileRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\Files\FileStorage;
 use App\Services\Shared\ActivityLogService;
+use App\Services\User\Workspaces\PlanLimits;
 use App\Services\User\Workspaces\SetUpNewWorkspace;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,7 @@ class WorkspaceService
         protected FileStorage $fileStorage,
         protected SetUpNewWorkspace $setUpNewWorkspace,
         protected WorkspaceFileRepository $workspaceFileRepository,
+        protected PlanLimits $planLimits,
     ) {}
 
     public function list(User $user): Collection
@@ -31,11 +33,15 @@ class WorkspaceService
 
     /**
      * A business added here starts the way registration starts the first one:
-     * with its Main Location, and its owner on its staff. All of it is made
-     * together or not at all, so a business never exists without them.
+     * on Billing Starter, with its Main Location, and its owner on its staff.
+     * All of it is made together or not at all, so a business never exists
+     * without them. An account may own only so many on Billing Starter (see
+     * PlanLimits).
      */
     public function create(User $user, array $data): Workspace
     {
+        $this->planLimits->ensureCanAddBusiness($user);
+
         return DB::transaction(function () use ($user, $data): Workspace {
             $workspace = $this->workspaceRepository->create($user, $data);
 

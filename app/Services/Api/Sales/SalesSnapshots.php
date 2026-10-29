@@ -68,6 +68,7 @@ class SalesSnapshots
             'shipping_address'     => $contact->shipping_same_as_billing ? null : $address('shipping'),
             'tax_number'           => $contact->tax_number,
             'tax_country'          => $contact->tax_country,
+            'tax_treatment'        => $contact->tax_treatment?->value,
             'tax_exemption_number' => $contact->tax_exemption_number,
         ];
     }

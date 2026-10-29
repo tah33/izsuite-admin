@@ -2,11 +2,13 @@
 
 namespace App\Models\User;
 
+use App\Enums\TaxTreatment;
 use App\Models\Concerns\HasFiles;
 use App\Services\User\Workspaces\WorkspaceSequence;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A customer, a supplier, or both, of one business (Doc 03) - the one record
@@ -16,8 +18,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Each has a Contact Number, C-00001 onwards within its business, given when
  * it is made and never given out again. Its addresses and tax country are
  * country codes (see App\Support\Countries); a shipping address marked "same
- * as billing" is the billing one, and its own fields stay empty. Its
- * attachments are files in the "attachments" collection.
+ * as billing" is the billing one, and its own fields stay empty. Its tax
+ * treatment is one of Doc 11's (see TaxTreatment), or none. Its attachments
+ * are files in the "attachments" collection.
  */
 class Contact extends Model
 {
@@ -76,6 +79,7 @@ class Contact extends Model
         'supplier_payment_terms',
         'tax_number',
         'tax_country',
+        'tax_treatment',
         'tax_exemption_number',
         'notes',
         'is_active',
@@ -94,6 +98,7 @@ class Contact extends Model
         'shipping_same_as_billing' => 'boolean',
         'customer_payment_terms'   => 'integer',
         'supplier_payment_terms'   => 'integer',
+        'tax_treatment'            => TaxTreatment::class,
         'is_active'                => 'boolean',
     ];
 
@@ -119,6 +124,18 @@ class Contact extends Model
         return $this->role !== self::ROLE_CUSTOMER;
     }
 
+    /**
+     * The treatment its new sales take their tax from, ahead of the item's and
+     * the business's (Doc 11 section 11): the one chosen for it - or Exempt,
+     * with a tax exemption number and none chosen. Null for the standard one.
+     */
+    public function salesTaxTreatment(): ?TaxTreatment
+    {
+        $treatment = $this->tax_treatment ?? ($this->tax_exemption_number ? TaxTreatment::Exempt : null);
+
+        return $treatment === TaxTreatment::Standard ? null : $treatment;
+    }
+
     /** Those whose role is exactly $role - "customer" leaves out contacts that are both. */
     public function scopeOfRole(Builder $query, string $role): Builder
     {
@@ -131,5 +148,11 @@ class Contact extends Model
     public function workspace(): BelongsTo
     {
         return $this->belongsTo(Workspace::class);
+    }
+
+    /** The sales documents made out to it - any type, any status. */
+    public function salesDocuments(): HasMany
+    {
+        return $this->hasMany(SalesDocument::class);
     }
 }

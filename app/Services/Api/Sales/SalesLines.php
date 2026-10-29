@@ -14,8 +14,9 @@ use App\Repositories\User\TaxRateRepository;
  * SalesDocumentLine). The name, description, unit and price are the line's
  * own, as sent - a free description never becomes an item (Doc 08 section 4).
  * Its tax is kept as the rate is now. A combo shown with its components keeps
- * them, and a physical product with a warranty keeps that (Doc 04 sections 11
- * and 14).
+ * them, and a physical product with a warranty keeps that; a combo keeps the
+ * warranties of its components that have one, each with its name (Doc 04
+ * sections 14 and 15).
  *
  * The lines come validated (see SaveSalesDocumentRequest): their items and
  * rates belong to the business.
@@ -99,7 +100,23 @@ class SalesLines
         ])->values()->all();
     }
 
+    /** A physical product's own warranty; for a combo, a list of its components' - or null when there is none. */
     private function warranty(Item $item): ?array
+    {
+        if ($item->isCombo()) {
+            $parts = $item->components
+                ->filter(fn (ItemComponent $row) => $row->component && $this->ownWarranty($row->component))
+                ->map(fn (ItemComponent $row) => ['name' => $row->component->name, ...$this->ownWarranty($row->component)])
+                ->values()
+                ->all();
+
+            return $parts ?: null;
+        }
+
+        return $this->ownWarranty($item);
+    }
+
+    private function ownWarranty(Item $item): ?array
     {
         if ($item->type !== Item::TYPE_PHYSICAL || ! $item->warranty_available) {
             return null;

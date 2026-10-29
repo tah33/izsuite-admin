@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Contacts;
 
+use App\Enums\TaxTreatment;
 use App\Models\User\Contact;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -14,18 +15,20 @@ class ListContactRequest extends FormRequest
     }
 
     /**
-     * The search and the filters of the Contacts list (Doc 03 section 3), and
+     * The search and the filters of the Contacts list (Doc 03 section 3) - the
+     * tax treatment is filtered only while the business uses taxes - and
      * for_sale: only those a sale can be made to - active customers, and
      * contacts that are both.
      */
     public function rules(): array
     {
         return [
-            'search'   => ['nullable', 'string', 'max:255'],
-            'role'     => ['nullable', Rule::in(Contact::ROLES)],
-            'type'     => ['nullable', Rule::in(Contact::TYPES)],
-            'status'   => ['nullable', Rule::in(['active', 'inactive'])],
-            'for_sale' => ['nullable', 'boolean'],
+            'search'        => ['nullable', 'string', 'max:255'],
+            'role'          => ['nullable', Rule::in(Contact::ROLES)],
+            'type'          => ['nullable', Rule::in(Contact::TYPES)],
+            'status'        => ['nullable', Rule::in(['active', 'inactive'])],
+            'tax_treatment' => ['nullable', Rule::enum(TaxTreatment::class)],
+            'for_sale'      => ['nullable', 'boolean'],
             'per_page' => ['nullable', 'integer', 'in:10,15,25,50,100'],
             'page'     => ['nullable', 'integer', 'min:1'],
         ];

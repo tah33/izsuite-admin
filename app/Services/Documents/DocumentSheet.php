@@ -63,7 +63,7 @@ class DocumentSheet
             'notes'      => array_values(array_filter([
                 in_array('descriptions', $visible, true) ? $line->description : null,
                 ...(in_array('components', $visible, true) ? array_map(fn (array $part) => $format->quantity((string) $part['quantity']).' × '.$part['name'], $line->components ?? []) : []),
-                in_array('warranty', $visible, true) && $line->warranty ? "Warranty: {$line->warranty['period']} {$line->warranty['unit']}" : null,
+                ...(in_array('warranty', $visible, true) ? $this->warranties($line->warranty) : []),
             ])),
             'quantity'   => trim($format->quantity((string) $line->quantity).' '.($line->unit ?? '')),
             'unit_price' => $money($line->unit_price),
@@ -71,6 +71,20 @@ class DocumentSheet
             'tax'        => $line->tax_name !== null ? $line->tax_name.' '.$this->rate((string) $line->tax_rate, $line->tax_treatment) : '—',
             'amount'     => $money($line->amount),
         ])->all();
+    }
+
+    /** "Warranty: 12 months" for a product; for a combo, one such line for each component that has one, by name. */
+    private function warranties(?array $warranty): array
+    {
+        if (! $warranty) {
+            return [];
+        }
+
+        if (! array_is_list($warranty)) {
+            return ["Warranty: {$warranty['period']} {$warranty['unit']}"];
+        }
+
+        return array_map(fn (array $part) => "Warranty: {$part['name']}, {$part['period']} {$part['unit']}", $warranty);
     }
 
     /** @return list<array{0: string, 1: string, 2: bool}> label, amount, whether it stands out */

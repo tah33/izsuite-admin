@@ -28,6 +28,16 @@ class UserStaffRepository
         return $workspace->staff()->find($id);
     }
 
+    /** The business's staff besides the one with $email - its owner, who is on its staff too. */
+    public function countBesides(Workspace $workspace, ?string $email): int
+    {
+        return $workspace->staff()
+            ->when($email, fn ($query) => $query->where(fn ($query) => $query
+                ->whereNull('email')
+                ->orWhereRaw('LOWER(email) != ?', [mb_strtolower($email)])))
+            ->count();
+    }
+
     /**
      * Made through the business, so its workspace and owner are always the
      * business's own - never read from $data.

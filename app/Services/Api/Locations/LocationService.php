@@ -7,6 +7,7 @@ use App\Models\User\Workspace;
 use App\Repositories\User\LocationRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Services\Shared\ActivityLogService;
+use App\Services\User\Workspaces\PlanLimits;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Str;
@@ -16,6 +17,7 @@ class LocationService
     public function __construct(
         protected LocationRepository $locationRepository,
         protected SalesDocumentRepository $salesDocumentRepository,
+        protected PlanLimits $planLimits,
     ) {}
 
     public function list(Workspace $workspace): Collection
@@ -23,8 +25,11 @@ class LocationService
         return $this->locationRepository->getFor($workspace);
     }
 
+    /** Only as many as the business's plan gives it (see PlanLimits). */
     public function create(Workspace $workspace, array $data): Location
     {
+        $this->planLimits->ensureCanAddLocation($workspace);
+
         $location = $this->locationRepository->create($workspace, $data);
 
         // Each write is logged here, by name, so LogApiWriteActivity does not

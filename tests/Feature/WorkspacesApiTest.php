@@ -35,6 +35,9 @@ class WorkspacesApiTest extends TestCase
 
         $this->starter = Package::where('key', 'starter')->firstOrFail();
         $this->sales   = Application::create(['name' => 'Sales Lite', 'family_key' => 'sales', 'edition' => 'lite', 'is_active' => true]);
+
+        // These are about adding businesses, not about how many one account may have on Starter (see PlanLimitsTest).
+        $this->starter->update(['business_limit' => null]);
     }
 
     private function payload(array $overrides = []): array

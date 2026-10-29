@@ -23,7 +23,7 @@ class DocumentIndexController extends Controller
     {
         try {
             $workspace = $this->currentWorkspace($request);
-            $documents = $this->documentIndexService->list($workspace, $request->validated(), 25);
+            $documents = $this->documentIndexService->list($workspace, $request->validated(), requested_per_page(25));
             $today     = $this->documentIndexService->today($workspace);
             $sources   = $this->documentIndexService->sources($workspace);
 

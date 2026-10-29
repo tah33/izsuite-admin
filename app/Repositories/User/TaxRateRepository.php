@@ -2,6 +2,7 @@
 
 namespace App\Repositories\User;
 
+use App\Enums\TaxTreatment;
 use App\Models\User\Item;
 use App\Models\User\TaxRate;
 use App\Models\User\Workspace;
@@ -32,13 +33,14 @@ class TaxRateRepository
     }
 
     /**
-     * The business's active Exempt rate for sales in effect on $date - what a
-     * customer with a tax exemption number is charged (Doc 08 section 17).
+     * The business's first active sales rate of $treatment in effect on $date
+     * - what a customer with that tax treatment is charged, an exempt one
+     * included (Doc 08 section 17, Doc 11 section 11).
      */
-    public function exemptForSales(Workspace $workspace, string $date): ?TaxRate
+    public function forSalesWithTreatment(Workspace $workspace, TaxTreatment $treatment, string $date): ?TaxRate
     {
         return $workspace->taxRates()
-            ->where('treatment', 'exempt')
+            ->where('treatment', $treatment->value)
             ->where('for_sales', true)
             ->where('is_active', true)
             ->where('effective_from', '<=', $date)

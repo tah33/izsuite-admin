@@ -122,7 +122,7 @@ class ItemsApiTest extends TestCase
             'brand_id', 'brand', 'image', 'description', 'sale_price', 'sales_tax_id', 'sales_tax', 'sales_description',
             'purchase_price', 'purchase_tax_id', 'purchase_tax', 'purchase_description', 'delivery_method', 'delivery_instructions', 'warranty_available',
             'warranty_period', 'warranty_unit', 'warranty_start_rule', 'warranty_terms', 'combo_pricing',
-            'combo_display', 'components', 'component_total', 'is_active',
+            'combo_display', 'components', 'component_total', 'is_active', 'in_use',
         ], array_keys($response->json('data')));
 
         $this->assertDatabaseHas('items', ['id' => $response->json('data.id'), 'workspace_id' => $business->id]);

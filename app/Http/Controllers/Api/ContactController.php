@@ -25,7 +25,7 @@ class ContactController extends Controller
         try {
             $contacts = $this->contactService->list(
                 $this->currentWorkspace($request),
-                $request->only(['search', 'role', 'type', 'status', 'for_sale']),
+                $request->only(['search', 'role', 'type', 'status', 'tax_treatment', 'for_sale']),
                 requested_per_page(),
             );
 

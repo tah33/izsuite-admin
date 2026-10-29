@@ -12,7 +12,8 @@ use App\Support\Decimal;
  * Top-Selling Items (Doc 07 section 7): what sold most, by issued invoices
  * less credit notes, tax left out, in the base currency. A line typed in
  * without an item counts under its own name. A ranking of the past, not a
- * trend or forecast.
+ * trend or forecast. An item's row opens the item, with its related
+ * transactions (Doc 04 section 20).
  */
 class TopItemsReport extends Report
 {
@@ -29,7 +30,7 @@ class TopItemsReport extends Report
                 $key = $line->item_id ? "item:{$line->item_id}" : 'line:'.mb_strtolower($line->name);
                 $net = $this->figures->lineNet($line);
 
-                $rows[$key] ??= ['item' => $line->name, 'quantity' => '0', 'invoices' => 0, 'net_sales' => '0.00', 'credit_quantity' => '0', 'credit_amount' => '0.00', 'net' => '0.00'];
+                $rows[$key] ??= ['item' => $line->name, 'quantity' => '0', 'invoices' => 0, 'net_sales' => '0.00', 'credit_quantity' => '0', 'credit_amount' => '0.00', 'net' => '0.00', 'link' => $line->item_id ? "/items/{$line->item_id}" : null];
 
                 if ($type === DocumentType::Invoice) {
                     $rows[$key]['quantity']  = bcadd($rows[$key]['quantity'], Decimal::of($line->quantity), 3);

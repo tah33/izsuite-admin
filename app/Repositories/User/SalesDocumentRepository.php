@@ -52,7 +52,9 @@ class SalesDocumentRepository
                 ->orWhere('sales_reference', 'like', "%{$search}%")
                 ->orWhereHas('contact', fn (Builder $query) => $query->where('name', 'like', "%{$search}%"))))
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $this->whereStatus($query, $type, $status, $today))
-            ->when($filters['payment_status'] ?? null, fn (Builder $query, string $status) => $query->where('payment_status', $status))
+            ->when($filters['payment_status'] ?? null, fn (Builder $query, string $status) => $status === 'outstanding'
+                ? $query->where('status', SalesDocumentStatus::Issued->value)->where('balance_due', '>', 0)
+                : $query->where('payment_status', $status))
             ->when(filter_var($filters['overdue'] ?? false, FILTER_VALIDATE_BOOLEAN), fn (Builder $query) => $query
                 ->where('status', SalesDocumentStatus::Issued->value)
                 ->where('due_date', '<', $today)

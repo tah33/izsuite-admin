@@ -203,4 +203,10 @@ class Item extends Model
     {
         return $this->hasMany(ItemComponent::class, 'component_id');
     }
+
+    /** The sales document lines it is on - any document, any status. */
+    public function salesLines(): HasMany
+    {
+        return $this->hasMany(SalesDocumentLine::class);
+    }
 }

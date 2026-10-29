@@ -165,7 +165,9 @@ class SalesDocumentsApiTest extends TestCase
             ->assertJsonPath('data.due_date', '2026-11-12')
             ->assertJsonPath('data.payment_terms', 15)
             ->assertJsonPath('data.default_tax_id', $this->vat->id)
-            ->assertJsonPath('data.exempt_tax_id', $exempt->id);
+            ->assertJsonPath('data.customer_treatment', 'exempt')
+            ->assertJsonPath('data.customer_tax_id', $exempt->id)
+            ->assertJsonPath('data.customer.name', $this->customer->name);
 
         $this->getJson('/api/v1/sales/quotations/defaults')
             ->assertJsonPath('data.expiry_date', '2026-11-27')

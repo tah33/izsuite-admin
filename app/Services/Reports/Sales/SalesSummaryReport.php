@@ -14,7 +14,9 @@ use App\Support\Decimal;
  * Sales Summary (Doc 07 section 5): issued invoices by their dates less issued
  * credit notes by theirs, in the base currency, grouped by day, week, month,
  * customer, item, location or currency. Net Sales leaves tax out; quotations,
- * proformas, drafts, cancelled and void invoices never count.
+ * proformas, drafts, cancelled and void invoices never count. A customer's or
+ * an item's row opens their profile, with its related documents or
+ * transactions (Doc 04 section 20).
  */
 class SalesSummaryReport extends Report
 {
@@ -59,9 +61,9 @@ class SalesSummaryReport extends Report
 
         foreach ([DocumentType::Invoice, DocumentType::CreditNote] as $type) {
             foreach ($this->sales->issued($workspace, $type, $filters['from'], $filters['to'], $filters) as $document) {
-                [$key, $label] = $this->groupOf($document, $group);
+                [$key, $label, $link] = $this->groupOf($document, $group);
 
-                $rows[$key] ??= $this->row($label);
+                $rows[$key] ??= $this->row($label, $link);
                 $rows[$key]   = $this->tally($rows[$key], $type, [
                     'subtotal'  => $this->figures->base($document->subtotal, $document->exchange_rate),
                     'discounts' => $this->figures->base($document->discount_total, $document->exchange_rate),
@@ -90,7 +92,7 @@ class SalesSummaryReport extends Report
                 $first    = $type === DocumentType::Invoice && ! isset($seen[$key][$line->sales_document_id]);
 
                 $seen[$key][$line->sales_document_id] = true;
-                $rows[$key] ??= $this->row($line->name);
+                $rows[$key] ??= $this->row($line->name, $line->item_id ? "/items/{$line->item_id}" : null);
                 $rows[$key]   = $this->tally($rows[$key], $type, ['subtotal' => $subtotal, 'discounts' => $this->subtract($subtotal, $kept), 'net' => $net, 'tax' => $tax], $first ? 1 : 0);
             }
         }
@@ -98,25 +100,25 @@ class SalesSummaryReport extends Report
         return $this->ranked($rows);
     }
 
-    /** @return array{0: string, 1: string} the group's key and what the report calls it */
+    /** @return array{0: string, 1: string, 2: ?string} the group's key, what the report calls it, and where its row leads */
     private function groupOf(SalesDocument $document, string $group): array
     {
         if (in_array($group, ['day', 'week', 'month'], true)) {
             $key = $this->period->bucket($document->document_date, $group);
 
-            return [$key, $this->period->label($key, $group)];
+            return [$key, $this->period->label($key, $group), null];
         }
 
         return match ($group) {
-            'customer' => ["contact:{$document->contact_id}", $this->figures->customerName($document)],
-            'location' => ["location:{$document->location_id}", $document->location?->name ?? 'No location'],
-            default    => [$document->currency, $document->currency],
+            'customer' => ["contact:{$document->contact_id}", $this->figures->customerName($document), $document->contact_id ? "/contacts/{$document->contact_id}" : null],
+            'location' => ["location:{$document->location_id}", $document->location?->name ?? 'No location', null],
+            default    => [$document->currency, $document->currency, null],
         };
     }
 
-    private function row(string $label): array
+    private function row(string $label, ?string $link = null): array
     {
-        return ['group' => $label, 'invoices' => 0, 'subtotal' => '0.00', 'discounts' => '0.00', 'credit_notes' => '0.00', 'net_sales' => '0.00', 'tax' => '0.00', 'total' => '0.00'];
+        return ['group' => $label, 'invoices' => 0, 'subtotal' => '0.00', 'discounts' => '0.00', 'credit_notes' => '0.00', 'net_sales' => '0.00', 'tax' => '0.00', 'total' => '0.00', 'link' => $link];
     }
 
     /** An invoice's figures add to the row; a credit note's net and tax come off it. */

@@ -51,17 +51,19 @@ class DashboardService
         $today   = $this->reportPeriod->today($workspace);
         $asOf    = min($to, $today);
         $filters = ['from' => $from, 'to' => $to, 'location_id' => $input['location_id'] ?? null];
+        $apps    = WorkspaceApps::for($workspace);
 
         return [
             'from'     => $from,
             'to'       => $to,
             'as_of'    => $asOf,
-            'sales'    => WorkspaceApps::for($workspace)->has('sales') ? $this->sales($workspace, $filters, $asOf, $today) : null,
+            'sales'    => $apps->has('sales') ? $this->sales($workspace, $filters, $asOf, $today, $apps->row('sales')->app->name) : null,
             'accounts' => $this->accounts($workspace, $asOf),
         ];
     }
 
-    private function sales(Workspace $workspace, array $filters, string $asOf, string $today): array
+    /** $source is the app Sales is on as: "Sales Lite" or "Sales". */
+    private function sales(Workspace $workspace, array $filters, string $asOf, string $today, string $source): array
     {
         $invoices    = $this->salesReportRepository->issued($workspace, DocumentType::Invoice, $filters['from'], $filters['to'], $filters);
         $notes       = $this->salesReportRepository->issued($workspace, DocumentType::CreditNote, $filters['from'], $filters['to'], $filters);
@@ -81,12 +83,12 @@ class DashboardService
             'overdue_count'     => count($overdue),
             'chart'             => array_map(fn (array $row) => ['label' => $row['period'], 'value' => $row['net_sales']], $this->salesTrendReport->rows($workspace, $filters)),
             'outstanding_rows'  => array_slice($outstanding, 0, self::OUTSTANDING_SHOWN),
-            'recent'            => $this->recent($workspace, $filters['location_id'], $today),
+            'recent'            => $this->recent($workspace, $filters['location_id'], $today, $source),
         ];
     }
 
-    /** The newest documents and payments together, newest first (Doc 02 section 9). */
-    private function recent(Workspace $workspace, ?int $locationId, string $today): array
+    /** The newest documents and payments together, newest first, with the app they came from (Doc 02 section 9). */
+    private function recent(Workspace $workspace, ?int $locationId, string $today, string $source): array
     {
         $documents = $this->salesReportRepository->latestDocuments($workspace, self::RECENT_SHOWN, $locationId)->map(fn (SalesDocument $document) => [
             'date'     => $document->document_date,
@@ -96,6 +98,7 @@ class DashboardService
             'amount'   => (string) $document->grand_total,
             'currency' => $document->currency,
             'status'   => $this->salesDocumentRules->status($document, $today),
+            'source'   => $source,
             'link'     => "/sales/{$document->type->kind()}/{$document->id}",
             'created'  => $document->created_at?->getTimestamp() ?? 0,
         ]);
@@ -108,6 +111,7 @@ class DashboardService
             'amount'   => (string) $payment->amount,
             'currency' => $payment->account?->currency,
             'status'   => $payment->status,
+            'source'   => $source,
             'link'     => "/sales/payments/{$payment->id}",
             'created'  => $payment->created_at?->getTimestamp() ?? 0,
         ]);

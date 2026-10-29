@@ -21,8 +21,11 @@ use Illuminate\Support\Arr;
  * and 18): their sales currency and that day's exchange rate, their payment
  * terms - or the business's - for an invoice's due date, Settings > Sales'
  * validity for a quotation's or proforma's expiry date, and the taxes new
- * lines start with: Exempt for a customer with an exemption number, or else
- * the item's own tax or the business's default.
+ * lines start with (Doc 11 section 11): the customer's own tax treatment -
+ * zero-rated, exempt (an exemption number with none chosen is exempt), out of
+ * scope or no tax - takes the business's sales rate of that treatment, or no
+ * tax when it has none; otherwise the item's own tax or the business's
+ * default.
  *
  * calculate() is SalesCalculator's answer for what the form holds now - the
  * same arithmetic every save uses, so the form shows the totals the document
@@ -49,8 +52,9 @@ class SalesFormService
         $currency = $query['currency'] ?? (in_array($contact?->sales_currency, $workspace->currencyCodes(), true) ? $contact->sales_currency : $workspace->base_currency);
         $terms    = $contact?->customer_payment_terms ?? $settings->payment_terms;
         $days     = fn (int $days) => CarbonImmutable::parse($date)->addDays($days)->toDateString();
-        $taxes    = $workspace->usesTaxes();
-        $default  = $taxes ? $this->taxRateRepository->defaultFor($workspace, TaxRate::SALES) : null;
+        $taxes     = $workspace->usesTaxes();
+        $default   = $taxes ? $this->taxRateRepository->defaultFor($workspace, TaxRate::SALES) : null;
+        $treatment = $taxes ? $contact?->salesTaxTreatment() : null;
 
         return [
             'document_date'      => $date,
@@ -68,7 +72,11 @@ class SalesFormService
             'line_discounts'     => $settings->line_discounts,
             'document_discounts' => $settings->document_discounts,
             'default_tax_id'     => $default && $this->inEffect($default, $date) ? $default->id : null,
-            'exempt_tax_id'      => $taxes && $contact?->tax_exemption_number ? $this->taxRateRepository->exemptForSales($workspace, $date)?->id : null,
+            'customer_treatment' => $treatment?->value,
+            'customer_tax_id'    => $treatment ? $this->taxRateRepository->forSalesWithTreatment($workspace, $treatment, $date)?->id : null,
+            // The customer a sale started from their profile goes to (Doc 03
+            // section 10) - while they can still be sold to.
+            'customer'           => $contact && $contact->is_active && $contact->isCustomer() ? $contact : null,
         ];
     }
 

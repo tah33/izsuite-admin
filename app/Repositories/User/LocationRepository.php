@@ -32,6 +32,11 @@ class LocationRepository
         return $workspace->locations()->exists();
     }
 
+    public function countFor(Workspace $workspace): int
+    {
+        return $workspace->locations()->count();
+    }
+
     /**
      * Made through the business, so its workspace and owner are always the
      * business's own - never read from $data.

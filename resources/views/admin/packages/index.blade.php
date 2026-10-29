@@ -21,6 +21,7 @@
                         <th>{{ __('Key') }}</th>
                         <th>{{ __('Apps') }}</th>
                         <th>{{ __('Storage') }}</th>
+                        <th>{{ __('Limits') }}</th>
                         <th>{{ __('Businesses') }}</th>
                         <th>{{ __('Offered') }}</th>
                         <th class="text-end">{{ __('Actions') }}</th>
@@ -43,6 +44,22 @@
                                     <span class="text-[var(--text-muted)]">{{ __('No limit') }}</span>
                                 @else
                                     {{ \App\Support\Bytes::format($package->storage_limit_mb * 1024 * 1024) }}
+                                @endif
+                            </td>
+                            <td class="text-sm">
+                                @php
+                                    $limits = array_filter([
+                                        $package->business_limit !== null ? trans_choice(':count business per account|:count businesses per account', $package->business_limit) : null,
+                                        $package->user_limit !== null ? trans_choice(':count user|:count users', $package->user_limit) : null,
+                                        $package->location_limit !== null ? trans_choice(':count location|:count locations', $package->location_limit) : null,
+                                    ]);
+                                @endphp
+                                @if($limits)
+                                    @foreach($limits as $limit)
+                                        <span class="block">{{ $limit }}</span>
+                                    @endforeach
+                                @else
+                                    <span class="text-[var(--text-muted)]">{{ __('No limits') }}</span>
                                 @endif
                             </td>
                             <td class="text-sm">{{ $package->workspaces_count }}</td>

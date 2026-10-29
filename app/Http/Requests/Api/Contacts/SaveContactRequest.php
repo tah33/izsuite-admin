@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Contacts;
 
+use App\Enums\TaxTreatment;
 use App\Models\Admin\Language;
 use App\Models\User\Contact;
 use App\Support\Countries;
@@ -104,6 +105,7 @@ class SaveContactRequest extends FormRequest
             'supplier_payment_terms'   => $terms,
             'tax_number'               => ['nullable', 'string', 'max:50'],
             'tax_country'              => ['nullable', $countries],
+            'tax_treatment'            => ['nullable', Rule::enum(TaxTreatment::class)],
             'tax_exemption_number'     => ['nullable', 'string', 'max:50'],
             'notes'                    => ['nullable', 'string', 'max:5000'],
             'is_active'                => ['sometimes', 'boolean'],

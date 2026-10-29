@@ -96,6 +96,12 @@ class WorkspaceRepository
         return $workspace->user()->value('email');
     }
 
+    /** How many of the account's businesses are on the plan $packageId. */
+    public function countForUserOnPackage(User $user, int $packageId): int
+    {
+        return Workspace::where('user_id', $user->id)->where('package_id', $packageId)->count();
+    }
+
     /**
      * The admin panel's list of every business, newest first, with its owner,
      * its plan and the apps it has on - searched by its name or its owner's

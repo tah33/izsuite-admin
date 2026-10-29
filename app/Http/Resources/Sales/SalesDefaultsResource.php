@@ -8,7 +8,11 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /**
  * What a new sales document starts with (see SalesFormService::defaults()).
  * exchange_rate is null when no rate was entered for the currency by the
- * document's date; the tax ids are null for none.
+ * document's date; the tax ids are null for none. customer_treatment is the
+ * customer's own tax treatment when it is not the standard one: their lines
+ * then start with customer_tax_id - null being no tax. `customer` is the
+ * contact asked about, when it is an active customer - the one a sale
+ * started from their profile is made out to.
  */
 class SalesDefaultsResource extends JsonResource
 {
@@ -30,7 +34,9 @@ class SalesDefaultsResource extends JsonResource
             'line_discounts'     => $this->resource['line_discounts'],
             'document_discounts' => $this->resource['document_discounts'],
             'default_tax_id'     => $this->resource['default_tax_id'],
-            'exempt_tax_id'      => $this->resource['exempt_tax_id'],
+            'customer_treatment' => $this->resource['customer_treatment'],
+            'customer_tax_id'    => $this->resource['customer_tax_id'],
+            'customer'           => $this->resource['customer'] ? ['id' => $this->resource['customer']->id, 'name' => $this->resource['customer']->name] : null,
         ];
     }
 }

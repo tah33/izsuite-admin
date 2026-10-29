@@ -127,7 +127,7 @@ class ContactsApiTest extends TestCase
             'billing_line1', 'billing_line2', 'billing_city', 'billing_state', 'billing_postal_code', 'billing_country',
             'shipping_same_as_billing', 'shipping_line1', 'shipping_line2', 'shipping_city', 'shipping_state', 'shipping_postal_code', 'shipping_country',
             'sales_currency', 'customer_payment_terms', 'purchase_currency', 'supplier_payment_terms',
-            'tax_number', 'tax_country', 'tax_exemption_number', 'notes', 'is_active',
+            'tax_number', 'tax_country', 'tax_treatment', 'tax_exemption_number', 'notes', 'is_active', 'in_use',
         ], array_keys($response->json('data')));
 
         $this->assertDatabaseHas('contacts', ['id' => $response->json('data.id'), 'workspace_id' => $this->businessOf($user)->id]);

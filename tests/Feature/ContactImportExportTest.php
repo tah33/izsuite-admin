@@ -74,8 +74,9 @@ class ContactImportExportTest extends TestCase
     {
         $csv = $this->csv($this->get('/api/v1/imports/contacts/template', ['Accept' => 'application/json'])->assertOk()->assertDownload('contacts-import-template.csv'));
 
-        $this->assertCount(34, $csv[0]);
+        $this->assertCount(35, $csv[0]);
         $this->assertSame(['Contact Type', 'Contact Role', 'Name'], array_slice($csv[0], 0, 3));
+        $this->assertContains('Tax Treatment', $csv[0]);
 
         $example = $this->row($csv, 1);
         $this->assertSame('Uddin Traders Ltd', $example['Name']);
