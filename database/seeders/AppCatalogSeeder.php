@@ -129,7 +129,7 @@ class AppCatalogSeeder extends Seeder
         ['apps', 'sales', 'Credit Notes', 'receipt-text', '/sales/credit-notes', 'lite', null],
         ['apps', 'sales', 'Payments Received', 'hand-coins', '/sales/payments', 'lite', null],
         ['apps', 'sales', 'Sales Orders', 'clipboard-list', '/sales/orders', 'full', null],
-        ['apps', 'purchases', 'Bills', 'file-minus', '/purchases/bills', 'lite', null],
+        ['apps', 'purchases', 'Purchases', 'file-minus', '/purchases', 'lite', null],
         ['apps', 'purchases', 'Purchase Orders', 'clipboard-list', '/purchases/orders', 'full', null],
         ['apps', 'expenses', 'Expenses', 'wallet', '/expenses', 'lite', null],
         ['apps', 'expenses', 'Recurring Expenses', 'repeat', '/expenses/recurring', 'full', null],

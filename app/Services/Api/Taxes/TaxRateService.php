@@ -4,6 +4,7 @@ namespace App\Services\Api\Taxes;
 
 use App\Models\User\TaxRate;
 use App\Models\User\Workspace;
+use App\Repositories\User\PurchaseRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Repositories\User\TaxRateRepository;
 use App\Services\Shared\ActivityLogService;
@@ -19,18 +20,20 @@ use Illuminate\Validation\ValidationException;
  * The business's default sales and purchase tax must stay something new
  * documents can use: it cannot be switched off, stop applying to its side, or
  * be deleted until another default - or none - is chosen. A rate items start
- * with, or one on a sales document, is deactivated instead of deleted ("used
- * configuration records are deactivated", Doc 11 section 25).
+ * with, or one on a sales document or a purchase, is deactivated instead of
+ * deleted ("used configuration records are deactivated", Doc 11 section 25).
  *
- * A rate on a sales document keeps its percentage and treatment: a new rate
- * replaces it (Doc 11 section 10, "a used rate is deactivated and replaced
- * with a new effective rate"), so a draft's taxes never change under it.
+ * A rate on a sales document or a purchase keeps its percentage and
+ * treatment: a new rate replaces it (Doc 11 section 10, "a used rate is
+ * deactivated and replaced with a new effective rate"), so a draft's taxes
+ * never change under it.
  */
 class TaxRateService
 {
     public function __construct(
         protected TaxRateRepository $taxRateRepository,
         protected SalesDocumentRepository $salesDocumentRepository,
+        protected PurchaseRepository $purchaseRepository,
     ) {}
 
     public function list(Workspace $workspace): Collection
@@ -75,6 +78,12 @@ class TaxRateService
             ]);
         }
 
+        if ($changesCharge && $this->purchaseRepository->usesTaxRate($rate)) {
+            throw ValidationException::withMessages([
+                'rate' => 'This rate is on purchases, so its rate and treatment stay as they are. Add a new rate and switch this one off instead.',
+            ]);
+        }
+
         $this->taxRateRepository->update($rate, $columns);
 
         ActivityLogService::record('updated', "Updated tax rate {$this->quoted($rate)}", $rate, [
@@ -96,6 +105,12 @@ class TaxRateService
         if ($this->salesDocumentRepository->usesTaxRate($rate)) {
             throw new HttpResponseException(response()->json([
                 'message' => 'This tax is on sales documents, so it cannot be deleted. Deactivate it instead.',
+            ], 409));
+        }
+
+        if ($this->purchaseRepository->usesTaxRate($rate)) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'This tax is on purchases, so it cannot be deleted. Deactivate it instead.',
             ], 409));
         }
 

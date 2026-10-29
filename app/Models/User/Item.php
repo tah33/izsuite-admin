@@ -133,6 +133,12 @@ class Item extends Model
         return $this->usage !== self::USAGE_PURCHASE;
     }
 
+    /** Whether it can be picked on a purchase. */
+    public function isPurchased(): bool
+    {
+        return $this->usage !== self::USAGE_SALES;
+    }
+
     /**
      * What a combo's components add up to at their sales prices today - its
      * price when it is priced as their sum. Worked out exactly in decimal
@@ -208,5 +214,11 @@ class Item extends Model
     public function salesLines(): HasMany
     {
         return $this->hasMany(SalesDocumentLine::class);
+    }
+
+    /** The purchase lines it is on - any purchase, any status. */
+    public function purchaseLines(): HasMany
+    {
+        return $this->hasMany(PurchaseLine::class);
     }
 }

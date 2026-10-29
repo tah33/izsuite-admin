@@ -39,9 +39,20 @@ class TaxRateRepository
      */
     public function forSalesWithTreatment(Workspace $workspace, TaxTreatment $treatment, string $date): ?TaxRate
     {
+        return $this->withTreatment($workspace, TaxRate::SALES, $treatment, $date);
+    }
+
+    /** The same for purchases: what a supplier with that tax treatment charges (Doc 09 section 14). */
+    public function forPurchasesWithTreatment(Workspace $workspace, TaxTreatment $treatment, string $date): ?TaxRate
+    {
+        return $this->withTreatment($workspace, TaxRate::PURCHASES, $treatment, $date);
+    }
+
+    private function withTreatment(Workspace $workspace, string $side, TaxTreatment $treatment, string $date): ?TaxRate
+    {
         return $workspace->taxRates()
             ->where('treatment', $treatment->value)
-            ->where('for_sales', true)
+            ->where("for_{$side}", true)
             ->where('is_active', true)
             ->where('effective_from', '<=', $date)
             ->where(fn ($query) => $query->whereNull('effective_to')->orWhere('effective_to', '>=', $date))

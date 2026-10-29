@@ -5,6 +5,7 @@ namespace App\Services\Api\Items;
 use App\Models\User\Item;
 use App\Models\User\Workspace;
 use App\Repositories\User\ItemRepository;
+use App\Repositories\User\PurchaseRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -19,6 +20,7 @@ class ItemService
     public function __construct(
         protected ItemRepository $itemRepository,
         protected SalesDocumentRepository $salesDocumentRepository,
+        protected PurchaseRepository $purchaseRepository,
     ) {}
 
     /** The brand is searched and filtered only while the business uses brands (Doc 04 section 7). */
@@ -137,6 +139,12 @@ class ItemService
         if ($this->salesDocumentRepository->usesItem($item)) {
             throw new HttpResponseException(response()->json([
                 'message' => 'This item is on sales documents, so it cannot be deleted. Deactivate it instead.',
+            ], 409));
+        }
+
+        if ($this->purchaseRepository->usesItem($item)) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'This item is on purchases, so it cannot be deleted. Deactivate it instead.',
             ], 409));
         }
 

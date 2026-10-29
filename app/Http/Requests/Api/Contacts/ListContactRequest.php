@@ -18,7 +18,8 @@ class ListContactRequest extends FormRequest
      * The search and the filters of the Contacts list (Doc 03 section 3) - the
      * tax treatment is filtered only while the business uses taxes - and
      * for_sale: only those a sale can be made to - active customers, and
-     * contacts that are both.
+     * contacts that are both; for_purchase: only those a purchase can be made
+     * from - active suppliers, and contacts that are both.
      */
     public function rules(): array
     {
@@ -29,6 +30,7 @@ class ListContactRequest extends FormRequest
             'status'        => ['nullable', Rule::in(['active', 'inactive'])],
             'tax_treatment' => ['nullable', Rule::enum(TaxTreatment::class)],
             'for_sale'      => ['nullable', 'boolean'],
+            'for_purchase'  => ['nullable', 'boolean'],
             'per_page' => ['nullable', 'integer', 'in:10,15,25,50,100'],
             'page'     => ['nullable', 'integer', 'min:1'],
         ];

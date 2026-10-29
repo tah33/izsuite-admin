@@ -6,6 +6,7 @@ use App\Models\User\Workspace;
 use App\Repositories\User\AccountTransactionRepository;
 use App\Repositories\User\ContactRepository;
 use App\Repositories\User\PaymentAccountRepository;
+use App\Repositories\User\PurchaseRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\Shared\ActivityLogService;
@@ -26,6 +27,7 @@ class BusinessSetupService
         protected PaymentAccountRepository $paymentAccountRepository,
         protected ContactRepository $contactRepository,
         protected SalesDocumentRepository $salesDocumentRepository,
+        protected PurchaseRepository $purchaseRepository,
         protected AccountTransactionRepository $accountTransactionRepository,
     ) {}
 
@@ -44,8 +46,8 @@ class BusinessSetupService
      * A currency a payment account uses cannot be dropped - the account would
      * be left in a currency the business no longer takes. The base currency
      * itself changes freely only until the business has issued or sent a
-     * document or given a payment account an opening balance (Doc 11 section
-     * 7): after that its totals are in it.
+     * document, recorded a purchase or given a payment account an opening
+     * balance (Doc 11 section 7): after that its totals are in it.
      */
     public function saveCurrencies(Workspace $workspace, array $data): array
     {
@@ -53,10 +55,11 @@ class BusinessSetupService
         sort($additional);
 
         if ($data['base_currency'] !== $workspace->base_currency
-            && ($this->salesDocumentRepository->hasTransactions($workspace) || $this->paymentAccountRepository->hasOpeningBalance($workspace)
+            && ($this->salesDocumentRepository->hasTransactions($workspace) || $this->purchaseRepository->hasTransactions($workspace)
+                || $this->paymentAccountRepository->hasOpeningBalance($workspace)
                 || $this->accountTransactionRepository->existsForWorkspace($workspace))) {
             throw ValidationException::withMessages([
-                'base_currency' => 'The base currency cannot change once documents have been issued or sent, or a payment account has an opening balance or money recorded through it.',
+                'base_currency' => 'The base currency cannot change once documents have been issued or sent, purchases recorded, or a payment account has an opening balance or money recorded through it.',
             ]);
         }
 

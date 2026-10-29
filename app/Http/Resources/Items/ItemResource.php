@@ -20,8 +20,9 @@ class ItemResource extends JsonResource
      * profile shows of them. A combo carries its components, and
      * component_total: what they add up to at today's sales prices, which is
      * its price when it is priced as their sum. `in_use` says a sales
-     * document holds it, so it can only be deactivated, not deleted (Doc 04
-     * section 18); one just made is not. Expects category, brand, salesTax,
+     * document or a purchase holds it, so it can only be deactivated, not
+     * deleted (Doc 04 section 18), and `in_sales` that a sales document does;
+     * one just made is neither. Expects category, brand, salesTax,
      * purchaseTax, image and components.component loaded.
      */
     public function toArray(Request $request): array
@@ -77,7 +78,8 @@ class ItemResource extends JsonResource
                 : [],
             'component_total'       => $this->componentTotal(),
             'is_active'             => $this->is_active,
-            'in_use'                => (bool) ($this->in_use ?? false),
+            'in_use'                => (bool) ($this->in_sales ?? false) || (bool) ($this->in_purchases ?? false),
+            'in_sales'              => (bool) ($this->in_sales ?? false),
         ];
     }
 

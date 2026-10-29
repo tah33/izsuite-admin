@@ -5,6 +5,7 @@ namespace App\Services\Api\Contacts;
 use App\Models\User\Contact;
 use App\Models\User\Workspace;
 use App\Repositories\User\ContactRepository;
+use App\Repositories\User\PurchaseRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -18,6 +19,7 @@ class ContactService
         protected ContactRepository $contactRepository,
         protected ContactDuplicates $contactDuplicates,
         protected SalesDocumentRepository $salesDocumentRepository,
+        protected PurchaseRepository $purchaseRepository,
     ) {}
 
     /** The tax ID is searched only while the business uses taxes (Doc 03 section 3). */
@@ -101,7 +103,7 @@ class ContactService
         return $contact;
     }
 
-    /** Only an unused contact can be deleted (Doc 03 section 13): one on a sales document is deactivated instead. */
+    /** Only an unused contact can be deleted (Doc 03 section 13): one on a sales document or a purchase is deactivated instead. */
     public function delete(Workspace $workspace, int $id): void
     {
         $contact = $this->findOwned($workspace, $id);
@@ -109,6 +111,12 @@ class ContactService
         if ($this->salesDocumentRepository->usesContact($contact)) {
             throw new HttpResponseException(response()->json([
                 'message' => 'This contact is on sales documents, so it cannot be deleted. Deactivate it instead.',
+            ], 409));
+        }
+
+        if ($this->purchaseRepository->usesContact($contact)) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'This contact is on purchases, so it cannot be deleted. Deactivate it instead.',
             ], 409));
         }
 

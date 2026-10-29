@@ -11,8 +11,9 @@ class ContactResource extends JsonResource
      * Every field, flat, as the table holds it: countries as codes, a default
      * currency of null meaning the base currency, payment terms in days, and
      * a shipping address of nulls when it is the billing one. `in_use` says a
-     * sales document names it, so it can only be deactivated, not deleted
-     * (Doc 03 section 13); one just made is not.
+     * sales document or a purchase names it, so it can only be deactivated,
+     * not deleted (Doc 03 section 13), and `in_sales` that a sales document
+     * does; one just made is neither.
      */
     public function toArray(Request $request): array
     {
@@ -54,7 +55,8 @@ class ContactResource extends JsonResource
             'tax_exemption_number'     => $this->tax_exemption_number,
             'notes'                    => $this->notes,
             'is_active'                => $this->is_active,
-            'in_use'                   => (bool) ($this->in_use ?? false),
+            'in_use'                   => (bool) ($this->in_sales ?? false) || (bool) ($this->in_purchases ?? false),
+            'in_sales'                 => (bool) ($this->in_sales ?? false),
         ];
     }
 }

@@ -136,6 +136,12 @@ class Contact extends Model
         return $treatment === TaxTreatment::Standard ? null : $treatment;
     }
 
+    /** The tax treatment a purchase from it starts with (Doc 09 section 14): the one chosen for it. Null for the standard one. */
+    public function purchaseTaxTreatment(): ?TaxTreatment
+    {
+        return $this->tax_treatment === TaxTreatment::Standard ? null : $this->tax_treatment;
+    }
+
     /** Those whose role is exactly $role - "customer" leaves out contacts that are both. */
     public function scopeOfRole(Builder $query, string $role): Builder
     {
@@ -154,5 +160,11 @@ class Contact extends Model
     public function salesDocuments(): HasMany
     {
         return $this->hasMany(SalesDocument::class);
+    }
+
+    /** What the business bought from it - any status. */
+    public function purchases(): HasMany
+    {
+        return $this->hasMany(Purchase::class);
     }
 }

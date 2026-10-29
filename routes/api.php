@@ -42,6 +42,11 @@ use App\Http\Controllers\Api\PaymentAccountController;
 use App\Http\Controllers\Api\PaymentAccountTransactionController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\PurchaseAttachmentController;
+use App\Http\Controllers\Api\PurchaseController;
+use App\Http\Controllers\Api\PurchaseFlowController;
+use App\Http\Controllers\Api\PurchaseFormController;
+use App\Http\Controllers\Api\PurchaseSettingController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SalesConversionController;
 use App\Http\Controllers\Api\SalesDocumentAttachmentController;
@@ -161,6 +166,14 @@ Route::prefix('v1')->group(function () {
         Route::middleware('app:sales')->group(function () {
             Route::get('/sales', [SalesSettingController::class, 'show'])->name('api.business-settings.sales.show');
             Route::put('/sales', [SalesSettingController::class, 'update'])->name('api.business-settings.sales.update');
+        });
+
+        // Settings > Purchases (Doc 11 section 16): what new purchases start
+        // with, and the duplicate supplier invoice check - there while
+        // Purchases Lite or Purchases is on.
+        Route::middleware('app:purchases')->group(function () {
+            Route::get('/purchases', [PurchaseSettingController::class, 'show'])->name('api.business-settings.purchases.show');
+            Route::put('/purchases', [PurchaseSettingController::class, 'update'])->name('api.business-settings.purchases.update');
         });
 
         // Settings > Documents > Numbering (Doc 11 section 21): how each kind
@@ -413,6 +426,29 @@ Route::prefix('v1')->group(function () {
             Route::get('/{id}/revisions', [SalesDocumentRevisionController::class, 'index'])->whereNumber('id')->name('api.sales.revisions.index');
             Route::get('/{id}/revisions/{revision}', [SalesDocumentRevisionController::class, 'show'])->whereNumber(['id', 'revision'])->name('api.sales.revisions.show');
         });
+    });
+
+    /* ----------------------------------------------------------
+     | Purchases Lite (Doc 09): what the business buys from its suppliers. A
+     | draft is added, changed and deleted; recording it numbers it and makes
+     | it owed (Pay Later); a recorded one is voided, never deleted. The form
+     | asks for what a new purchase starts with and its totals. Another
+     | business's records are a 404.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:purchases'])->prefix('purchases')->group(function () {
+        Route::get('/', [PurchaseController::class, 'index'])->name('api.purchases.index');
+        Route::post('/', [PurchaseController::class, 'store'])->name('api.purchases.store');
+        Route::get('/defaults', [PurchaseFormController::class, 'defaults'])->name('api.purchases.defaults');
+        Route::post('/calculate', [PurchaseFormController::class, 'calculate'])->name('api.purchases.calculate');
+        Route::get('/export', [PurchaseController::class, 'export'])->name('api.purchases.export');
+        Route::get('/{id}', [PurchaseController::class, 'show'])->whereNumber('id')->name('api.purchases.show');
+        Route::put('/{id}', [PurchaseController::class, 'update'])->whereNumber('id')->name('api.purchases.update');
+        Route::delete('/{id}', [PurchaseController::class, 'destroy'])->whereNumber('id')->name('api.purchases.destroy');
+        Route::post('/{id}/record', [PurchaseFlowController::class, 'record'])->whereNumber('id')->name('api.purchases.record');
+        Route::post('/{id}/void', [PurchaseFlowController::class, 'void'])->whereNumber('id')->name('api.purchases.void');
+        Route::get('/{id}/attachments', [PurchaseAttachmentController::class, 'index'])->whereNumber('id')->name('api.purchases.attachments.index');
+        Route::post('/{id}/attachments', [PurchaseAttachmentController::class, 'store'])->whereNumber('id')->name('api.purchases.attachments.store');
+        Route::delete('/{id}/attachments/{fileId}', [PurchaseAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.purchases.attachments.destroy');
     });
 
     /* ----------------------------------------------------------

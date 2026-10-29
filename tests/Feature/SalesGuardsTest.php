@@ -76,7 +76,7 @@ class SalesGuardsTest extends TestCase
         $this->postJson("/api/v1/sales/invoices/{$id}/issue")->assertOk();
 
         $this->putJson('/api/v1/business-settings/currencies', ['base_currency' => 'EUR'])
-            ->assertJsonValidationErrors(['base_currency' => 'The base currency cannot change once documents have been issued or sent, or a payment account has an opening balance or money recorded through it.']);
+            ->assertJsonValidationErrors(['base_currency' => 'The base currency cannot change once documents have been issued or sent, purchases recorded, or a payment account has an opening balance or money recorded through it.']);
         $this->putJson('/api/v1/business-settings/currencies', ['base_currency' => 'USD', 'additional_currencies' => ['EUR']])->assertOk();
     }
 }

@@ -28,6 +28,9 @@ class ItemRepository
         'image',
     ];
 
+    /** Whether a sales or a purchase line holds it - what ItemResource's `in_use` and `in_sales` are made of. */
+    private const USED_ON = ['salesLines as in_sales', 'purchaseLines as in_purchases'];
+
     /**
      * A page of the business's items, alphabetical with the id as
      * tie-breaker. $filters (Doc 04 section 4):
@@ -41,12 +44,14 @@ class ItemRepository
      * - status: active or inactive.
      * - for_combo: only what a combo can be made of - active, sold, and not a
      *   combo itself.
+     * - for_purchase: only what a purchase line can take - active and bought.
      *
-     * Each comes with `in_use`: whether a sales document line holds it.
+     * Each comes with `in_sales` and `in_purchases`: whether a sales document
+     * line or a purchase line holds it.
      */
     public function paginateFor(Workspace $workspace, array $filters, int $perPage, bool $withBrands): LengthAwarePaginator
     {
-        return $this->queryFor($workspace, $filters, $withBrands)->withExists('salesLines as in_use')->paginate($perPage);
+        return $this->queryFor($workspace, $filters, $withBrands)->withExists(self::USED_ON)->paginate($perPage);
     }
 
     /** How many items the list holds with $filters - for an export. */
@@ -89,14 +94,17 @@ class ItemRepository
             ->when(filter_var($filters['for_sale'] ?? false, FILTER_VALIDATE_BOOLEAN), fn (Builder $query) => $query
                 ->where('is_active', true)
                 ->where('usage', '!=', Item::USAGE_PURCHASE))
+            ->when(filter_var($filters['for_purchase'] ?? false, FILTER_VALIDATE_BOOLEAN), fn (Builder $query) => $query
+                ->where('is_active', true)
+                ->where('usage', '!=', Item::USAGE_SALES))
             ->orderBy('name')
             ->orderBy('id');
     }
 
-    /** With `in_use`, as the list has it. */
+    /** With `in_sales` and `in_purchases`, as the list has them. */
     public function findFor(Workspace $workspace, int $id): ?Item
     {
-        return $workspace->items()->with(self::SHOWN_WITH)->withExists('salesLines as in_use')->find($id);
+        return $workspace->items()->with(self::SHOWN_WITH)->withExists(self::USED_ON)->find($id);
     }
 
     /** The relations ItemResource shows, read again after a save. */

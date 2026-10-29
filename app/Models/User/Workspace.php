@@ -192,6 +192,18 @@ class Workspace extends Model
         return $this->hasMany(SalesDocument::class);
     }
 
+    /** Settings > Purchases - none until they are first saved. */
+    public function purchaseSetting(): HasOne
+    {
+        return $this->hasOne(PurchaseSetting::class);
+    }
+
+    /** What it bought from its suppliers (Purchases Lite). */
+    public function purchases(): HasMany
+    {
+        return $this->hasMany(Purchase::class);
+    }
+
     public function withholdingTaxes(): HasMany
     {
         return $this->hasMany(WithholdingTax::class);

@@ -16,6 +16,9 @@ use Illuminate\Database\Eloquent\Collection;
  */
 class ContactRepository
 {
+    /** Whether a sales document or a purchase names it - what ContactResource's `in_use` and `in_sales` are made of. */
+    private const USED_ON = ['salesDocuments as in_sales', 'purchases as in_purchases'];
+
     /**
      * A page of the business's contacts, alphabetical with the id as
      * tie-breaker. $filters (Doc 03 section 3):
@@ -29,11 +32,12 @@ class ContactRepository
      * - status: active or inactive.
      * - tax_treatment, when $withTaxId: exactly.
      *
-     * Each comes with `in_use`: whether a sales document names it.
+     * Each comes with `in_sales` and `in_purchases`: whether a sales document
+     * or a purchase names it.
      */
     public function paginateFor(Workspace $workspace, array $filters, int $perPage, bool $withTaxId): LengthAwarePaginator
     {
-        return $this->queryFor($workspace, $filters, $withTaxId)->withExists('salesDocuments as in_use')->paginate($perPage);
+        return $this->queryFor($workspace, $filters, $withTaxId)->withExists(self::USED_ON)->paginate($perPage);
     }
 
     /** How many contacts the list holds with $filters - for an export. */
@@ -60,14 +64,17 @@ class ContactRepository
             ->when(filter_var($filters['for_sale'] ?? false, FILTER_VALIDATE_BOOLEAN), fn (Builder $query) => $query
                 ->where('role', '!=', Contact::ROLE_SUPPLIER)
                 ->where('is_active', true))
+            ->when(filter_var($filters['for_purchase'] ?? false, FILTER_VALIDATE_BOOLEAN), fn (Builder $query) => $query
+                ->where('role', '!=', Contact::ROLE_CUSTOMER)
+                ->where('is_active', true))
             ->orderBy('name')
             ->orderBy('id');
     }
 
-    /** With `in_use`, as the list has it. */
+    /** With `in_sales` and `in_purchases`, as the list has them. */
     public function findFor(Workspace $workspace, int $id): ?Contact
     {
-        return $workspace->contacts()->withExists('salesDocuments as in_use')->find($id);
+        return $workspace->contacts()->withExists(self::USED_ON)->find($id);
     }
 
     /**

@@ -21,12 +21,18 @@ class DocumentTypes
         return array_values(array_filter(DocumentType::cases(), fn (DocumentType $type) => $apps->has($type->family(), Edition::Lite)));
     }
 
-    /** The document type named in the address - 404 for one that is not, or whose app is off. */
-    public function named(Workspace $workspace, string $value): DocumentType
+    /** @return list<DocumentType> those of them with a template (Settings > Documents & Templates) */
+    public function templated(Workspace $workspace): array
+    {
+        return array_values(array_filter($this->for($workspace), fn (DocumentType $type) => $type->hasTemplate()));
+    }
+
+    /** The document type named in the address - 404 for one that is not, or whose app is off, or that has no template when one is asked for. */
+    public function named(Workspace $workspace, string $value, bool $template = false): DocumentType
     {
         $type = DocumentType::tryFrom($value);
 
-        abort_unless($type && in_array($type, $this->for($workspace), true), 404, 'There is no such kind of document.');
+        abort_unless($type && in_array($type, $template ? $this->templated($workspace) : $this->for($workspace), true), 404, 'There is no such kind of document.');
 
         return $type;
     }
