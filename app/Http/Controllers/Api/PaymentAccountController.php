@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\PaymentAccounts\DeactivatePaymentAccountRequest;
 use App\Http\Requests\Api\PaymentAccounts\SavePaymentAccountRequest;
+use App\Http\Requests\Api\PaymentAccounts\SetDefaultAccountRequest;
 use App\Http\Resources\PaymentAccounts\PaymentAccountResource;
 use App\Services\Api\PaymentAccounts\PaymentAccountService;
 use Illuminate\Http\JsonResponse;
@@ -66,6 +68,57 @@ class PaymentAccountController extends Controller
 
             return response()->json([
                 'message' => 'Payment account updated successfully.',
+                'data'    => new PaymentAccountResource($account),
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** Makes it the default receiving or payment account of its currency and location (Doc 05 section 8). */
+    public function makeDefault(SetDefaultAccountRequest $request, int $id): JsonResponse
+    {
+        try {
+            $for     = $request->validated('for');
+            $account = $this->paymentAccountService->makeDefault($this->currentWorkspace($request), $id, $for);
+
+            return response()->json([
+                'message' => "{$account->name} is now the default {$for} account for {$account->currency}.",
+                'data'    => new PaymentAccountResource($account),
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    public function activate(Request $request, int $id): JsonResponse
+    {
+        try {
+            $account = $this->paymentAccountService->activate($this->currentWorkspace($request), $id);
+
+            return response()->json([
+                'message' => 'Payment account activated successfully.',
+                'data'    => new PaymentAccountResource($account),
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** A default account names the accounts that take over its defaults, where another could. */
+    public function deactivate(DeactivatePaymentAccountRequest $request, int $id): JsonResponse
+    {
+        try {
+            $account = $this->paymentAccountService->deactivate($this->currentWorkspace($request), $id, $request->validated());
+
+            return response()->json([
+                'message' => 'Payment account deactivated successfully.',
                 'data'    => new PaymentAccountResource($account),
             ]);
 

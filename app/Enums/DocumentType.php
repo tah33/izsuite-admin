@@ -82,4 +82,10 @@ enum DocumentType: string
     {
         return $this === self::Quotation || $this === self::Proforma;
     }
+
+    /** A proforma or invoice: customers pay from it, so it shows how (Doc 05 section 9). */
+    public function isPaidFrom(): bool
+    {
+        return $this === self::Proforma || $this === self::Invoice;
+    }
 }

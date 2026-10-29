@@ -5,6 +5,7 @@ namespace App\Services\Api\Locations;
 use App\Models\User\Location;
 use App\Models\User\Workspace;
 use App\Repositories\User\LocationRepository;
+use App\Repositories\User\PaymentAccountRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Services\Shared\ActivityLogService;
 use App\Services\User\Workspaces\PlanLimits;
@@ -17,6 +18,7 @@ class LocationService
     public function __construct(
         protected LocationRepository $locationRepository,
         protected SalesDocumentRepository $salesDocumentRepository,
+        protected PaymentAccountRepository $paymentAccountRepository,
         protected PlanLimits $planLimits,
     ) {}
 
@@ -61,6 +63,13 @@ class LocationService
         if ($this->salesDocumentRepository->usesLocation($location)) {
             throw new HttpResponseException(response()->json([
                 'message' => 'Sales documents were made at this location, so it cannot be deleted.',
+            ], 409));
+        }
+
+        // An account of the location would quietly become the whole business's.
+        if ($this->paymentAccountRepository->usesLocation($location)) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'Payment accounts belong to this location. Move them to another location, or to the whole business, first.',
             ], 409));
         }
 

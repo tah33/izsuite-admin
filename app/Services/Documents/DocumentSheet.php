@@ -21,6 +21,10 @@ use Illuminate\Support\Str;
  */
 class DocumentSheet
 {
+    public function __construct(
+        protected PaymentDetails $paymentDetails,
+    ) {}
+
     /** @return list<array{0: string, 1: string}> */
     public function facts(SalesDocument $document, DocumentFormat $format, array $template, string $baseCurrency): array
     {
@@ -124,15 +128,23 @@ class DocumentSheet
         return $rows;
     }
 
-    /** @return list<array{0: string, 1: string}> heading, text */
-    public function texts(SalesDocument $document, array $template): array
+    /**
+     * The texts under the totals. A proforma or invoice also says how to pay -
+     * its own instructions, and the details of the $accounts shown to
+     * customers (Doc 05 section 9) - while its template keeps payment
+     * instructions.
+     *
+     * @return list<array{0: string, 1: string}> heading, text
+     */
+    public function texts(SalesDocument $document, array $template, array $accounts = []): array
     {
-        $paid = in_array($document->type, [DocumentType::Invoice, DocumentType::Proforma], true);
+        $paid = $document->type->isPaidFrom() && ($template['show_payment_instructions'] ?? true);
 
         return array_values(array_filter([
             $document->type === DocumentType::CreditNote && $document->reason ? ['Reason', $document->reason] : null,
             ($template['show_notes'] ?? true) && $document->notes ? ['Notes', $document->notes] : null,
-            $paid && ($template['show_payment_instructions'] ?? true) && $document->payment_instructions ? ['Payment Instructions', $document->payment_instructions] : null,
+            $paid && $document->payment_instructions ? ['Payment Instructions', $document->payment_instructions] : null,
+            $paid && $accounts ? ['Payment Details', implode("\n\n", array_map(fn (array $account) => $this->paymentDetails->text($account), $accounts))] : null,
             ($template['show_terms'] ?? true) && $document->terms ? ['Terms and Conditions', $document->terms] : null,
         ]));
     }

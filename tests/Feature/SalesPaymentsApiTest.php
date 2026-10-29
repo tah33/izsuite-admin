@@ -92,7 +92,7 @@ class SalesPaymentsApiTest extends TestCase
         $this->pay($id, $later, '10')->assertJsonValidationErrors(['payment_date' => "Bank's opening balance is dated 2026-10-29. Use a date on or after it, or change that date first."]);
 
         $cash->update(['is_active' => false]);
-        $this->pay($id, $cash, '10')->assertJsonValidationErrors(['payment_account_id' => 'Choose one of your active payment accounts.']);
+        $this->pay($id, $cash, '10')->assertJsonValidationErrors(['payment_account_id' => 'Choose one of your active payment accounts that takes customer payments.']);
 
         $draft = $this->draft('invoices');
         $this->pay($draft, $this->account(['name' => 'Till']), '10')->assertConflict()->assertJsonPath('message', 'Only an issued invoice with something still to pay takes a payment.');

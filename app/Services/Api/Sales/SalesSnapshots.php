@@ -10,6 +10,7 @@ use App\Models\User\SalesDocumentLine;
 use App\Models\User\Workspace;
 use App\Repositories\User\BusinessSettingRepository;
 use App\Repositories\User\WorkspaceFileRepository;
+use App\Services\Documents\PaymentDetails;
 use App\Support\Countries;
 
 /**
@@ -29,23 +30,30 @@ class SalesSnapshots
     public function __construct(
         protected BusinessSettingRepository $businessSettingRepository,
         protected WorkspaceFileRepository $workspaceFileRepository,
+        protected PaymentDetails $paymentDetails,
     ) {}
 
-    public function business(Workspace $workspace, ?Location $location): array
+    /**
+     * The business as a document shows it. With $currency, also the payment
+     * accounts it shows customers in that currency (Doc 05 section 9) - for
+     * the documents customers pay from.
+     */
+    public function business(Workspace $workspace, ?Location $location, ?string $currency = null): array
     {
         $settings = $this->businessSettingRepository->findFor($workspace);
 
         return [
-            'name'        => $settings?->business_name ?: $workspace->name,
-            'address'     => array_values(array_filter([$settings?->landmark, $settings?->city, $settings?->state, $settings?->zip_code, $settings?->country])),
-            'phone'       => $settings?->business_contact_number,
-            'website'     => $settings?->website,
-            'tax_numbers' => array_values(array_filter([
+            'name'             => $settings?->business_name ?: $workspace->name,
+            'address'          => array_values(array_filter([$settings?->landmark, $settings?->city, $settings?->state, $settings?->zip_code, $settings?->country])),
+            'phone'            => $settings?->business_contact_number,
+            'website'          => $settings?->website,
+            'tax_numbers'      => array_values(array_filter([
                 $settings?->tax_1_no ? ['name' => $settings->tax_1_name, 'number' => $settings->tax_1_no] : null,
                 $settings?->tax_2_no ? ['name' => $settings->tax_2_name, 'number' => $settings->tax_2_no] : null,
             ])),
-            'logo_file_id' => $this->workspaceFileRepository->inCollection($workspace, FileCollection::Logo)->first()?->id,
-            'location'    => $location?->name,
+            'logo_file_id'     => $this->workspaceFileRepository->inCollection($workspace, FileCollection::Logo)->first()?->id,
+            'location'         => $location?->name,
+            'payment_accounts' => $currency ? $this->paymentDetails->for($workspace, $currency, $location?->id) : [],
         ];
     }
 

@@ -42,7 +42,7 @@ class DocumentRenderer
     {
         $template = $this->documentTemplates->settingsFor($workspace, $document->type, $document->template_snapshot);
         $format   = DocumentFormat::of($template);
-        $business = $document->business_snapshot ?? $this->salesSnapshots->business($workspace, $document->location);
+        $business = $document->business_snapshot ?? $this->salesSnapshots->business($workspace, $document->location, $document->type->isPaidFrom() ? $document->currency : null);
         $customer = $document->customer_snapshot ?? ($document->contact ? $this->salesSnapshots->customer($document->contact) : null);
         $label    = $document->type->label();
 
@@ -65,7 +65,7 @@ class DocumentRenderer
             'columns'   => $this->documentSheet->columns($document, $template),
             'lines'     => $this->documentSheet->lines($document, $format, $template),
             'totals'    => $this->documentSheet->totals($document, $format, $workspace->base_currency),
-            'texts'     => $this->documentSheet->texts($document, $template),
+            'texts'     => $this->documentSheet->texts($document, $template, $business['payment_accounts'] ?? []),
             'proforma'  => $document->type === DocumentType::Proforma,
             'lang'      => $template['language'],
             'pdfUrl'    => $pdfUrl,

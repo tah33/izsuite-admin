@@ -92,7 +92,11 @@ class PaymentAccountsApiTest extends TestCase
             ->assertJsonPath('data.is_active', true);
 
         $this->assertSame(
-            ['id', 'type', 'name', 'currency', 'bank_name', 'account_number', 'opening_balance', 'opening_balance_date', 'balance', 'has_transactions', 'notes', 'is_active'],
+            [
+                'id', 'type', 'name', 'currency', 'location_id', 'location', 'bank_name', 'holder_name', 'account_number', 'branch', 'swift_code', 'bank_country',
+                'merchant_name', 'merchant_number', 'settlement_currency', 'opening_balance', 'opening_balance_date', 'balance', 'has_transactions',
+                'payment_instructions', 'show_on_documents', 'allow_customer_payments', 'allow_supplier_payments', 'default_receiving', 'default_payment', 'notes', 'is_active',
+            ],
             array_keys($response->json('data')),
         );
         $this->assertSame(['2026-10-01', '1500.50', false], [$response->json('data.opening_balance_date'), $response->json('data.balance'), $response->json('data.has_transactions')]);
@@ -126,20 +130,23 @@ class PaymentAccountsApiTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['type' => 'Choose what kind of account this is.']);
 
-        foreach (['cash', 'bank', 'mobile_money', 'card', 'other'] as $type) {
+        foreach (['cash', 'bank', 'mobile_money', 'payment_gateway', 'other'] as $type) {
             $this->postJson('/api/v1/payment-accounts', ['type' => $type, 'name' => ucfirst($type), 'currency' => 'USD'])->assertCreated();
         }
+
+        // Doc 05 has no "card" type: a card machine's money comes through a payment gateway.
+        $this->postJson('/api/v1/payment-accounts', ['type' => 'card', 'name' => 'Card', 'currency' => 'USD'])->assertJsonValidationErrors('type');
     }
 
     public function test_the_opening_balance_is_to_the_cent_may_be_negative_and_is_zero_when_empty(): void
     {
         $this->signIn();
 
-        $this->postJson('/api/v1/payment-accounts', $this->payload(['opening_balance' => '-250.75']))
+        $this->postJson('/api/v1/payment-accounts', $this->payload(['name' => 'Overdrawn', 'opening_balance' => '-250.75']))
             ->assertCreated()
             ->assertJsonPath('data.opening_balance', '-250.75');
 
-        $this->postJson('/api/v1/payment-accounts', $this->payload(['opening_balance' => null]))
+        $this->postJson('/api/v1/payment-accounts', $this->payload(['name' => 'Nothing Yet', 'opening_balance' => null]))
             ->assertCreated()
             ->assertJsonPath('data.opening_balance', '0.00');
 

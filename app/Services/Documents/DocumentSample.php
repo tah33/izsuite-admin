@@ -79,7 +79,8 @@ class DocumentSample
             'notes'                => $settings->notes ?: 'Thank you for your business.',
             'terms'                => $settings->terms ?: 'Payment is due within 14 days.',
             'payment_instructions' => 'Bank transfer to Sample Bank, account 0123456789.',
-            'business_snapshot'    => $this->salesSnapshots->business($workspace, null),
+            // The accounts the business shows customers, as a real one would print them.
+            'business_snapshot'    => $this->salesSnapshots->business($workspace, null, $type->isPaidFrom() ? $workspace->base_currency : null),
             'customer_snapshot'    => $this->customer(),
             'template_snapshot'    => $template,
         ]);

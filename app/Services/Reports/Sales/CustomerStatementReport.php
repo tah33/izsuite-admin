@@ -5,8 +5,12 @@ namespace App\Services\Reports\Sales;
 use App\Enums\DocumentType;
 use App\Models\User\SalesPayment;
 use App\Models\User\Workspace;
+use App\Repositories\User\SalesReportRepository;
+use App\Services\Documents\PaymentDetails;
 use App\Services\Reports\Report;
+use App\Services\Reports\ReportPeriod;
 use App\Services\Reports\ReportTable;
+use App\Services\Reports\SalesFigures;
 use App\Support\Decimal;
 
 /**
@@ -14,13 +18,23 @@ use App\Support\Decimal;
  * customer started the period with, then each issued invoice (a debit),
  * credit note and tax they withheld (credits), payment and refund, with the
  * balance running. In one currency, or - for all of them - in the base
- * currency. Operational, not a ledger statement.
+ * currency. Operational, not a ledger statement. Its notes end with where to
+ * pay: the accounts in that currency shown to customers (Doc 05 section 9).
  *
  * Expects $filters['contact'], the customer.
  */
 class CustomerStatementReport extends Report
 {
     private const DAWN = '1900-01-01';
+
+    public function __construct(
+        SalesReportRepository $sales,
+        SalesFigures $figures,
+        ReportPeriod $period,
+        protected PaymentDetails $paymentDetails,
+    ) {
+        parent::__construct($sales, $figures, $period);
+    }
 
     public function build(Workspace $workspace, array $filters): ReportTable
     {
@@ -76,7 +90,10 @@ class CustomerStatementReport extends Report
                 ['label' => 'Payments', 'value' => Decimal::sum(array_column($rows, 'payment')), 'currency' => $shown],
                 ['label' => 'Closing Balance', 'value' => $balance, 'currency' => $shown],
             ],
-            notes: ['Debits are invoices and refunds paid out; credits are credit notes and tax the customer withheld. Drafts, cancelled and void documents and reversed payments are left out.'],
+            notes: [
+                'Debits are invoices and refunds paid out; credits are credit notes and tax the customer withheld. Drafts, cancelled and void documents and reversed payments are left out.',
+                ...array_map(fn (array $account) => $this->paymentDetails->line($account), $this->paymentDetails->for($workspace, $shown, null)),
+            ],
         );
     }
 

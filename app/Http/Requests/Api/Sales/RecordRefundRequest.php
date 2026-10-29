@@ -16,9 +16,10 @@ class RecordRefundRequest extends FormRequest
 
     /**
      * A customer refund (Doc 08 section 16): its date, the active account it
-     * is paid from and the amount are required. applied_amount is what it
-     * takes off the credit note when the account's currency is not the credit
-     * note's - CreditNoteRefunds asks for it then.
+     * is paid from - one that takes customer payments, refunds being customer
+     * money too (Doc 05 section 6) - and the amount are required.
+     * applied_amount is what it takes off the credit note when the account's
+     * currency is not the credit note's - CreditNoteRefunds asks for it then.
      */
     public function rules(): array
     {
@@ -26,7 +27,7 @@ class RecordRefundRequest extends FormRequest
 
         return [
             'payment_date'       => ['required', 'date_format:Y-m-d'],
-            'payment_account_id' => ['required', 'integer', Rule::exists(PaymentAccount::class, 'id')->where('workspace_id', $workspace?->id)->where('is_active', true)],
+            'payment_account_id' => ['required', 'integer', Rule::exists(PaymentAccount::class, 'id')->where('workspace_id', $workspace?->id)->where('is_active', true)->where('allow_customer_payments', true)],
             'amount'             => ['required', 'numeric', 'decimal:0,2', 'gt:0', 'max:9999999999999.99'],
             'applied_amount'     => ['nullable', 'numeric', 'decimal:0,2', 'gt:0', 'max:9999999999999.99'],
             'method'             => ['nullable', Rule::in(SalesPayment::METHODS)],
@@ -47,7 +48,7 @@ class RecordRefundRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'payment_account_id.exists' => 'Choose one of your active payment accounts.',
+            'payment_account_id.exists' => 'Choose one of your active payment accounts that takes customer payments.',
             'method.in'                 => 'Choose how it was paid back.',
             'decimal'                   => 'The :attribute can have at most two decimal places.',
             'gt'                        => 'The :attribute must be more than zero.',

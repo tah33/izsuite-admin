@@ -17,11 +17,12 @@ class RecordPaymentRequest extends FormRequest
 
     /**
      * A customer payment (Doc 08 section 13): its date, the active account it
-     * went into and the amount received are required. applied_amount is what
-     * it pays off the invoice when the account's currency is not the
-     * invoice's (section 14) - SalesPaymentService asks for it then. The
-     * withholding tax, when the customer kept some back, is a rate of the
-     * business and the amount kept.
+     * went into - one that takes customer payments (Doc 05 section 6) - and
+     * the amount received are required. applied_amount is what it pays off
+     * the invoice when the account's currency is not the invoice's (section
+     * 14) - SalesPaymentService asks for it then. The withholding tax, when
+     * the customer kept some back, is a rate of the business and the amount
+     * kept.
      *
      * The refund form sends the same fields, without the withholding tax.
      */
@@ -31,7 +32,7 @@ class RecordPaymentRequest extends FormRequest
 
         return [
             'payment_date'       => ['required', 'date_format:Y-m-d'],
-            'payment_account_id' => ['required', 'integer', Rule::exists(PaymentAccount::class, 'id')->where('workspace_id', $workspace?->id)->where('is_active', true)],
+            'payment_account_id' => ['required', 'integer', Rule::exists(PaymentAccount::class, 'id')->where('workspace_id', $workspace?->id)->where('is_active', true)->where('allow_customer_payments', true)],
             'amount'             => ['required', 'numeric', 'decimal:0,2', 'gt:0', 'max:9999999999999.99'],
             'applied_amount'     => ['nullable', 'numeric', 'decimal:0,2', 'gt:0', 'max:9999999999999.99'],
             'method'             => ['nullable', Rule::in(SalesPayment::METHODS)],
@@ -55,7 +56,7 @@ class RecordPaymentRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'payment_account_id.exists'        => 'Choose one of your active payment accounts.',
+            'payment_account_id.exists'        => 'Choose one of your active payment accounts that takes customer payments.',
             'method.in'                        => 'Choose how it was paid.',
             'withholding_tax_id.exists'        => 'Choose one of your withholding taxes.',
             'withholding_amount.required_with' => 'Enter the amount withheld.',

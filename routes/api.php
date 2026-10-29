@@ -312,6 +312,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/payment-accounts/{id}', [PaymentAccountController::class, 'show'])->whereNumber('id')->name('api.payment-accounts.show');
         Route::put('/payment-accounts/{id}', [PaymentAccountController::class, 'update'])->whereNumber('id')->name('api.payment-accounts.update');
         Route::delete('/payment-accounts/{id}', [PaymentAccountController::class, 'destroy'])->whereNumber('id')->name('api.payment-accounts.destroy');
+        Route::post('/payment-accounts/{id}/default', [PaymentAccountController::class, 'makeDefault'])->whereNumber('id')->name('api.payment-accounts.default');
+        Route::post('/payment-accounts/{id}/activate', [PaymentAccountController::class, 'activate'])->whereNumber('id')->name('api.payment-accounts.activate');
+        Route::post('/payment-accounts/{id}/deactivate', [PaymentAccountController::class, 'deactivate'])->whereNumber('id')->name('api.payment-accounts.deactivate');
 
         // An account's history, and transfers between accounts (Doc 05 sections 11 and 13).
         Route::get('/payment-accounts/{id}/transactions', [PaymentAccountTransactionController::class, 'index'])->whereNumber('id')->name('api.payment-accounts.transactions.index');
