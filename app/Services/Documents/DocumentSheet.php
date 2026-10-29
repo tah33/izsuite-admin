@@ -99,11 +99,16 @@ class DocumentSheet
         return array_map(fn (array $part) => "Warranty: {$part['name']}, {$part['period']} {$part['unit']}", $warranty);
     }
 
-    /** @return list<array{0: string, 1: string, 2: bool}> label, amount, whether it stands out */
+    /**
+     * The totals under the lines. A quotation's or proforma's tax is an
+     * estimate - it is charged when invoiced (Doc 08 section 17).
+     *
+     * @return list<array{0: string, 1: string, 2: bool}> label, amount, whether it stands out
+     */
     public function totals(SalesDocument $document, DocumentFormat $format, string $baseCurrency): array
     {
         $money     = fn ($amount) => $format->money((string) $amount, $document->currency);
-        $included  = $document->price_tax_mode === 'inclusive' ? ' (included)' : '';
+        $included  = ($document->price_tax_mode === 'inclusive' ? ' (included)' : '').($document->type->isOffer() ? ' (estimated)' : '');
         $issued    = $document->type === DocumentType::Invoice && $document->status === SalesDocumentStatus::Issued;
         $positive  = fn ($amount) => ! Decimal::isZero((string) $amount);
 

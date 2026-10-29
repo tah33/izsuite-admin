@@ -10,12 +10,15 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\DocumentLinkRepository;
 use App\Repositories\User\SalesDocumentRepository;
+use App\Services\Api\BusinessSetup\ExchangeRateService;
 use App\Services\Documents\DocumentNumbers;
 use App\Services\Documents\DocumentTemplates;
+use App\Services\Sales\SalesCalculator;
 use App\Services\Sales\SalesDocumentRules;
 use App\Services\Shared\ActivityLogService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * A sales document's status changes (Doc 08 sections 7 to 10), each allowed
@@ -34,7 +37,9 @@ use Illuminate\Support\Facades\DB;
  *
  * Before a document is numbered, its customer must still be a customer and
  * each line's tax still in effect on its date - a rate replaced since is
- * chosen again on purpose, never swapped in silently (Doc 08 section 11).
+ * chosen again on purpose, never swapped in silently (Doc 08 section 11). So
+ * is an exchange rate: an invoice whose own rate differs from the business's
+ * for its date is issued at the one chosen.
  */
 class SalesDocumentFlow
 {
@@ -49,10 +54,17 @@ class SalesDocumentFlow
         protected CreditNoteService $creditNoteService,
         protected DocumentTemplates $documentTemplates,
         protected DocumentLinkRepository $documentLinkRepository,
+        protected ExchangeRateService $exchangeRateService,
+        protected SalesCalculator $salesCalculator,
     ) {}
 
-    /** A credit note is issued against its invoice - see CreditNoteService. */
-    public function issue(Workspace $workspace, DocumentType $type, int $id, User $user): SalesDocument
+    /**
+     * A credit note is issued against its invoice - see CreditNoteService. An
+     * invoice in another currency is issued at its own exchange rate - with
+     * $rate 'keep' - or at the business's rate for its date - 'current' - its
+     * base figures then worked out again (Doc 08 sections 11 and 18).
+     */
+    public function issue(Workspace $workspace, DocumentType $type, int $id, User $user, ?string $rate = null): SalesDocument
     {
         if ($type === DocumentType::CreditNote) {
             return $this->creditNoteService->issue($workspace, $id, $user);
@@ -62,7 +74,10 @@ class SalesDocumentFlow
 
         $this->checkReady($document);
 
+        $current = $this->rateToIssueAt($workspace, $document, $rate);
+
         DB::transaction(fn () => $this->salesDocumentRepository->update($document, [
+            ...($current ? ['exchange_rate' => $current, ...$this->salesCalculator->baseTotals((string) $document->grand_total, (string) $document->tax_total, $current)] : []),
             ...$this->numbered($workspace, $document),
             'status'         => SalesDocumentStatus::Issued,
             'payment_status' => bccomp((string) $document->grand_total, '0', 2) > 0 ? SalesDocument::PAYMENT_UNPAID : 'paid',
@@ -202,6 +217,34 @@ class SalesDocumentFlow
         if ($stale) {
             $this->refuse("{$stale->tax_name} on \"{$stale->name}\" is no longer in effect on {$document->document_date}. Edit it and choose the current rate first.");
         }
+    }
+
+    /**
+     * The business's rate for a foreign-currency invoice's date, when it is to
+     * be issued at that rather than its own: null when it keeps its own, the
+     * two agree, or there is no rate for that day. A difference nobody chose
+     * about is refused, saying both - a rate is never swapped in silently.
+     */
+    private function rateToIssueAt(Workspace $workspace, SalesDocument $document, ?string $choice): ?string
+    {
+        $base    = $workspace->base_currency;
+        $current = $document->currency === $base ? null : $this->exchangeRateService->rateOn($workspace, $document->currency, $document->document_date);
+        $kept    = (string) $document->exchange_rate;
+
+        if ($current === null || $choice === 'keep' || bccomp($current, $kept, 8) === 0) {
+            return null;
+        }
+
+        if ($choice !== 'current') {
+            $plain = fn (string $rate) => str_contains($rate, '.') ? rtrim(rtrim($rate, '0'), '.') : $rate;
+            $day   = date('j M Y', strtotime($document->document_date));
+
+            throw ValidationException::withMessages([
+                'exchange_rate' => "This invoice is at 1 {$document->currency} = {$plain($kept)} {$base}, but the rate for {$day} is {$plain($current)} {$base}. Choose which rate to issue it at.",
+            ]);
+        }
+
+        return $current;
     }
 
     private function taxInEffect(SalesDocument $document, SalesDocumentLine $line): bool

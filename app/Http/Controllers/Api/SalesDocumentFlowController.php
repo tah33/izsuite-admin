@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\DocumentType;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Sales\IssueSalesDocumentRequest;
 use App\Http\Requests\Api\Sales\SalesStatusRequest;
 use App\Http\Resources\Sales\SalesDocumentResource;
 use App\Models\User\SalesDocument;
@@ -24,10 +25,10 @@ class SalesDocumentFlowController extends Controller
         protected SalesDocumentService $salesDocumentService,
     ) {}
 
-    public function issue(Request $request, string $kind, int $id): JsonResponse
+    public function issue(IssueSalesDocumentRequest $request, string $kind, int $id): JsonResponse
     {
         try {
-            $document = $this->salesDocumentFlow->issue($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user());
+            $document = $this->salesDocumentFlow->issue($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user(), $request->validated('exchange_rate'));
 
             return $this->answer($request, $document, "{$document->type->label()} {$document->number} issued.");
 

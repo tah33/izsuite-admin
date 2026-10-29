@@ -45,7 +45,8 @@ class SalesDocumentRepository
         return SalesDocument::query()
             ->where('workspace_id', $workspace->id)
             ->where('type', $type->value)
-            ->with(['contact:id,name', 'location:id,name', 'source:id,number'])
+            // A credit note's invoice with what its refund needs (SalesDocumentRules::refundable).
+            ->with(['contact:id,name', 'location:id,name', 'source:id,number,amount_paid,refunded_amount'])
             ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $query->where(fn (Builder $query) => $query
                 ->where('number', 'like', "%{$search}%")
                 ->orWhere('customer_reference', 'like', "%{$search}%")

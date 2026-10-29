@@ -12,7 +12,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * 6, 9 and 10): what the list shows, no more. Its status is as the business's
  * $today makes it - expired, past an expiry date - and overdue says whether an
  * issued invoice is past its due date with something left to pay. Amounts go
- * out as strings to the cent. Expects contact and location loaded.
+ * out as strings to the cent. `actions` and `delivery` are what it allows now,
+ * for its row's Actions (section 6), done on its own page. Expects contact,
+ * location and - for a credit note - source loaded.
  */
 class SalesDocumentListResource extends JsonResource
 {
@@ -42,6 +44,8 @@ class SalesDocumentListResource extends JsonResource
             'amount_paid'    => $this->amount_paid,
             'balance_due'    => $this->balance_due,
             'invoice'        => $this->when($this->type === DocumentType::CreditNote, fn () => ['id' => $this->source_id, 'number' => $this->source?->number]),
+            'actions'        => $rules->actions($this->resource, $this->today),
+            'delivery'       => $rules->delivery($this->resource, $this->today),
         ];
     }
 }

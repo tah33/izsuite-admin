@@ -73,20 +73,33 @@ final class SalesCalculator
         $afterTotal = bcsub($subtotal, $discountTotal, 2);
         $grandTotal = $priceTaxMode === 'inclusive' ? $afterTotal : bcadd($afterTotal, $taxTotal, 2);
 
+        return [
+            'lines'          => $rows,
+            'subtotal'       => $subtotal,
+            'discount_total' => $discountTotal,
+            'tax_total'      => $taxTotal,
+            'grand_total'    => $grandTotal,
+            'net_total'      => bcsub($grandTotal, $taxTotal, 2),
+            ...$this->baseTotals($grandTotal, $taxTotal, $exchangeRate),
+            'taxes'          => $taxes,
+        ];
+    }
+
+    /**
+     * A document's totals in the base currency at $exchangeRate - all that a
+     * new rate changes, as when a draft is issued at the rate of its day.
+     *
+     * @return array{base_grand_total: string, base_tax_total: string, base_net_total: string}
+     */
+    public function baseTotals(string $grandTotal, string $taxTotal, string $exchangeRate): array
+    {
         $baseGrand = Decimal::round(bcmul($grandTotal, $exchangeRate, self::SCALE));
         $baseTax   = Decimal::round(bcmul($taxTotal, $exchangeRate, self::SCALE));
 
         return [
-            'lines'            => $rows,
-            'subtotal'         => $subtotal,
-            'discount_total'   => $discountTotal,
-            'tax_total'        => $taxTotal,
-            'grand_total'      => $grandTotal,
-            'net_total'        => bcsub($grandTotal, $taxTotal, 2),
             'base_grand_total' => $baseGrand,
             'base_tax_total'   => $baseTax,
             'base_net_total'   => bcsub($baseGrand, $baseTax, 2),
-            'taxes'            => $taxes,
         ];
     }
 

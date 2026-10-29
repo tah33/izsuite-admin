@@ -123,9 +123,9 @@ class AppCatalogSeeder extends Seeder
         ['core', null, 'Documents', 'files', '/documents', null, null],
         ['core', null, 'Reports', 'chart-column', '/reports', null, null],
 
+        ['apps', 'sales', 'Invoices', 'receipt', '/sales/invoices', 'lite', null],
         ['apps', 'sales', 'Quotations', 'file-text', '/sales/quotations', 'lite', null],
         ['apps', 'sales', 'Proforma Invoices', 'file-check', '/sales/proformas', 'lite', null],
-        ['apps', 'sales', 'Invoices', 'receipt', '/sales/invoices', 'lite', null],
         ['apps', 'sales', 'Credit Notes', 'receipt-text', '/sales/credit-notes', 'lite', null],
         ['apps', 'sales', 'Payments Received', 'hand-coins', '/sales/payments', 'lite', null],
         ['apps', 'sales', 'Sales Orders', 'clipboard-list', '/sales/orders', 'full', null],
