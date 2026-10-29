@@ -15,10 +15,14 @@ use Illuminate\Support\LazyCollection;
  * documents across its apps as one list - so far Sales Lite's quotations,
  * proforma invoices, invoices and credit notes; purchases and expenses join
  * with their apps. Newest first; searched by number, reference, contact,
- * item or amount, and filtered.
+ * item or amount, and filtered. Each comes with what its actions need: a
+ * credit note's invoice, for what it may still refund.
  */
 class DocumentIndexRepository
 {
+    /** The app families whose documents the index lists - by its source filter. */
+    public const SOURCES = ['sales', 'purchases', 'expenses'];
+
     private const OFFERS = [DocumentType::Quotation->value, DocumentType::Proforma->value];
 
     public function paginateFor(Workspace $workspace, array $filters, int $perPage, string $today): LengthAwarePaginator
@@ -41,7 +45,9 @@ class DocumentIndexRepository
     {
         return SalesDocument::query()
             ->where('workspace_id', $workspace->id)
-            ->with(['contact:id,name', 'location:id,name'])
+            ->with(['contact:id,name', 'location:id,name', 'source:id,amount_paid,refunded_amount'])
+            // Only Sales keeps documents so far: another app's source has none yet.
+            ->when(($filters['source'] ?? 'sales') !== 'sales', fn (Builder $query) => $query->whereRaw('1 = 0'))
             ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $this->search($query, $search))
             ->when($filters['type'] ?? null, fn (Builder $query, string $type) => $query->where('type', $type))
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $this->whereStatus($query, $status, $today))

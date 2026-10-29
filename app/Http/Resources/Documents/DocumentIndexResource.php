@@ -10,8 +10,10 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * A row of the Documents page (Doc 06 section 4): what it is, where it came
  * from and where it stands - status and payment status apart (section 7) -
  * its total in its own currency, and its balance where it has one. `kind`
- * is the address of its source record: /sales/invoices/12. Expects contact
- * and location loaded.
+ * is the address of its source record: /sales/invoices/12. `actions` and
+ * `delivery` are what its source record allows now (section 9) - the page
+ * opens that record to do them. Expects contact, location and - for a
+ * credit note - source loaded.
  */
 class DocumentIndexResource extends JsonResource
 {
@@ -40,6 +42,8 @@ class DocumentIndexResource extends JsonResource
             'currency'       => $this->currency,
             'balance_due'    => $rules->holdsBalance($this->resource) ? $this->balance_due : null,
             'location'       => $this->location?->name,
+            'actions'        => $rules->actions($this->resource, $this->today),
+            'delivery'       => $rules->delivery($this->resource, $this->today),
         ];
     }
 }

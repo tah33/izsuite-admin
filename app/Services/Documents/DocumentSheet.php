@@ -25,7 +25,14 @@ class DocumentSheet
         protected PaymentDetails $paymentDetails,
     ) {}
 
-    /** @return list<array{0: string, 1: string}> */
+    /**
+     * The facts beside the customer (Doc 06 section 6): its dates, what it
+     * credits, its references and location as the template keeps them, its
+     * currency - always, as an amount's symbol can stand for more than one -
+     * and the rate of a foreign currency.
+     *
+     * @return list<array{0: string, 1: string}>
+     */
     public function facts(SalesDocument $document, DocumentFormat $format, array $template, string $baseCurrency): array
     {
         $visible = $template['visible_fields'] ?? [];
@@ -38,6 +45,7 @@ class DocumentSheet
             in_array('references', $visible, true) && $document->customer_reference ? ['Your Reference', $document->customer_reference] : null,
             in_array('references', $visible, true) && $document->sales_reference ? ['Our Reference', $document->sales_reference] : null,
             in_array('location', $visible, true) && $document->location ? ['Location', $document->location->name] : null,
+            ['Currency', $document->currency],
             $document->currency !== $baseCurrency
                 ? ['Exchange Rate', "1 {$document->currency} = ".$format->quantity((string) $document->exchange_rate)." {$baseCurrency}"]
                 : null,

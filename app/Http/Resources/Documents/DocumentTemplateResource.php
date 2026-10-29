@@ -23,7 +23,7 @@ class DocumentTemplateResource extends JsonResource
             'label' => $template->document_type->label(),
             ...$template->only([
                 'color', 'font', 'paper_size', 'header_layout', 'show_logo', 'visible_fields', 'line_columns',
-                'show_notes', 'show_terms', 'show_payment_instructions', 'footer_text', 'language', 'date_format', 'number_format',
+                'show_notes', 'show_terms', 'show_payment_instructions', 'footer_text', 'footer_layout', 'language', 'date_format', 'number_format',
             ]),
             'signature' => $signature ? [
                 'name' => $signature->name,

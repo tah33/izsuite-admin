@@ -64,6 +64,29 @@ class DocumentsAndDashboardTest extends TestCase
         $this->getJson('/api/v1/documents?overdue=1')->assertJsonPath('data.0.overdue', true)->assertJsonCount(1, 'data');
     }
 
+    public function test_documents_filter_by_source_contact_and_currency_and_say_what_each_allows(): void
+    {
+        $invoice   = $this->issuedInvoice();
+        $draft     = $this->draft('invoices');
+        $karim     = $this->businessOf($this->user)->contacts()->create(['contact_type' => 'business', 'role' => 'customer', 'name' => 'Karim Stores']);
+        $quotation = $this->draft('quotations', ['contact_id' => $karim->id]);
+
+        // Only Sales keeps documents so far: the other apps' sources have none yet.
+        $this->getJson('/api/v1/documents?source=sales')->assertJsonCount(3, 'data');
+        $this->getJson('/api/v1/documents?source=purchases')->assertJsonCount(0, 'data');
+        $this->getJson('/api/v1/documents?source=inventory')->assertUnprocessable()->assertJsonValidationErrors('source');
+        $this->getJson("/api/v1/documents?contact_id={$karim->id}")->assertJsonPath('data.0.id', $quotation)->assertJsonCount(1, 'data');
+        $this->getJson('/api/v1/documents?currency=USD')->assertJsonCount(3, 'data');
+        $this->getJson('/api/v1/documents?currency=EUR')->assertJsonCount(0, 'data');
+
+        // What each record allows now, and how it can be sent - the page opens the record to do it.
+        $rows = collect($this->getJson('/api/v1/documents')->json('data'))->keyBy('id');
+
+        $this->assertSame([['record_payment', 'credit_note', 'void'], ['email', 'reminder', 'share']], [$rows[$invoice]['actions'], $rows[$invoice]['delivery']]);
+        $this->assertSame([['edit', 'issue', 'delete'], []], [$rows[$draft]['actions'], $rows[$draft]['delivery']]);
+        $this->assertSame([['edit', 'send', 'convert_to_proforma', 'convert_to_invoice', 'delete'], ['email']], [$rows[$quotation]['actions'], $rows[$quotation]['delivery']]);
+    }
+
     public function test_documents_export_as_csv(): void
     {
         $this->issuedInvoice();

@@ -7,8 +7,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * The business sidebar NavigationBuilder makes, as the dashboard reads it:
- * the business, which app families it has on and at what edition, and the
- * menu.
+ * the business, which app families it has used - by name, whether on, and
+ * at what edition - and the menu.
  */
 class NavigationResource extends JsonResource
 {
@@ -28,8 +28,10 @@ class NavigationResource extends JsonResource
                 'brands_enabled'  => $workspace['brands_enabled'],
             ] : null,
 
-            // By family. An object even when empty, so the client always gets a map.
+            // By family. An object even when empty, so the client always gets a
+            // map. The name labels a family's documents - an app turned off too.
             'apps'      => (object) array_map(fn (array $app) => [
+                'name'        => $app['name'],
                 'edition'     => $app['edition'],
                 'status'      => $app['status'],
                 'has_history' => $app['has_history'],

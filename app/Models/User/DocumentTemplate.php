@@ -27,6 +27,9 @@ class DocumentTemplate extends Model
 
     public const HEADER_LAYOUTS = ['logo_left', 'logo_right', 'centered'];
 
+    /** The foot of each page: text left, page number middle, "Powered by izSuite" right - or all three centred. */
+    public const FOOTER_LAYOUTS = ['split', 'centered'];
+
     /** What can be shown or hidden besides what a document must show. */
     public const VISIBLE_FIELDS = ['business_contact', 'customer_contact', 'references', 'location', 'descriptions', 'warranty', 'components'];
 
@@ -55,6 +58,7 @@ class DocumentTemplate extends Model
         'show_terms',
         'show_payment_instructions',
         'footer_text',
+        'footer_layout',
         'language',
         'date_format',
         'number_format',
@@ -86,6 +90,7 @@ class DocumentTemplate extends Model
             'show_terms'                => true,
             'show_payment_instructions' => true,
             'footer_text'               => null,
+            'footer_layout'             => 'split',
             'language'                  => 'en',
             'date_format'               => 'd M Y',
             'number_format'             => 'comma_dot',
@@ -99,7 +104,7 @@ class DocumentTemplate extends Model
     public function settings(?int $signatureFileId): array
     {
         return [
-            ...$this->only(['color', 'font', 'paper_size', 'header_layout', 'show_logo', 'visible_fields', 'line_columns', 'show_notes', 'show_terms', 'show_payment_instructions', 'footer_text', 'language', 'date_format', 'number_format']),
+            ...$this->only(['color', 'font', 'paper_size', 'header_layout', 'show_logo', 'visible_fields', 'line_columns', 'show_notes', 'show_terms', 'show_payment_instructions', 'footer_text', 'footer_layout', 'language', 'date_format', 'number_format']),
             'signature_file_id' => $signatureFileId,
         ];
     }

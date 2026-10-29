@@ -17,7 +17,8 @@ class SaveDocumentTemplateRequest extends FormRequest
      * How a kind of document looks (Doc 06 section 14), for a save and for a
      * preview of it alike: a colour as #RRGGBB, the font, paper and header
      * layout, which optional fields and line columns show, the footer text and
-     * the language and formats. Fields a document must show cannot be hidden.
+     * layout - left as it is when not sent - and the language and formats.
+     * Fields a document must show cannot be hidden.
      */
     public function rules(): array
     {
@@ -35,6 +36,7 @@ class SaveDocumentTemplateRequest extends FormRequest
             'show_terms'                => ['required', 'boolean'],
             'show_payment_instructions' => ['required', 'boolean'],
             'footer_text'               => ['nullable', 'string', 'max:300'],
+            'footer_layout'             => ['sometimes', Rule::in(DocumentTemplate::FOOTER_LAYOUTS)],
             'language'                  => ['required', Rule::in(DocumentTemplate::LANGUAGES)],
             'date_format'               => ['required', Rule::in(DocumentTemplate::DATE_FORMATS)],
             'number_format'             => ['required', Rule::in(DocumentTemplate::NUMBER_FORMATS)],
@@ -47,6 +49,7 @@ class SaveDocumentTemplateRequest extends FormRequest
             'paper_size'    => 'paper size',
             'header_layout' => 'header layout',
             'footer_text'   => 'footer text',
+            'footer_layout' => 'footer layout',
             'date_format'   => 'date format',
             'number_format' => 'number format',
         ];

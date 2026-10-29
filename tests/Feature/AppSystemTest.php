@@ -188,7 +188,7 @@ class AppSystemTest extends TestCase
             'brands_enabled'  => false,
         ], $nav['workspace']);
         $this->assertSame(
-            ['edition' => 'lite', 'status' => 'active', 'has_history' => true],
+            ['name' => 'Sales Lite', 'edition' => 'lite', 'status' => 'active', 'has_history' => true],
             $nav['apps']['sales'],
         );
     }

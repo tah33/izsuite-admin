@@ -1,5 +1,6 @@
 {{-- Who the document is for, and its facts - dates, references, the
-     exchange rate - beside them. A customer's tax number always shows. --}}
+     currency and exchange rate - beside them. A customer's tax number and
+     tax exemption number always show (Doc 06 section 6). --}}
 <section class="parties">
     <div>
         <div class="label">{{ __($partyLabel, [], $lang) }}</div>
@@ -15,6 +16,9 @@
             @endif
             @if (! empty($customer['tax_number']))
                 <div class="muted">{{ __('Tax No.', [], $lang) }}: {{ $customer['tax_number'] }}</div>
+            @endif
+            @if (! empty($customer['tax_exemption_number']))
+                <div class="muted">{{ __('Tax Exemption No.', [], $lang) }}: {{ $customer['tax_exemption_number'] }}</div>
             @endif
         @endif
     </div>

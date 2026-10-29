@@ -140,6 +140,44 @@ class SalesDocumentPdfTest extends TestCase
         $this->assertStringNotContainsString('>Discount<', $html);
     }
 
+    /** Doc 06 section 6: the currency always shows, as a symbol can stand for more than one, and so does an exemption. */
+    public function test_a_document_says_its_currency_and_the_customer_s_tax_exemption(): void
+    {
+        $this->customer->update(['tax_exemption_number' => 'EX-4471']);
+
+        $this->get('/api/v1/sales/invoices/'.$this->issuedInvoice().'/pdf', ['Accept' => 'application/json'])->assertOk();
+
+        $html = $this->sentHtml();
+        $this->assertMatchesRegularExpression('#>Currency</td>\s*<td class="num"><strong>USD</strong>#', $html);
+        $this->assertStringContainsString('Tax Exemption No.: EX-4471', $html);
+    }
+
+    /** Doc 06 section 14: the footer is spread across the page or centred - and a numbered document keeps how it was. */
+    public function test_a_template_lays_out_its_footer_and_a_numbered_document_keeps_it(): void
+    {
+        $issued = $this->issuedInvoice();
+
+        $this->putJson('/api/v1/business-settings/templates/invoice', $this->template(['footer_text' => 'Trade licence 12345', 'footer_layout' => 'centered']))
+            ->assertOk()
+            ->assertJsonPath('data.footer_layout', 'centered');
+        $this->putJson('/api/v1/business-settings/templates/invoice', $this->template(['footer_layout' => 'stacked']))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('footer_layout');
+
+        // Not sent, it stays as it was.
+        $this->putJson('/api/v1/business-settings/templates/invoice', $this->template(['footer_text' => 'Trade licence 12345']))
+            ->assertOk()
+            ->assertJsonPath('data.footer_layout', 'centered');
+
+        $this->get("/api/v1/sales/invoices/{$issued}/pdf", ['Accept' => 'application/json'])->assertOk();
+        $this->assertStringContainsString('class="foot split"', $this->sentFile('footer.html'));
+
+        $this->get('/api/v1/sales/invoices/'.$this->draft('invoices').'/pdf', ['Accept' => 'application/json'])->assertOk();
+        $footer = $this->sentFile('footer.html');
+        $this->assertStringContainsString('class="foot centered"', $footer);
+        $this->assertStringContainsString('Trade licence 12345', $footer);
+    }
+
     public function test_templates_are_listed_saved_checked_and_previewed(): void
     {
         $templates = $this->getJson('/api/v1/business-settings/templates')->assertOk()->json('data');
@@ -222,9 +260,15 @@ class SalesDocumentPdfTest extends TestCase
     /** The HTML of the last PDF asked of Gotenberg. */
     private function sentHtml(): string
     {
+        return $this->sentFile('index.html');
+    }
+
+    /** One file of the last PDF asked of Gotenberg: its page, or its footer. */
+    private function sentFile(string $name): string
+    {
         /** @var Request $request */
         [$request] = Http::recorded()->last();
 
-        return (string) collect($request->data())->firstWhere('filename', 'index.html')['contents'];
+        return (string) collect($request->data())->firstWhere('filename', $name)['contents'];
     }
 }
