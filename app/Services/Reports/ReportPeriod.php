@@ -86,6 +86,19 @@ class ReportPeriod
         return $keys;
     }
 
+    /** @return array{0: string, 1: string} the first and last day of the $grain that starts on $key, within $from and $to */
+    public function bounds(string $key, string $grain, string $from, string $to): array
+    {
+        $start = CarbonImmutable::parse($key);
+        $end   = match ($grain) {
+            'week'  => $start->endOfWeek(CarbonImmutable::SUNDAY),
+            'month' => $start->endOfMonth(),
+            default => $start,
+        };
+
+        return [max($key, $from), min($end->toDateString(), $to)];
+    }
+
     /** "28 Oct 2026", "Week of 26 Oct 2026", "Oct 2026". */
     public function label(string $key, string $grain): string
     {

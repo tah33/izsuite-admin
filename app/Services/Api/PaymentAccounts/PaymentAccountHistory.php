@@ -23,14 +23,6 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class PaymentAccountHistory
 {
-    /** What each type is called in an export. */
-    private const TYPES = [
-        'customer_payment' => 'Customer Payment',
-        'customer_refund'  => 'Customer Refund',
-        'transfer_in'      => 'Transfer In',
-        'transfer_out'     => 'Transfer Out',
-    ];
-
     public function __construct(
         protected PaymentAccountService $paymentAccountService,
         protected AccountTransactionRepository $accountTransactionRepository,
@@ -56,7 +48,7 @@ class PaymentAccountHistory
             ['Date', 'Type', 'Reference', 'Contact', 'Source Document', 'Money In', 'Money Out', 'Currency', 'Running Balance', 'Status', 'Location'],
             $rows->map(fn (AccountTransaction $row) => [
                 $row->transaction_date,
-                self::TYPES[$row->type] ?? $row->type,
+                AccountTransaction::LABELS[$row->type] ?? $row->type,
                 $row->reference,
                 $row->contact?->name,
                 $row->document?->number,

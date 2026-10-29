@@ -13,7 +13,7 @@ use App\Support\Decimal;
  * less credit notes, tax left out, in the base currency. A line typed in
  * without an item counts under its own name. A ranking of the past, not a
  * trend or forecast. An item's row opens the item, with its related
- * transactions (Doc 04 section 20).
+ * transactions (Doc 04 section 20). It may be narrowed to one item category.
  */
 class TopItemsReport extends Report
 {
@@ -52,7 +52,7 @@ class TopItemsReport extends Report
 
         return new ReportTable(
             title: 'Top-Selling Items',
-            period: $this->between($filters),
+            period: $this->between($filters).(isset($filters['category']) ? " · {$filters['category']->name} items" : ''),
             columns: [
                 $this->column('item', 'Item'),
                 $this->column('quantity', 'Quantity Sold', 'number'),

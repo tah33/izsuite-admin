@@ -33,6 +33,14 @@ class AccountTransaction extends Model
         'transfer_out'     => self::OUT,
     ];
 
+    /** What each type is called in an export or a report. */
+    public const LABELS = [
+        'customer_payment' => 'Customer Payment',
+        'customer_refund'  => 'Customer Refund',
+        'transfer_in'      => 'Transfer In',
+        'transfer_out'     => 'Transfer Out',
+    ];
+
     protected $fillable = [
         'payment_account_id',
         'transaction_date',

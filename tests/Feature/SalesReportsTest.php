@@ -54,13 +54,13 @@ class SalesReportsTest extends TestCase
         $catalog = $this->getJson('/api/v1/reports')->assertOk()->json('data');
 
         $this->assertSame(
-            ['sales-summary', 'sales-trend', 'top-items', 'top-customers', 'outstanding-invoices', 'payments-received', 'credit-notes', 'tax-summary', 'customer-statement', 'account-transactions'],
+            ['sales-summary', 'sales-trend', 'top-items', 'top-customers', 'outstanding-invoices', 'payments-received', 'credit-notes', 'tax-summary', 'tax-details', 'contact-statement', 'account-transactions'],
             array_column($catalog, 'key'),
         );
-        $this->assertSame(['Sales & Receivables', 'Taxes', '/payment-accounts'], [$catalog[0]['category'], $catalog[7]['category'], $catalog[9]['link']]);
+        $this->assertSame(['Sales & Receivables', 'Taxes', 'Contacts', 'Payment Accounts', null], [$catalog[0]['category'], $catalog[8]['category'], $catalog[9]['category'], $catalog[10]['category'], $catalog[10]['link']]);
+        $this->assertSame(['as_of', 'location', 'contact', 'currency', 'payment_status'], $catalog[4]['filters']);
 
         $this->getJson('/api/v1/reports/no-such-report')->assertNotFound();
-        $this->getJson('/api/v1/reports/account-transactions')->assertNotFound();
     }
 
     public function test_sales_summary_takes_credit_notes_off_and_groups_as_asked(): void
@@ -68,7 +68,10 @@ class SalesReportsTest extends TestCase
         $this->getJson('/api/v1/reports/sales-summary?group_by=month')
             ->assertOk()
             ->assertJsonPath('data.period', '1 Oct 2026 - 31 Oct 2026')
-            ->assertJsonPath('data.rows.0', ['group' => 'Oct 2026', 'invoices' => 1, 'subtotal' => '295.00', 'discounts' => '0.00', 'credit_notes' => '-25.00', 'net_sales' => '270.00', 'tax' => '40.50', 'total' => '310.50', 'link' => null])
+            ->assertJsonPath('data.rows.0', [
+                'group' => 'Oct 2026', 'invoices' => 1, 'subtotal' => '295.00', 'discounts' => '0.00', 'credit_notes' => '-25.00', 'net_sales' => '270.00', 'tax' => '40.50', 'total' => '310.50',
+                'link'  => '/documents?status=issued&date_from=2026-10-01&date_to=2026-10-31',
+            ])
             ->assertJsonPath('data.totals.net_sales', '270.00');
 
         $items = $this->getJson('/api/v1/reports/sales-summary?group_by=item')->assertOk()->json('data.rows');
@@ -131,15 +134,20 @@ class SalesReportsTest extends TestCase
             ->assertJsonPath('data.rows.0.applied', '25.00')
             ->assertJsonPath('data.rows.0.status', 'Fully Applied');
 
-        $this->getJson('/api/v1/reports/tax-summary')
-            ->assertOk()
-            ->assertJsonPath('data.rows.0', ['tax' => 'VAT 15%', 'treatment' => 'Standard', 'sales_taxable' => '270.00', 'sales_tax' => '40.50', 'credit_taxable' => '0.00', 'credit_tax' => '0.00', 'net_taxable' => '270.00', 'net_tax' => '40.50', 'link' => null])
-            ->assertJsonPath('data.summary.6', ['label' => 'Indicative Net Tax Position', 'value' => '40.50', 'currency' => 'USD']);
+        $tax = $this->getJson('/api/v1/reports/tax-summary')->assertOk()->json('data');
+
+        $this->assertSame(
+            ['tax' => 'VAT 15%', 'treatment' => 'Standard', 'sales_taxable' => '270.00', 'sales_tax' => '40.50', 'credit_taxable' => '0.00', 'credit_tax' => '0.00', 'net_taxable' => '270.00', 'net_tax' => '40.50'],
+            array_diff_key($tax['rows'][0], ['link' => true]),
+        );
+        $this->assertSame('40.50', collect($tax['summary'])->firstWhere('label', 'Indicative Net Tax Position')['value']);
+        // Withholding is off and nothing was withheld: no card for it.
+        $this->assertNull(collect($tax['summary'])->firstWhere('label', 'Withholding Tax Credits'));
     }
 
-    public function test_a_customer_statement_runs_its_balance_from_the_opening_one(): void
+    public function test_a_contact_statement_runs_its_balance_from_the_opening_one(): void
     {
-        $rows = $this->getJson("/api/v1/reports/customer-statement?contact_id={$this->customer->id}")
+        $rows = $this->getJson("/api/v1/reports/contact-statement?contact_id={$this->customer->id}")
             ->assertOk()
             ->assertJsonPath('data.title', 'Statement for Uddin Traders')
             ->assertJsonPath('data.summary.4', ['label' => 'Closing Balance', 'value' => '210.50', 'currency' => 'USD'])
@@ -151,11 +159,16 @@ class SalesReportsTest extends TestCase
         );
         $this->assertSame('210.50', $rows[1]['outstanding']);
 
+        // All currencies at once: each row keeps its own currency and amount. One currency needs neither.
+        $this->assertSame(['USD', '335.50'], [$rows[1]['currency'], $rows[1]['original']]);
+        $this->assertNotContains('currency', array_column($this->getJson("/api/v1/reports/contact-statement?contact_id={$this->customer->id}&currency=USD")->json('data.columns'), 'key'));
+
+        // Its old name still opens it.
         $this->getJson("/api/v1/reports/customer-statement?contact_id={$this->customer->id}&date_from=2026-11-01&date_to=2026-11-30")
             ->assertJsonPath('data.rows.0.balance', '210.50')
             ->assertJsonCount(1, 'data.rows');
 
-        $this->getJson('/api/v1/reports/customer-statement')->assertUnprocessable()->assertJsonValidationErrors('contact_id');
+        $this->getJson('/api/v1/reports/contact-statement')->assertUnprocessable()->assertJsonValidationErrors('contact_id');
     }
 
     public function test_a_report_downloads_as_csv_and_as_pdf(): void

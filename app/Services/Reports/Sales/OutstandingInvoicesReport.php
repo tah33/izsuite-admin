@@ -12,10 +12,15 @@ use App\Support\Decimal;
  * still to pay on the as-of date - after payments, tax withheld and credit
  * notes by then - tax included, most overdue first, with the aging groups.
  * Each invoice in its own currency; the groups and total in the base one.
+ * Tax Withheld shows while withholding applies. It may be narrowed to
+ * unpaid or partly paid invoices.
  */
 class OutstandingInvoicesReport extends Report
 {
     public const GROUPS = ['Not Due', '1-30 Days Overdue', '31-60 Days Overdue', '61-90 Days Overdue', 'More Than 90 Days Overdue'];
+
+    /** The payment statuses an outstanding invoice can have, by the filter's value. */
+    public const PAYMENT_STATUSES = ['unpaid' => 'Unpaid', 'partially_paid' => 'Partially Paid'];
 
     public function build(Workspace $workspace, array $filters): ReportTable
     {
@@ -31,7 +36,7 @@ class OutstandingInvoicesReport extends Report
         return new ReportTable(
             title: 'Outstanding Invoices',
             period: 'As of '.$this->day($asOf),
-            columns: [
+            columns: array_values(array_filter([
                 $this->column('number', 'Invoice'),
                 $this->column('customer', 'Customer'),
                 $this->column('document_date', 'Invoice Date', 'date'),
@@ -41,12 +46,13 @@ class OutstandingInvoicesReport extends Report
                 $this->column('total', 'Invoice Total', 'money'),
                 $this->column('payments', 'Payments', 'money'),
                 $this->column('credit_notes', 'Credit Notes', 'money'),
-                $this->column('withholding', 'Tax Withheld', 'money'),
+                $this->withholdingShown($workspace) ? $this->column('withholding', 'Tax Withheld', 'money') : null,
                 $this->column('outstanding', 'Outstanding', 'money'),
                 $this->column('base_outstanding', "Outstanding ({$base})", 'money', $base),
                 $this->column('payment_status', 'Payment Status'),
+                $this->column('aging', 'Overdue Status'),
                 $this->column('location', 'Location'),
-            ],
+            ])),
             rows: $rows,
             totals: ['number' => 'Total', 'base_outstanding' => Decimal::sum(array_column($rows, 'base_outstanding'))],
             summary: array_map(fn (string $group) => ['label' => $group, 'value' => $aging[$group], 'currency' => $base], self::GROUPS),
@@ -68,6 +74,11 @@ class OutstandingInvoicesReport extends Report
 
             $days    = $this->figures->daysOverdue($invoice->due_date, $asOf);
             $settled = Decimal::sum([Decimal::of($invoice->paid_by), Decimal::of($invoice->withheld_by), Decimal::of($invoice->credited_by)]);
+            $status  = Decimal::isZero($settled) ? 'unpaid' : 'partially_paid';
+
+            if (($filters['payment_status'] ?? $status) !== $status) {
+                continue;
+            }
 
             $rows[] = [
                 'id'               => $invoice->id,
@@ -85,7 +96,7 @@ class OutstandingInvoicesReport extends Report
                 'withholding'      => Decimal::round(Decimal::of($invoice->withheld_by)),
                 'outstanding'      => $owed,
                 'base_outstanding' => $this->figures->base($owed, $invoice->exchange_rate),
-                'payment_status'   => Decimal::isZero($settled) ? 'Unpaid' : 'Partially Paid',
+                'payment_status'   => self::PAYMENT_STATUSES[$status],
                 'location'         => $invoice->location?->name,
                 'link'             => "/sales/invoices/{$invoice->id}",
             ];

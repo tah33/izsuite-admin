@@ -11,7 +11,8 @@ namespace App\Services\Reports;
  * percent - and a money column's 'currency': the business's base currency,
  * or null for each row's own (its 'currency'). A row may carry 'link', the
  * page of the record it comes from. A chart, when the report has one, names
- * the column of its labels and the one of its values.
+ * the column of its labels and the one of its values. A report whose running
+ * balance needs its date order is not `sortable`.
  */
 final readonly class ReportTable
 {
@@ -32,5 +33,6 @@ final readonly class ReportTable
         public array $summary = [],
         public array $notes = [],
         public ?array $chart = null,
+        public bool $sortable = true,
     ) {}
 }

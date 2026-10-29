@@ -4,6 +4,7 @@ namespace App\Repositories\User;
 
 use App\Enums\DocumentType;
 use App\Enums\SalesDocumentStatus;
+use App\Models\User\Item;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesDocumentLine;
 use App\Models\User\SalesPayment;
@@ -19,8 +20,9 @@ use Illuminate\Database\Eloquent\Collection;
  * 19). Every query is the business's own.
  *
  * $filters narrow them: location_id, contact_id, currency - a document's own,
- * or a payment's account's - and document_currency for money moved against
- * documents in one currency.
+ * or a payment's account's - document_currency for money moved against
+ * documents in one currency, payment_account_id for money through one
+ * account, and item_id or category_id for lines of one item or category.
  */
 class SalesReportRepository
 {
@@ -42,11 +44,18 @@ class SalesReportRepository
             ->get(self::FIGURES);
     }
 
-    /** The lines of issued invoices or credit notes dated from $from to $to, with what their share of the totals needs. */
+    /**
+     * The lines of issued invoices or credit notes dated from $from to $to,
+     * with what their share of the totals needs, and where their document
+     * falls: its date, customer, location and currency. An item's category is
+     * the one it has now.
+     */
     public function issuedLines(Workspace $workspace, DocumentType $type, string $from, string $to, array $filters = []): Collection
     {
         return SalesDocumentLine::query()
             ->join('sales_documents', 'sales_documents.id', '=', 'sales_document_lines.sales_document_id')
+            ->leftJoin('contacts', 'contacts.id', '=', 'sales_documents.contact_id')
+            ->leftJoin('locations', 'locations.id', '=', 'sales_documents.location_id')
             ->where('sales_documents.workspace_id', $workspace->id)
             ->where('sales_documents.type', $type->value)
             ->where('sales_documents.status', SalesDocumentStatus::Issued->value)
@@ -54,10 +63,17 @@ class SalesReportRepository
             ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('sales_documents.location_id', $id))
             ->when($filters['contact_id'] ?? null, fn (Builder $query, $id) => $query->where('sales_documents.contact_id', $id))
             ->when($filters['currency'] ?? null, fn (Builder $query, string $currency) => $query->where('sales_documents.currency', $currency))
+            ->when($filters['item_id'] ?? null, fn (Builder $query, $id) => $query->where('sales_document_lines.item_id', $id))
+            ->when($filters['category_id'] ?? null, fn (Builder $query, $id) => $query->whereIn(
+                'sales_document_lines.item_id',
+                Item::query()->where('workspace_id', $workspace->id)->where('category_id', $id)->select('id'),
+            ))
             ->get([
                 'sales_document_lines.item_id', 'sales_document_lines.name', 'sales_document_lines.quantity', 'sales_document_lines.amount',
                 'sales_document_lines.tax_amount', 'sales_document_lines.sales_document_id', 'sales_documents.subtotal',
                 'sales_documents.discount_total', 'sales_documents.price_tax_mode', 'sales_documents.exchange_rate',
+                'sales_documents.document_date', 'sales_documents.contact_id', 'sales_documents.location_id', 'sales_documents.currency',
+                'sales_documents.customer_snapshot', 'contacts.name as contact_name', 'locations.name as location_name',
             ]);
     }
 
@@ -70,6 +86,16 @@ class SalesReportRepository
             ->exists();
     }
 
+    /** Whether any completed payment had tax withheld - the history that keeps Tax Withheld showing. */
+    public function hasWithholdingHistory(Workspace $workspace): bool
+    {
+        return SalesPayment::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('status', SalesPayment::COMPLETED)
+            ->where('withholding_amount', '>', 0)
+            ->exists();
+    }
+
     /** Completed payments and refunds dated from $from to $to, oldest first: money that came in or went back. */
     public function moneyMoved(Workspace $workspace, string $from, string $to, array $filters = []): Collection
     {
@@ -79,6 +105,7 @@ class SalesReportRepository
             ->whereBetween('payment_date', [$from, $to])
             ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('location_id', $id))
             ->when($filters['contact_id'] ?? null, fn (Builder $query, $id) => $query->where('contact_id', $id))
+            ->when($filters['payment_account_id'] ?? null, fn (Builder $query, $id) => $query->where('payment_account_id', $id))
             ->when($filters['currency'] ?? null, fn (Builder $query, string $currency) => $query->whereHas('account', fn (Builder $query) => $query->where('currency', $currency)))
             ->when($filters['document_currency'] ?? null, fn (Builder $query, string $currency) => $query->whereHas('document', fn (Builder $query) => $query->where('currency', $currency)))
             ->with(['document:id,type,number,currency,exchange_rate,source_id', 'contact:id,name', 'account:id,name,currency', 'location:id,name'])

@@ -123,7 +123,8 @@ class ContactAndItemHistoryTest extends TestCase
             ->assertJsonPath('data.rows.1.link', null);
 
         $this->getJson('/api/v1/reports/sales-summary?group_by=customer')->assertJsonPath('data.rows.0.link', "/contacts/{$this->customer->id}");
-        $this->getJson('/api/v1/reports/sales-summary?group_by=month')->assertJsonPath('data.rows.0.link', null);
+        // A month's row opens the documents behind it on the Documents page.
+        $this->getJson('/api/v1/reports/sales-summary?group_by=month')->assertJsonPath('data.rows.0.link', '/documents?status=issued&date_from=2026-10-01&date_to=2026-10-31');
     }
 
     public function test_a_combo_keeps_the_warranties_of_its_components(): void

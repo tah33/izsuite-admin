@@ -37,6 +37,18 @@ abstract class Controller
         ]);
     }
 
+    /** An Excel workbook to save, named $filename - in plain ASCII too, as a PDF's name is. */
+    protected function xlsxResponse(string $filename, string $bytes): Response
+    {
+        $fallback = (string) preg_replace('/[^\x20-\x7E]|[%"]/', '_', Str::ascii($filename));
+
+        return response($bytes, 200, [
+            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => HeaderUtils::makeDisposition('attachment', $filename, $fallback ?: 'report.xlsx'),
+            'Cache-Control'       => 'private, no-store',
+        ]);
+    }
+
     /**
      * Unified success response for admin form submissions.
      *

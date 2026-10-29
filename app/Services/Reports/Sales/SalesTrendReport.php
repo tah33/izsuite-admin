@@ -12,6 +12,7 @@ use App\Support\Decimal;
  * Sales Trend (Doc 07 section 6): net sales over time - by day, week or
  * month as the range is long - with what credit notes took off, tax left out.
  * Where sales went, not profit or a forecast. Also the Dashboard's chart.
+ * A period's row opens the documents behind it (section 4: Drill Down).
  */
 class SalesTrendReport extends Report
 {
@@ -44,7 +45,16 @@ class SalesTrendReport extends Report
         $rows  = [];
 
         foreach ($this->period->buckets($filters['from'], $filters['to'], $grain) as $key) {
-            $rows[$key] = ['period' => $this->period->label($key, $grain), 'invoices' => 0, 'sales' => '0.00', 'credit_notes' => '0.00', 'net_sales' => '0.00'];
+            [$start, $end] = $this->period->bounds($key, $grain, $filters['from'], $filters['to']);
+
+            $rows[$key] = [
+                'period'       => $this->period->label($key, $grain),
+                'invoices'     => 0,
+                'sales'        => '0.00',
+                'credit_notes' => '0.00',
+                'net_sales'    => '0.00',
+                'link'         => $this->documentsLink($start, $end, $filters),
+            ];
         }
 
         foreach ($this->sales->issued($workspace, DocumentType::Invoice, $filters['from'], $filters['to'], $filters) as $invoice) {

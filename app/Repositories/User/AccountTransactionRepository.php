@@ -70,6 +70,12 @@ class AccountTransactionRepository
         return $account->transactions()->selectRaw('SUM('.self::NET.') as net')->value('net');
     }
 
+    /** The net of one account's completed history dated before $date: what had moved by the morning of that day. */
+    public function netBefore(PaymentAccount $account, string $date): mixed
+    {
+        return $account->transactions()->where('transaction_date', '<', $date)->selectRaw('SUM('.self::NET.') as net')->value('net');
+    }
+
     /** The ids of the accounts among the business's that have any history at all. */
     public function accountsWithHistory(Workspace $workspace): array
     {

@@ -249,7 +249,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/reports', [ReportController::class, 'index'])->name('api.reports.index');
         Route::get('/reports/{report}', [ReportController::class, 'show'])->where('report', '[a-z-]+')->name('api.reports.show');
         Route::get('/reports/{report}/export', [ReportController::class, 'export'])->where('report', '[a-z-]+')->name('api.reports.export');
-        Route::get('/reports/{report}/pdf', [ReportController::class, 'pdf'])->where('report', '[a-z-]+')->middleware('throttle:30,1')->name('api.reports.pdf');
+        Route::get('/reports/{report}/excel', [ReportController::class, 'excel'])->where('report', '[a-z-]+')->name('api.reports.excel');
+        Route::get('/reports/{report}/pdf',[ReportController::class, 'pdf'])->where('report', '[a-z-]+')->middleware('throttle:30,1')->name('api.reports.pdf');
     });
 
     /* ----------------------------------------------------------

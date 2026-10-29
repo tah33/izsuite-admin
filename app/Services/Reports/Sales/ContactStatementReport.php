@@ -18,12 +18,14 @@ use App\Support\Decimal;
  * customer started the period with, then each issued invoice (a debit),
  * credit note and tax they withheld (credits), payment and refund, with the
  * balance running. In one currency, or - for all of them - in the base
- * currency. Operational, not a ledger statement. Its notes end with where to
- * pay: the accounts in that currency shown to customers (Doc 05 section 9).
+ * currency, each row keeping its own currency and amount. Operational, not a
+ * ledger statement, and kept in date order. Its notes end with where to pay:
+ * the accounts in that currency shown to customers (Doc 05 section 9). The
+ * supplier side comes with Purchases.
  *
  * Expects $filters['contact'], the customer.
  */
-class CustomerStatementReport extends Report
+class ContactStatementReport extends Report
 {
     private const DAWN = '1900-01-01';
 
@@ -65,22 +67,28 @@ class CustomerStatementReport extends Report
             $rows[$index]['balance'] = $balance;
         }
 
-        $openingRow = ['date' => $filters['from'], 'type' => 'Opening Balance', 'number' => null, 'due_date' => null, 'debit' => null, 'credit' => null, 'payment' => null, 'outstanding' => null, 'balance' => $opening];
+        $openingRow = [
+            'date' => $filters['from'], 'type' => 'Opening Balance', 'number' => null, 'due_date' => null, 'currency' => null, 'original' => null,
+            'debit' => null, 'credit' => null, 'payment' => null, 'outstanding' => null, 'balance' => $opening,
+        ];
 
         return new ReportTable(
             title: "Statement for {$contact->name}",
             period: $this->between($filters).' · '.($currency ? $currency : "All currencies in {$shown}"),
-            columns: [
+            columns: array_values(array_filter([
                 $this->column('date', 'Date', 'date'),
                 $this->column('type', 'Type'),
                 $this->column('number', 'Number'),
                 $this->column('due_date', 'Due Date', 'date'),
+                // All currencies at once: each row's own, beside its amount in the base one.
+                $currency ? null : $this->column('currency', 'Currency'),
+                $currency ? null : $this->column('original', 'Original Amount', 'money'),
                 $this->column('debit', 'Debit', 'money', $shown),
                 $this->column('credit', 'Credit', 'money', $shown),
                 $this->column('payment', 'Payment', 'money', $shown),
                 $this->column('outstanding', 'Outstanding', 'money', $shown),
                 $this->column('balance', 'Running Balance', 'money', $shown),
-            ],
+            ])),
             rows: [$openingRow, ...$rows],
             totals: ['date' => 'Total', ...$this->totals($rows, ['debit', 'credit', 'payment']), 'balance' => $balance],
             summary: [
@@ -94,6 +102,7 @@ class CustomerStatementReport extends Report
                 'Debits are invoices and refunds paid out; credits are credit notes and tax the customer withheld. Drafts, cancelled and void documents and reversed payments are left out.',
                 ...array_map(fn (array $account) => $this->paymentDetails->line($account), $this->paymentDetails->for($workspace, $shown, null)),
             ],
+            sortable: false,
         );
     }
 
@@ -108,10 +117,12 @@ class CustomerStatementReport extends Report
                 $amount = $currency ? (string) $document->grand_total : Decimal::round(Decimal::of($document->base_grand_total));
 
                 $entries[] = $this->entry($document->document_date, $order, $document->id, $type->label(), $document->number, $document->due_date, [
-                    'debit'   => $type === DocumentType::Invoice ? $amount : '0.00',
-                    'credit'  => $type === DocumentType::CreditNote ? $amount : '0.00',
-                    'invoice' => $type === DocumentType::Invoice ? $document->id : null,
-                    'link'    => "/sales/{$type->kind()}/{$document->id}",
+                    'currency' => $document->currency,
+                    'original' => (string) $document->grand_total,
+                    'debit'    => $type === DocumentType::Invoice ? $amount : '0.00',
+                    'credit'   => $type === DocumentType::CreditNote ? $amount : '0.00',
+                    'invoice'  => $type === DocumentType::Invoice ? $document->id : null,
+                    'link'     => "/sales/{$type->kind()}/{$document->id}",
                 ]);
             }
         }
@@ -122,10 +133,12 @@ class CustomerStatementReport extends Report
             $withheld = $currency ? Decimal::round(Decimal::of($money->withholding_amount)) : $this->figures->base($money->withholding_amount, $money->document?->exchange_rate ?? '1');
 
             $entries[] = $this->entry($money->payment_date, 2, $money->id, $refund ? 'Refund' : 'Payment', $refund ? $money->document?->number : $money->number, null, [
-                'debit'   => $refund ? $amount : '0.00',
-                'credit'  => $refund ? '0.00' : $withheld,
-                'payment' => $refund ? '0.00' : $amount,
-                'link'    => "/sales/payments/{$money->id}",
+                'currency' => $money->document?->currency,
+                'original' => Decimal::round(Decimal::of($money->applied_amount)),
+                'debit'    => $refund ? $amount : '0.00',
+                'credit'   => $refund ? '0.00' : $withheld,
+                'payment'  => $refund ? '0.00' : $amount,
+                'link'     => "/sales/payments/{$money->id}",
             ]);
         }
 

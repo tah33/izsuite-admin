@@ -14,8 +14,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * The Reports page (Doc 07): the reports the business has, one report with
- * its filters - /reports/sales-summary?range=this_year - and the same as CSV
- * or PDF.
+ * its filters - /reports/sales-summary?range=this_year - and the same as CSV,
+ * Excel or PDF.
  */
 class ReportController extends Controller
 {
@@ -53,6 +53,19 @@ class ReportController extends Controller
     {
         try {
             return $this->reportService->csv($this->currentWorkspace($request), $report, $request->validated());
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    public function excel(RunReportRequest $request, string $report): Response
+    {
+        try {
+            [$filename, $bytes] = $this->reportService->xlsx($this->currentWorkspace($request), $report, $request->validated());
+
+            return $this->xlsxResponse($filename, $bytes);
 
         } catch (\Throwable $e) {
             report($e);
