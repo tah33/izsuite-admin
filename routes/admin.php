@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AppController;
 use App\Http\Controllers\Admin\AppCategoryController;
+use App\Http\Controllers\Admin\ClientController;
 use App\Http\Controllers\Admin\ContactMessageController;
 use App\Http\Controllers\Admin\ContentController;
 use App\Http\Controllers\Admin\CurrencyController;
@@ -43,7 +44,7 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     Route::post('/apps/{id}/dependencies', [AppController::class, 'storeDependency'])->name('apps.dependencies.store');
     Route::delete('/apps/{id}/dependencies/{dependencyId}', [AppController::class, 'destroyDependency'])->name('apps.dependencies.destroy');
 
-    // App system: plans, which plan includes which app, the business sidebar, and businesses' plans.
+    // App system: plans, which plan includes which app, the business sidebar, and clients and their businesses' plans.
     Route::get('/packages', [PackageController::class, 'index'])->name('packages.index');
     Route::get('/packages/{id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
     Route::put('/packages/{id}', [PackageController::class, 'update'])->name('packages.update');
@@ -51,7 +52,9 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     Route::put('/package-access', [PackageAccessController::class, 'update'])->name('package-access.update');
     Route::put('/menu-items/reorder', [MenuItemController::class, 'reorder'])->name('menu-items.reorder');
     Route::resource('menu-items', MenuItemController::class)->except(['show'])->parameters(['menu-items' => 'id']);
-    Route::get('/workspaces', [WorkspaceController::class, 'index'])->name('workspaces.index');
+    Route::get('/clients', [ClientController::class, 'index'])->name('clients.index');
+    Route::get('/clients/{id}', [ClientController::class, 'show'])->whereNumber('id')->name('clients.show');
+    Route::post('/clients/{id}/login-as', [ClientController::class, 'loginAs'])->whereNumber('id')->name('clients.login-as');
     Route::patch('/workspaces/{id}/package', [WorkspaceController::class, 'updatePackage'])->name('workspaces.package');
     Route::resource('app-categories', AppCategoryController::class)->except(['show'])->parameters(['app-categories' => 'id']);
     Route::patch('/app-categories/{id}/toggle-status', [AppCategoryController::class, 'toggleActive'])->name('app-categories.toggle-status');

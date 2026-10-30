@@ -60,9 +60,9 @@
             <span>{{ __('Menu Builder') }}</span>
         </a>
 
-        <a href="{{ route('admin.workspaces.index') }}" class="sidebar-link {{ request()->routeIs('admin.workspaces.*') ? 'active' : '' }}">
-            <i data-lucide="building-2" class="icon"></i>
-            <span>{{ __('Business Workspaces') }}</span>
+        <a href="{{ route('admin.clients.index') }}" class="sidebar-link {{ request()->routeIs('admin.clients.*') ? 'active' : '' }}">
+            <i data-lucide="users" class="icon"></i>
+            <span>{{ __('Users') }}</span>
         </a>
 
         <div class="sidebar-section-title">{{ __('Management') }}</div>

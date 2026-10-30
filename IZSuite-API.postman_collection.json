@@ -297,7 +297,7 @@
                                 "me"
                             ]
                         },
-                        "description": "The user behind the presented token. The frontend calls this on boot to restore a session from a stored token, and treats a 401 as \"the token is gone, show the login page\".",
+                        "description": "The user behind the presented token. The frontend calls this on boot to restore a session from a stored token, and treats a 401 as \"the token is gone, show the login page\".\n\n`login_as` is `{ \"back_url\": \"<admin panel dashboard URL>\" }` when the token came from the admin panel's \"Login as\" (`POST /auth/login-as`), and `null` on the user's own session. The website shows its \"Back to admin\" button only while it is set.",
                         "auth": {
                             "type": "bearer",
                             "bearer": [

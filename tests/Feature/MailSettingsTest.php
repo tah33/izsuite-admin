@@ -29,7 +29,7 @@ class MailSettingsTest extends TestCase
 
         return User::create([
             'role_id'           => Role::SUPER_ADMIN_ID,
-            'name'              => 'Admin',
+            'first_name'        => 'Admin',
             'email'             => 'admin@example.test',
             'password'          => Hash::make('password'),
             'email_verified_at' => now(),

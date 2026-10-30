@@ -36,6 +36,7 @@ use App\Http\Controllers\Api\ItemSettingController;
 use App\Http\Controllers\Api\ItemTransactionController;
 use App\Http\Controllers\Api\LanguageController;
 use App\Http\Controllers\Api\LocationController;
+use App\Http\Controllers\Api\LoginAsController;
 use App\Http\Controllers\Api\NavigationController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PaymentAccountController;
@@ -97,6 +98,10 @@ Route::prefix('v1')->group(function () {
         Route::post('/login', [AuthController::class, 'login'])
             ->middleware('throttle:login')
             ->name('api.auth.login');
+        // "Login as" from the admin panel: its one-time code, traded for a session as the client.
+        Route::post('/login-as', [LoginAsController::class, 'redeem'])
+            ->middleware('throttle:login')
+            ->name('api.auth.login-as');
         Route::post('/email/verify', [EmailVerificationController::class, 'verify'])
             ->middleware('throttle:verify-email')
             ->name('api.auth.email.verify');

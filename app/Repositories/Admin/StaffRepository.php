@@ -6,6 +6,7 @@ use App\Models\Admin\Role;
 use App\Models\User\User;
 use App\QueryFilters\SearchFilter;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pipeline\Pipeline;
 
 class StaffRepository
@@ -14,9 +15,9 @@ class StaffRepository
     {
         return app(Pipeline::class)
             ->send(
-                User::with('role')
+                $this->staff()
+                    ->with('role')
                     ->where('role_id', '!=', Role::SUPER_ADMIN_ID)
-                    ->whereHas('role', fn ($q) => $q->whereNotIn('slug', ['recruiter', 'candidate']))
             )
             ->through([
                 new SearchFilter($search, columns: ['first_name', 'last_name', 'email']),
@@ -27,9 +28,10 @@ class StaffRepository
             ->withQueryString();
     }
 
+    /** A staff member; a client or any other non-staff account is not found. */
     public function find(int $id): ?User
     {
-        return User::with('role')->find($id);
+        return $this->staff()->with('role')->find($id);
     }
 
     public function create(array $data): User
@@ -55,5 +57,11 @@ class StaffRepository
     public function delete(User $user): ?bool
     {
         return $user->delete();
+    }
+
+    /** Admin staff only: accounts whose role is not one of Role::FRONTEND_SLUGS. */
+    private function staff(): Builder
+    {
+        return User::query()->whereHas('role', fn (Builder $q) => $q->whereNotIn('slug', Role::FRONTEND_SLUGS));
     }
 }

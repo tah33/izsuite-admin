@@ -70,8 +70,9 @@ class AdminAppSystemTest extends TestCase
     {
         $sales = $this->app('sales', 'sales');
         MenuItem::create(['section' => 'core', 'label' => 'Dashboard', 'route' => '/dashboard']);
-        $item = MenuItem::create(['section' => 'apps', 'family_key' => 'sales', 'min_edition' => 'lite', 'label' => 'Invoices', 'route' => '/sales/invoices']);
-        User::factory()->create()->workspaces()->create(['name' => 'Acme']);
+        $item   = MenuItem::create(['section' => 'apps', 'family_key' => 'sales', 'min_edition' => 'lite', 'label' => 'Invoices', 'route' => '/sales/invoices']);
+        $client = User::factory()->create();
+        $client->workspaces()->create(['name' => 'Acme']);
 
         $this->actingAs($this->admin);
 
@@ -86,7 +87,8 @@ class AdminAppSystemTest extends TestCase
             route('admin.menu-items.index'),
             route('admin.menu-items.create', ['section' => 'apps', 'family' => 'sales']),
             route('admin.menu-items.edit', $item->id),
-            route('admin.workspaces.index'),
+            route('admin.clients.index'),
+            route('admin.clients.show', $client->id),
         ] as $url) {
             $this->get($url)->assertOk();
         }

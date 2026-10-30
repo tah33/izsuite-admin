@@ -37,12 +37,13 @@ class RoleRepository
     }
 
     /**
-     * Roles suitable for staff assignment (exclude Super Admin & User).
+     * Roles a staff member can be given: neither Super Admin nor a frontend
+     * account's role (Role::FRONTEND_SLUGS).
      */
     public function staffRoles(): Collection
     {
         return Role::where('id', '!=', Role::SUPER_ADMIN_ID)
-            ->whereNotIn('slug', ['recruiter', 'candidate'])
+            ->whereNotIn('slug', Role::FRONTEND_SLUGS)
             ->orderBy('name')
             ->get();
     }

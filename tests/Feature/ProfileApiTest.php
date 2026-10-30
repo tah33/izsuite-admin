@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Shared\ActivityLog;
 use App\Models\User\User;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -11,6 +12,16 @@ use Tests\TestCase;
 class ProfileApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Seeded with the others, super-admin keeps id 1. Made first by the
+        // factory, the "user" role would take it, and the account would pass
+        // for an admin, whose activity is not logged.
+        $this->seed(RoleSeeder::class);
+    }
 
     /* ---------------------------------------------------------- show */
 

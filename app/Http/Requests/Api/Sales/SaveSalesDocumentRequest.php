@@ -5,7 +5,10 @@ namespace App\Http\Requests\Api\Sales;
 use App\Enums\DocumentType;
 use App\Models\User\Contact;
 use App\Models\User\Location;
+use App\Enums\SalesDocumentStatus;
 use App\Repositories\User\LocationRepository;
+use App\Repositories\User\SalesDocumentRepository;
+use App\Services\Shared\BusinessCalendar;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -21,10 +24,27 @@ class SaveSalesDocumentRequest extends FormRequest
      * ISO currency codes are upper case. A document in the base currency has
      * an exchange rate of 1. While the business does not use taxes, lines
      * carry none (Doc 08 section 17).
+     *
+     * A draft may be saved half filled in: lines left blank are dropped, and
+     * a date or currency left empty is the business's today and its base.
      */
     protected function prepareForValidation(): void
     {
         $workspace = $this->attributes->get('workspace');
+
+        if ($workspace && $this->isDraft()) {
+            if (is_array($this->input('lines'))) {
+                $this->merge(['lines' => array_values(array_filter($this->input('lines'), fn ($line) => ! is_array($line) || ! $this->blankLine($line)))]);
+            }
+
+            if (blank($this->input('document_date'))) {
+                $this->merge(['document_date' => app(BusinessCalendar::class)->today($workspace)->toDateString()]);
+            }
+
+            if (blank($this->input('currency'))) {
+                $this->merge(['currency' => $workspace->base_currency]);
+            }
+        }
 
         if (is_string($this->input('currency'))) {
             $this->merge(['currency' => strtoupper($this->input('currency'))]);
@@ -39,6 +59,25 @@ class SaveSalesDocumentRequest extends FormRequest
         }
     }
 
+    /** A new document, or one still a draft: what it leaves out is asked for when it is issued or sent. */
+    private function isDraft(): bool
+    {
+        if (! $this->route('id')) {
+            return true;
+        }
+
+        $workspace = $this->attributes->get('workspace');
+        $type      = DocumentType::fromKind((string) $this->route('kind'));
+
+        return $workspace && $type
+            && app(SalesDocumentRepository::class)->findFor($workspace, $type, (int) $this->route('id'))?->status === SalesDocumentStatus::Draft;
+    }
+
+    private function blankLine(array $line): bool
+    {
+        return empty($line['item_id']) && blank($line['name'] ?? null) && blank($line['description'] ?? null) && blank($line['unit_price'] ?? null);
+    }
+
     /**
      * The same for adding and for editing (Doc 08 section 4). A customer, the
      * date, the currency, the location where the business has one, and at
@@ -48,6 +87,9 @@ class SaveSalesDocumentRequest extends FormRequest
      *
      * Each line is an item or a description, more than zero of it, at a price
      * that is never negative (Doc 08 section 4) - returns are credit notes.
+     *
+     * A draft needs none of it - SalesDocumentFlow asks for what is missing
+     * when it is issued or sent - but what it does fill in must be valid.
      */
     public function rules(): array
     {
@@ -55,16 +97,18 @@ class SaveSalesDocumentRequest extends FormRequest
         $type      = DocumentType::fromKind((string) $this->route('kind'));
         $inBusiness = fn (string $model) => Rule::exists($model, 'id')->where('workspace_id', $workspace?->id);
         $foreign   = $this->input('currency') !== $workspace?->base_currency;
+        $draft     = $this->isDraft();
+        $must      = fn (bool $needed = true) => $needed && ! $draft ? 'required' : 'nullable';
 
         return [
-            'contact_id'             => ['required', 'integer', $inBusiness(Contact::class)],
-            'location_id'            => [$workspace && app(LocationRepository::class)->existsFor($workspace) ? 'required' : 'nullable', 'nullable', 'integer', $inBusiness(Location::class)],
+            'contact_id'             => [$must(), 'integer', $inBusiness(Contact::class)],
+            'location_id'            => [$must($workspace && app(LocationRepository::class)->existsFor($workspace)), 'nullable', 'integer', $inBusiness(Location::class)],
             'document_date'          => ['required', 'date_format:Y-m-d'],
             'due_date'               => ['nullable', 'date_format:Y-m-d', 'after_or_equal:document_date'],
-            'expiry_date'            => [$type?->isOffer() ? 'required' : 'nullable', 'nullable', 'date_format:Y-m-d', 'after_or_equal:document_date'],
+            'expiry_date'            => [$must((bool) $type?->isOffer()), 'nullable', 'date_format:Y-m-d', 'after_or_equal:document_date'],
             'payment_terms'          => ['nullable', 'integer', 'min:0', 'max:365'],
             'currency'               => ['required', 'string', Rule::in($workspace?->currencyCodes() ?? [])],
-            'exchange_rate'          => [Rule::requiredIf($foreign), 'nullable', 'numeric', 'decimal:0,8', 'gt:0', 'max:9999999999'],
+            'exchange_rate'          => [$must($foreign), 'nullable', 'numeric', 'decimal:0,8', 'gt:0', 'max:9999999999'],
             'customer_reference'     => ['nullable', 'string', 'max:100'],
             'sales_reference'        => ['nullable', 'string', 'max:100'],
             'discount_type'          => ['nullable', Rule::in(['percent', 'amount'])],
@@ -72,13 +116,13 @@ class SaveSalesDocumentRequest extends FormRequest
             'notes'                  => ['nullable', 'string', 'max:5000'],
             'terms'                  => ['nullable', 'string', 'max:10000'],
             'payment_instructions'   => ['nullable', 'string', 'max:5000'],
-            'lines'                  => ['required', 'array', 'min:1', 'max:200'],
+            'lines'                  => $draft ? ['nullable', 'array', 'max:200'] : ['required', 'array', 'min:1', 'max:200'],
             'lines.*.item_id'        => ['nullable', 'integer'],
-            'lines.*.name'           => ['required', 'string', 'max:255'],
+            'lines.*.name'           => [$must(), 'string', 'max:255'],
             'lines.*.description'    => ['nullable', 'string', 'max:5000'],
-            'lines.*.quantity'       => ['required', 'numeric', 'decimal:0,3', 'gt:0', 'max:999999999.999'],
+            'lines.*.quantity'       => [$must(), 'numeric', 'decimal:0,3', 'gt:0', 'max:999999999.999'],
             'lines.*.unit'           => ['nullable', 'string', 'max:20'],
-            'lines.*.unit_price'     => ['required', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999999.99'],
+            'lines.*.unit_price'     => [$must(), 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999999.99'],
             'lines.*.discount_type'  => ['nullable', Rule::in(['percent', 'amount'])],
             'lines.*.discount_value' => ['nullable', 'numeric', 'decimal:0,4', 'min:0', 'max:9999999999999.99'],
             'lines.*.tax_rate_id'    => ['nullable', 'integer'],

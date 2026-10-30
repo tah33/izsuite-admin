@@ -48,14 +48,14 @@ class SalesDocumentChecks
         $existing = $id ? $this->salesDocumentRepository->findFor($workspace, $type, $id) : null;
 
         $this->checkCustomer($validator, $workspace, $input, $existing);
-        $this->checkItems($validator, $workspace, $input['lines'], $existing);
-        $this->checkTaxes($validator, $workspace, $input['lines'], $input['document_date'], $existing);
+        $this->checkItems($validator, $workspace, $input['lines'] ?? [], $existing);
+        $this->checkTaxes($validator, $workspace, $input['lines'] ?? [], $input['document_date'], $existing);
         $this->checkDiscounts($validator, $workspace, $input);
     }
 
     private function checkCustomer(Validator $validator, Workspace $workspace, array $input, ?SalesDocument $existing): void
     {
-        $contact = $this->contactRepository->findFor($workspace, (int) $input['contact_id']);
+        $contact = $this->contactRepository->findFor($workspace, (int) ($input['contact_id'] ?? 0));
 
         if ($contact && ! $contact->isCustomer()) {
             $validator->errors()->add('contact_id', "{$contact->name} is only a supplier. Choose a customer, or make them one on their contact page.");
@@ -131,7 +131,7 @@ class SalesDocumentChecks
         $settings = $this->salesSettingRepository->forWorkspace($workspace);
         $given    = fn (array $from) => ($from['discount_type'] ?? null) && (float) ($from['discount_value'] ?? 0) > 0;
 
-        foreach ($input['lines'] as $index => $line) {
+        foreach ($input['lines'] ?? [] as $index => $line) {
             if (! $given($line)) {
                 continue;
             }

@@ -84,7 +84,7 @@ class SalesDocumentService
                 'updated_by'     => $user->id,
             ];
 
-            [$totals, $rows] = $this->totals($header, $this->salesLines->rows($workspace, $data['lines']));
+            [$totals, $rows] = $this->totals($header, $this->salesLines->rows($workspace, $data['lines'] ?? []));
 
             $document = $this->salesDocumentRepository->create($workspace, [...$header, ...$totals]);
             $this->salesDocumentRepository->replaceLines($document, $rows);
@@ -116,7 +116,7 @@ class SalesDocumentService
         $revised = DB::transaction(function () use ($workspace, $type, $user, $data, $document, $before) {
             $header = [...$this->header($workspace, $type, $data), 'updated_by' => $user->id];
 
-            [$totals, $rows] = $this->totals([...$header, ...$document->only(['price_tax_mode', 'tax_rounding'])], $this->salesLines->rows($workspace, $data['lines']));
+            [$totals, $rows] = $this->totals([...$header, ...$document->only(['price_tax_mode', 'tax_rounding'])], $this->salesLines->rows($workspace, $data['lines'] ?? []));
 
             $this->salesDocumentRepository->update($document, [...$header, ...$totals]);
             $this->salesDocumentRepository->replaceLines($document, $rows);
@@ -202,16 +202,16 @@ class SalesDocumentService
         $terms    = $type === DocumentType::Invoice ? $this->paymentTerms($workspace, $data) : null;
 
         return [
-            'contact_id'           => $data['contact_id'],
+            'contact_id'           => $data['contact_id'] ?? null,
             'location_id'          => $data['location_id'] ?? null,
             'document_date'        => $data['document_date'],
             'due_date'             => $type === DocumentType::Invoice
                 ? ($data['due_date'] ?? CarbonImmutable::parse($data['document_date'])->addDays($terms)->toDateString())
                 : null,
-            'expiry_date'          => $type->isOffer() ? $data['expiry_date'] : null,
+            'expiry_date'          => $type->isOffer() ? ($data['expiry_date'] ?? null) : null,
             'payment_terms'        => $terms,
             'currency'             => $data['currency'],
-            'exchange_rate'        => $data['currency'] === $workspace->base_currency ? '1' : (string) $data['exchange_rate'],
+            'exchange_rate'        => $data['currency'] === $workspace->base_currency ? '1' : (string) ($data['exchange_rate'] ?? '1'),
             'customer_reference'   => $data['customer_reference'] ?? null,
             'sales_reference'      => $data['sales_reference'] ?? null,
             'discount_type'        => $discount ? $data['discount_type'] : null,
@@ -225,7 +225,7 @@ class SalesDocumentService
     private function paymentTerms(Workspace $workspace, array $data): int
     {
         return (int) ($data['payment_terms']
-            ?? $this->contactRepository->findFor($workspace, $data['contact_id'])?->customer_payment_terms
+            ?? ($data['contact_id'] ?? null ? $this->contactRepository->findFor($workspace, $data['contact_id'])?->customer_payment_terms : null)
             ?? $this->salesSettingRepository->forWorkspace($workspace)->payment_terms);
     }
 }

@@ -9,13 +9,11 @@ use App\Repositories\Billing\PackageRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\Shared\ActivityLogService;
 use App\Services\User\Apps\SyncAppsWithPackage;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Eloquent\Collection;
 
 /**
- * Every business workspace, as the admin panel sees it: its owner, its plan
- * and the apps it has on, and moving it to another plan. Until package
- * checkout exists, this is how a business is upgraded or downgraded.
+ * Moving a business to another plan from the admin panel (a client's page).
+ * Until package checkout exists, this is how a business is upgraded or
+ * downgraded.
  */
 class WorkspaceService
 {
@@ -24,17 +22,6 @@ class WorkspaceService
         protected PackageRepository $packageRepository,
         protected SyncAppsWithPackage $sync,
     ) {}
-
-    public function paginate(string $search, ?string $package, int $perPage): LengthAwarePaginator
-    {
-        return $this->workspaceRepository->paginateForAdmin($search, $package, $perPage);
-    }
-
-    /** Every plan, lowest first, for the filter. */
-    public function packages(): Collection
-    {
-        return $this->packageRepository->allByRank();
-    }
 
     public function findOrFail(int $id): Workspace
     {

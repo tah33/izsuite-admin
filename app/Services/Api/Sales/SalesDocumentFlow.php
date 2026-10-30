@@ -9,6 +9,7 @@ use App\Models\User\SalesDocumentLine;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\DocumentLinkRepository;
+use App\Repositories\User\LocationRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Services\Api\BusinessSetup\ExchangeRateService;
 use App\Services\Documents\DocumentNumbers;
@@ -56,6 +57,7 @@ class SalesDocumentFlow
         protected DocumentLinkRepository $documentLinkRepository,
         protected ExchangeRateService $exchangeRateService,
         protected SalesCalculator $salesCalculator,
+        protected LocationRepository $locationRepository,
     ) {}
 
     /**
@@ -72,7 +74,7 @@ class SalesDocumentFlow
 
         $document = $this->allowed($workspace, $type, $id, 'issue', 'Only a draft invoice can be issued.');
 
-        $this->checkReady($document);
+        $this->checkReady($workspace, $document);
 
         $current = $this->rateToIssueAt($workspace, $document, $rate);
 
@@ -93,7 +95,7 @@ class SalesDocumentFlow
         $document = $this->allowed($workspace, $type, $id, 'send', 'This can no longer be sent.');
         $again    = $document->status === SalesDocumentStatus::Sent;
 
-        $this->checkReady($document);
+        $this->checkReady($workspace, $document);
 
         DB::transaction(fn () => $this->salesDocumentRepository->update($document, [
             ...$this->numbered($workspace, $document),
@@ -200,14 +202,33 @@ class SalesDocumentFlow
         ];
     }
 
-    private function checkReady(SalesDocument $document): void
+    /** A draft may have been saved with any of it left out (see SaveSalesDocumentRequest). */
+    private function checkReady(Workspace $workspace, SalesDocument $document): void
     {
-        if (! $document->contact?->isCustomer()) {
+        if (! $document->contact) {
+            $this->refuse('Choose the customer first.');
+        }
+
+        if (! $document->contact->isCustomer()) {
             $this->refuse('Choose a customer first: this contact is not a customer any more.');
+        }
+
+        if (! $document->location_id && $this->locationRepository->existsFor($workspace)) {
+            $this->refuse('Choose the location first.');
+        }
+
+        if ($document->type->isOffer() && ! $document->expiry_date) {
+            $this->refuse('Choose until when it is valid first.');
         }
 
         if ($document->lines->isEmpty()) {
             $this->refuse('Add at least one line first.');
+        }
+
+        $unfinished = $document->lines->first(fn (SalesDocumentLine $line) => trim((string) $line->name) === '' || bccomp((string) $line->quantity, '0', 3) <= 0);
+
+        if ($unfinished) {
+            $this->refuse("Line {$unfinished->position} needs ".(trim((string) $unfinished->name) === '' ? 'an item or a description' : 'a quantity of more than zero').' first.');
         }
 
         $this->salesDocumentRepository->loadLineTaxes($document);

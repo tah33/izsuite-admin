@@ -11,6 +11,7 @@ use App\Models\User\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
 class RegistrationOnboardingTest extends TestCase
@@ -41,6 +42,26 @@ class RegistrationOnboardingTest extends TestCase
         ])->assertCreated();
 
         return User::where('email', 'amina@example.com')->firstOrFail();
+    }
+
+    public function test_registering_announces_the_new_account_once(): void
+    {
+        Event::fake([UserRegistered::class]);
+
+        $user = $this->register();
+
+        Event::assertDispatchedTimes(UserRegistered::class, 1);
+        Event::assertDispatched(UserRegistered::class, fn (UserRegistered $event) => $event->userId === $user->id);
+    }
+
+    public function test_a_refused_registration_or_an_account_made_any_other_way_announces_nothing(): void
+    {
+        Event::fake([UserRegistered::class]);
+
+        $this->postJson('/api/v1/auth/register', ['email' => 'not-an-email'])->assertUnprocessable();
+        User::factory()->create();
+
+        Event::assertNotDispatched(UserRegistered::class);
     }
 
     public function test_a_new_account_starts_with_its_workspace_location_and_owner_as_staff(): void
@@ -141,5 +162,16 @@ class RegistrationOnboardingTest extends TestCase
 
         $this->assertDatabaseCount('locations', 0);
         $this->assertDatabaseCount('user_staff', 0);
+    }
+
+    public function test_a_long_name_is_cut_to_fit_the_staff_column(): void
+    {
+        // Each half may be 255 characters on its own; the staff name holds 255 in all.
+        $user = User::factory()->create(['first_name' => str_repeat('a', 200), 'last_name' => str_repeat('b', 200)]);
+        $user->workspaces()->create(['name' => 'Billing Starter']);
+
+        AddOwnerAsStaff::dispatchSync($user->id);
+
+        $this->assertSame(255, strlen($user->userStaff()->sole()->name));
     }
 }

@@ -14,6 +14,14 @@ class Role extends Model
      */
     public const SUPER_ADMIN_ID = 1;
 
+    /**
+     * Roles of frontend accounts, which are never admin staff: clients -
+     * everyone who signs up on the website ("user") - and the old recruitment
+     * product's recruiters and candidates. The Staff page neither lists nor
+     * gives them.
+     */
+    public const FRONTEND_SLUGS = ['user', 'recruiter', 'candidate'];
+
     protected $fillable         = [
         'name',
         'slug',

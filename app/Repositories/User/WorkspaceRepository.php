@@ -5,8 +5,6 @@ namespace App\Repositories\User;
 use App\Models\Billing\Package;
 use App\Models\User\User;
 use App\Models\User\Workspace;
-use App\Models\User\WorkspaceApp;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
 class WorkspaceRepository
@@ -100,28 +98,6 @@ class WorkspaceRepository
     public function countForUserOnPackage(User $user, int $packageId): int
     {
         return Workspace::where('user_id', $user->id)->where('package_id', $packageId)->count();
-    }
-
-    /**
-     * The admin panel's list of every business, newest first, with its owner,
-     * its plan and the apps it has on - searched by its name or its owner's
-     * email, and filtered by the key of its plan.
-     */
-    public function paginateForAdmin(string $search, ?string $package, int $perPage): LengthAwarePaginator
-    {
-        return Workspace::query()
-            ->with([
-                'user:id,first_name,last_name,email',
-                'package:id,key,name',
-                'workspaceApps' => fn ($q) => $q->where('status', WorkspaceApp::STATUS_ACTIVE)->with('app:id,name,edition,sort_order'),
-            ])
-            ->when($search !== '', fn ($q) => $q->where(fn ($q) => $q
-                ->where('name', 'like', "%{$search}%")
-                ->orWhereHas('user', fn ($u) => $u->where('email', 'like', "%{$search}%"))))
-            ->when($package, fn ($q) => $q->whereHas('package', fn ($p) => $p->where('key', $package)))
-            ->latest('id')
-            ->paginate($perPage)
-            ->withQueryString();
     }
 
     /** Any business, with its plan - for the admin panel. */

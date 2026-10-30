@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Auth\ChangePasswordRequest;
 use App\Http\Requests\Api\Auth\LoginRequest;
 use App\Http\Requests\Api\Auth\RegisterRequest;
+use App\Http\Resources\Users\LoginAsSessionResource;
 use App\Http\Resources\Users\UserResource;
 use App\Services\Api\Auth\AuthService;
 use App\Services\Api\Auth\EmailVerificationService;
+use App\Services\Api\Auth\LoginAsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -16,6 +18,7 @@ class AuthController extends Controller
 {
     public function __construct(
         protected AuthService $authService,
+        protected LoginAsService $loginAsService,
     ) {}
 
     /**
@@ -68,8 +71,12 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         try {
+            $backUrl = $this->loginAsService->backUrl($request->user());
+
             return response()->json([
-                'user' => new UserResource($this->authService->currentUser($request->user())),
+                'user'     => new UserResource($this->authService->currentUser($request->user())),
+                // Set only on a session from the admin panel's "Login as".
+                'login_as' => $backUrl ? new LoginAsSessionResource($backUrl) : null,
             ]);
 
         } catch (\Throwable $e) {
