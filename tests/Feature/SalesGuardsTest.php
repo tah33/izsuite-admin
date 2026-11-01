@@ -48,7 +48,7 @@ class SalesGuardsTest extends TestCase
         $this->deleteJson("/api/v1/contacts/{$this->customer->id}")->assertConflict()->assertJsonPath('message', 'This contact is on sales documents, so it cannot be deleted. Deactivate it instead.');
         $this->deleteJson("/api/v1/items/{$this->chair->id}")->assertConflict()->assertJsonPath('message', 'This item is on sales documents, so it cannot be deleted. Deactivate it instead.');
         $this->deleteJson("/api/v1/tax-rates/{$this->vat->id}")->assertConflict()->assertJsonPath('message', 'This tax is on sales documents, so it cannot be deleted. Deactivate it instead.');
-        $this->deleteJson("/api/v1/locations/{$location->id}")->assertConflict()->assertJsonPath('message', 'Sales documents were made at this location, so it cannot be deleted.');
+        $this->deleteJson("/api/v1/locations/{$location->id}")->assertConflict()->assertJsonPath('message', 'Sales documents were made at this location, so it cannot be deleted. Deactivate it instead.');
     }
 
     public function test_a_rate_on_a_document_keeps_its_percentage(): void

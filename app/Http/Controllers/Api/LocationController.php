@@ -65,6 +65,54 @@ class LocationController extends Controller
         }
     }
 
+    public function activate(Request $request, int $id): JsonResponse
+    {
+        try {
+            $location = $this->locationService->activate($this->currentWorkspace($request), $id);
+
+            return response()->json([
+                'message' => "{$location->name} is active again.",
+                'data'    => new LocationResource($location),
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    public function deactivate(Request $request, int $id): JsonResponse
+    {
+        try {
+            $location = $this->locationService->deactivate($this->currentWorkspace($request), $id);
+
+            return response()->json([
+                'message' => "{$location->name} is inactive. It takes no new transactions, and keeps the ones it has.",
+                'data'    => new LocationResource($location),
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    public function primary(Request $request, int $id): JsonResponse
+    {
+        try {
+            $location = $this->locationService->makePrimary($this->currentWorkspace($request), $id);
+
+            return response()->json([
+                'message' => "{$location->name} is now your Primary Location.",
+                'data'    => new LocationResource($location),
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
     public function destroy(Request $request, int $id): JsonResponse
     {
         try {

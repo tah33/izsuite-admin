@@ -15,7 +15,8 @@ use Illuminate\Support\Str;
 
 /**
  * What every business starts with besides its apps (see ProvisionWorkspaceApps):
- * a "Main Location", with no country or state - the owner fills those in later -
+ * a "Main Location" - code MAIN, its Primary, on its owner's time zone, with
+ * no country or address: the owner fills those in later -
  * its owner on its staff: their name and e-mail, active, assigned to it - and
  * the starter list of expense categories (Doc 10 section 7), its own to change.
  *
@@ -30,6 +31,8 @@ use Illuminate\Support\Str;
 class SetUpNewWorkspace
 {
     public const LOCATION_NAME = 'Main Location';
+
+    public const LOCATION_CODE = 'MAIN';
 
     public function __construct(
         private LocationRepository $locations,
@@ -46,7 +49,11 @@ class SetUpNewWorkspace
 
     public function addMainLocation(Workspace $workspace, User $owner, string $source): Location
     {
-        $location = $this->locations->firstOrCreateFor($workspace, ['name' => self::LOCATION_NAME]);
+        $location = $this->locations->firstOrCreateFor($workspace, ['name' => self::LOCATION_NAME], [
+            'code'       => self::LOCATION_CODE,
+            'is_primary' => ! $this->locations->hasPrimary($workspace),
+            'timezone'   => $owner->timezone ?: 'UTC',
+        ]);
 
         if ($location->wasRecentlyCreated) {
             ActivityLogService::record('created', 'Added location "'.self::LOCATION_NAME.'"', $location, ['source' => $source], $owner);

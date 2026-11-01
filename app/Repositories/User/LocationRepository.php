@@ -5,6 +5,7 @@ namespace App\Repositories\User;
 use App\Models\User\Location;
 use App\Models\User\Workspace;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Locations belong to one business (workspace). Every lookup is scoped to it,
@@ -37,6 +38,24 @@ class LocationRepository
         return $workspace->locations()->count();
     }
 
+    /** Whether the business has marked one of its locations as its Primary. */
+    public function hasPrimary(Workspace $workspace): bool
+    {
+        return $workspace->locations()->where('is_primary', true)->exists();
+    }
+
+    /** $location the business's Primary, and no other. */
+    public function makePrimary(Location $location): Location
+    {
+        DB::transaction(function () use ($location) {
+            Location::query()->where('workspace_id', $location->workspace_id)->whereKeyNot($location->id)->update(['is_primary' => false]);
+
+            $location->update(['is_primary' => true]);
+        });
+
+        return $location;
+    }
+
     /**
      * Made through the business, so its workspace and owner are always the
      * business's own - never read from $data.
@@ -47,12 +66,13 @@ class LocationRepository
     }
 
     /**
-     * The business's location matching $attributes, made from them if there is
-     * none yet - for something that may run twice and must still leave only one.
+     * The business's location matching $attributes, made from them and
+     * $values if there is none yet - for something that may run twice and
+     * must still leave only one.
      */
-    public function firstOrCreateFor(Workspace $workspace, array $attributes): Location
+    public function firstOrCreateFor(Workspace $workspace, array $attributes, array $values = []): Location
     {
-        return $workspace->locations()->firstOrCreate($attributes, ['user_id' => $workspace->user_id]);
+        return $workspace->locations()->firstOrCreate($attributes, [...$values, 'user_id' => $workspace->user_id]);
     }
 
     public function update(Location $location, array $data): Location

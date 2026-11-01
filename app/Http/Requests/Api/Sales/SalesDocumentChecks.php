@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\Sales;
 
 use App\Enums\DocumentType;
+use App\Http\Requests\Api\Concerns\ChecksLocation;
 use App\Models\User\Item;
 use App\Models\User\ItemComponent;
 use App\Models\User\SalesDocument;
@@ -31,6 +32,8 @@ use Illuminate\Validation\Validator;
  */
 class SalesDocumentChecks
 {
+    use ChecksLocation;
+
     public function __construct(
         protected ContactRepository $contactRepository,
         protected ItemRepository $itemRepository,
@@ -48,6 +51,7 @@ class SalesDocumentChecks
         $existing = $id ? $this->salesDocumentRepository->findFor($workspace, $type, $id) : null;
 
         $this->checkCustomer($validator, $workspace, $input, $existing);
+        $this->checkLocation($validator, $workspace, $input['location_id'] ?? null, $existing?->location_id);
         $this->checkItems($validator, $workspace, $input['lines'] ?? [], $existing);
         $this->checkTaxes($validator, $workspace, $input['lines'] ?? [], $input['document_date'], $existing);
         $this->checkDiscounts($validator, $workspace, $input);

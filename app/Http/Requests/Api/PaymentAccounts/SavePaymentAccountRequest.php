@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\Api\PaymentAccounts;
 
+use App\Http\Requests\Api\Concerns\ChecksLocation;
 use App\Models\User\Location;
 use App\Models\User\PaymentAccount;
+use App\Repositories\User\PaymentAccountRepository;
 use App\Support\Countries;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -11,6 +13,8 @@ use Illuminate\Validation\Validator;
 
 class SavePaymentAccountRequest extends FormRequest
 {
+    use ChecksLocation;
+
     public function authorize(): bool
     {
         return true;
@@ -82,6 +86,13 @@ class SavePaymentAccountRequest extends FormRequest
                 if (is_numeric($balance) && (float) $balance !== 0.0 && ! $this->filled('opening_balance_date') && ! $validator->errors()->has('opening_balance')) {
                     $validator->errors()->add('opening_balance_date', 'Enter the date the opening balance was the balance on.');
                 }
+            },
+            // A new account - or one moved - goes to an active location.
+            function (Validator $validator) {
+                $workspace = $this->attributes->get('workspace');
+                $current   = $this->route('id') ? app(PaymentAccountRepository::class)->findFor($workspace, (int) $this->route('id'))?->location_id : null;
+
+                $this->checkLocation($validator, $workspace, $this->input('location_id'), $current);
             },
         ];
     }

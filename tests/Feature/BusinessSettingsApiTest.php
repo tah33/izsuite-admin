@@ -22,8 +22,7 @@ class BusinessSettingsApiTest extends TestCase
     use RefreshDatabase;
 
     private const REQUIRED_FIELDS = [
-        'business_name', 'language', 'country', 'state', 'city',
-        'zip_code', 'landmark', 'timezone', 'financial_year_start_month', 'stock_accounting_method',
+        'business_name', 'language', 'country', 'timezone', 'financial_year_start_month', 'stock_accounting_method',
     ];
 
     protected function setUp(): void
@@ -47,16 +46,22 @@ class BusinessSettingsApiTest extends TestCase
     {
         return array_merge([
             'business_name'              => 'Global Traders Inc.',
+            'trading_name'               => 'Global Traders',
+            'registration_number'        => 'C-123456',
+            'legal_structure'            => 'private_limited',
+            'industry'                   => 'Wholesale trade',
             'start_date'                 => '2024-03-15',
             'language'                   => 'en',
             'website'                    => 'https://globaltraders.example',
             'business_contact_number'    => '+880 1712-345678',
             'alternate_contact_number'   => '',
-            'country'                    => 'Bangladesh',
+            'email'                      => 'accounts@globaltraders.example',
+            'address_line_1'             => 'House 12, Road 5',
+            'address_line_2'             => 'Near City Center',
+            'country'                    => 'BD',
             'state'                      => 'Dhaka',
             'city'                       => 'Dhaka',
             'zip_code'                   => '1207',
-            'landmark'                   => 'Near City Center',
             'timezone'                   => 'Asia/Dhaka',
             'tax_1_name'                 => 'VAT',
             'tax_1_no'                   => 'BIN-123456',
@@ -124,9 +129,9 @@ class BusinessSettingsApiTest extends TestCase
         $this->getJson('/api/v1/business-settings')
             ->assertOk()
             ->assertJsonStructure(['data' => [
-                'business_name', 'start_date', 'language', 'logo_url', 'website',
-                'business_contact_number', 'alternate_contact_number', 'country', 'state', 'city',
-                'zip_code', 'landmark', 'timezone', 'tax_1_name', 'tax_1_no', 'tax_2_name', 'tax_2_no',
+                'business_name', 'trading_name', 'registration_number', 'legal_structure', 'industry', 'start_date', 'language', 'logo_url', 'website',
+                'business_contact_number', 'alternate_contact_number', 'email', 'address_line_1', 'address_line_2', 'country', 'state', 'city',
+                'zip_code', 'timezone', 'tax_1_name', 'tax_1_no', 'tax_2_name', 'tax_2_no',
                 'financial_year_start_month', 'stock_accounting_method',
             ]])
             ->assertJsonPath('data.business_name', 'Global Traders Inc.')

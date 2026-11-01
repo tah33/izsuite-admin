@@ -64,6 +64,7 @@ class NavigationBuilder
             // one first), and whether tax fields belong on its forms.
             'workspace' => $workspace ? [
                 'id'            => $workspace->id,
+                'business_id'   => $workspace->businessId(),
                 'name'          => $workspace->name,
                 'package'       => $workspace->package ? [
                     'key'  => $workspace->package->key,

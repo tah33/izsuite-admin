@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Expenses;
 
+use App\Http\Requests\Api\Concerns\ChecksLocation;
 use App\Models\User\Expense;
 use App\Models\User\Workspace;
 use App\Repositories\User\ContactRepository;
@@ -25,6 +26,8 @@ use Illuminate\Validation\Validator;
  */
 class ExpenseChecks
 {
+    use ChecksLocation;
+
     public function __construct(
         protected ContactRepository $contactRepository,
         protected ExpenseCategoryRepository $expenseCategoryRepository,
@@ -41,6 +44,7 @@ class ExpenseChecks
         $existing = $id ? $this->expenseRepository->findFor($workspace, $id) : null;
 
         $this->checkPayee($validator, $workspace, $input, $existing);
+        $this->checkLocation($validator, $workspace, $input['location_id'] ?? null, $existing?->location_id);
         $this->checkCategories($validator, $workspace, $input['lines'], $existing);
         $this->checkTaxes($validator, $workspace, $input['lines'], $input['document_date'], $existing);
     }

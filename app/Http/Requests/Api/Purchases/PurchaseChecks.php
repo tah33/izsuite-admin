@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Purchases;
 
+use App\Http\Requests\Api\Concerns\ChecksLocation;
 use App\Models\User\Purchase;
 use App\Models\User\Workspace;
 use App\Repositories\User\ContactRepository;
@@ -26,6 +27,8 @@ use Illuminate\Validation\Validator;
  */
 class PurchaseChecks
 {
+    use ChecksLocation;
+
     public function __construct(
         protected ContactRepository $contactRepository,
         protected ItemRepository $itemRepository,
@@ -42,6 +45,7 @@ class PurchaseChecks
         $existing = $id ? $this->purchaseRepository->findFor($workspace, $id) : null;
 
         $this->checkSupplier($validator, $workspace, $input, $existing);
+        $this->checkLocation($validator, $workspace, $input['location_id'] ?? null, $existing?->location_id);
         $this->checkItems($validator, $workspace, $input['lines'], $existing);
         $this->checkTaxes($validator, $workspace, $input['lines'], $input['document_date'], $existing);
         $this->checkDiscounts($validator, $input);

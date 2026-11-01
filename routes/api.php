@@ -236,6 +236,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/', [LocationController::class, 'index'])->name('api.locations.index');
         Route::post('/', [LocationController::class, 'store'])->name('api.locations.store');
         Route::put('/{id}', [LocationController::class, 'update'])->whereNumber('id')->name('api.locations.update');
+        Route::post('/{id}/activate', [LocationController::class, 'activate'])->whereNumber('id')->name('api.locations.activate');
+        Route::post('/{id}/deactivate', [LocationController::class, 'deactivate'])->whereNumber('id')->name('api.locations.deactivate');
+        Route::post('/{id}/primary', [LocationController::class, 'primary'])->whereNumber('id')->name('api.locations.primary');
         Route::delete('/{id}', [LocationController::class, 'destroy'])->whereNumber('id')->name('api.locations.destroy');
     });
 

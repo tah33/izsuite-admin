@@ -34,26 +34,36 @@ class SalesSnapshots
     ) {}
 
     /**
-     * The business as a document shows it. With $currency, also the payment
-     * accounts it shows customers in that currency (Doc 05 section 9) - for
-     * the documents customers pay from.
+     * The business as a document shows it (Doc 11 section 4) - its legal name
+     * and trading name, registration number, address, contacts and tax
+     * numbers - with its location and the lines that location adds to the
+     * header (Doc 12 section 17). The country is printed by name. With
+     * $currency, also the payment accounts it shows customers in that
+     * currency (Doc 05 section 9) - for the documents customers pay from.
      */
     public function business(Workspace $workspace, ?Location $location, ?string $currency = null): array
     {
         $settings = $this->businessSettingRepository->findFor($workspace);
 
         return [
-            'name'             => $settings?->business_name ?: $workspace->name,
-            'address'          => array_values(array_filter([$settings?->landmark, $settings?->city, $settings?->state, $settings?->zip_code, $settings?->country])),
-            'phone'            => $settings?->business_contact_number,
-            'website'          => $settings?->website,
-            'tax_numbers'      => array_values(array_filter([
+            'name'                => $settings?->business_name ?: $workspace->name,
+            'trading_name'        => $settings?->trading_name,
+            'registration_number' => $settings?->registration_number,
+            'address'             => array_values(array_filter([
+                $settings?->address_line_1, $settings?->address_line_2, $settings?->city, $settings?->state, $settings?->zip_code,
+                $settings?->country ? Countries::name($settings->country) ?? $settings->country : null,
+            ])),
+            'phone'               => $settings?->business_contact_number,
+            'email'               => $settings?->email,
+            'website'             => $settings?->website,
+            'tax_numbers'         => array_values(array_filter([
                 $settings?->tax_1_no ? ['name' => $settings->tax_1_name, 'number' => $settings->tax_1_no] : null,
                 $settings?->tax_2_no ? ['name' => $settings->tax_2_name, 'number' => $settings->tax_2_no] : null,
             ])),
-            'logo_file_id'     => $this->workspaceFileRepository->inCollection($workspace, FileCollection::Logo)->first()?->id,
-            'location'         => $location?->name,
-            'payment_accounts' => $currency ? $this->paymentDetails->for($workspace, $currency, $location?->id) : [],
+            'logo_file_id'        => $this->workspaceFileRepository->inCollection($workspace, FileCollection::Logo)->first()?->id,
+            'location'            => $location?->name,
+            'location_header'     => $location?->document_header,
+            'payment_accounts'    => $currency ? $this->paymentDetails->for($workspace, $currency, $location?->id) : [],
         ];
     }
 

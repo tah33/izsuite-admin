@@ -19,6 +19,7 @@ class NavigationResource extends JsonResource
         return [
             'workspace' => $workspace ? [
                 'id'             => $workspace['id'],
+                'business_id'    => $workspace['business_id'] ?? null,
                 'name'           => $workspace['name'],
                 'package'        => $workspace['package'] ? ['name' => $workspace['package']['name']] : null,
                 'base_currency'  => $workspace['base_currency'],

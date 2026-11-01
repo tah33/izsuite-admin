@@ -405,7 +405,7 @@ class ExpensesLiteTest extends TestCase
         $this->getJson("/api/v1/contacts/{$this->payee->id}")->assertJsonPath('data.in_use', true);
 
         $this->deleteJson("/api/v1/contacts/{$this->payee->id}")->assertStatus(409)->assertJsonPath('message', 'This contact was paid on expenses, so it cannot be deleted. Deactivate it instead.');
-        $this->deleteJson("/api/v1/locations/{$location->id}")->assertStatus(409)->assertJsonPath('message', 'Expenses were recorded at this location, so it cannot be deleted.');
+        $this->deleteJson("/api/v1/locations/{$location->id}")->assertStatus(409)->assertJsonPath('message', 'Expenses were recorded at this location, so it cannot be deleted. Deactivate it instead.');
         $this->deleteJson("/api/v1/tax-rates/{$this->vat->id}")->assertStatus(409)->assertJsonPath('message', 'This tax is on expenses, so it cannot be deleted. Deactivate it instead.');
 
         // A tax a category starts with is kept too.

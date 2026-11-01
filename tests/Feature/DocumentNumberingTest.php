@@ -132,7 +132,7 @@ class DocumentNumberingTest extends TestCase
         $business = $this->businessOf($this->user);
         $business->businessSetting()->create([
             'user_id' => $this->user->id, 'business_name' => 'Uddin Traders', 'language' => 'en', 'country' => 'Bangladesh', 'state' => 'Dhaka',
-            'city' => 'Dhaka', 'zip_code' => '1207', 'landmark' => 'Near City Center', 'timezone' => 'Asia/Dhaka',
+            'city' => 'Dhaka', 'zip_code' => '1207', 'address_line_1' => 'Near City Center', 'timezone' => 'Asia/Dhaka',
             'financial_year_start_month' => 7, 'stock_accounting_method' => 'fifo',
         ]);
 

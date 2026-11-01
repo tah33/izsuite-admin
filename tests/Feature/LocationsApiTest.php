@@ -8,6 +8,7 @@ use App\Models\Shared\ActivityLog;
 use App\Models\User\Location;
 use App\Models\User\User;
 use App\Models\User\Workspace;
+use App\Support\LocationCodes;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -32,7 +33,7 @@ class LocationsApiTest extends TestCase
 
     private function payload(array $overrides = []): array
     {
-        return array_merge(['name' => 'Dhaka Warehouse', 'country' => 'Bangladesh', 'state' => 'Dhaka'], $overrides);
+        return array_merge(['name' => 'Dhaka Warehouse', 'code' => 'DHK', 'country' => 'BD', 'state' => 'Dhaka', 'timezone' => 'Asia/Dhaka'], $overrides);
     }
 
     /** The account's first business - the one the API answers for when none is picked. */
@@ -50,9 +51,12 @@ class LocationsApiTest extends TestCase
         return $user;
     }
 
+    /** A location made straight in the table - its code from its name, unless given. */
     private function locationOf(User $user, array $overrides = []): Location
     {
-        return $this->businessOf($user)->locations()->create([...$this->payload($overrides), 'user_id' => $user->id]);
+        $data = $this->payload($overrides);
+
+        return $this->businessOf($user)->locations()->create([...$data, 'code' => $overrides['code'] ?? LocationCodes::from($data['name']), 'user_id' => $user->id]);
     }
 
     /* ---------------------------------------------------------- auth */
@@ -113,7 +117,7 @@ class LocationsApiTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('message', 'Location added successfully.')
             ->assertJsonPath('data.name', 'Dhaka Warehouse')
-            ->assertJsonPath('data.country', 'Bangladesh')
+            ->assertJsonPath('data.country', 'BD')
             ->assertJsonPath('data.state', 'Dhaka')
             ->assertJsonStructure(['data' => ['id']]);
 
@@ -121,7 +125,7 @@ class LocationsApiTest extends TestCase
             'user_id'      => $user->id,
             'workspace_id' => $this->businessOf($user)->id,
             'name'         => 'Dhaka Warehouse',
-            'country'      => 'Bangladesh',
+            'country'      => 'BD',
             'state'        => 'Dhaka',
         ]);
     }
@@ -132,7 +136,7 @@ class LocationsApiTest extends TestCase
         $this->signIn($user);
 
         $this->postJson('/api/v1/locations', $this->payload())->assertCreated();
-        $this->postJson('/api/v1/locations', $this->payload(['state' => 'Chattogram']))->assertCreated();
+        $this->postJson('/api/v1/locations', $this->payload(['code' => 'DHK2', 'state' => 'Chattogram']))->assertCreated();
 
         $this->assertSame(2, $user->locations()->count());
     }
@@ -149,63 +153,97 @@ class LocationsApiTest extends TestCase
         $this->assertSame(1, $attacker->locations()->count());
     }
 
-    public function test_only_the_name_is_required(): void
+    public function test_a_name_code_country_and_time_zone_are_required(): void
     {
         $user = User::factory()->create();
         $this->signIn($user);
 
         $this->postJson('/api/v1/locations', [])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['name'])
-            ->assertJsonMissingValidationErrors(['country', 'state']);
+            ->assertJsonValidationErrors(['name', 'code', 'country', 'timezone'])
+            ->assertJsonMissingValidationErrors(['state', 'city', 'phone', 'email', 'address_line_1', 'postal_code', 'document_header']);
 
         $this->assertDatabaseCount('locations', 0);
 
-        // A name alone is a whole location, with no country or state yet.
-        $this->postJson('/api/v1/locations', ['name' => 'Main Location'])
+        // Those four are a whole location, with no address yet.
+        $this->postJson('/api/v1/locations', ['name' => 'Main Location', 'code' => 'MAIN', 'country' => 'BD', 'timezone' => 'Asia/Dhaka'])
             ->assertCreated()
-            ->assertJsonPath('data.country', null)
-            ->assertJsonPath('data.state', null);
+            ->assertJsonPath('data.city', null)
+            ->assertJsonPath('data.state', null)
+            ->assertJsonPath('data.is_active', true);
 
-        $this->assertDatabaseHas('locations', ['user_id' => $user->id, 'name' => 'Main Location', 'country' => null, 'state' => null]);
+        $this->assertDatabaseHas('locations', ['user_id' => $user->id, 'name' => 'Main Location', 'code' => 'MAIN', 'country' => 'BD', 'state' => null]);
     }
 
     public function test_values_of_only_spaces_count_as_empty(): void
     {
         $this->signIn(User::factory()->create());
 
-        $this->postJson('/api/v1/locations', ['name' => '   ', 'country' => 'Bangladesh', 'state' => 'Dhaka'])
+        $this->postJson('/api/v1/locations', $this->payload(['name' => '   ']))
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['name']);
 
         // An optional field of nothing but spaces is simply empty.
-        $this->postJson('/api/v1/locations', ['name' => 'Main Location', 'country' => ' ', 'state' => "\t"])
+        $this->postJson('/api/v1/locations', $this->payload(['state' => "\t", 'city' => ' ']))
             ->assertCreated()
-            ->assertJsonPath('data.country', null)
-            ->assertJsonPath('data.state', null);
+            ->assertJsonPath('data.state', null)
+            ->assertJsonPath('data.city', null);
     }
 
     public function test_values_respect_their_column_lengths(): void
     {
         $this->signIn(User::factory()->create());
 
-        $this->postJson('/api/v1/locations', [
-            'name'    => str_repeat('a', 256),
-            'country' => str_repeat('a', 101),
-            'state'   => str_repeat('a', 101),
-        ])
+        $this->postJson('/api/v1/locations', $this->payload([
+            'name'        => str_repeat('a', 256),
+            'code'        => str_repeat('A', 11),
+            'state'       => str_repeat('a', 101),
+            'postal_code' => str_repeat('1', 21),
+        ]))
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['name', 'country', 'state']);
+            ->assertJsonValidationErrors(['name', 'code', 'state', 'postal_code']);
 
         // The longest values the columns hold are accepted - and the activity
         // log entry that names the location must still fit its own column.
-        $this->postJson('/api/v1/locations', [
-            'name'    => str_repeat('a', 255),
-            'country' => str_repeat('a', 100),
-            'state'   => str_repeat('a', 100),
-        ])->assertCreated();
+        $this->postJson('/api/v1/locations', $this->payload([
+            'name'  => str_repeat('a', 255),
+            'code'  => str_repeat('A', 10),
+            'state' => str_repeat('a', 100),
+        ]))->assertCreated();
 
         $this->assertLessThanOrEqual(255, strlen(ActivityLog::latest('id')->value('description')));
+    }
+
+    public function test_a_country_is_one_from_the_list_and_a_time_zone_a_real_one(): void
+    {
+        $this->signIn(User::factory()->create());
+
+        $this->postJson('/api/v1/locations', $this->payload(['country' => 'Bangladesh', 'timezone' => 'Asia/Nowhere']))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.country.0', 'Choose the country from the list.')
+            ->assertJsonValidationErrors('timezone');
+    }
+
+    public function test_a_code_is_kept_in_capitals_and_unique_within_the_business(): void
+    {
+        $user = User::factory()->create();
+        $this->signIn($user);
+
+        $this->postJson('/api/v1/locations', $this->payload(['code' => ' dhk ']))->assertCreated()->assertJsonPath('data.code', 'DHK');
+
+        $this->postJson('/api/v1/locations', $this->payload(['name' => 'Dhaka Outlet', 'code' => 'Dhk']))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.code.0', 'Another of your locations has this code.');
+        $this->postJson('/api/v1/locations', $this->payload(['code' => 'DH K']))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.code.0', 'Use letters, digits and dashes only.');
+
+        // A location keeps its own code on an update, and another business may use it.
+        $id = $user->locations()->value('id');
+        $this->putJson("/api/v1/locations/{$id}", $this->payload(['name' => 'Renamed']))->assertOk()->assertJsonPath('data.code', 'DHK');
+
+        $second = $user->workspaces()->create(['name' => 'Second Business']);
+        $this->postJson('/api/v1/locations', $this->payload(), [ResolveWorkspace::HEADER => (string) $second->id])->assertCreated();
     }
 
     /* ---------------------------------------------------------- update */
@@ -216,14 +254,19 @@ class LocationsApiTest extends TestCase
         $location = $this->locationOf($user);
         $this->signIn($user);
 
-        $this->putJson("/api/v1/locations/{$location->id}", ['name' => 'Port Depot', 'country' => 'Bangladesh', 'state' => 'Chattogram'])
+        $this->putJson("/api/v1/locations/{$location->id}", $this->payload([
+            'name' => 'Port Depot', 'code' => 'PORT', 'state' => 'Chattogram', 'phone' => '+880 31 712345', 'email' => 'port@example.com',
+            'address_line_1' => 'Plot 4, Port Road', 'city' => 'Chattogram', 'postal_code' => '4100', 'document_header' => "Port Depot\nOpen 9 to 6",
+        ]))
             ->assertOk()
             ->assertJsonPath('message', 'Location updated successfully.')
             ->assertJsonPath('data.id', $location->id)
             ->assertJsonPath('data.name', 'Port Depot')
-            ->assertJsonPath('data.state', 'Chattogram');
+            ->assertJsonPath('data.code', 'PORT')
+            ->assertJsonPath('data.state', 'Chattogram')
+            ->assertJsonPath('data.document_header', "Port Depot\nOpen 9 to 6");
 
-        $this->assertDatabaseHas('locations', ['id' => $location->id, 'name' => 'Port Depot', 'state' => 'Chattogram']);
+        $this->assertDatabaseHas('locations', ['id' => $location->id, 'name' => 'Port Depot', 'state' => 'Chattogram', 'city' => 'Chattogram', 'email' => 'port@example.com']);
         $this->assertDatabaseCount('locations', 1);
     }
 
@@ -233,36 +276,26 @@ class LocationsApiTest extends TestCase
         $location = $this->locationOf($user);
         $this->signIn($user);
 
-        $this->putJson("/api/v1/locations/{$location->id}", ['name' => '', 'country' => 'Bangladesh', 'state' => 'Chattogram'])
+        $this->putJson("/api/v1/locations/{$location->id}", $this->payload(['name' => '', 'state' => 'Chattogram']))
             ->assertUnprocessable()
             ->assertJsonValidationErrors('name');
 
         $this->assertDatabaseHas('locations', ['id' => $location->id, 'name' => 'Dhaka Warehouse', 'state' => 'Dhaka']);
     }
 
-    public function test_update_can_clear_the_country_and_state(): void
+    public function test_update_can_clear_the_optional_fields(): void
     {
         $user     = User::factory()->create();
-        $location = $this->locationOf($user);
+        $location = $this->locationOf($user, ['city' => 'Dhaka', 'phone' => '+880 2 9876543']);
         $this->signIn($user);
 
-        $this->putJson("/api/v1/locations/{$location->id}", ['name' => 'Dhaka Warehouse', 'country' => null, 'state' => ''])
+        $this->putJson("/api/v1/locations/{$location->id}", $this->payload(['state' => '', 'city' => null, 'phone' => '']))
             ->assertOk()
-            ->assertJsonPath('data.country', null)
-            ->assertJsonPath('data.state', null);
+            ->assertJsonPath('data.state', null)
+            ->assertJsonPath('data.city', null)
+            ->assertJsonPath('data.phone', null);
 
-        $this->assertDatabaseHas('locations', ['id' => $location->id, 'country' => null, 'state' => null]);
-    }
-
-    public function test_an_update_that_leaves_the_country_and_state_out_keeps_them(): void
-    {
-        $user     = User::factory()->create();
-        $location = $this->locationOf($user);
-        $this->signIn($user);
-
-        $this->putJson("/api/v1/locations/{$location->id}", ['name' => 'Port Depot'])->assertOk();
-
-        $this->assertDatabaseHas('locations', ['id' => $location->id, 'name' => 'Port Depot', 'country' => 'Bangladesh', 'state' => 'Dhaka']);
+        $this->assertDatabaseHas('locations', ['id' => $location->id, 'state' => null, 'city' => null, 'phone' => null]);
     }
 
     public function test_a_user_id_in_an_update_cannot_move_the_location(): void
@@ -298,6 +331,48 @@ class LocationsApiTest extends TestCase
         $this->putJson('/api/v1/locations/999999', $this->payload())
             ->assertNotFound()
             ->assertExactJson(['message' => 'Location not found.']);
+    }
+
+    /* ---------------------------------------------------------- primary and status */
+
+    public function test_the_first_location_is_the_primary_and_the_primary_stays_active(): void
+    {
+        $user = User::factory()->create();
+        $this->signIn($user);
+
+        $first  = $this->postJson('/api/v1/locations', $this->payload())->assertCreated()->assertJsonPath('data.is_primary', true)->json('data.id');
+        $second = $this->postJson('/api/v1/locations', $this->payload(['name' => 'Port Depot', 'code' => 'PORT']))->assertCreated()->assertJsonPath('data.is_primary', false)->json('data.id');
+
+        // The Primary is neither turned off nor deleted: another is made Primary first.
+        $this->postJson("/api/v1/locations/{$first}/deactivate")
+            ->assertConflict()
+            ->assertJsonPath('message', 'This is your Primary Location. Make another location the Primary before deactivating this one.');
+        $this->deleteJson("/api/v1/locations/{$first}")
+            ->assertConflict()
+            ->assertJsonPath('message', 'This is your Primary Location. Make another location the Primary before deleting this one.');
+
+        $this->postJson("/api/v1/locations/{$second}/primary")->assertOk()->assertJsonPath('message', 'Port Depot is now your Primary Location.');
+        $this->assertSame([$second], $user->locations()->where('is_primary', true)->pluck('id')->all());
+
+        $this->postJson("/api/v1/locations/{$first}/deactivate")->assertOk()->assertJsonPath('data.is_active', false);
+
+        // Only an active location becomes the Primary; a turned-off one comes back on.
+        $this->postJson("/api/v1/locations/{$first}/primary")->assertConflict()->assertJsonPath('message', 'Activate this location before making it the Primary.');
+        $this->postJson("/api/v1/locations/{$first}/activate")->assertOk()->assertJsonPath('data.is_active', true);
+        $this->postJson("/api/v1/locations/{$first}/primary")->assertOk();
+        $this->assertSame([$first], $user->locations()->where('is_primary', true)->pluck('id')->all());
+    }
+
+    public function test_status_actions_are_only_for_the_businesss_own_locations(): void
+    {
+        $theirs = $this->locationOf(User::factory()->create());
+        $this->signIn(User::factory()->create());
+
+        foreach (['activate', 'deactivate', 'primary'] as $action) {
+            $this->postJson("/api/v1/locations/{$theirs->id}/{$action}")->assertNotFound();
+        }
+
+        $this->assertTrue($theirs->fresh()->is_active);
     }
 
     /* ---------------------------------------------------------- delete */
@@ -423,8 +498,10 @@ class LocationsApiTest extends TestCase
     public function test_each_write_is_logged_once_by_name(): void
     {
         $user = User::factory()->create();
+        $this->locationOf($user, ['name' => 'Head Office', 'is_primary' => true]);
         $this->signIn($user);
 
+        // Not the Primary - the Head Office is - so it can be deleted.
         $id = $this->postJson('/api/v1/locations', $this->payload())->json('data.id');
         $this->putJson("/api/v1/locations/{$id}", $this->payload(['name' => 'Port Depot']))->assertOk();
         $this->deleteJson("/api/v1/locations/{$id}")->assertOk();

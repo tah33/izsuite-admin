@@ -305,7 +305,7 @@ class PurchasesLiteTest extends TestCase
 
         $this->deleteJson("/api/v1/contacts/{$this->supplier->id}")->assertStatus(409)->assertJsonPath('message', 'This contact is on purchases, so it cannot be deleted. Deactivate it instead.');
         $this->deleteJson("/api/v1/items/{$this->paper->id}")->assertStatus(409)->assertJsonPath('message', 'This item is on purchases, so it cannot be deleted. Deactivate it instead.');
-        $this->deleteJson("/api/v1/locations/{$location->id}")->assertStatus(409)->assertJsonPath('message', 'Purchases were made at this location, so it cannot be deleted.');
+        $this->deleteJson("/api/v1/locations/{$location->id}")->assertStatus(409)->assertJsonPath('message', 'Purchases were made at this location, so it cannot be deleted. Deactivate it instead.');
         $this->deleteJson("/api/v1/tax-rates/{$this->vat->id}")->assertStatus(409)->assertJsonPath('message', 'This tax is on purchases, so it cannot be deleted. Deactivate it instead.');
 
         // Once a purchase is recorded, the base currency is its totals' and stays.

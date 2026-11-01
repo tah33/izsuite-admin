@@ -179,6 +179,7 @@ class AppSystemTest extends TestCase
         // No currencies are set up here, so the business is on the fallback, USD.
         $this->assertSame([
             'id'              => $this->workspace->id,
+            'business_id'     => $this->workspace->businessId(),
             'name'            => 'Main Business',
             'package'         => ['name' => 'Billing Starter'],
             'base_currency'   => 'USD',

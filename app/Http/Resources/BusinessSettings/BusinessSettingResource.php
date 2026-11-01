@@ -16,6 +16,10 @@ class BusinessSettingResource extends JsonResource
 
         return [
             'business_name'              => $this->business_name,
+            'trading_name'               => $this->trading_name,
+            'registration_number'        => $this->registration_number,
+            'legal_structure'            => $this->legal_structure,
+            'industry'                   => $this->industry,
 
             // Y-m-d, which is what an <input type="date"> takes as its value -
             // not the full timestamp the date cast would serialise to.
@@ -26,11 +30,13 @@ class BusinessSettingResource extends JsonResource
             'website'                    => $this->website,
             'business_contact_number'    => $this->business_contact_number,
             'alternate_contact_number'   => $this->alternate_contact_number,
+            'email'                      => $this->email,
+            'address_line_1'             => $this->address_line_1,
+            'address_line_2'             => $this->address_line_2,
             'country'                    => $this->country,
             'state'                      => $this->state,
             'city'                       => $this->city,
             'zip_code'                   => $this->zip_code,
-            'landmark'                   => $this->landmark,
             'timezone'                   => $this->timezone,
             'tax_1_name'                 => $this->tax_1_name,
             'tax_1_no'                   => $this->tax_1_no,

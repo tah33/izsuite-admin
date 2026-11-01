@@ -95,6 +95,12 @@ class Workspace extends Model
         return array_values(array_unique([$this->base_currency, ...($this->additional_currencies ?? [])]));
     }
 
+    /** The business's ID as people quote it (Doc 11 section 4): BW-000012. */
+    public function businessId(): string
+    {
+        return sprintf('BW-%06d', $this->id);
+    }
+
     public function usesTaxes(): bool
     {
         return $this->tax_mode === self::TAXES_ENABLED;

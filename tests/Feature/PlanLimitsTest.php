@@ -42,9 +42,11 @@ class PlanLimitsTest extends TestCase
 
     public function test_a_starter_business_has_one_location(): void
     {
-        $this->postJson('/api/v1/locations', ['name' => 'Main Location'])->assertCreated();
+        $place = fn (string $name, string $code) => ['name' => $name, 'code' => $code, 'country' => 'BD', 'timezone' => 'Asia/Dhaka'];
 
-        $this->postJson('/api/v1/locations', ['name' => 'Chattogram Branch'])
+        $this->postJson('/api/v1/locations', $place('Main Location', 'MAIN'))->assertCreated();
+
+        $this->postJson('/api/v1/locations', $place('Chattogram Branch', 'CTG'))
             ->assertForbidden()
             ->assertJsonPath('message', 'Billing Starter includes one location. Upgrade the plan to add another.');
 
@@ -52,7 +54,7 @@ class PlanLimitsTest extends TestCase
 
         // On a plan without a limit it can grow.
         $this->businessOf($this->user)->package()->associate(Package::where('key', 'standard')->sole())->save();
-        $this->postJson('/api/v1/locations', ['name' => 'Chattogram Branch'])->assertCreated();
+        $this->postJson('/api/v1/locations', $place('Chattogram Branch', 'CTG'))->assertCreated();
         $this->getJson('/api/v1/business-settings/usage')->assertJsonPath('data.locations', ['used' => 2, 'limit' => null]);
     }
 

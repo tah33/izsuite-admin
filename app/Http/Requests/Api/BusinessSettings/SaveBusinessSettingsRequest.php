@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api\BusinessSettings;
 
 use App\Models\Admin\Language;
 use App\Models\User\BusinessSetting;
+use App\Support\Countries;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -15,8 +16,10 @@ class SaveBusinessSettingsRequest extends FormRequest
     }
 
     /**
-     * Every field the business_settings table marks NOT NULL is required here,
-     * because the Settings > Business form writes the whole row in one go.
+     * The business profile (Doc 11 section 4): its name, country, language
+     * and time zone are required - the rest, the address among it, may be
+     * left empty. The form writes the whole row in one go. The country is a
+     * code, as a contact's is.
      *
      * The language must be one an admin has left active - the same list GET
      * /languages hands the form. The business's currency is not here: it is
@@ -31,17 +34,23 @@ class SaveBusinessSettingsRequest extends FormRequest
     {
         return [
             'business_name'              => ['required', 'string', 'max:255'],
+            'trading_name'               => ['nullable', 'string', 'max:150'],
+            'registration_number'        => ['nullable', 'string', 'max:100'],
+            'legal_structure'            => ['nullable', Rule::in(BusinessSetting::LEGAL_STRUCTURES)],
+            'industry'                   => ['nullable', 'string', 'max:100'],
             'start_date'                 => ['nullable', 'date_format:Y-m-d'],
             'language'                   => ['required', 'string', Rule::exists(Language::class, 'code')->where('is_active', true)],
             'logo'                       => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'website'                    => ['nullable', 'url:http,https', 'max:255'],
             'business_contact_number'    => ['nullable', 'string', 'max:30'],
             'alternate_contact_number'   => ['nullable', 'string', 'max:30'],
-            'country'                    => ['required', 'string', 'max:100'],
-            'state'                      => ['required', 'string', 'max:100'],
-            'city'                       => ['required', 'string', 'max:100'],
-            'zip_code'                   => ['required', 'string', 'max:20'],
-            'landmark'                   => ['required', 'string', 'max:255'],
+            'email'                      => ['nullable', 'email', 'max:255'],
+            'address_line_1'             => ['nullable', 'string', 'max:255'],
+            'address_line_2'             => ['nullable', 'string', 'max:255'],
+            'country'                    => ['required', 'string', Rule::in(Countries::codes())],
+            'state'                      => ['nullable', 'string', 'max:100'],
+            'city'                       => ['nullable', 'string', 'max:100'],
+            'zip_code'                   => ['nullable', 'string', 'max:20'],
 
             // all_with_bc, not the default group: the time zone dropdown is
             // built from the browser's own list, which still uses names like
@@ -63,6 +72,7 @@ class SaveBusinessSettingsRequest extends FormRequest
     {
         return [
             'timezone'   => 'time zone',
+            'zip_code'   => 'postal code',
             'tax_1_no'   => 'tax 1 number',
             'tax_2_no'   => 'tax 2 number',
         ];
@@ -71,9 +81,11 @@ class SaveBusinessSettingsRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'language.exists' => 'Choose one of the available languages.',
-            'logo.mimes'      => 'The logo must be a JPG, PNG or WebP image.',
-            'logo.image'      => 'The logo must be a JPG, PNG or WebP image.',
+            'language.exists'    => 'Choose one of the available languages.',
+            'country.in'         => 'Choose the country from the list.',
+            'legal_structure.in' => 'Choose a business type from the list.',
+            'logo.mimes'         => 'The logo must be a JPG, PNG or WebP image.',
+            'logo.image'         => 'The logo must be a JPG, PNG or WebP image.',
         ];
     }
 }
