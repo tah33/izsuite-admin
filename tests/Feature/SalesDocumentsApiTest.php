@@ -87,19 +87,31 @@ class SalesDocumentsApiTest extends TestCase
 
         $this->postJson('/api/v1/sales/invoices', $this->invoice(['contact_id' => $supplier->id]))
             ->assertJsonValidationErrors(['contact_id' => 'Paper Mill is only a supplier. Choose a customer, or make them one on their contact page.']);
-        $this->postJson('/api/v1/sales/invoices', $this->invoice(['lines' => []]))->assertJsonValidationErrors(['lines' => 'Add at least one line.']);
         $this->postJson('/api/v1/sales/invoices', $this->invoice($line(['quantity' => '0', 'unit_price' => '-1'])))
             ->assertJsonValidationErrors(['lines.0.quantity' => 'The quantity must be more than zero.', 'lines.0.unit_price' => 'A price cannot be negative. Returns and reductions are credit notes.']);
         $this->postJson('/api/v1/sales/invoices', $this->invoice($line(['item_id' => $bought->id])))->assertJsonValidationErrors(['lines.0.item_id' => 'Printer Paper is only purchased, so it cannot be sold.']);
         $this->postJson('/api/v1/sales/invoices', $this->invoice($line(['item_id' => $retired->id])))->assertJsonValidationErrors(['lines.0.item_id' => 'Old Desk is inactive.']);
         $this->postJson('/api/v1/sales/invoices', $this->invoice($line(['tax_rate_id' => $input->id])))->assertJsonValidationErrors(['lines.0.tax_rate_id' => 'Choose one of your sales taxes.']);
         $this->postJson('/api/v1/sales/invoices', $this->invoice($line(['discount_value' => '120'])))->assertJsonValidationErrors(['lines.0.discount_value' => 'A percentage discount is at most 100%.']);
-        $this->postJson('/api/v1/sales/quotations', $this->invoice())->assertJsonValidationErrors(['expiry_date' => 'Choose until when it is valid.']);
 
         $business->salesSetting()->create(['line_discounts' => false]);
         $this->postJson('/api/v1/sales/invoices', $this->invoice())->assertJsonValidationErrors(['lines.0.discount_value' => 'Line discounts are turned off in Settings > Sales.']);
 
         $this->assertSame(0, SalesDocument::count());
+    }
+
+    public function test_a_draft_may_be_kept_half_filled_in_and_is_asked_for_the_rest_when_issued_or_sent(): void
+    {
+        $empty = $this->postJson('/api/v1/sales/invoices', ['lines' => []])->assertCreated()->json('data');
+
+        $this->assertSame(['draft', '2026-10-28', 'USD', null], [$empty['status'], $empty['document_date'], $empty['currency'], $empty['contact_id']]);
+        $this->postJson("/api/v1/sales/invoices/{$empty['id']}/issue")->assertStatus(409)->assertJsonPath('message', 'Choose the customer first.');
+
+        $lineless = $this->draft('invoices', ['lines' => []]);
+        $this->postJson("/api/v1/sales/invoices/{$lineless}/issue")->assertStatus(409)->assertJsonPath('message', 'Add at least one line first.');
+
+        $undated = $this->postJson('/api/v1/sales/quotations', $this->invoice())->assertCreated()->json('data.id');
+        $this->postJson("/api/v1/sales/quotations/{$undated}/send")->assertStatus(409)->assertJsonPath('message', 'Choose until when it is valid first.');
     }
 
     public function test_the_lists_filter_by_status_search_and_date_and_count_expired_quotations(): void

@@ -89,7 +89,10 @@ class SaveSalesDocumentRequest extends FormRequest
      * that is never negative (Doc 08 section 4) - returns are credit notes.
      *
      * A draft needs none of it - SalesDocumentFlow asks for what is missing
-     * when it is issued or sent - but what it does fill in must be valid.
+     * when it is issued or sent - but what it does fill in must be valid. A
+     * currency other than the base comes with its rate even on a draft: kept
+     * without one, it would be issued at 1 whenever the business has no rate
+     * entered for its date.
      */
     public function rules(): array
     {
@@ -108,7 +111,7 @@ class SaveSalesDocumentRequest extends FormRequest
             'expiry_date'            => [$must((bool) $type?->isOffer()), 'nullable', 'date_format:Y-m-d', 'after_or_equal:document_date'],
             'payment_terms'          => ['nullable', 'integer', 'min:0', 'max:365'],
             'currency'               => ['required', 'string', Rule::in($workspace?->currencyCodes() ?? [])],
-            'exchange_rate'          => [$must($foreign), 'nullable', 'numeric', 'decimal:0,8', 'gt:0', 'max:9999999999'],
+            'exchange_rate'          => [Rule::requiredIf($foreign), 'nullable', 'numeric', 'decimal:0,8', 'gt:0', 'max:9999999999'],
             'customer_reference'     => ['nullable', 'string', 'max:100'],
             'sales_reference'        => ['nullable', 'string', 'max:100'],
             'discount_type'          => ['nullable', Rule::in(['percent', 'amount'])],
