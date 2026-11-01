@@ -2,9 +2,12 @@
 
 namespace App\Services\Api\Documents;
 
+use App\Enums\PurchaseStatus;
+use App\Models\User\Purchase;
 use App\Models\User\SalesDocument;
 use App\Models\User\Workspace;
 use App\Repositories\User\DocumentIndexRepository;
+use App\Services\Purchases\PurchaseRules;
 use App\Services\Sales\SalesDocumentRules;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\BusinessCalendar;
@@ -24,6 +27,7 @@ class DocumentIndexService
     public function __construct(
         protected DocumentIndexRepository $documentIndexRepository,
         protected SalesDocumentRules $salesDocumentRules,
+        protected PurchaseRules $purchaseRules,
         protected BusinessCalendar $businessCalendar,
     ) {}
 
@@ -43,7 +47,10 @@ class DocumentIndexService
     {
         $apps = WorkspaceApps::for($workspace);
 
-        return ['sales' => $apps->row('sales')?->app?->name ?? 'Sales'];
+        return [
+            'sales'     => $apps->row('sales')?->app?->name ?? 'Sales',
+            'purchases' => $apps->row('purchases')?->app?->name ?? 'Purchases',
+        ];
     }
 
     /** The list as the page shows it, whole, as CSV (Doc 06 section 9: Export List). */
@@ -67,8 +74,24 @@ class DocumentIndexService
         return Csv::download('documents-'.$today.'.csv', ['Date', 'Number', 'Type', 'Contact', 'Source Application', 'Status', 'Payment Status', 'Total', 'Currency', 'Balance Due', 'Location'], $rows);
     }
 
-    private function csvRow(SalesDocument $document, string $today, array $sources): array
+    private function csvRow(SalesDocument|Purchase $document, string $today, array $sources): array
     {
+        if ($document instanceof Purchase) {
+            return [
+                $document->document_date,
+                $document->number ?? 'Draft',
+                'Purchase',
+                $document->supplier_snapshot['name'] ?? $document->contact?->name ?? '',
+                $sources['purchases'] ?? '',
+                $document->status->label(),
+                ucwords(str_replace('_', ' ', (string) $document->payment_status)),
+                (string) $document->grand_total,
+                $document->currency,
+                $document->status === PurchaseStatus::Recorded ? (string) $document->balance_due : '',
+                $document->location?->name ?? '',
+            ];
+        }
+
         return [
             $document->document_date,
             $document->number ?? 'Draft',

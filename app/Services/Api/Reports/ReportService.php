@@ -140,7 +140,7 @@ class ReportService
 
         $max = self::MAX_PERIODS[$filters['group_by']] ?? null;
 
-        if ($key === 'sales-summary' && $max && count($this->reportPeriod->buckets($from, $to, $filters['group_by'])) >= $max) {
+        if (in_array($key, ['sales-summary', 'purchase-summary'], true) && $max && count($this->reportPeriod->buckets($from, $to, $filters['group_by'])) >= $max) {
             throw ValidationException::withMessages(['group_by' => 'That range is too long to show '.($filters['group_by'] === 'day' ? 'day by day' : 'week by week').'. Group it by month instead.']);
         }
 
@@ -148,8 +148,11 @@ class ReportService
             $filters['contact'] = $filters['contact_id'] ? $this->contactRepository->findFor($workspace, (int) $filters['contact_id']) : null;
 
             if (! $filters['contact']) {
-                throw ValidationException::withMessages(['contact_id' => 'Choose the customer to make the statement for.']);
+                throw ValidationException::withMessages(['contact_id' => 'Choose the contact to make the statement for.']);
             }
+
+            // One side at a time: as asked, else the contact's own - a contact who is both, as a customer.
+            $filters['side'] = $input['side'] ?? ($filters['contact']->isCustomer() ? 'customer' : 'supplier');
         }
 
         if ($filters['item_id']) {

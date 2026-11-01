@@ -2,6 +2,8 @@
 
 namespace App\Services\Reports;
 
+use App\Models\User\Purchase;
+use App\Models\User\PurchaseLine;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesDocumentLine;
 use App\Support\Decimal;
@@ -10,11 +12,11 @@ use App\Support\Decimal;
  * The sums Reports and the Dashboard share (Doc 07 sections 19 and 20, Doc 02
  * section 10), so the same sale is the same figure everywhere:
  *
- * - net sales leave separately identified tax out;
+ * - net sales - and purchases - leave separately identified tax out;
  * - a total across currencies is in the base currency, at the rate each
  *   transaction kept - never today's;
  * - what an invoice owed on a day is InvoiceSettlement's balance, from what
- *   had settled it by then.
+ *   had settled it by then - and a purchase's, PurchaseSettlement's.
  */
 class SalesFigures
 {
@@ -27,11 +29,12 @@ class SalesFigures
     }
 
     /**
-     * A line's net sales in the base currency: its amount after its share of
+     * A line's net amount in the base currency: its amount after its share of
      * the document discount - shared by amount, as SalesCalculator shares it -
-     * less the tax an inclusive price holds. Expects issuedLines()'s columns.
+     * less the tax an inclusive price holds. Expects issuedLines()'s - or
+     * recordedLines()'s - columns.
      */
-    public function lineNet(SalesDocumentLine $line): string
+    public function lineNet(SalesDocumentLine|PurchaseLine $line): string
     {
         $amount   = Decimal::of($line->amount);
         $subtotal = Decimal::of($line->subtotal);
@@ -58,6 +61,14 @@ class SalesFigures
         return bccomp($owed, '0', 2) > 0 ? $owed : '0.00';
     }
 
+    /** What a purchase from purchasesAsOf() still owed that day: its total less payments and tax withheld - never below zero. */
+    public function purchaseOwedAsOf(Purchase $purchase): string
+    {
+        $owed = bcsub(bcsub((string) $purchase->grand_total, Decimal::of($purchase->paid_by), 2), Decimal::of($purchase->withheld_by), 2);
+
+        return bccomp($owed, '0', 2) > 0 ? $owed : '0.00';
+    }
+
     /** Days past its due date on $asOf: 0 while it is not due. */
     public function daysOverdue(?string $dueDate, string $asOf): int
     {
@@ -78,6 +89,12 @@ class SalesFigures
             $daysOverdue <= 90 => '61-90 Days Overdue',
             default            => 'More Than 90 Days Overdue',
         };
+    }
+
+    /** The supplier as the purchase names them: as it kept them, or as they are. */
+    public function supplierName(Purchase $purchase): string
+    {
+        return $purchase->supplier_snapshot['name'] ?? $purchase->contact?->name ?? 'Unknown supplier';
     }
 
     /** The customer as the document names them: as it kept them, or as they are. */

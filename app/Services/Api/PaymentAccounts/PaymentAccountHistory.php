@@ -51,7 +51,7 @@ class PaymentAccountHistory
                 AccountTransaction::LABELS[$row->type] ?? $row->type,
                 $row->reference,
                 $row->contact?->name,
-                $row->document?->number,
+                $row->document?->number ?? $row->purchase?->number,
                 $row->direction === AccountTransaction::IN ? $row->amount : null,
                 $row->direction === AccountTransaction::OUT ? $row->amount : null,
                 $account->currency,

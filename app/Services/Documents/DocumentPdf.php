@@ -2,8 +2,10 @@
 
 namespace App\Services\Documents;
 
+use App\Models\User\Purchase;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesPayment;
+use App\Models\User\SupplierPayment;
 use App\Models\User\Workspace;
 
 /**
@@ -29,6 +31,18 @@ class DocumentPdf
     public function receipt(Workspace $workspace, SalesPayment $payment): array
     {
         return $this->made($this->documentRenderer->receipt($workspace, $payment));
+    }
+
+    /** @return array{0: string, 1: string} */
+    public function purchase(Workspace $workspace, Purchase $purchase): array
+    {
+        return $this->made($this->documentRenderer->purchase($workspace, $purchase));
+    }
+
+    /** @return array{0: string, 1: string} */
+    public function supplierVoucher(Workspace $workspace, SupplierPayment $payment): array
+    {
+        return $this->made($this->documentRenderer->supplierVoucher($workspace, $payment));
     }
 
     private function made(RenderedDocument $rendered): array

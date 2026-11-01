@@ -6,6 +6,7 @@ use App\Models\User\AccountTransaction;
 use App\Models\User\PaymentAccount;
 use App\Models\User\Workspace;
 use App\Repositories\User\AccountTransactionRepository;
+use App\Repositories\User\PurchaseReportRepository;
 use App\Repositories\User\SalesReportRepository;
 use App\Services\Reports\Report;
 use App\Services\Reports\ReportPeriod;
@@ -30,9 +31,10 @@ class AccountTransactionsReport extends Report
         SalesReportRepository $sales,
         SalesFigures $figures,
         ReportPeriod $period,
+        PurchaseReportRepository $purchases,
         protected AccountTransactionRepository $transactions,
     ) {
-        parent::__construct($sales, $figures, $period);
+        parent::__construct($sales, $figures, $period, $purchases);
     }
 
     public function build(Workspace $workspace, array $filters): ReportTable
@@ -69,14 +71,18 @@ class AccountTransactionsReport extends Report
                 'type'      => AccountTransaction::LABELS[$row->type] ?? Str::headline($row->type),
                 'reference' => $row->reference,
                 'contact'   => $row->contact?->name,
-                'document'  => $row->document?->number,
+                'document'  => $row->document?->number ?? $row->purchase?->number,
                 'money_in'  => $in ? (string) $row->amount : null,
                 'money_out' => $in ? null : (string) $row->amount,
                 'balance'   => $balance,
                 'status'    => Str::headline($row->status),
                 'location'  => $row->location?->name,
-                // A payment or refund opens its receipt; a transfer, the account's page, where its dialog is.
-                'link'      => str_starts_with($row->type, 'customer_') ? "/sales/payments/{$row->source_id}" : "/payment-accounts/{$account->id}",
+                // A payment or refund opens its receipt, a supplier payment its voucher; a transfer, the account's page, where its dialog is.
+                'link'      => match (true) {
+                    str_starts_with($row->type, 'customer_') => "/sales/payments/{$row->source_id}",
+                    $row->type === 'supplier_payment'        => "/purchases/payments/{$row->source_id}",
+                    default                                  => "/payment-accounts/{$account->id}",
+                },
             ];
         }
 

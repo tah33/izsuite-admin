@@ -47,6 +47,7 @@ use App\Http\Controllers\Api\PurchaseAttachmentController;
 use App\Http\Controllers\Api\PurchaseController;
 use App\Http\Controllers\Api\PurchaseFlowController;
 use App\Http\Controllers\Api\PurchaseFormController;
+use App\Http\Controllers\Api\PurchasePdfController;
 use App\Http\Controllers\Api\PurchaseSettingController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SalesConversionController;
@@ -62,6 +63,8 @@ use App\Http\Controllers\Api\SalesPaymentController;
 use App\Http\Controllers\Api\SalesPdfController;
 use App\Http\Controllers\Api\SalesRefundController;
 use App\Http\Controllers\Api\SalesSettingController;
+use App\Http\Controllers\Api\SupplierPaymentAttachmentController;
+use App\Http\Controllers\Api\SupplierPaymentController;
 use App\Http\Controllers\Api\TaxRateController;
 use App\Http\Controllers\Api\UserStaffController;
 use App\Http\Controllers\Api\WithholdingTaxController;
@@ -437,10 +440,20 @@ Route::prefix('v1')->group(function () {
      | Purchases Lite (Doc 09): what the business buys from its suppliers. A
      | draft is added, changed and deleted; recording it numbers it and makes
      | it owed (Pay Later); a recorded one is voided, never deleted. The form
-     | asks for what a new purchase starts with and its totals. Another
+     | asks for what a new purchase starts with and its totals. A recorded
+     | purchase takes supplier payments, each with its voucher; Payments Made
+     | lists them, and a payment is reversed, never deleted. Another
      | business's records are a 404.
      | -------------------------------------------------------- */
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:purchases'])->prefix('purchases')->group(function () {
+        Route::get('/payments', [SupplierPaymentController::class, 'index'])->name('api.purchases.payments.index');
+        Route::get('/payments/{id}', [SupplierPaymentController::class, 'show'])->whereNumber('id')->name('api.purchases.payments.show');
+        Route::post('/payments/{id}/reverse', [SupplierPaymentController::class, 'reverse'])->whereNumber('id')->name('api.purchases.payments.reverse');
+        Route::get('/payments/{id}/pdf', [PurchasePdfController::class, 'voucher'])->whereNumber('id')->name('api.purchases.payments.pdf');
+        Route::get('/payments/{id}/attachments', [SupplierPaymentAttachmentController::class, 'index'])->whereNumber('id')->name('api.purchases.payments.attachments.index');
+        Route::post('/payments/{id}/attachments', [SupplierPaymentAttachmentController::class, 'store'])->whereNumber('id')->name('api.purchases.payments.attachments.store');
+        Route::delete('/payments/{id}/attachments/{fileId}', [SupplierPaymentAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.purchases.payments.attachments.destroy');
+
         Route::get('/', [PurchaseController::class, 'index'])->name('api.purchases.index');
         Route::post('/', [PurchaseController::class, 'store'])->name('api.purchases.store');
         Route::get('/defaults', [PurchaseFormController::class, 'defaults'])->name('api.purchases.defaults');
@@ -451,6 +464,8 @@ Route::prefix('v1')->group(function () {
         Route::delete('/{id}', [PurchaseController::class, 'destroy'])->whereNumber('id')->name('api.purchases.destroy');
         Route::post('/{id}/record', [PurchaseFlowController::class, 'record'])->whereNumber('id')->name('api.purchases.record');
         Route::post('/{id}/void', [PurchaseFlowController::class, 'void'])->whereNumber('id')->name('api.purchases.void');
+        Route::post('/{id}/payments', [SupplierPaymentController::class, 'store'])->whereNumber('id')->name('api.purchases.payments.store');
+        Route::get('/{id}/pdf', [PurchasePdfController::class, 'purchase'])->whereNumber('id')->name('api.purchases.pdf');
         Route::get('/{id}/attachments', [PurchaseAttachmentController::class, 'index'])->whereNumber('id')->name('api.purchases.attachments.index');
         Route::post('/{id}/attachments', [PurchaseAttachmentController::class, 'store'])->whereNumber('id')->name('api.purchases.attachments.store');
         Route::delete('/{id}/attachments/{fileId}', [PurchaseAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.purchases.attachments.destroy');

@@ -5,6 +5,7 @@ namespace App\Services\Api\Taxes;
 use App\Models\User\WithholdingTax;
 use App\Models\User\Workspace;
 use App\Repositories\User\SalesPaymentRepository;
+use App\Repositories\User\SupplierPaymentRepository;
 use App\Repositories\User\WithholdingTaxRepository;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Database\Eloquent\Collection;
@@ -24,6 +25,7 @@ class WithholdingTaxService
     public function __construct(
         protected WithholdingTaxRepository $withholdingTaxRepository,
         protected SalesPaymentRepository $salesPaymentRepository,
+        protected SupplierPaymentRepository $supplierPaymentRepository,
     ) {}
 
     public function list(Workspace $workspace): Collection
@@ -48,7 +50,7 @@ class WithholdingTaxService
         $rate    = $this->findOwned($workspace, $id);
         $columns = $this->columns($data);
 
-        if (bccomp((string) $columns['rate'], (string) $rate->rate, 4) !== 0 && $this->salesPaymentRepository->usesWithholdingTax($rate)) {
+        if (bccomp((string) $columns['rate'], (string) $rate->rate, 4) !== 0 && $this->withheld($rate)) {
             throw ValidationException::withMessages([
                 'rate' => 'This rate was withheld on payments, so its percentage stays as it is. Add a new rate and switch this one off instead.',
             ]);
@@ -68,7 +70,7 @@ class WithholdingTaxService
     {
         $rate = $this->findOwned($workspace, $id);
 
-        if ($this->salesPaymentRepository->usesWithholdingTax($rate)) {
+        if ($this->withheld($rate)) {
             throw new HttpResponseException(response()->json([
                 'message' => 'This rate was withheld on payments, so it cannot be deleted. Deactivate it instead.',
             ], 409));
@@ -77,6 +79,12 @@ class WithholdingTaxService
         $this->withholdingTaxRepository->delete($rate);
 
         ActivityLogService::record('deleted', "Deleted withholding tax {$this->quoted($rate)}", $rate, ['source' => 'api']);
+    }
+
+    /** Whether a customer or a supplier payment withheld at $rate. */
+    private function withheld(WithholdingTax $rate): bool
+    {
+        return $this->salesPaymentRepository->usesWithholdingTax($rate) || $this->supplierPaymentRepository->usesWithholdingTax($rate);
     }
 
     /** The request's fields as the table holds them: what it applies to as one column per side. */

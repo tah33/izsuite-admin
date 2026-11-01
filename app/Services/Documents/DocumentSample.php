@@ -3,17 +3,22 @@
 namespace App\Services\Documents;
 
 use App\Enums\DocumentType;
+use App\Enums\PurchaseStatus;
 use App\Enums\SalesDocumentStatus;
 use App\Models\User\PaymentAccount;
+use App\Models\User\Purchase;
+use App\Models\User\PurchaseLine;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesDocumentLine;
 use App\Models\User\SalesPayment;
+use App\Models\User\SupplierPayment;
 use App\Models\User\Workspace;
 use App\Repositories\User\SalesSettingRepository;
 use App\Services\Api\Sales\SalesSnapshots;
 use App\Services\Shared\BusinessCalendar;
 use App\Support\Decimal;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Arr;
 
 /**
  * A made-up document for a template's preview (Doc 11 section 20): the
@@ -121,6 +126,78 @@ class DocumentSample
         return $payment;
     }
 
+    /**
+     * A sample purchase from a sample supplier, recorded and part paid, drawn
+     * with $template: the sample lines, without a combo's parts or warranty.
+     */
+    public function purchase(Workspace $workspace, array $template): Purchase
+    {
+        $sale     = $this->sales($workspace, DocumentType::Invoice, []);
+        $today    = $this->businessCalendar->today($workspace);
+        $paid     = Decimal::round(bcdiv((string) $sale->grand_total, '2', 4));
+
+        $purchase = (new Purchase)->forceFill([
+            'id'                      => 0,
+            'number'                  => $this->documentNumbers->preview($workspace, $this->documentNumbers->scheme($workspace, DocumentType::Purchase), $today),
+            'status'                  => PurchaseStatus::Recorded,
+            'payment_status'          => 'partially_paid',
+            'document_date'           => $today->toDateString(),
+            'due_date'                => $today->addDays(30)->toDateString(),
+            'currency'                => $workspace->base_currency,
+            'exchange_rate'           => '1',
+            'price_tax_mode'          => 'exclusive',
+            'supplier_invoice_number' => 'SUP-77120',
+            'supplier_invoice_date'   => $today->subDay()->toDateString(),
+            'reference'               => 'Office fit-out',
+            'subtotal'                => $sale->subtotal,
+            'discount_total'          => '0.00',
+            'tax_total'               => $sale->tax_total,
+            'grand_total'             => $sale->grand_total,
+            'base_grand_total'        => $sale->grand_total,
+            'taxes'                   => $sale->taxes,
+            'amount_paid'             => $paid,
+            'withholding_amount'      => '0.00',
+            'balance_due'             => bcsub((string) $sale->grand_total, $paid, 2),
+            'notes'                   => 'Delivered to the main office.',
+            'business_snapshot'       => $this->salesSnapshots->business($workspace, null),
+            'supplier_snapshot'       => $this->supplier(),
+            'template_snapshot'       => $template,
+        ]);
+
+        $purchase->setRelation('lines', $sale->lines->map(fn (SalesDocumentLine $line) => (new PurchaseLine)->forceFill(Arr::except($line->getAttributes(), ['warranty', 'components']))));
+        $purchase->setRelation('location', null);
+        $purchase->setRelation('contact', null);
+
+        return $purchase;
+    }
+
+    /** A sample voucher for a payment on a sample purchase, drawn with $template. */
+    public function supplierVoucher(Workspace $workspace, array $template): SupplierPayment
+    {
+        $purchase = $this->purchase($workspace, []);
+        $amount   = (string) $purchase->amount_paid;
+
+        $payment = (new SupplierPayment)->forceFill([
+            'id'                 => 0,
+            'number'             => $this->documentNumbers->preview($workspace, $this->documentNumbers->scheme($workspace, DocumentType::SupplierVoucher), $this->businessCalendar->today($workspace)),
+            'status'             => SupplierPayment::COMPLETED,
+            'payment_date'       => $purchase->document_date,
+            'method'             => 'bank_transfer',
+            'reference'          => 'TRX-40917',
+            'amount'             => $amount,
+            'applied_amount'     => $amount,
+            'withholding_amount' => '0.00',
+            'balance_after'      => $purchase->balance_due,
+            'template_snapshot'  => $template,
+        ]);
+
+        $payment->setRelation('purchase', $purchase);
+        $payment->setRelation('contact', null);
+        $payment->setRelation('account', (new PaymentAccount)->forceFill(['name' => 'Main Bank Account', 'currency' => $workspace->base_currency]));
+
+        return $payment;
+    }
+
     private function line(array $line, bool $taxed): SalesDocumentLine
     {
         [$name, $description, $quantity, $unit, $price, $discount, $warranty, $components] = $line;
@@ -142,6 +219,21 @@ class DocumentSample
             'warranty'        => $warranty,
             'components'      => $components,
         ]);
+    }
+
+    private function supplier(): array
+    {
+        return [
+            'number'           => null,
+            'name'             => 'Sample Supplies Ltd.',
+            'trading_name'     => null,
+            'contact_person'   => 'Sam Rivera',
+            'email'            => 'billing@example.com',
+            'phone'            => '+1 555 0142',
+            'billing_address'  => ['8 Mill Lane', 'Riverside', '40118'],
+            'shipping_address' => null,
+            'tax_number'       => null,
+        ];
     }
 
     private function customer(): array

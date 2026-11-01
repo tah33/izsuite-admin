@@ -121,7 +121,7 @@ class ReportActionsTest extends TestCase
         $this->assertSame('1 Oct 2026 - 31 Oct 2026 · VAT 15%', $details['period']);
         $this->assertSame(
             ['INV-00001', 'Invoice', 'Uddin Traders', 'VAT 15%', 'USD', '270.00', '40.50', '270.00', '40.50', "/sales/invoices/{$invoice}"],
-            array_values(array_intersect_key($details['rows'][0], array_flip(['number', 'type', 'customer', 'tax', 'currency', 'taxable', 'tax_amount', 'base_taxable', 'base_tax', 'link']))),
+            array_values(array_intersect_key($details['rows'][0], array_flip(['number', 'type', 'contact', 'tax', 'currency', 'taxable', 'tax_amount', 'base_taxable', 'base_tax', 'link']))),
         );
         $this->assertSame('40.50', $details['totals']['base_tax']);
     }

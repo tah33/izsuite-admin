@@ -5,7 +5,7 @@ namespace App\Enums;
 /**
  * The kinds of document a business numbers (Doc 11 section 21), each with its
  * own run of numbers: Sales Lite's and Purchases Lite's so far; expenses and
- * the payment vouchers join with their apps.
+ * their payment vouchers join with their app.
  */
 enum DocumentType: string
 {
@@ -15,6 +15,7 @@ enum DocumentType: string
     case CreditNote = 'credit_note';
     case CustomerReceipt = 'customer_receipt';
     case Purchase = 'purchase';
+    case SupplierVoucher = 'supplier_voucher';
 
     public function label(): string
     {
@@ -25,6 +26,7 @@ enum DocumentType: string
             self::CreditNote      => 'Credit Note',
             self::CustomerReceipt => 'Customer Payment Receipt',
             self::Purchase        => 'Purchase',
+            self::SupplierVoucher => 'Supplier Payment Voucher',
         };
     }
 
@@ -38,10 +40,11 @@ enum DocumentType: string
             self::CreditNote      => 'credit notes',
             self::CustomerReceipt => 'customer payment receipts',
             self::Purchase        => 'purchases',
+            self::SupplierVoucher => 'supplier payment vouchers',
         };
     }
 
-    /** The prefix a business starts with: QUO-00001, INV-00001, PUR-00001. */
+    /** The prefix a business starts with: QUO-00001, INV-00001, PUR-00001, SPV-00001. */
     public function defaultPrefix(): string
     {
         return match ($this) {
@@ -51,19 +54,14 @@ enum DocumentType: string
             self::CreditNote      => 'CN-',
             self::CustomerReceipt => 'RCT-',
             self::Purchase        => 'PUR-',
+            self::SupplierVoucher => 'SPV-',
         };
     }
 
     /** The app family that makes it: its numbering shows while that app is on. */
     public function family(): string
     {
-        return $this === self::Purchase ? 'purchases' : 'sales';
-    }
-
-    /** Whether Settings > Documents & Templates has a template for it - a purchase's PDF comes with its payments. */
-    public function hasTemplate(): bool
-    {
-        return $this !== self::Purchase;
+        return $this === self::Purchase || $this === self::SupplierVoucher ? 'purchases' : 'sales';
     }
 
     /** The sales documents Sales Lite makes, by the part of their address that names them: /sales/invoices. */

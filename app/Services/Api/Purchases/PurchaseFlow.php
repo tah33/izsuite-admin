@@ -13,6 +13,7 @@ use App\Repositories\User\PurchaseSettingRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Api\Sales\SalesSnapshots;
 use App\Services\Documents\DocumentNumbers;
+use App\Services\Documents\DocumentTemplates;
 use App\Services\Purchases\PurchaseRules;
 use App\Services\Shared\ActivityLogService;
 use Carbon\CarbonImmutable;
@@ -24,9 +25,9 @@ use Illuminate\Validation\ValidationException;
  * A purchase's status changes (Doc 09 sections 9 and 10), each allowed only
  * where PurchaseRules lists it:
  *
- * - record: a draft becomes recorded - numbered, its business and supplier
- *   kept as they are now, its amounts locked, and its grand total owed to the
- *   supplier until it is paid (Pay Later);
+ * - record: a draft becomes recorded - numbered, its business, supplier and
+ *   template kept as they are now, its amounts locked, and its grand total
+ *   owed to the supplier until it is paid (Pay Later);
  * - void: a recorded purchase is cancelled, while nothing has paid it.
  *
  * Before it is recorded, its supplier must still be a supplier and each
@@ -46,6 +47,7 @@ class PurchaseFlow
         protected PurchaseRules $purchaseRules,
         protected SalesSnapshots $salesSnapshots,
         protected DocumentNumbers $documentNumbers,
+        protected DocumentTemplates $documentTemplates,
     ) {}
 
     /** $duplicate is validated (see RecordPurchaseRequest): confirmed, and a reason. */
@@ -68,6 +70,7 @@ class PurchaseFlow
             'balance_due'       => $purchase->grand_total,
             'business_snapshot' => $this->salesSnapshots->business($workspace, $purchase->location),
             'supplier_snapshot' => $this->salesSnapshots->customer($purchase->contact),
+            'template_snapshot' => $this->documentTemplates->snapshot($workspace, DocumentType::Purchase),
             'duplicate_reason'  => $duplicate['reason'] ?? null,
             'recorded_at'       => now(),
             'updated_by'        => $user->id,

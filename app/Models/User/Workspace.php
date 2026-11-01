@@ -215,6 +215,12 @@ class Workspace extends Model
         return $this->hasMany(SalesPayment::class);
     }
 
+    /** What it paid its suppliers against their purchases (Purchases Lite). */
+    public function supplierPayments(): HasMany
+    {
+        return $this->hasMany(SupplierPayment::class);
+    }
+
     public function accountTransfers(): HasMany
     {
         return $this->hasMany(AccountTransfer::class);

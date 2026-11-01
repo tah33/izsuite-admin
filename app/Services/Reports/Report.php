@@ -4,6 +4,7 @@ namespace App\Services\Reports;
 
 use App\Enums\TaxTreatment;
 use App\Models\User\Workspace;
+use App\Repositories\User\PurchaseReportRepository;
 use App\Repositories\User\SalesReportRepository;
 use App\Support\Decimal;
 
@@ -20,6 +21,7 @@ abstract class Report
         protected SalesReportRepository $sales,
         protected SalesFigures $figures,
         protected ReportPeriod $period,
+        protected PurchaseReportRepository $purchases,
     ) {}
 
     abstract public function build(Workspace $workspace, array $filters): ReportTable;
@@ -43,17 +45,17 @@ abstract class Report
 
     /**
      * Whether tax columns show (section 16): while the business uses taxes,
-     * or has tax on documents from before it stopped.
+     * or has tax on sales documents or purchases from before it stopped.
      */
     protected function taxesShown(Workspace $workspace): bool
     {
-        return $workspace->usesTaxes() || $this->sales->hasTaxHistory($workspace);
+        return $workspace->usesTaxes() || $this->sales->hasTaxHistory($workspace) || $this->purchases->hasTaxHistory($workspace);
     }
 
-    /** Whether tax withheld shows: while withholding is on, or anything was withheld. */
+    /** Whether tax withheld shows: while withholding is on, or anything was withheld - from a customer's payment or a supplier's. */
     protected function withholdingShown(Workspace $workspace): bool
     {
-        return (bool) $workspace->withholding_tax || $this->sales->hasWithholdingHistory($workspace);
+        return (bool) $workspace->withholding_tax || $this->sales->hasWithholdingHistory($workspace) || $this->purchases->hasWithholdingHistory($workspace);
     }
 
     /**

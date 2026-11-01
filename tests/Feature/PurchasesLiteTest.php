@@ -126,7 +126,7 @@ class PurchasesLiteTest extends TestCase
             ->assertJsonPath('data.payment_status', 'unpaid')
             ->assertJsonPath('data.balance_due', '69.50')
             ->assertJsonPath('data.overdue', false)
-            ->assertJsonPath('data.actions', ['void']);
+            ->assertJsonPath('data.actions', ['record_payment', 'void']);
 
         // What it says about the supplier stays as it was recorded.
         $this->supplier->update(['name' => 'Karim Stores Ltd']);
@@ -222,7 +222,7 @@ class PurchasesLiteTest extends TestCase
         $this->assertSame([$overdue], $ids('?date_to=2026-09-30'));
 
         $rows = collect($this->getJson('/api/v1/purchases')->json('data'))->keyBy('id');
-        $this->assertSame([['edit', 'record', 'delete'], ['void'], []], [$rows[$draft]['actions'], $rows[$overdue]['actions'], $rows[$voided]['actions']]);
+        $this->assertSame([['edit', 'record', 'delete'], ['record_payment', 'void'], []], [$rows[$draft]['actions'], $rows[$overdue]['actions'], $rows[$voided]['actions']]);
         $this->assertSame([true, false], [$rows[$overdue]['overdue'], $rows[$draft]['overdue']]);
         $this->assertSame(['Karim Stores', null], [$rows[$current]['supplier'], $rows[$current]['location']]);
 

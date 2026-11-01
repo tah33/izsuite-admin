@@ -33,6 +33,8 @@ class Purchase extends Model
 
     public const PAYMENT_UNPAID = 'unpaid';
 
+    public const PAYMENT_PARTIALLY_PAID = 'partially_paid';
+
     public const PAYMENT_PAID = 'paid';
 
     /** Everything the form or a status change sets; totals are SalesCalculator's. */
@@ -134,5 +136,11 @@ class Purchase extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(PurchaseLine::class)->orderBy('position')->orderBy('id');
+    }
+
+    /** What has been paid to its supplier, oldest first - reversed payments too. */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(SupplierPayment::class)->orderBy('payment_date')->orderBy('id');
     }
 }

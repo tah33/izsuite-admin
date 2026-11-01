@@ -23,8 +23,8 @@ use Illuminate\Support\LazyCollection;
  */
 class PurchaseRepository
 {
-    /** What a purchase's page and edit form show with it. */
-    private const SHOWN_WITH = ['lines', 'contact', 'location:id,name'];
+    /** What a purchase's page and edit form show with it - its payments with the account each came out of. */
+    private const SHOWN_WITH = ['lines', 'contact', 'location:id,name', 'payments.account:id,name,currency'];
 
     public function paginateFor(Workspace $workspace, array $filters, int $perPage, string $today): LengthAwarePaginator
     {

@@ -5,6 +5,7 @@ namespace App\Services\Reports\Sales;
 use App\Enums\DocumentType;
 use App\Models\User\SalesPayment;
 use App\Models\User\Workspace;
+use App\Repositories\User\PurchaseReportRepository;
 use App\Repositories\User\SalesReportRepository;
 use App\Services\Documents\PaymentDetails;
 use App\Services\Reports\Report;
@@ -14,16 +15,17 @@ use App\Services\Reports\SalesFigures;
 use App\Support\Decimal;
 
 /**
- * Contact Statement, customer side (Doc 07 section 17): the balance a
- * customer started the period with, then each issued invoice (a debit),
- * credit note and tax they withheld (credits), payment and refund, with the
- * balance running. In one currency, or - for all of them - in the base
- * currency, each row keeping its own currency and amount. Operational, not a
- * ledger statement, and kept in date order. Its notes end with where to pay:
- * the accounts in that currency shown to customers (Doc 05 section 9). The
- * supplier side comes with Purchases.
+ * Contact Statement (Doc 07 section 17), one side at a time. A customer's:
+ * the balance they started the period with, then each issued invoice (a
+ * debit), credit note and tax they withheld (credits), payment and refund,
+ * with the balance running - its notes end with where to pay, the accounts
+ * in that currency shown to customers (Doc 05 section 9). A supplier's: each
+ * recorded purchase (a debit - owed to them), tax withheld from what was paid
+ * them (a credit) and each payment made. In one currency, or - for all of
+ * them - in the base currency, each row keeping its own currency and amount.
+ * Operational, not a ledger statement, and kept in date order.
  *
- * Expects $filters['contact'], the customer.
+ * Expects $filters['contact'] and $filters['side']: customer or supplier.
  */
 class ContactStatementReport extends Report
 {
@@ -33,18 +35,20 @@ class ContactStatementReport extends Report
         SalesReportRepository $sales,
         SalesFigures $figures,
         ReportPeriod $period,
+        PurchaseReportRepository $purchases,
         protected PaymentDetails $paymentDetails,
     ) {
-        parent::__construct($sales, $figures, $period);
+        parent::__construct($sales, $figures, $period, $purchases);
     }
 
     public function build(Workspace $workspace, array $filters): ReportTable
     {
         $contact  = $filters['contact'];
+        $supplier = ($filters['side'] ?? 'customer') === 'supplier';
         $currency = $filters['currency'] ?? null;
         $shown    = $currency ?? $workspace->base_currency;
-        $entries  = $this->entries($workspace, $contact->id, $currency, $filters['to']);
-        $owed     = $this->owed($workspace, $contact->id, $currency, $filters['to']);
+        $entries  = $supplier ? $this->supplierEntries($workspace, $contact->id, $currency, $filters['to']) : $this->entries($workspace, $contact->id, $currency, $filters['to']);
+        $owed     = $supplier ? $this->owedToSupplier($workspace, $contact->id, $currency, $filters['to']) : $this->owed($workspace, $contact->id, $currency, $filters['to']);
         $opening  = '0.00';
         $rows     = [];
 
@@ -74,7 +78,7 @@ class ContactStatementReport extends Report
 
         return new ReportTable(
             title: "Statement for {$contact->name}",
-            period: $this->between($filters).' · '.($currency ? $currency : "All currencies in {$shown}"),
+            period: $this->between($filters).' · '.($currency ? $currency : "All currencies in {$shown}").($contact->isCustomer() && $contact->isSupplier() ? ($supplier ? ' · As supplier' : ' · As customer') : ''),
             columns: array_values(array_filter([
                 $this->column('date', 'Date', 'date'),
                 $this->column('type', 'Type'),
@@ -93,15 +97,17 @@ class ContactStatementReport extends Report
             totals: ['date' => 'Total', ...$this->totals($rows, ['debit', 'credit', 'payment']), 'balance' => $balance],
             summary: [
                 ['label' => 'Opening Balance', 'value' => $opening, 'currency' => $shown],
-                ['label' => 'Invoiced', 'value' => Decimal::sum(array_column(array_filter($rows, fn (array $row) => $row['invoice']), 'debit')), 'currency' => $shown],
+                ['label' => $supplier ? 'Purchased' : 'Invoiced', 'value' => Decimal::sum(array_column(array_filter($rows, fn (array $row) => $row['invoice']), 'debit')), 'currency' => $shown],
                 ['label' => 'Credits', 'value' => Decimal::sum(array_column($rows, 'credit')), 'currency' => $shown],
                 ['label' => 'Payments', 'value' => Decimal::sum(array_column($rows, 'payment')), 'currency' => $shown],
                 ['label' => 'Closing Balance', 'value' => $balance, 'currency' => $shown],
             ],
-            notes: [
-                'Debits are invoices and refunds paid out; credits are credit notes and tax the customer withheld. Drafts, cancelled and void documents and reversed payments are left out.',
-                ...array_map(fn (array $account) => $this->paymentDetails->line($account), $this->paymentDetails->for($workspace, $shown, null)),
-            ],
+            notes: $supplier
+                ? ['Debits are purchases recorded - what is owed to the supplier; credits are tax withheld from what was paid them. Drafts, void purchases and reversed payments are left out.']
+                : [
+                    'Debits are invoices and refunds paid out; credits are credit notes and tax the customer withheld. Drafts, cancelled and void documents and reversed payments are left out.',
+                    ...array_map(fn (array $account) => $this->paymentDetails->line($account), $this->paymentDetails->for($workspace, $shown, null)),
+                ],
             sortable: false,
         );
     }
@@ -147,9 +153,49 @@ class ContactStatementReport extends Report
         return $entries;
     }
 
+    /** Every movement on the supplier's account up to $to, oldest first: purchases, then payments on the day. */
+    private function supplierEntries(Workspace $workspace, int $contactId, ?string $currency, string $to): array
+    {
+        $entries = [];
+
+        foreach ($this->purchases->recorded($workspace, self::DAWN, $to, ['contact_id' => $contactId, 'currency' => $currency]) as $purchase) {
+            $entries[] = $this->entry($purchase->document_date, 0, $purchase->id, 'Purchase', $purchase->number, $purchase->due_date, [
+                'currency' => $purchase->currency,
+                'original' => (string) $purchase->grand_total,
+                'debit'    => $currency ? (string) $purchase->grand_total : Decimal::round(Decimal::of($purchase->base_grand_total)),
+                'invoice'  => $purchase->id,
+                'link'     => "/purchases/{$purchase->id}",
+            ]);
+        }
+
+        foreach ($this->purchases->paymentsMade($workspace, self::DAWN, $to, ['contact_id' => $contactId, 'document_currency' => $currency]) as $payment) {
+            $entries[] = $this->entry($payment->payment_date, 2, $payment->id, 'Payment', $payment->number, null, [
+                'currency' => $payment->purchase?->currency,
+                'original' => Decimal::round(Decimal::of($payment->applied_amount)),
+                'credit'   => $currency ? Decimal::round(Decimal::of($payment->withholding_amount)) : $this->figures->base($payment->withholding_amount, $payment->purchase?->exchange_rate ?? '1'),
+                'payment'  => $currency ? Decimal::round(Decimal::of($payment->applied_amount)) : Decimal::round(Decimal::of($payment->base_amount)),
+                'link'     => "/purchases/payments/{$payment->id}",
+            ]);
+        }
+
+        usort($entries, fn (array $a, array $b) => [$a['date'], $a['order'], $a['id']] <=> [$b['date'], $b['order'], $b['id']]);
+
+        return $entries;
+    }
+
     private function entry(string $date, int $order, int $id, string $type, ?string $number, ?string $dueDate, array $amounts): array
     {
         return ['date' => $date, 'order' => $order, 'id' => $id, 'type' => $type, 'number' => $number, 'due_date' => $dueDate, 'debit' => '0.00', 'credit' => '0.00', 'payment' => '0.00', 'invoice' => null, ...$amounts];
+    }
+
+    /** What each of the supplier's purchases was still owed at $to, by id - in its currency, or the base one. */
+    private function owedToSupplier(Workspace $workspace, int $contactId, ?string $currency, string $to): array
+    {
+        return $this->purchases->purchasesAsOf($workspace, $to, ['contact_id' => $contactId, 'currency' => $currency])
+            ->mapWithKeys(fn ($purchase) => [$purchase->id => $currency
+                ? $this->figures->purchaseOwedAsOf($purchase)
+                : $this->figures->base($this->figures->purchaseOwedAsOf($purchase), $purchase->exchange_rate)])
+            ->all();
     }
 
     /** What each of the customer's invoices still owed at $to, by id - in its currency, or the base one. */

@@ -2,6 +2,9 @@
 
 namespace App\Http\Resources\Documents;
 
+use App\Enums\PurchaseStatus;
+use App\Models\User\Purchase;
+use App\Services\Purchases\PurchaseRules;
 use App\Services\Sales\SalesDocumentRules;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -10,10 +13,11 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * A row of the Documents page (Doc 06 section 4): what it is, where it came
  * from and where it stands - status and payment status apart (section 7) -
  * its total in its own currency, and its balance where it has one. `kind`
- * is the address of its source record: /sales/invoices/12. `actions` and
- * `delivery` are what its source record allows now (section 9) - the page
- * opens that record to do them. Expects contact, location and - for a
- * credit note - source loaded.
+ * is the address of its source record: /sales/invoices/12 - or
+ * "purchases", /purchases/7. `actions` and `delivery` are what its source
+ * record allows now (section 9) - the page opens that record to do them. A
+ * purchase is sent nowhere. Expects contact, location and - for a credit
+ * note - source loaded.
  */
 class DocumentIndexResource extends JsonResource
 {
@@ -25,6 +29,10 @@ class DocumentIndexResource extends JsonResource
 
     public function toArray(Request $request): array
     {
+        if ($this->resource instanceof Purchase) {
+            return $this->purchase();
+        }
+
         $rules = app(SalesDocumentRules::class);
 
         return [
@@ -44,6 +52,30 @@ class DocumentIndexResource extends JsonResource
             'location'       => $this->location?->name,
             'actions'        => $rules->actions($this->resource, $this->today),
             'delivery'       => $rules->delivery($this->resource, $this->today),
+        ];
+    }
+
+    private function purchase(): array
+    {
+        $rules = app(PurchaseRules::class);
+
+        return [
+            'id'             => $this->id,
+            'kind'           => 'purchases',
+            'number'         => $this->number,
+            'revision'       => 0,
+            'document_date'  => $this->document_date,
+            'contact'        => $this->supplier_snapshot['name'] ?? $this->contact?->name,
+            'source'         => $this->sources['purchases'] ?? null,
+            'status'         => $this->status->value,
+            'payment_status' => $this->payment_status,
+            'overdue'        => $rules->overdue($this->resource, $this->today),
+            'grand_total'    => $this->grand_total,
+            'currency'       => $this->currency,
+            'balance_due'    => $this->status === PurchaseStatus::Recorded ? $this->balance_due : null,
+            'location'       => $this->location?->name,
+            'actions'        => $rules->actions($this->resource),
+            'delivery'       => [],
         ];
     }
 }

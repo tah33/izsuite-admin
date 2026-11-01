@@ -4,6 +4,8 @@ namespace App\Services\Documents;
 
 use App\Enums\DocumentType;
 use App\Enums\SalesDocumentStatus;
+use App\Models\User\Purchase;
+use App\Models\User\PurchaseLine;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesDocumentLine;
 use App\Models\User\SalesPayment;
@@ -17,7 +19,8 @@ use Illuminate\Support\Str;
  *
  * A column only shows when its template keeps it and a line uses it: a
  * document without tax shows no tax column and no zero tax (Doc 06 section
- * 16). An issued invoice shows what settled it and what it still owes.
+ * 16). An issued invoice shows what settled it and what it still owes. A
+ * purchase's lines are laid out the same way (see PurchaseSheet).
  */
 class DocumentSheet
 {
@@ -53,24 +56,24 @@ class DocumentSheet
     }
 
     /** @return array{quantity: bool, unit_price: bool, discount: bool, tax: bool} */
-    public function columns(SalesDocument $document, array $template): array
+    public function columns(SalesDocument|Purchase $document, array $template): array
     {
         $kept = $template['line_columns'] ?? [];
 
         return [
             'quantity'   => in_array('quantity', $kept, true),
             'unit_price' => in_array('unit_price', $kept, true),
-            'discount'   => in_array('discount', $kept, true) && $document->lines->contains(fn (SalesDocumentLine $line) => ! Decimal::isZero((string) $line->discount_amount)),
-            'tax'        => in_array('tax', $kept, true) && $document->lines->contains(fn (SalesDocumentLine $line) => $line->tax_name !== null),
+            'discount'   => in_array('discount', $kept, true) && $document->lines->contains(fn (SalesDocumentLine|PurchaseLine $line) => ! Decimal::isZero((string) $line->discount_amount)),
+            'tax'        => in_array('tax', $kept, true) && $document->lines->contains(fn (SalesDocumentLine|PurchaseLine $line) => $line->tax_name !== null),
         ];
     }
 
-    public function lines(SalesDocument $document, DocumentFormat $format, array $template): array
+    public function lines(SalesDocument|Purchase $document, DocumentFormat $format, array $template): array
     {
         $visible = $template['visible_fields'] ?? [];
         $money   = fn ($amount) => $format->money((string) $amount, $document->currency);
 
-        return $document->lines->map(fn (SalesDocumentLine $line) => [
+        return $document->lines->map(fn (SalesDocumentLine|PurchaseLine $line) => [
             'name'       => $line->name,
             'notes'      => array_values(array_filter([
                 in_array('descriptions', $visible, true) ? $line->description : null,
@@ -181,7 +184,7 @@ class DocumentSheet
     }
 
     /** "15%" for a charged rate; the treatment's name - "Exempt" - for one that charges nothing. */
-    private function rate(string $rate, ?string $treatment): string
+    public function rate(string $rate, ?string $treatment): string
     {
         if ($treatment && $treatment !== 'standard') {
             return '('.Str::headline($treatment).')';

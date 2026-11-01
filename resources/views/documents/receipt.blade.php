@@ -1,5 +1,7 @@
-{{-- A customer payment receipt (Doc 06 section 13): who paid, how much, for
-     what, and what was left to pay after it (DocumentRenderer). --}}
+{{-- A customer payment receipt or a supplier payment voucher (Doc 06
+     section 13): who paid or was paid, how much, for what, and what was left
+     to pay after it (DocumentRenderer). Its words come with it: $heading,
+     $partyLabel, $amountLabel and $signatureLabel. --}}
 <!DOCTYPE html>
 <html lang="{{ $lang }}">
 <head>
@@ -9,15 +11,15 @@
 </head>
 <body>
     <main class="sheet">
-        @include('documents.partials.header', ['label' => 'Payment Receipt'])
+        @include('documents.partials.header', ['label' => $heading])
 
         <section class="received">
-            <div class="label">{{ __('Received From', [], $lang) }}</div>
+            <div class="label">{{ __($partyLabel, [], $lang) }}</div>
             <div class="customer-name">{{ $customer['name'] ?? '' }}</div>
             @foreach ($customer['billing_address'] ?? [] as $line)
                 <div class="muted">{{ $line }}</div>
             @endforeach
-            <div class="label" style="margin-top: 12px">{{ __('Amount Received', [], $lang) }}</div>
+            <div class="label" style="margin-top: 12px">{{ __($amountLabel, [], $lang) }}</div>
             <div class="received-amount">{{ $amount }}</div>
         </section>
 
@@ -33,7 +35,7 @@
         @if ($signature)
             <div class="signature">
                 <img src="{{ $signature }}" alt="">
-                <div class="muted">{{ __('Received By', [], $lang) }}</div>
+                <div class="muted">{{ __($signatureLabel, [], $lang) }}</div>
             </div>
         @endif
     </main>

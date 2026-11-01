@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\Documents;
 
 use App\Enums\DocumentType;
+use App\Enums\PurchaseStatus;
 use App\Enums\SalesDocumentStatus;
 use App\Repositories\User\DocumentIndexRepository;
 use Illuminate\Foundation\Http\FormRequest;
@@ -24,12 +25,12 @@ class ListDocumentsRequest extends FormRequest
      */
     public function rules(): array
     {
-        $statuses = [...array_map(fn (SalesDocumentStatus $status) => $status->value, SalesDocumentStatus::cases()), SalesDocumentStatus::EXPIRED];
+        $statuses = [...array_map(fn (SalesDocumentStatus $status) => $status->value, SalesDocumentStatus::cases()), SalesDocumentStatus::EXPIRED, PurchaseStatus::Recorded->value];
 
         return [
             'search'         => ['nullable', 'string', 'max:100'],
             'source'         => ['nullable', Rule::in(DocumentIndexRepository::SOURCES)],
-            'type'           => ['nullable', Rule::in(array_map(fn (DocumentType $type) => $type->value, DocumentType::KINDS))],
+            'type'           => ['nullable', Rule::in([...array_map(fn (DocumentType $type) => $type->value, DocumentType::KINDS), DocumentType::Purchase->value])],
             'status'         => ['nullable', Rule::in($statuses)],
             'payment_status' => ['nullable', Rule::in(['not_applicable', 'unpaid', 'partially_paid', 'paid', 'refunded', 'available', 'partially_applied', 'fully_applied'])],
             'overdue'        => ['nullable', 'boolean'],

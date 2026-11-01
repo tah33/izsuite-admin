@@ -124,12 +124,12 @@ class DocumentsAndDashboardTest extends TestCase
             ->assertJsonPath('data.accounts.0.balance', '100.00')
             ->json('data');
 
-        $this->assertCount(31, $data['sales']['chart']);
-        $this->assertSame(['label' => '28 Oct 2026', 'value' => '295.00'], $data['sales']['chart'][27]);
-        $this->assertSame(['Quotation', 'Customer Payment', 'Invoice'], array_column($data['sales']['recent'], 'type'));
-        $this->assertSame('/sales/payments/1', $data['sales']['recent'][1]['link']);
+        $this->assertCount(31, $data['chart']);
+        $this->assertSame(['label' => '28 Oct 2026', 'sales' => '295.00', 'purchases' => null], $data['chart'][27]);
+        $this->assertSame(['Quotation', 'Customer Payment', 'Invoice'], array_column($data['recent'], 'type'));
+        $this->assertSame('/sales/payments/1', $data['recent'][1]['link']);
 
-        $this->getJson('/api/v1/dashboard?range=this_year')->assertJsonPath('data.from', '2026-01-01')->assertJsonCount(12, 'data.sales.chart');
+        $this->getJson('/api/v1/dashboard?range=this_year')->assertJsonPath('data.from', '2026-01-01')->assertJsonCount(12, 'data.chart');
         $this->getJson('/api/v1/dashboard?date_from=2026-09-01&date_to=2026-09-30')->assertJsonPath('data.sales.net_sales', '0.00')->assertJsonPath('data.accounts.0.balance', '0.00');
         $this->getJson('/api/v1/dashboard?date_from=2026-09-01')->assertUnprocessable()->assertJsonValidationErrors('date_to');
     }

@@ -21,8 +21,8 @@ class ItemResource extends JsonResource
      * component_total: what they add up to at today's sales prices, which is
      * its price when it is priced as their sum. `in_use` says a sales
      * document or a purchase holds it, so it can only be deactivated, not
-     * deleted (Doc 04 section 18), and `in_sales` that a sales document does;
-     * one just made is neither. Expects category, brand, salesTax,
+     * deleted (Doc 04 section 18), `in_sales` that a sales document does and
+     * `in_purchases` that a purchase does; one just made is neither. Expects category, brand, salesTax,
      * purchaseTax, image and components.component loaded.
      */
     public function toArray(Request $request): array
@@ -80,6 +80,7 @@ class ItemResource extends JsonResource
             'is_active'             => $this->is_active,
             'in_use'                => (bool) ($this->in_sales ?? false) || (bool) ($this->in_purchases ?? false),
             'in_sales'              => (bool) ($this->in_sales ?? false),
+            'in_purchases'          => (bool) ($this->in_purchases ?? false),
         ];
     }
 

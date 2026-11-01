@@ -11,10 +11,11 @@ use Illuminate\Support\Arr;
 /**
  * A purchase whole - for its page and its edit form (Doc 09): the header with
  * the supplier's own invoice number and date, the lines, the totals and tax
- * breakdown, what it still owes, and the actions its status allows now (see
- * PurchaseRules). The supplier - their name, billing address and tax number
- * - is as they were when it was recorded; a draft shows them as they are.
- * Expects lines, contact and location loaded.
+ * breakdown, what it still owes and the payments made to it, and the actions
+ * its status allows now (see PurchaseRules). The supplier - their name,
+ * billing address and tax number - is as they were when it was recorded; a
+ * draft shows them as they are. Expects lines, contact and location loaded,
+ * and payments with their accounts for the payment history.
  */
 class PurchaseResource extends JsonResource
 {
@@ -54,6 +55,7 @@ class PurchaseResource extends JsonResource
             'lines'                   => PurchaseLineResource::collection($this->lines),
             'subtotal'                => $this->subtotal,
             'discount_total'          => $this->discount_total,
+            'net_total'               => $this->net_total,
             'grand_total'             => $this->grand_total,
             'base_grand_total'        => $this->base_grand_total,
             'taxes'                   => $this->taxes ?? [],
@@ -63,6 +65,7 @@ class PurchaseResource extends JsonResource
             'notes'                   => $this->notes,
             'status_reason'           => $this->status_reason,
             'duplicate_reason'        => $this->duplicate_reason,
+            'payments'                => SupplierPaymentListResource::collection($this->whenLoaded('payments')),
         ];
     }
 }

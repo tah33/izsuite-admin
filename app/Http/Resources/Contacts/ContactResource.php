@@ -12,8 +12,8 @@ class ContactResource extends JsonResource
      * currency of null meaning the base currency, payment terms in days, and
      * a shipping address of nulls when it is the billing one. `in_use` says a
      * sales document or a purchase names it, so it can only be deactivated,
-     * not deleted (Doc 03 section 13), and `in_sales` that a sales document
-     * does; one just made is neither.
+     * not deleted (Doc 03 section 13), `in_sales` that a sales document does
+     * and `in_purchases` that a purchase does; one just made is neither.
      */
     public function toArray(Request $request): array
     {
@@ -57,6 +57,7 @@ class ContactResource extends JsonResource
             'is_active'                => $this->is_active,
             'in_use'                   => (bool) ($this->in_sales ?? false) || (bool) ($this->in_purchases ?? false),
             'in_sales'                 => (bool) ($this->in_sales ?? false),
+            'in_purchases'             => (bool) ($this->in_purchases ?? false),
         ];
     }
 }

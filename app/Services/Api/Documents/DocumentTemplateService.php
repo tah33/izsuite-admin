@@ -38,13 +38,13 @@ class DocumentTemplateService
     {
         $saved = $this->documentTemplateRepository->getFor($workspace);
 
-        return array_map(fn (DocumentType $type) => $this->row($saved->get($type->value) ?? DocumentTemplate::defaultsFor($type)), $this->documentTypes->templated($workspace));
+        return array_map(fn (DocumentType $type) => $this->row($saved->get($type->value) ?? DocumentTemplate::defaultsFor($type)), $this->documentTypes->for($workspace));
     }
 
     /** The document type named in the address - 404 for one that is not, whose app is off, or that has no template yet. */
     public function type(Workspace $workspace, string $value): DocumentType
     {
-        return $this->documentTypes->named($workspace, $value, true);
+        return $this->documentTypes->named($workspace, $value);
     }
 
     /** $data is validated (see SaveDocumentTemplateRequest). */
@@ -68,9 +68,12 @@ class DocumentTemplateService
         $template = $this->documentTemplateRepository->findFor($workspace, $type);
         $settings = [...$data, 'signature_file_id' => $template ? $this->documentTemplateRepository->signatureOf($template)?->id : null];
 
-        return $type === DocumentType::CustomerReceipt
-            ? $this->documentPdf->receipt($workspace, $this->documentSample->receipt($workspace, $settings))
-            : $this->documentPdf->sales($workspace, $this->documentSample->sales($workspace, $type, $settings));
+        return match ($type) {
+            DocumentType::CustomerReceipt => $this->documentPdf->receipt($workspace, $this->documentSample->receipt($workspace, $settings)),
+            DocumentType::Purchase        => $this->documentPdf->purchase($workspace, $this->documentSample->purchase($workspace, $settings)),
+            DocumentType::SupplierVoucher => $this->documentPdf->supplierVoucher($workspace, $this->documentSample->supplierVoucher($workspace, $settings)),
+            default                       => $this->documentPdf->sales($workspace, $this->documentSample->sales($workspace, $type, $settings)),
+        };
     }
 
     /**

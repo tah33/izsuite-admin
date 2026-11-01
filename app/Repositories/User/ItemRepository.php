@@ -28,7 +28,7 @@ class ItemRepository
         'image',
     ];
 
-    /** Whether a sales or a purchase line holds it - what ItemResource's `in_use` and `in_sales` are made of. */
+    /** Whether a sales or a purchase line holds it - what ItemResource's `in_use`, `in_sales` and `in_purchases` are made of. */
     private const USED_ON = ['salesLines as in_sales', 'purchaseLines as in_purchases'];
 
     /**

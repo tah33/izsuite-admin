@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Items;
 
+use App\Models\User\PurchaseLine;
 use App\Services\Sales\SalesDocumentRules;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -9,9 +10,10 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /**
  * A row of an item's related transactions (Doc 04 section 16): the line that
  * holds it - quantity, price and amount as the line kept them, in its
- * document's currency - and which document that is, for whom, and where it
- * stands. `kind` is the document's address: /sales/invoices/12. Expects
- * document.contact loaded.
+ * document's currency - and which document that is, for or from whom, and
+ * where it stands. `kind` is the document's address: /sales/invoices/12, or
+ * "purchases" for /purchases/7. Expects document.contact - a purchase line's
+ * purchase.contact - loaded.
  */
 class ItemTransactionResource extends JsonResource
 {
@@ -22,17 +24,19 @@ class ItemTransactionResource extends JsonResource
 
     public function toArray(Request $request): array
     {
-        $document = $this->document;
+        $bought   = $this->resource instanceof PurchaseLine;
+        $document = $bought ? $this->purchase : $this->document;
+        $snapshot = $bought ? $document->supplier_snapshot : $document->customer_snapshot;
 
         return [
             'id'            => $this->id,
             'document_id'   => $document->id,
-            'kind'          => $document->type->kind(),
+            'kind'          => $bought ? 'purchases' : $document->type->kind(),
             'number'        => $document->number,
-            'revision'      => $document->revision,
+            'revision'      => $bought ? 0 : $document->revision,
             'document_date' => $document->document_date,
-            'contact'       => $document->customer_snapshot['name'] ?? $document->contact?->name,
-            'status'        => app(SalesDocumentRules::class)->status($document, $this->today),
+            'contact'       => $snapshot['name'] ?? $document->contact?->name,
+            'status'        => $bought ? $document->status->value : app(SalesDocumentRules::class)->status($document, $this->today),
             'quantity'      => $this->quantity,
             'unit'          => $this->unit,
             'unit_price'    => $this->unit_price,

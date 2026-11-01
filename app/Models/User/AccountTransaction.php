@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
  * One money in or out of a payment account (Doc 05 sections 10 to 12): a row
- * of its history, written by the customer payment, refund or transfer it
- * records (`source`) and changed only through that.
+ * of its history, written by the customer payment, refund, supplier payment or
+ * transfer it records (`source`) and changed only through that.
  *
  * `amount` is always positive, in the account's currency; `direction` says
  * which way it went. Only a completed row counts towards the recorded
@@ -31,6 +31,7 @@ class AccountTransaction extends Model
         'customer_refund'  => self::OUT,
         'transfer_in'      => self::IN,
         'transfer_out'     => self::OUT,
+        'supplier_payment' => self::OUT,
     ];
 
     /** What each type is called in an export or a report. */
@@ -39,6 +40,7 @@ class AccountTransaction extends Model
         'customer_refund'  => 'Customer Refund',
         'transfer_in'      => 'Transfer In',
         'transfer_out'     => 'Transfer Out',
+        'supplier_payment' => 'Supplier Payment',
     ];
 
     protected $fillable = [
@@ -52,6 +54,7 @@ class AccountTransaction extends Model
         'contact_id',
         'location_id',
         'sales_document_id',
+        'purchase_id',
         'source_type',
         'source_id',
         'reference',
@@ -65,6 +68,7 @@ class AccountTransaction extends Model
         'contact_id'         => 'integer',
         'location_id'        => 'integer',
         'sales_document_id'  => 'integer',
+        'purchase_id'        => 'integer',
         'source_id'          => 'integer',
     ];
 
@@ -94,6 +98,12 @@ class AccountTransaction extends Model
     public function document(): BelongsTo
     {
         return $this->belongsTo(SalesDocument::class, 'sales_document_id');
+    }
+
+    /** The purchase a supplier payment paid. */
+    public function purchase(): BelongsTo
+    {
+        return $this->belongsTo(Purchase::class);
     }
 
     /** The payment, refund or transfer it records. */

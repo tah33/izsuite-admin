@@ -6,6 +6,7 @@ use App\Models\User\AccountTransaction;
 use App\Models\User\AccountTransfer;
 use App\Models\User\PaymentAccount;
 use App\Models\User\SalesPayment;
+use App\Models\User\SupplierPayment;
 use App\Models\User\Workspace;
 use App\Repositories\User\AccountTransactionRepository;
 use App\Services\Api\BusinessSetup\ExchangeRateService;
@@ -15,9 +16,9 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * The payment accounts' history as money moves (Doc 05 sections 10 to 14):
- * the row a payment or refund writes, the two a transfer writes, and their
- * status as those are reversed, completed or voided. Only completed rows count
- * towards a recorded balance.
+ * the row a customer payment, refund or supplier payment writes, the two a
+ * transfer writes, and their status as those are reversed, completed or
+ * voided. Only completed rows count towards a recorded balance.
  *
  * Also what money moving through an account must respect: an active account,
  * a date no earlier than its opening balance and no later than today, and a
@@ -49,6 +50,27 @@ class AccountLedger
             'source_type'        => $payment->getMorphClass(),
             'source_id'          => $payment->id,
             'reference'          => $payment->number ?? $payment->reference,
+            'created_by'         => $payment->created_by,
+        ]);
+    }
+
+    /** The row a supplier payment writes: money out, naming the purchase it paid. */
+    public function recordSupplierPayment(Workspace $workspace, SupplierPayment $payment): void
+    {
+        $this->accountTransactionRepository->create($workspace, [
+            'payment_account_id' => $payment->payment_account_id,
+            'transaction_date'   => $payment->payment_date,
+            'type'               => 'supplier_payment',
+            'direction'          => AccountTransaction::OUT,
+            'amount'             => $payment->amount,
+            'base_amount'        => $payment->base_amount,
+            'status'             => AccountTransaction::COMPLETED,
+            'contact_id'         => $payment->contact_id,
+            'location_id'        => $payment->location_id,
+            'purchase_id'        => $payment->purchase_id,
+            'source_type'        => $payment->getMorphClass(),
+            'source_id'          => $payment->id,
+            'reference'          => $payment->number,
             'created_by'         => $payment->created_by,
         ]);
     }

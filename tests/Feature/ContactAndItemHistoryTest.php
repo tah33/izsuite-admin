@@ -153,7 +153,7 @@ class ContactAndItemHistoryTest extends TestCase
         $this->getJson('/api/v1/sales/invoices?payment_status=outstanding')->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $owing);
         $this->getJson('/api/v1/sales/credit-notes?payment_status=outstanding')->assertUnprocessable();
 
-        $recent = $this->getJson('/api/v1/dashboard')->assertOk()->json('data.sales.recent');
+        $recent = $this->getJson('/api/v1/dashboard')->assertOk()->json('data.recent');
         $this->assertSame(['Sales Lite'], array_values(array_unique(array_column($recent, 'source'))));
     }
 }

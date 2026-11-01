@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Collection;
  */
 class ContactRepository
 {
-    /** Whether a sales document or a purchase names it - what ContactResource's `in_use` and `in_sales` are made of. */
+    /** Whether a sales document or a purchase names it - what ContactResource's `in_use`, `in_sales` and `in_purchases` are made of. */
     private const USED_ON = ['salesDocuments as in_sales', 'purchases as in_purchases'];
 
     /**
