@@ -3,6 +3,8 @@
 namespace App\Services\Api\Dashboard;
 
 use App\Enums\DocumentType;
+use App\Models\User\Expense;
+use App\Models\User\ExpensePayment;
 use App\Models\User\PaymentAccount;
 use App\Models\User\Purchase;
 use App\Models\User\SalesDocument;
@@ -10,6 +12,7 @@ use App\Models\User\SalesPayment;
 use App\Models\User\SupplierPayment;
 use App\Models\User\Workspace;
 use App\Repositories\User\AccountTransactionRepository;
+use App\Repositories\User\ExpenseReportRepository;
 use App\Repositories\User\PaymentAccountRepository;
 use App\Repositories\User\PurchaseReportRepository;
 use App\Repositories\User\SalesReportRepository;
@@ -23,12 +26,13 @@ use App\Support\Decimal;
 
 /**
  * The Billing Starter Dashboard's figures (Doc 02, Doc 08 section 21, Doc 09
- * section 18) for a range - This Month unless told - and a location: Sales
- * Lite's cards and the invoices most overdue while Sales is on, the Purchases
- * card while Purchases is on, the Transaction Overview with a series for each
- * of them, the newest transactions of both, and each payment account's
- * balance. Totals are in the base currency; what is owed, and balances, as
- * they stood at the end of the range - or today, if it ends later.
+ * section 18, Doc 10 section 17) for a range - This Month unless told - and
+ * a location: Sales Lite's cards and the invoices most overdue while Sales
+ * is on, the Purchases card while Purchases is on, the Expenses card while
+ * Expenses is on, the Transaction Overview with a series for each of them,
+ * the newest transactions of all three, and each payment account's balance.
+ * Totals are in the base currency; what is owed, and balances, as they
+ * stood at the end of the range - or today, if it ends later.
  */
 class DashboardService
 {
@@ -40,6 +44,7 @@ class DashboardService
         protected ReportPeriod $reportPeriod,
         protected SalesReportRepository $salesReportRepository,
         protected PurchaseReportRepository $purchaseReportRepository,
+        protected ExpenseReportRepository $expenseReportRepository,
         protected SalesFigures $salesFigures,
         protected SalesTrendReport $salesTrendReport,
         protected OutstandingInvoicesReport $outstandingInvoicesReport,
@@ -57,7 +62,7 @@ class DashboardService
         $asOf    = min($to, $today);
         $filters = ['from' => $from, 'to' => $to, 'location_id' => $input['location_id'] ?? null];
         $apps    = WorkspaceApps::for($workspace);
-        $sources = array_filter(['sales' => $apps->row('sales')?->app?->name, 'purchases' => $apps->row('purchases')?->app?->name]);
+        $sources = array_filter(['sales' => $apps->row('sales')?->app?->name, 'purchases' => $apps->row('purchases')?->app?->name, 'expenses' => $apps->row('expenses')?->app?->name]);
         $on      = fn (string $family) => $apps->has($family) && isset($sources[$family]);
 
         return [
@@ -66,7 +71,10 @@ class DashboardService
             'as_of'     => $asOf,
             'sales'     => $on('sales') ? $this->sales($workspace, $filters, $asOf) : null,
             'purchases' => $on('purchases') ? $this->purchases($workspace, $filters) : null,
-            'chart'     => $on('sales') || $on('purchases') ? $this->chart($workspace, $filters, $on('sales'), $on('purchases')) : null,
+            'expenses'  => $on('expenses') ? $this->expenses($workspace, $filters) : null,
+            'chart'     => $on('sales') || $on('purchases') || $on('expenses')
+                ? $this->chart($workspace, $filters, $on('sales'), $on('purchases'), $on('expenses'))
+                : null,
             'recent'    => $this->recent($workspace, $filters['location_id'], $today, array_filter($sources, $on, ARRAY_FILTER_USE_KEY)),
             'accounts'  => $this->accounts($workspace, $asOf),
         ];
@@ -106,17 +114,38 @@ class DashboardService
     }
 
     /**
-     * The Transaction Overview (Doc 02 section 6): a row a period - by day,
-     * week or month as the range is long - with net sales and purchases,
-     * each without tax, and null for an app that is off.
+     * The Expenses card (Doc 02 section 3.5): what was spent - with the tax
+     * that cannot be claimed back, without the tax that can - and how many
+     * expenses were recorded.
      */
-    private function chart(Workspace $workspace, array $filters, bool $sales, bool $purchases): array
+    private function expenses(Workspace $workspace, array $filters): array
+    {
+        $expenses = $this->expenseReportRepository->recorded($workspace, $filters['from'], $filters['to'], $filters);
+
+        return [
+            'amount' => Decimal::sum($expenses->map(fn (Expense $expense) => $this->salesFigures->baseExpenseAmount($expense))),
+            'count'  => $expenses->count(),
+        ];
+    }
+
+    /**
+     * The Transaction Overview (Doc 02 section 6): a row a period - by day,
+     * week or month as the range is long - with net sales, purchases and
+     * expenses, each without the tax shown apart, and null for an app that
+     * is off.
+     */
+    private function chart(Workspace $workspace, array $filters, bool $sales, bool $purchases, bool $expenses): array
     {
         $grain = $this->reportPeriod->grain($filters['from'], $filters['to']);
         $rows  = [];
 
         foreach ($this->reportPeriod->buckets($filters['from'], $filters['to'], $grain) as $key) {
-            $rows[$key] = ['label' => $this->reportPeriod->label($key, $grain), 'sales' => $sales ? '0.00' : null, 'purchases' => $purchases ? '0.00' : null];
+            $rows[$key] = [
+                'label'     => $this->reportPeriod->label($key, $grain),
+                'sales'     => $sales ? '0.00' : null,
+                'purchases' => $purchases ? '0.00' : null,
+                'expenses'  => $expenses ? '0.00' : null,
+            ];
         }
 
         // Sales Trend has a row for each period too, in the same order.
@@ -134,6 +163,14 @@ class DashboardService
             }
         }
 
+        if ($expenses) {
+            foreach ($this->expenseReportRepository->recorded($workspace, $filters['from'], $filters['to'], $filters) as $expense) {
+                $key = $this->reportPeriod->bucket($expense->document_date, $grain);
+
+                $rows[$key]['expenses'] = bcadd($rows[$key]['expenses'], $this->salesFigures->baseExpenseAmount($expense), 2);
+            }
+        }
+
         return array_values($rows);
     }
 
@@ -148,6 +185,7 @@ class DashboardService
         return collect([
             ...(isset($sources['sales']) ? $this->recentSales($workspace, $locationId, $today, $sources['sales']) : []),
             ...(isset($sources['purchases']) ? $this->recentPurchases($workspace, $locationId, $sources['purchases']) : []),
+            ...(isset($sources['expenses']) ? $this->recentExpenses($workspace, $locationId, $sources['expenses']) : []),
         ])
             ->sortByDesc(fn (array $row) => [$row['date'], $row['created']])
             ->take(self::RECENT_SHOWN)
@@ -215,6 +253,37 @@ class DashboardService
         ]);
 
         return $purchases->concat($payments)->all();
+    }
+
+    private function recentExpenses(Workspace $workspace, ?int $locationId, string $source): array
+    {
+        $expenses = $this->expenseReportRepository->latestExpenses($workspace, self::RECENT_SHOWN, $locationId)->map(fn (Expense $expense) => [
+            'date'     => $expense->document_date,
+            'type'     => 'Expense',
+            'number'   => $expense->number,
+            'contact'  => $expense->payeeName(),
+            'amount'   => (string) $expense->grand_total,
+            'currency' => $expense->currency,
+            'status'   => $expense->status->value,
+            'source'   => $source,
+            'link'     => "/expenses/{$expense->id}",
+            'created'  => $expense->created_at?->getTimestamp() ?? 0,
+        ]);
+
+        $payments = $this->expenseReportRepository->latestPayments($workspace, self::RECENT_SHOWN, $locationId)->map(fn (ExpensePayment $payment) => [
+            'date'     => $payment->payment_date,
+            'type'     => 'Expense Payment',
+            'number'   => $payment->number,
+            'contact'  => $payment->expense?->payeeName(),
+            'amount'   => (string) $payment->amount,
+            'currency' => $payment->account?->currency,
+            'status'   => $payment->status,
+            'source'   => $source,
+            'link'     => "/expenses/payments/{$payment->id}",
+            'created'  => $payment->created_at?->getTimestamp() ?? 0,
+        ]);
+
+        return $expenses->concat($payments)->all();
     }
 
     /** Each account's recorded balance on $asOf: its opening balance, once dated by then, and the money moved by then. */

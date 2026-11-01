@@ -3,8 +3,12 @@
 namespace App\Services\Documents;
 
 use App\Enums\DocumentType;
+use App\Enums\ExpenseStatus;
 use App\Enums\PurchaseStatus;
 use App\Enums\SalesDocumentStatus;
+use App\Models\User\Expense;
+use App\Models\User\ExpenseLine;
+use App\Models\User\ExpensePayment;
 use App\Models\User\PaymentAccount;
 use App\Models\User\Purchase;
 use App\Models\User\PurchaseLine;
@@ -37,6 +41,13 @@ class DocumentSample
     ];
 
     private const TAX_RATE = '10';
+
+    /** An expense's sample lines: category, what it was for, quantity, unit amount. */
+    private const EXPENSE_LINES = [
+        ['Rent', 'Office rent for the month', '1', '1500.00'],
+        ['Utilities', 'Electricity bill', '1', '240.00'],
+        ['Meals and Travel', 'Taxi to and from a client meeting', '2', '18.50'],
+    ];
 
     public function __construct(
         protected SalesSnapshots $salesSnapshots,
@@ -171,6 +182,76 @@ class DocumentSample
         return $purchase;
     }
 
+    /** A sample expense to a sample payee, recorded and unpaid, drawn with $template. */
+    public function expense(Workspace $workspace, array $template): Expense
+    {
+        $today = $this->businessCalendar->today($workspace);
+        $taxed = $workspace->usesTaxes();
+        $lines = new Collection(array_map(fn (array $line) => $this->expenseLine($line, $taxed), self::EXPENSE_LINES));
+        $sub   = Decimal::sum($lines->pluck('amount')->map(fn ($amount) => (string) $amount)->all());
+        $tax   = Decimal::sum($lines->pluck('tax_amount')->map(fn ($amount) => (string) $amount)->all());
+        $total = bcadd($sub, $tax, 2);
+
+        $expense = (new Expense)->forceFill([
+            'id'                 => 0,
+            'number'             => $this->documentNumbers->preview($workspace, $this->documentNumbers->scheme($workspace, DocumentType::Expense), $today),
+            'status'             => ExpenseStatus::Recorded,
+            'payment_status'     => 'unpaid',
+            'document_date'      => $today->toDateString(),
+            'due_date'           => $today->addDays(30)->toDateString(),
+            'currency'           => $workspace->base_currency,
+            'exchange_rate'      => '1',
+            'price_tax_mode'     => 'exclusive',
+            'receipt_number'     => 'R-55102',
+            'reference'          => 'October running costs',
+            'subtotal'           => $sub,
+            'tax_total'          => $tax,
+            'grand_total'        => $total,
+            'base_grand_total'   => $total,
+            'taxes'              => $taxed ? [['name' => 'Tax', 'rate' => self::TAX_RATE, 'treatment' => 'standard', 'tax_amount' => $tax]] : [],
+            'amount_paid'        => '0.00',
+            'withholding_amount' => '0.00',
+            'balance_due'        => $total,
+            'notes'              => 'Paid from the office account.',
+            'business_snapshot'  => $this->salesSnapshots->business($workspace, null),
+            'payee_snapshot'     => $this->supplier(),
+            'template_snapshot'  => $template,
+        ]);
+
+        $expense->setRelation('lines', $lines);
+        $expense->setRelation('location', null);
+        $expense->setRelation('contact', null);
+
+        return $expense;
+    }
+
+    /** A sample voucher for a payment on a sample expense, drawn with $template. */
+    public function expenseVoucher(Workspace $workspace, array $template): ExpensePayment
+    {
+        $expense = $this->expense($workspace, []);
+        $amount  = (string) $expense->grand_total;
+
+        $payment = (new ExpensePayment)->forceFill([
+            'id'                 => 0,
+            'number'             => $this->documentNumbers->preview($workspace, $this->documentNumbers->scheme($workspace, DocumentType::ExpenseVoucher), $this->businessCalendar->today($workspace)),
+            'status'             => ExpensePayment::COMPLETED,
+            'payment_date'       => $expense->document_date,
+            'method'             => 'cash',
+            'reference'          => 'PETTY-118',
+            'amount'             => $amount,
+            'applied_amount'     => $amount,
+            'withholding_amount' => '0.00',
+            'balance_after'      => '0.00',
+            'template_snapshot'  => $template,
+        ]);
+
+        $payment->setRelation('expense', $expense);
+        $payment->setRelation('contact', null);
+        $payment->setRelation('account', (new PaymentAccount)->forceFill(['name' => 'Petty Cash', 'currency' => $workspace->base_currency]));
+
+        return $payment;
+    }
+
     /** A sample voucher for a payment on a sample purchase, drawn with $template. */
     public function supplierVoucher(Workspace $workspace, array $template): SupplierPayment
     {
@@ -218,6 +299,25 @@ class DocumentSample
             'tax_amount'      => $taxed ? Decimal::round(bcdiv(bcmul($amount, self::TAX_RATE, 4), '100', 4)) : '0.00',
             'warranty'        => $warranty,
             'components'      => $components,
+        ]);
+    }
+
+    private function expenseLine(array $line, bool $taxed): ExpenseLine
+    {
+        [$category, $description, $quantity, $amount] = $line;
+
+        $net = bcmul($quantity, $amount, 2);
+
+        return (new ExpenseLine)->forceFill([
+            'category_name' => $category,
+            'description'   => $description,
+            'quantity'      => $quantity,
+            'unit_price'    => $amount,
+            'amount'        => $net,
+            'tax_name'      => $taxed ? 'Tax' : null,
+            'tax_rate'      => $taxed ? self::TAX_RATE : null,
+            'tax_treatment' => $taxed ? 'standard' : null,
+            'tax_amount'    => $taxed ? Decimal::round(bcdiv(bcmul($net, self::TAX_RATE, 4), '100', 4)) : '0.00',
         ]);
     }
 

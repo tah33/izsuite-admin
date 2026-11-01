@@ -25,6 +25,15 @@ use App\Http\Controllers\Api\DocumentTemplateController;
 use App\Http\Controllers\Api\EmailSettingController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\ExchangeRateController;
+use App\Http\Controllers\Api\ExpenseAttachmentController;
+use App\Http\Controllers\Api\ExpenseCategoryController;
+use App\Http\Controllers\Api\ExpenseController;
+use App\Http\Controllers\Api\ExpenseFlowController;
+use App\Http\Controllers\Api\ExpenseFormController;
+use App\Http\Controllers\Api\ExpensePaymentAttachmentController;
+use App\Http\Controllers\Api\ExpensePaymentController;
+use App\Http\Controllers\Api\ExpensePdfController;
+use App\Http\Controllers\Api\ExpenseSettingController;
 use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\FileController;
 use App\Http\Controllers\Api\ImportController;
@@ -182,6 +191,14 @@ Route::prefix('v1')->group(function () {
         Route::middleware('app:purchases')->group(function () {
             Route::get('/purchases', [PurchaseSettingController::class, 'show'])->name('api.business-settings.purchases.show');
             Route::put('/purchases', [PurchaseSettingController::class, 'update'])->name('api.business-settings.purchases.update');
+        });
+
+        // Settings > Expenses (Doc 11 section 17): what new expenses start
+        // with, and the duplicate expense check - there while Expenses Lite
+        // or Expenses is on. The categories are /expense-categories.
+        Route::middleware('app:expenses')->group(function () {
+            Route::get('/expenses', [ExpenseSettingController::class, 'show'])->name('api.business-settings.expenses.show');
+            Route::put('/expenses', [ExpenseSettingController::class, 'update'])->name('api.business-settings.expenses.update');
         });
 
         // Settings > Documents > Numbering (Doc 11 section 21): how each kind
@@ -469,6 +486,49 @@ Route::prefix('v1')->group(function () {
         Route::get('/{id}/attachments', [PurchaseAttachmentController::class, 'index'])->whereNumber('id')->name('api.purchases.attachments.index');
         Route::post('/{id}/attachments', [PurchaseAttachmentController::class, 'store'])->whereNumber('id')->name('api.purchases.attachments.store');
         Route::delete('/{id}/attachments/{fileId}', [PurchaseAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.purchases.attachments.destroy');
+    });
+
+    /* ----------------------------------------------------------
+     | Expenses Lite (Doc 10): what the business spends on running itself,
+     | by category. A draft is added, changed and deleted; recording it
+     | numbers it and makes it owed (Pay Later); a recorded one is voided,
+     | never deleted. The form asks for what a new expense starts with and
+     | its totals. A recorded expense takes payments, each with its voucher;
+     | Payments Made lists them, and a payment is reversed, never deleted.
+     | The categories - one list - are listed, added, changed and deleted
+     | while unused. Another business's records are a 404.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:expenses'])->group(function () {
+        Route::get('/expense-categories', [ExpenseCategoryController::class, 'index'])->name('api.expense-categories.index');
+        Route::post('/expense-categories', [ExpenseCategoryController::class, 'store'])->name('api.expense-categories.store');
+        Route::put('/expense-categories/{id}', [ExpenseCategoryController::class, 'update'])->whereNumber('id')->name('api.expense-categories.update');
+        Route::delete('/expense-categories/{id}', [ExpenseCategoryController::class, 'destroy'])->whereNumber('id')->name('api.expense-categories.destroy');
+
+        Route::prefix('expenses')->group(function () {
+            Route::get('/payments', [ExpensePaymentController::class, 'index'])->name('api.expenses.payments.index');
+            Route::get('/payments/{id}', [ExpensePaymentController::class, 'show'])->whereNumber('id')->name('api.expenses.payments.show');
+            Route::post('/payments/{id}/reverse', [ExpensePaymentController::class, 'reverse'])->whereNumber('id')->name('api.expenses.payments.reverse');
+            Route::get('/payments/{id}/pdf', [ExpensePdfController::class, 'voucher'])->whereNumber('id')->name('api.expenses.payments.pdf');
+            Route::get('/payments/{id}/attachments', [ExpensePaymentAttachmentController::class, 'index'])->whereNumber('id')->name('api.expenses.payments.attachments.index');
+            Route::post('/payments/{id}/attachments', [ExpensePaymentAttachmentController::class, 'store'])->whereNumber('id')->name('api.expenses.payments.attachments.store');
+            Route::delete('/payments/{id}/attachments/{fileId}', [ExpensePaymentAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.expenses.payments.attachments.destroy');
+
+            Route::get('/', [ExpenseController::class, 'index'])->name('api.expenses.index');
+            Route::post('/', [ExpenseController::class, 'store'])->name('api.expenses.store');
+            Route::get('/defaults', [ExpenseFormController::class, 'defaults'])->name('api.expenses.defaults');
+            Route::post('/calculate', [ExpenseFormController::class, 'calculate'])->name('api.expenses.calculate');
+            Route::get('/export', [ExpenseController::class, 'export'])->name('api.expenses.export');
+            Route::get('/{id}', [ExpenseController::class, 'show'])->whereNumber('id')->name('api.expenses.show');
+            Route::put('/{id}', [ExpenseController::class, 'update'])->whereNumber('id')->name('api.expenses.update');
+            Route::delete('/{id}', [ExpenseController::class, 'destroy'])->whereNumber('id')->name('api.expenses.destroy');
+            Route::post('/{id}/record', [ExpenseFlowController::class, 'record'])->whereNumber('id')->name('api.expenses.record');
+            Route::post('/{id}/void', [ExpenseFlowController::class, 'void'])->whereNumber('id')->name('api.expenses.void');
+            Route::post('/{id}/payments', [ExpensePaymentController::class, 'store'])->whereNumber('id')->name('api.expenses.payments.store');
+            Route::get('/{id}/pdf', [ExpensePdfController::class, 'expense'])->whereNumber('id')->name('api.expenses.pdf');
+            Route::get('/{id}/attachments', [ExpenseAttachmentController::class, 'index'])->whereNumber('id')->name('api.expenses.attachments.index');
+            Route::post('/{id}/attachments', [ExpenseAttachmentController::class, 'store'])->whereNumber('id')->name('api.expenses.attachments.store');
+            Route::delete('/{id}/attachments/{fileId}', [ExpenseAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.expenses.attachments.destroy');
+        });
     });
 
     /* ----------------------------------------------------------

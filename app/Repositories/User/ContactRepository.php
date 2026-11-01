@@ -16,8 +16,8 @@ use Illuminate\Database\Eloquent\Collection;
  */
 class ContactRepository
 {
-    /** Whether a sales document or a purchase names it - what ContactResource's `in_use`, `in_sales` and `in_purchases` are made of. */
-    private const USED_ON = ['salesDocuments as in_sales', 'purchases as in_purchases'];
+    /** Whether a sales document, a purchase or an expense names it - what ContactResource's `in_use`, `in_sales` and `in_purchases` are made of. */
+    private const USED_ON = ['salesDocuments as in_sales', 'purchases as in_purchases', 'expenses as in_expenses'];
 
     /**
      * A page of the business's contacts, alphabetical with the id as

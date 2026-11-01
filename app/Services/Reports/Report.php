@@ -4,6 +4,7 @@ namespace App\Services\Reports;
 
 use App\Enums\TaxTreatment;
 use App\Models\User\Workspace;
+use App\Repositories\User\ExpenseReportRepository;
 use App\Repositories\User\PurchaseReportRepository;
 use App\Repositories\User\SalesReportRepository;
 use App\Support\Decimal;
@@ -13,7 +14,8 @@ use App\Support\Decimal;
  * is asked for - never stored (section 19) - with the filters ReportService
  * has worked out: from, to, as_of, group_by, location_id, contact_id,
  * currency and those a report takes of its own (item_id, category_id,
- * payment_status, payment_account_id, tax_treatment, tax).
+ * expense_category_id, payment_status, payment_account_id, tax_treatment,
+ * tax).
  */
 abstract class Report
 {
@@ -22,6 +24,7 @@ abstract class Report
         protected SalesFigures $figures,
         protected ReportPeriod $period,
         protected PurchaseReportRepository $purchases,
+        protected ExpenseReportRepository $expenses,
     ) {}
 
     abstract public function build(Workspace $workspace, array $filters): ReportTable;
@@ -45,17 +48,24 @@ abstract class Report
 
     /**
      * Whether tax columns show (section 16): while the business uses taxes,
-     * or has tax on sales documents or purchases from before it stopped.
+     * or has tax on sales documents, purchases or expenses from before it
+     * stopped.
      */
     protected function taxesShown(Workspace $workspace): bool
     {
-        return $workspace->usesTaxes() || $this->sales->hasTaxHistory($workspace) || $this->purchases->hasTaxHistory($workspace);
+        return $workspace->usesTaxes()
+            || $this->sales->hasTaxHistory($workspace)
+            || $this->purchases->hasTaxHistory($workspace)
+            || $this->expenses->hasTaxHistory($workspace);
     }
 
-    /** Whether tax withheld shows: while withholding is on, or anything was withheld - from a customer's payment or a supplier's. */
+    /** Whether tax withheld shows: while withholding is on, or anything was withheld - from a customer's payment, a supplier's or an expense's. */
     protected function withholdingShown(Workspace $workspace): bool
     {
-        return (bool) $workspace->withholding_tax || $this->sales->hasWithholdingHistory($workspace) || $this->purchases->hasWithholdingHistory($workspace);
+        return (bool) $workspace->withholding_tax
+            || $this->sales->hasWithholdingHistory($workspace)
+            || $this->purchases->hasWithholdingHistory($workspace)
+            || $this->expenses->hasWithholdingHistory($workspace);
     }
 
     /**

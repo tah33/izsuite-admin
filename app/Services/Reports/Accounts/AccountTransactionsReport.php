@@ -6,6 +6,7 @@ use App\Models\User\AccountTransaction;
 use App\Models\User\PaymentAccount;
 use App\Models\User\Workspace;
 use App\Repositories\User\AccountTransactionRepository;
+use App\Repositories\User\ExpenseReportRepository;
 use App\Repositories\User\PurchaseReportRepository;
 use App\Repositories\User\SalesReportRepository;
 use App\Services\Reports\Report;
@@ -32,9 +33,10 @@ class AccountTransactionsReport extends Report
         SalesFigures $figures,
         ReportPeriod $period,
         PurchaseReportRepository $purchases,
+        ExpenseReportRepository $expenses,
         protected AccountTransactionRepository $transactions,
     ) {
-        parent::__construct($sales, $figures, $period, $purchases);
+        parent::__construct($sales, $figures, $period, $purchases, $expenses);
     }
 
     public function build(Workspace $workspace, array $filters): ReportTable
@@ -71,16 +73,17 @@ class AccountTransactionsReport extends Report
                 'type'      => AccountTransaction::LABELS[$row->type] ?? Str::headline($row->type),
                 'reference' => $row->reference,
                 'contact'   => $row->contact?->name,
-                'document'  => $row->document?->number ?? $row->purchase?->number,
+                'document'  => $row->document?->number ?? $row->purchase?->number ?? $row->expense?->number,
                 'money_in'  => $in ? (string) $row->amount : null,
                 'money_out' => $in ? null : (string) $row->amount,
                 'balance'   => $balance,
                 'status'    => Str::headline($row->status),
                 'location'  => $row->location?->name,
-                // A payment or refund opens its receipt, a supplier payment its voucher; a transfer, the account's page, where its dialog is.
+                // A payment or refund opens its receipt, a supplier or expense payment its voucher; a transfer, the account's page, where its dialog is.
                 'link'      => match (true) {
                     str_starts_with($row->type, 'customer_') => "/sales/payments/{$row->source_id}",
                     $row->type === 'supplier_payment'        => "/purchases/payments/{$row->source_id}",
+                    $row->type === 'expense_payment'         => "/expenses/payments/{$row->source_id}",
                     default                                  => "/payment-accounts/{$account->id}",
                 },
             ];

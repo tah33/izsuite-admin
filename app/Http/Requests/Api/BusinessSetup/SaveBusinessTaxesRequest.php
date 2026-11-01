@@ -34,6 +34,7 @@ class SaveBusinessTaxesRequest extends FormRequest
             'tax_rounding'            => ['sometimes', 'required', Rule::in(Workspace::TAX_ROUNDINGS)],
             'default_sales_tax_id'    => ['sometimes', 'nullable', 'integer', $rateFor(TaxRate::SALES)],
             'default_purchase_tax_id' => ['sometimes', 'nullable', 'integer', $rateFor(TaxRate::PURCHASES)],
+            'default_expense_tax_id'  => ['sometimes', 'nullable', 'integer', $rateFor(TaxRate::EXPENSES)],
             'withholding_tax'         => ['sometimes', 'boolean'],
         ];
     }
@@ -47,6 +48,7 @@ class SaveBusinessTaxesRequest extends FormRequest
             'tax_rounding.*'                 => 'Choose how tax is rounded.',
             'default_sales_tax_id.exists'    => 'Choose one of your active sales taxes.',
             'default_purchase_tax_id.exists' => 'Choose one of your active purchase taxes.',
+            'default_expense_tax_id.exists'  => 'Choose one of your active expense taxes.',
         ];
     }
 }

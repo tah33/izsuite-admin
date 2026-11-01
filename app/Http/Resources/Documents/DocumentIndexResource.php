@@ -2,8 +2,11 @@
 
 namespace App\Http\Resources\Documents;
 
+use App\Enums\ExpenseStatus;
 use App\Enums\PurchaseStatus;
+use App\Models\User\Expense;
 use App\Models\User\Purchase;
+use App\Services\Expenses\ExpenseRules;
 use App\Services\Purchases\PurchaseRules;
 use App\Services\Sales\SalesDocumentRules;
 use Illuminate\Http\Request;
@@ -14,10 +17,11 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * from and where it stands - status and payment status apart (section 7) -
  * its total in its own currency, and its balance where it has one. `kind`
  * is the address of its source record: /sales/invoices/12 - or
- * "purchases", /purchases/7. `actions` and `delivery` are what its source
- * record allows now (section 9) - the page opens that record to do them. A
- * purchase is sent nowhere. Expects contact, location and - for a credit
- * note - source loaded.
+ * "purchases", /purchases/7, or "expenses", /expenses/3. `actions` and
+ * `delivery` are what its source record allows now (section 9) - the page
+ * opens that record to do them. A purchase or an expense is sent nowhere;
+ * an expense's contact is its payee. Expects contact, location and - for a
+ * credit note - source loaded.
  */
 class DocumentIndexResource extends JsonResource
 {
@@ -31,6 +35,10 @@ class DocumentIndexResource extends JsonResource
     {
         if ($this->resource instanceof Purchase) {
             return $this->purchase();
+        }
+
+        if ($this->resource instanceof Expense) {
+            return $this->expense();
         }
 
         $rules = app(SalesDocumentRules::class);
@@ -73,6 +81,30 @@ class DocumentIndexResource extends JsonResource
             'grand_total'    => $this->grand_total,
             'currency'       => $this->currency,
             'balance_due'    => $this->status === PurchaseStatus::Recorded ? $this->balance_due : null,
+            'location'       => $this->location?->name,
+            'actions'        => $rules->actions($this->resource),
+            'delivery'       => [],
+        ];
+    }
+
+    private function expense(): array
+    {
+        $rules = app(ExpenseRules::class);
+
+        return [
+            'id'             => $this->id,
+            'kind'           => 'expenses',
+            'number'         => $this->number,
+            'revision'       => 0,
+            'document_date'  => $this->document_date,
+            'contact'        => $this->resource->payeeName(),
+            'source'         => $this->sources['expenses'] ?? null,
+            'status'         => $this->status->value,
+            'payment_status' => $this->payment_status,
+            'overdue'        => $rules->overdue($this->resource, $this->today),
+            'grand_total'    => $this->grand_total,
+            'currency'       => $this->currency,
+            'balance_due'    => $this->status === ExpenseStatus::Recorded ? $this->balance_due : null,
             'location'       => $this->location?->name,
             'actions'        => $rules->actions($this->resource),
             'delivery'       => [],

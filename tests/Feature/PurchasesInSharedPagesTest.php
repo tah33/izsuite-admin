@@ -110,8 +110,8 @@ class PurchasesInSharedPagesTest extends TestCase
 
         // After discounts and without tax: 62.00 and 60.00 - the draft not at all.
         $this->assertSame(['amount' => '122.00', 'count' => 2], $data['purchases']);
-        $this->assertSame(['label' => '28 Oct 2026', 'sales' => '295.00', 'purchases' => '62.00'], $data['chart'][27]);
-        $this->assertSame(['label' => '5 Oct 2026', 'sales' => '0.00', 'purchases' => '60.00'], $data['chart'][4]);
+        $this->assertSame(['label' => '28 Oct 2026', 'sales' => '295.00', 'purchases' => '62.00', 'expenses' => null], $data['chart'][27]);
+        $this->assertSame(['label' => '5 Oct 2026', 'sales' => '0.00', 'purchases' => '60.00', 'expenses' => null], $data['chart'][4]);
         $this->assertSame('-69.50', collect($data['accounts'])->firstWhere('name', 'Bank')['balance']);
 
         $recent = collect($data['recent']);

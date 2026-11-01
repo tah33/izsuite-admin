@@ -221,6 +221,30 @@ class Workspace extends Model
         return $this->hasMany(SupplierPayment::class);
     }
 
+    /** Settings > Expenses - none until they are first saved. */
+    public function expenseSetting(): HasOne
+    {
+        return $this->hasOne(ExpenseSetting::class);
+    }
+
+    /** Its one list of expense categories. */
+    public function expenseCategories(): HasMany
+    {
+        return $this->hasMany(ExpenseCategory::class);
+    }
+
+    /** What it spent on running itself (Expenses Lite). */
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class);
+    }
+
+    /** What it paid its payees against their expenses (Expenses Lite). */
+    public function expensePayments(): HasMany
+    {
+        return $this->hasMany(ExpensePayment::class);
+    }
+
     public function accountTransfers(): HasMany
     {
         return $this->hasMany(AccountTransfer::class);

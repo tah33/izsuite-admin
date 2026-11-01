@@ -4,6 +4,8 @@ namespace App\Services\Api\Taxes;
 
 use App\Models\User\TaxRate;
 use App\Models\User\Workspace;
+use App\Repositories\User\ExpenseCategoryRepository;
+use App\Repositories\User\ExpenseRepository;
 use App\Repositories\User\PurchaseRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Repositories\User\TaxRateRepository;
@@ -17,14 +19,15 @@ use Illuminate\Validation\ValidationException;
  * Settings > Taxes > Tax Rates (Doc 11 section 10): adding, changing and
  * removing a business's rates.
  *
- * The business's default sales and purchase tax must stay something new
- * documents can use: it cannot be switched off, stop applying to its side, or
- * be deleted until another default - or none - is chosen. A rate items start
- * with, or one on a sales document or a purchase, is deactivated instead of
- * deleted ("used configuration records are deactivated", Doc 11 section 25).
+ * The business's default sales, purchase and expense tax must stay something
+ * new documents can use: it cannot be switched off, stop applying to its side,
+ * or be deleted until another default - or none - is chosen. A rate items or
+ * expense categories start with, or one on a sales document, a purchase or an
+ * expense, is deactivated instead of deleted ("used configuration records are
+ * deactivated", Doc 11 section 25).
  *
- * A rate on a sales document or a purchase keeps its percentage and
- * treatment: a new rate replaces it (Doc 11 section 10, "a used rate is
+ * A rate on a sales document, a purchase or an expense keeps its percentage
+ * and treatment: a new rate replaces it (Doc 11 section 10, "a used rate is
  * deactivated and replaced with a new effective rate"), so a draft's taxes
  * never change under it.
  */
@@ -34,6 +37,8 @@ class TaxRateService
         protected TaxRateRepository $taxRateRepository,
         protected SalesDocumentRepository $salesDocumentRepository,
         protected PurchaseRepository $purchaseRepository,
+        protected ExpenseRepository $expenseRepository,
+        protected ExpenseCategoryRepository $expenseCategoryRepository,
     ) {}
 
     public function list(Workspace $workspace): Collection
@@ -84,6 +89,12 @@ class TaxRateService
             ]);
         }
 
+        if ($changesCharge && $this->expenseRepository->usesTaxRate($rate)) {
+            throw ValidationException::withMessages([
+                'rate' => 'This rate is on expenses, so its rate and treatment stay as they are. Add a new rate and switch this one off instead.',
+            ]);
+        }
+
         $this->taxRateRepository->update($rate, $columns);
 
         ActivityLogService::record('updated', "Updated tax rate {$this->quoted($rate)}", $rate, [
@@ -114,11 +125,25 @@ class TaxRateService
             ], 409));
         }
 
+        if ($this->expenseRepository->usesTaxRate($rate)) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'This tax is on expenses, so it cannot be deleted. Deactivate it instead.',
+            ], 409));
+        }
+
         $items = $this->taxRateRepository->itemCount($rate);
 
         if ($items > 0) {
             throw new HttpResponseException(response()->json([
                 'message' => ($items === 1 ? '1 item starts' : "{$items} items start")." with this tax. Deactivate it instead, or change those items first.",
+            ], 409));
+        }
+
+        $categories = $this->expenseCategoryRepository->taxRateCount($rate);
+
+        if ($categories > 0) {
+            throw new HttpResponseException(response()->json([
+                'message' => ($categories === 1 ? '1 expense category starts' : "{$categories} expense categories start").' with this tax. Deactivate it instead, or change those categories first.',
             ], 409));
         }
 
@@ -157,7 +182,11 @@ class TaxRateService
 
     private function sideNoun(string $side): string
     {
-        return $side === TaxRate::SALES ? 'sales' : 'purchase';
+        return match ($side) {
+            TaxRate::SALES     => 'sales',
+            TaxRate::PURCHASES => 'purchase',
+            default            => 'expense',
+        };
     }
 
     /**

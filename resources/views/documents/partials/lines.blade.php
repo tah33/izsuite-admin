@@ -1,15 +1,16 @@
 {{-- The lines, with only the columns the template keeps and the lines use -
      no tax column on a document without tax (Doc 06 section 16). The heading
-     repeats at the top of every page. --}}
+     repeats at the top of every page; an expense's names its lines by
+     category, at a unit amount ($itemHeading, $priceHeading). --}}
 <table class="lines">
     <thead>
         <tr>
-            <th>{{ __('Item', [], $lang) }}</th>
+            <th>{{ __($itemHeading ?? 'Item', [], $lang) }}</th>
             @if ($columns['quantity'])
                 <th class="num">{{ __('Qty', [], $lang) }}</th>
             @endif
             @if ($columns['unit_price'])
-                <th class="num">{{ __('Price', [], $lang) }}</th>
+                <th class="num">{{ __($priceHeading ?? 'Price', [], $lang) }}</th>
             @endif
             @if ($columns['discount'])
                 <th class="num">{{ __('Discount', [], $lang) }}</th>

@@ -6,6 +6,7 @@ use App\Models\User\AccountTransaction;
 use App\Models\User\AccountTransfer;
 use App\Models\User\PaymentAccount;
 use App\Models\User\SalesPayment;
+use App\Models\User\ExpensePayment;
 use App\Models\User\SupplierPayment;
 use App\Models\User\Workspace;
 use App\Repositories\User\AccountTransactionRepository;
@@ -68,6 +69,26 @@ class AccountLedger
             'contact_id'         => $payment->contact_id,
             'location_id'        => $payment->location_id,
             'purchase_id'        => $payment->purchase_id,
+            'source_type'        => $payment->getMorphClass(),
+            'source_id'          => $payment->id,
+            'reference'          => $payment->number,
+            'created_by'         => $payment->created_by,
+        ]);
+    }
+
+    public function recordExpensePayment(Workspace $workspace, ExpensePayment $payment): void
+    {
+        $this->accountTransactionRepository->create($workspace, [
+            'payment_account_id' => $payment->payment_account_id,
+            'transaction_date'   => $payment->payment_date,
+            'type'               => 'expense_payment',
+            'direction'          => AccountTransaction::OUT,
+            'amount'             => $payment->amount,
+            'base_amount'        => $payment->base_amount,
+            'status'             => AccountTransaction::COMPLETED,
+            'contact_id'         => $payment->contact_id,
+            'location_id'        => $payment->location_id,
+            'expense_id'         => $payment->expense_id,
             'source_type'        => $payment->getMorphClass(),
             'source_id'          => $payment->id,
             'reference'          => $payment->number,

@@ -4,6 +4,7 @@ namespace App\Services\Api\Taxes;
 
 use App\Models\User\WithholdingTax;
 use App\Models\User\Workspace;
+use App\Repositories\User\ExpensePaymentRepository;
 use App\Repositories\User\SalesPaymentRepository;
 use App\Repositories\User\SupplierPaymentRepository;
 use App\Repositories\User\WithholdingTaxRepository;
@@ -26,6 +27,7 @@ class WithholdingTaxService
         protected WithholdingTaxRepository $withholdingTaxRepository,
         protected SalesPaymentRepository $salesPaymentRepository,
         protected SupplierPaymentRepository $supplierPaymentRepository,
+        protected ExpensePaymentRepository $expensePaymentRepository,
     ) {}
 
     public function list(Workspace $workspace): Collection
@@ -84,7 +86,8 @@ class WithholdingTaxService
     /** Whether a customer or a supplier payment withheld at $rate. */
     private function withheld(WithholdingTax $rate): bool
     {
-        return $this->salesPaymentRepository->usesWithholdingTax($rate) || $this->supplierPaymentRepository->usesWithholdingTax($rate);
+        return $this->salesPaymentRepository->usesWithholdingTax($rate) || $this->supplierPaymentRepository->usesWithholdingTax($rate)
+            || $this->expensePaymentRepository->usesWithholdingTax($rate);
     }
 
     /** The request's fields as the table holds them: what it applies to as one column per side. */

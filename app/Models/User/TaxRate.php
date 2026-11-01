@@ -16,9 +16,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * says whether purchase or expense tax can be claimed back; it means nothing
  * for a rate only used on sales.
  *
- * default_for_sales and default_for_purchases mark the business's default sales
- * and purchase tax (Doc 11 section 11): at most one of each, set through
- * TaxSettingService - so they are not fillable.
+ * default_for_sales, default_for_purchases and default_for_expenses mark the
+ * business's default sales, purchase and expense tax (Doc 11 section 11): at
+ * most one of each, set through TaxSettingService - so they are not fillable.
  */
 class TaxRate extends Model
 {
@@ -32,7 +32,7 @@ class TaxRate extends Model
     public const SIDES = [self::SALES, self::PURCHASES, self::EXPENSES];
 
     /** The sides a business has a default tax for. */
-    public const DEFAULT_SIDES = [self::SALES, self::PURCHASES];
+    public const DEFAULT_SIDES = [self::SALES, self::PURCHASES, self::EXPENSES];
 
     public const RECOVERABILITY = ['recoverable', 'non_recoverable'];
 
@@ -58,6 +58,7 @@ class TaxRate extends Model
         'is_active'             => true,
         'default_for_sales'     => false,
         'default_for_purchases' => false,
+        'default_for_expenses'  => false,
     ];
 
     /**
@@ -74,6 +75,7 @@ class TaxRate extends Model
         'is_active'             => 'boolean',
         'default_for_sales'     => 'boolean',
         'default_for_purchases' => 'boolean',
+        'default_for_expenses'  => 'boolean',
     ];
 
     /** What it applies to: ['sales', 'purchases']. */

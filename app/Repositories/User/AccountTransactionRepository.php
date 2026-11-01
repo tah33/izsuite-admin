@@ -26,7 +26,7 @@ class AccountTransactionRepository
     private const NET = "CASE WHEN status = 'completed' THEN (CASE WHEN direction = 'in' THEN amount ELSE -amount END) ELSE 0 END";
 
     /** What a history row shows with it. */
-    private const SHOWN_WITH = ['contact:id,name', 'document:id,type,number', 'purchase:id,number', 'location:id,name'];
+    private const SHOWN_WITH = ['contact:id,name', 'document:id,type,number', 'purchase:id,number', 'expense:id,number', 'location:id,name'];
 
     /** A page of an account's history, newest first, each row with its running net. */
     public function paginateFor(PaymentAccount $account, array $filters, int $perPage): LengthAwarePaginator

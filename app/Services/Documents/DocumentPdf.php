@@ -2,6 +2,8 @@
 
 namespace App\Services\Documents;
 
+use App\Models\User\Expense;
+use App\Models\User\ExpensePayment;
 use App\Models\User\Purchase;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesPayment;
@@ -37,6 +39,18 @@ class DocumentPdf
     public function purchase(Workspace $workspace, Purchase $purchase): array
     {
         return $this->made($this->documentRenderer->purchase($workspace, $purchase));
+    }
+
+    /** @return array{0: string, 1: string} */
+    public function expense(Workspace $workspace, Expense $expense): array
+    {
+        return $this->made($this->documentRenderer->expense($workspace, $expense));
+    }
+
+    /** @return array{0: string, 1: string} */
+    public function expenseVoucher(Workspace $workspace, ExpensePayment $payment): array
+    {
+        return $this->made($this->documentRenderer->expenseVoucher($workspace, $payment));
     }
 
     /** @return array{0: string, 1: string} */

@@ -13,8 +13,8 @@ use Illuminate\Support\Facades\DB;
 /**
  * Settings > Taxes (Doc 01 section 12, Doc 11 sections 9 and 11): whether the
  * business uses taxes - yes, no, or decide later - and its tax options: whether
- * prices include tax, how tax is rounded, and its default sales and purchase
- * tax. The rates themselves are TaxRateService's. Withholding tax is switched
+ * prices include tax, how tax is rounded, and its default sales, purchase and
+ * expense tax. The rates themselves are TaxRateService's. Withholding tax is switched
  * on apart from the rest (section 9), and its rates are WithholdingTaxService's.
  *
  * Turning taxes off hides tax fields; it never deletes or changes what is
@@ -26,6 +26,7 @@ class TaxSettingService
     private const DEFAULT_KEYS = [
         TaxRate::SALES     => 'default_sales_tax_id',
         TaxRate::PURCHASES => 'default_purchase_tax_id',
+        TaxRate::EXPENSES  => 'default_expense_tax_id',
     ];
 
     public function __construct(

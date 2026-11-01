@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\Reports;
 
 use App\Enums\TaxTreatment;
+use App\Services\Reports\Expenses\ExpensesByCategoryReport;
 use App\Services\Reports\Purchases\PurchaseSummaryReport;
 use App\Services\Reports\ReportPeriod;
 use App\Services\Reports\Sales\OutstandingInvoicesReport;
@@ -21,28 +22,29 @@ class RunReportRequest extends FormRequest
      * A report's filters (Doc 07 section 3), each used where the report takes
      * it: a range by name - This Month unless told - or two dates, an as-of
      * day, a grouping, a location, contact, currency, item, item category,
-     * payment status, payment account and tax treatment - the one rate a Tax
-     * Summary row opens Tax Details for, and the side a Contact Statement
-     * shows: customer or supplier.
+     * expense category, payment status, payment account and tax treatment -
+     * the one rate a Tax Summary row opens Tax Details for, and the side a
+     * Contact Statement shows: customer or supplier.
      */
     public function rules(): array
     {
         return [
-            'range'              => ['nullable', Rule::in(ReportPeriod::RANGES)],
-            'date_from'          => ['nullable', 'required_with:date_to', 'date_format:Y-m-d'],
-            'date_to'            => ['nullable', 'required_with:date_from', 'date_format:Y-m-d', 'after_or_equal:date_from'],
-            'as_of'              => ['nullable', 'date_format:Y-m-d'],
-            'group_by'           => ['nullable', Rule::in(array_keys([...SalesSummaryReport::GROUPS, ...PurchaseSummaryReport::GROUPS]))],
-            'location_id'        => ['nullable', 'integer'],
-            'contact_id'         => ['nullable', 'integer'],
-            'currency'           => ['nullable', 'string', 'size:3'],
-            'item_id'            => ['nullable', 'integer'],
-            'category_id'        => ['nullable', 'integer'],
-            'payment_status'     => ['nullable', Rule::in(array_keys(OutstandingInvoicesReport::PAYMENT_STATUSES))],
-            'payment_account_id' => ['nullable', 'integer'],
-            'tax_treatment'      => ['nullable', Rule::enum(TaxTreatment::class)],
-            'tax'                => ['nullable', 'string', 'max:150'],
-            'side'               => ['nullable', Rule::in(['customer', 'supplier'])],
+            'range'               => ['nullable', Rule::in(ReportPeriod::RANGES)],
+            'date_from'           => ['nullable', 'required_with:date_to', 'date_format:Y-m-d'],
+            'date_to'             => ['nullable', 'required_with:date_from', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+            'as_of'               => ['nullable', 'date_format:Y-m-d'],
+            'group_by'            => ['nullable', Rule::in(array_keys([...SalesSummaryReport::GROUPS, ...PurchaseSummaryReport::GROUPS, ...ExpensesByCategoryReport::GROUPS]))],
+            'location_id'         => ['nullable', 'integer'],
+            'contact_id'          => ['nullable', 'integer'],
+            'currency'            => ['nullable', 'string', 'size:3'],
+            'item_id'             => ['nullable', 'integer'],
+            'category_id'         => ['nullable', 'integer'],
+            'expense_category_id' => ['nullable', 'integer'],
+            'payment_status'      => ['nullable', Rule::in(array_keys(OutstandingInvoicesReport::PAYMENT_STATUSES))],
+            'payment_account_id'  => ['nullable', 'integer'],
+            'tax_treatment'       => ['nullable', Rule::enum(TaxTreatment::class)],
+            'tax'                 => ['nullable', 'string', 'max:150'],
+            'side'                => ['nullable', Rule::in(['customer', 'supplier'])],
         ];
     }
 

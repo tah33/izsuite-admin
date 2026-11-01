@@ -48,6 +48,12 @@ class TaxRateRepository
         return $this->withTreatment($workspace, TaxRate::PURCHASES, $treatment, $date);
     }
 
+    /** The same for expenses: what a payee with that tax treatment charges (Doc 10 section 14). */
+    public function forExpensesWithTreatment(Workspace $workspace, TaxTreatment $treatment, string $date): ?TaxRate
+    {
+        return $this->withTreatment($workspace, TaxRate::EXPENSES, $treatment, $date);
+    }
+
     private function withTreatment(Workspace $workspace, string $side, TaxTreatment $treatment, string $date): ?TaxRate
     {
         return $workspace->taxRates()

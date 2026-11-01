@@ -2,6 +2,8 @@
 
 namespace App\Services\Reports;
 
+use App\Models\User\Expense;
+use App\Models\User\ExpenseLine;
 use App\Models\User\Purchase;
 use App\Models\User\PurchaseLine;
 use App\Models\User\SalesDocument;
@@ -12,11 +14,13 @@ use App\Support\Decimal;
  * The sums Reports and the Dashboard share (Doc 07 sections 19 and 20, Doc 02
  * section 10), so the same sale is the same figure everywhere:
  *
- * - net sales - and purchases - leave separately identified tax out;
+ * - net sales - and purchases - leave separately identified tax out; an
+ *   expense leaves out only the tax it can claim back (Doc 10 section 6);
  * - a total across currencies is in the base currency, at the rate each
  *   transaction kept - never today's;
  * - what an invoice owed on a day is InvoiceSettlement's balance, from what
- *   had settled it by then - and a purchase's, PurchaseSettlement's.
+ *   had settled it by then - and a purchase's, PurchaseSettlement's, an
+ *   expense's, ExpenseSettlement's.
  */
 class SalesFigures
 {
@@ -69,6 +73,69 @@ class SalesFigures
         return bccomp($owed, '0', 2) > 0 ? $owed : '0.00';
     }
 
+    /**
+     * The rates whose tax an expense cannot claim back: those its lines kept
+     * as not recoverable. Any other tax on it can be. Expects its lines.
+     *
+     * @return list<int>
+     */
+    public function unclaimableRates(Expense $expense): array
+    {
+        return $expense->lines->where('tax_recoverability', 'non_recoverable')->pluck('tax_rate_id')->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
+    }
+
+    /**
+     * The tax on an expense that cannot be claimed back, in its own currency:
+     * the tax it kept for each of its unclaimable rates. It stays part of the
+     * expense's amount; the rest is shown apart. Expects its lines.
+     */
+    public function unclaimableTax(Expense $expense): string
+    {
+        $rates = $this->unclaimableRates($expense);
+
+        return Decimal::sum(array_map(
+            fn (array $tax) => Decimal::of($tax['tax_amount']),
+            array_filter($expense->taxes ?? [], fn (array $tax) => in_array((int) ($tax['tax_rate_id'] ?? 0), $rates, true)),
+        ));
+    }
+
+    /**
+     * One line of an expense, in the expense's currency: its amount before
+     * tax with the tax it cannot claim back, the tax it can, and its total.
+     * For a share of the expense - a category's - rather than the expense,
+     * whose own figures are its taxes'.
+     *
+     * @return array{amount: string, tax: string, total: string}
+     */
+    public function expenseLine(Expense $expense, ExpenseLine $line): array
+    {
+        $tax    = Decimal::round(Decimal::of($line->tax_amount));
+        $before = $expense->price_tax_mode === 'inclusive' ? bcsub(Decimal::of($line->amount), $tax, 2) : Decimal::round(Decimal::of($line->amount));
+        $kept   = $line->tax_recoverability === 'non_recoverable';
+
+        return ['amount' => $kept ? bcadd($before, $tax, 2) : $before, 'tax' => $kept ? '0.00' : $tax, 'total' => bcadd($before, $tax, 2)];
+    }
+
+    /** An expense's amount in its own currency: before tax, with the tax it cannot claim back. */
+    public function expenseAmount(Expense $expense): string
+    {
+        return bcadd(Decimal::of($expense->net_total), $this->unclaimableTax($expense), 2);
+    }
+
+    /** The same in the base currency, at the expense's rate (Doc 02 section 3.5). */
+    public function baseExpenseAmount(Expense $expense): string
+    {
+        return bcadd(Decimal::round(Decimal::of($expense->base_net_total)), $this->base($this->unclaimableTax($expense), $expense->exchange_rate), 2);
+    }
+
+    /** What an expense read as of a day (see ExpenseReportRepository::recorded) still owed then: its total less payments and tax withheld - never below zero. */
+    public function expenseOwedAsOf(Expense $expense): string
+    {
+        $owed = bcsub(bcsub((string) $expense->grand_total, Decimal::of($expense->paid_by), 2), Decimal::of($expense->withheld_by), 2);
+
+        return bccomp($owed, '0', 2) > 0 ? $owed : '0.00';
+    }
+
     /** Days past its due date on $asOf: 0 while it is not due. */
     public function daysOverdue(?string $dueDate, string $asOf): int
     {
@@ -95,6 +162,12 @@ class SalesFigures
     public function supplierName(Purchase $purchase): string
     {
         return $purchase->supplier_snapshot['name'] ?? $purchase->contact?->name ?? 'Unknown supplier';
+    }
+
+    /** Who an expense paid: as it kept them, the contact as they are, or the name typed in. */
+    public function payeeName(Expense $expense): string
+    {
+        return $expense->payeeName() ?? 'Unknown payee';
     }
 
     /** The customer as the document names them: as it kept them, or as they are. */

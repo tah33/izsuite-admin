@@ -6,6 +6,7 @@ use App\Models\User\Location;
 use App\Models\User\Workspace;
 use App\Repositories\User\LocationRepository;
 use App\Repositories\User\PaymentAccountRepository;
+use App\Repositories\User\ExpenseRepository;
 use App\Repositories\User\PurchaseRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Services\Shared\ActivityLogService;
@@ -20,6 +21,7 @@ class LocationService
         protected LocationRepository $locationRepository,
         protected SalesDocumentRepository $salesDocumentRepository,
         protected PurchaseRepository $purchaseRepository,
+        protected ExpenseRepository $expenseRepository,
         protected PaymentAccountRepository $paymentAccountRepository,
         protected PlanLimits $planLimits,
     ) {}
@@ -71,6 +73,12 @@ class LocationService
         if ($this->purchaseRepository->usesLocation($location)) {
             throw new HttpResponseException(response()->json([
                 'message' => 'Purchases were made at this location, so it cannot be deleted.',
+            ], 409));
+        }
+
+        if ($this->expenseRepository->usesLocation($location)) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'Expenses were recorded at this location, so it cannot be deleted.',
             ], 409));
         }
 

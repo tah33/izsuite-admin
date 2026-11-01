@@ -64,6 +64,7 @@ class TaxSettingsApiTest extends TestCase
             'tax_rounding'            => 'total',
             'default_sales_tax_id'    => $vat->id,
             'default_purchase_tax_id' => $input->id,
+            'default_expense_tax_id'  => null,
             'withholding_tax'         => false,
         ]]);
 

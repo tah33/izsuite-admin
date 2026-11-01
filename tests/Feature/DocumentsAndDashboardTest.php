@@ -125,7 +125,7 @@ class DocumentsAndDashboardTest extends TestCase
             ->json('data');
 
         $this->assertCount(31, $data['chart']);
-        $this->assertSame(['label' => '28 Oct 2026', 'sales' => '295.00', 'purchases' => null], $data['chart'][27]);
+        $this->assertSame(['label' => '28 Oct 2026', 'sales' => '295.00', 'purchases' => null, 'expenses' => null], $data['chart'][27]);
         $this->assertSame(['Quotation', 'Customer Payment', 'Invoice'], array_column($data['recent'], 'type'));
         $this->assertSame('/sales/payments/1', $data['recent'][1]['link']);
 

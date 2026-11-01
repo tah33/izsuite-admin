@@ -4,6 +4,7 @@ namespace App\Services\Reports\Sales;
 
 use App\Enums\DocumentType;
 use App\Enums\TaxTreatment;
+use App\Models\User\ExpensePayment;
 use App\Models\User\SalesPayment;
 use App\Models\User\SupplierPayment;
 use App\Models\User\Workspace;
@@ -14,13 +15,13 @@ use App\Support\Decimal;
 
 /**
  * Tax Summary (Doc 07 section 16): the tax each issued invoice charged, each
- * credit note reversed and each recorded purchase paid, by rate and
- * treatment as the document kept them - zero-rated, exempt and out-of-scope
- * apart - with tax withheld from payments kept separate while withholding
- * applies. Purchase tax that can be claimed back comes off the net tax
- * position; tax that cannot is shown but not taken off. In the base
- * currency, at each document's rate. For a business's own review, not a tax
- * return.
+ * credit note reversed and each recorded purchase and expense paid, by rate
+ * and treatment as the document kept them - zero-rated, exempt and
+ * out-of-scope apart - with tax withheld from payments kept separate while
+ * withholding applies. Purchase and expense tax that can be claimed back
+ * comes off the net tax position; tax that cannot is shown but not taken
+ * off. In the base currency, at each document's rate. For a business's own
+ * review, not a tax return.
  *
  * It may be narrowed to one treatment. A rate's row opens Tax Details, with
  * the documents behind it in their own currency.
@@ -30,7 +31,9 @@ class TaxSummaryReport extends Report
     public function build(Workspace $workspace, array $filters): ReportTable
     {
         $base   = $workspace->base_currency;
-        $bought = WorkspaceApps::for($workspace)->hasHistory('purchases');
+        $apps   = WorkspaceApps::for($workspace);
+        $bought = $apps->hasHistory('purchases');
+        $spent  = $apps->hasHistory('expenses');
         $rows   = [];
 
         foreach ([DocumentType::Invoice, DocumentType::CreditNote] as $type) {
@@ -54,10 +57,14 @@ class TaxSummaryReport extends Report
             }
         }
 
-        $kept = $bought ? $this->purchaseTax($workspace, $filters, $rows) : [];
-        $rows = array_map(fn (array $row) => [
+        $kept    = $bought ? $this->purchaseTax($workspace, $filters, $rows) : [];
+        $claimed = $spent ? $this->expenseTax($workspace, $filters, $rows) : [];
+        $rows    = array_map(fn (array $row) => [
             ...$row,
-            'net_tax' => $this->subtract($this->add($row['sales_tax'], $row['credit_tax']), $kept[$row['key']] ?? '0.00'),
+            'net_tax' => $this->subtract(
+                $this->subtract($this->add($row['sales_tax'], $row['credit_tax']), $kept[$row['key']] ?? '0.00'),
+                $claimed[$row['key']] ?? '0.00',
+            ),
         ], $rows);
 
         $rows      = array_values(array_map(fn (array $row) => array_diff_key($row, ['key' => true]), $rows));
@@ -79,27 +86,35 @@ class TaxSummaryReport extends Report
                 $this->column('net_taxable', 'Net Sales Amount', 'money', $base),
                 $bought ? $this->column('purchase_taxable', 'Purchased Amount', 'money', $base) : null,
                 $bought ? $this->column('purchase_tax', 'Tax on Purchases', 'money', $base) : null,
+                $spent ? $this->column('expense_taxable', 'Expensed Amount', 'money', $base) : null,
+                $spent ? $this->column('expense_tax', 'Tax on Expenses', 'money', $base) : null,
                 $this->column('net_tax', 'Net Tax', 'money', $base),
             ])),
             rows: $rows,
-            totals: ['tax' => 'Total', ...$this->totals($rows, ['sales_taxable', 'sales_tax', 'credit_taxable', 'credit_tax', 'net_taxable', 'purchase_taxable', 'purchase_tax', 'net_tax'])],
+            totals: ['tax' => 'Total', ...$this->totals($rows, ['sales_taxable', 'sales_tax', 'credit_taxable', 'credit_tax', 'net_taxable', 'purchase_taxable', 'purchase_tax', 'expense_taxable', 'expense_tax', 'net_tax'])],
             summary: array_values(array_filter([
                 ['label' => 'Sales Tax on Invoices', 'value' => Decimal::sum(array_column($rows, 'sales_tax')), 'currency' => $base],
                 ['label' => 'Credit Note Tax Adjustments', 'value' => Decimal::sum(array_column($rows, 'credit_tax')), 'currency' => $base],
                 $bought ? ['label' => 'Purchase Tax', 'value' => Decimal::sum(array_column($rows, 'purchase_tax')), 'currency' => $base] : null,
                 $bought ? ['label' => 'Purchase Tax Not Claimable', 'value' => bcsub(Decimal::sum(array_column($rows, 'purchase_tax')), Decimal::sum($kept), 2), 'currency' => $base] : null,
+                $spent ? ['label' => 'Expense Tax', 'value' => Decimal::sum(array_column($rows, 'expense_tax')), 'currency' => $base] : null,
+                $spent ? ['label' => 'Expense Tax Not Claimable', 'value' => bcsub(Decimal::sum(array_column($rows, 'expense_tax')), Decimal::sum($claimed), 2), 'currency' => $base] : null,
                 ['label' => 'Zero-Rated Sales', 'value' => $treatment(TaxTreatment::ZeroRated->label()), 'currency' => $base],
                 ['label' => 'Exempt Sales', 'value' => $treatment(TaxTreatment::Exempt->label()), 'currency' => $base],
                 ['label' => 'Out-of-Scope Sales', 'value' => $treatment(TaxTreatment::OutOfScope->label()), 'currency' => $base],
                 $withheld ? ['label' => 'Withholding Tax Credits', 'value' => $this->withheld($workspace, $filters), 'currency' => $base] : null,
                 $withheld && $bought ? ['label' => 'Tax Withheld from Suppliers', 'value' => $this->withheldFromSuppliers($workspace, $filters), 'currency' => $base] : null,
+                $withheld && $spent ? ['label' => 'Tax Withheld from Expense Payments', 'value' => $this->withheldFromExpenses($workspace, $filters), 'currency' => $base] : null,
                 ['label' => 'Indicative Net Tax Position', 'value' => $netTax, 'currency' => $base],
             ])),
             notes: [
                 "In {$base}, from the tax each document kept. For your own review - not an official tax return.",
-                ($bought
-                    ? 'The net tax position is sales tax less credit notes, less purchase tax that can be claimed back; expense tax joins it with its app.'
-                    : 'The net tax position is sales tax less credit notes; purchase and expense tax join it with their apps.').($withheld ? ' Tax withheld from payments is kept apart.' : ''),
+                match (true) {
+                    $bought && $spent => 'The net tax position is sales tax less credit notes, less purchase and expense tax that can be claimed back.',
+                    $bought           => 'The net tax position is sales tax less credit notes, less purchase tax that can be claimed back; expense tax joins it with its app.',
+                    $spent            => 'The net tax position is sales tax less credit notes, less expense tax that can be claimed back; purchase tax joins it with its app.',
+                    default           => 'The net tax position is sales tax less credit notes; purchase and expense tax join it with their apps.',
+                }.($withheld ? ' Tax withheld from payments is kept apart.' : ''),
             ],
         );
     }
@@ -149,11 +164,53 @@ class TaxSummaryReport extends Report
         return $claimable;
     }
 
+    /**
+     * Each recorded expense's tax into its rate's row - adding rows for rates
+     * only expenses use - and, by rate key, the part that can be claimed back:
+     * each rate's tax unless the expense's lines kept that rate as not
+     * recoverable.
+     */
+    private function expenseTax(Workspace $workspace, array $filters, array &$rows): array
+    {
+        $claimable = [];
+
+        foreach ($this->expenses->recorded($workspace, $filters['from'], $filters['to'], $filters) as $expense) {
+            $unclaimable = $this->figures->unclaimableRates($expense);
+
+            foreach ($expense->taxes ?? [] as $tax) {
+                $key = $this->taxKey($tax);
+
+                if (($filters['tax_treatment'] ?? null) && ($tax['treatment'] ?? TaxTreatment::Standard->value) !== $filters['tax_treatment']) {
+                    continue;
+                }
+
+                $amount = $this->figures->base($tax['tax_amount'], $expense->exchange_rate);
+
+                $rows[$key] ??= $this->row($tax, $key, $filters);
+                $rows[$key]['expense_taxable'] = $this->add($rows[$key]['expense_taxable'], $this->figures->base($tax['taxable_amount'], $expense->exchange_rate));
+                $rows[$key]['expense_tax']     = $this->add($rows[$key]['expense_tax'], $amount);
+
+                if (! in_array((int) ($tax['tax_rate_id'] ?? 0), $unclaimable, true)) {
+                    $claimable[$key] = $this->add($claimable[$key] ?? '0.00', $amount);
+                }
+            }
+        }
+
+        return $claimable;
+    }
+
     /** Tax withheld from completed supplier payments in the period - owed to the tax office - in the base currency. */
     private function withheldFromSuppliers(Workspace $workspace, array $filters): string
     {
         return Decimal::sum($this->purchases->paymentsMade($workspace, $filters['from'], $filters['to'], $filters)
             ->map(fn (SupplierPayment $payment) => $this->figures->base($payment->withholding_amount, $payment->purchase?->exchange_rate ?? '1')));
+    }
+
+    /** Tax withheld from completed expense payments in the period, in the base currency. */
+    private function withheldFromExpenses(Workspace $workspace, array $filters): string
+    {
+        return Decimal::sum($this->expenses->paymentsMade($workspace, $filters['from'], $filters['to'], $filters)
+            ->map(fn (ExpensePayment $payment) => $this->figures->base($payment->withholding_amount, $payment->expense?->exchange_rate ?? '1')));
     }
 
     /** A rate's row, opening Tax Details for the same dates and location (section 16: drill-down). */
@@ -172,6 +229,8 @@ class TaxSummaryReport extends Report
             'net_taxable'      => '0.00',
             'purchase_taxable' => '0.00',
             'purchase_tax'     => '0.00',
+            'expense_taxable'  => '0.00',
+            'expense_tax'      => '0.00',
             'net_tax'          => '0.00',
             'link'             => '/reports/tax-details?'.http_build_query(array_filter([
                 'range'       => 'custom',

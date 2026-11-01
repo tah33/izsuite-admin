@@ -2,18 +2,25 @@
 
 namespace App\Services\Reports\Purchases;
 
+use App\Models\User\Expense;
+use App\Models\User\ExpensePayment;
+use App\Models\User\Purchase;
+use App\Models\User\SupplierPayment;
 use App\Models\User\Workspace;
 use App\Services\Reports\Report;
 use App\Services\Reports\ReportTable;
+use App\Services\User\Apps\WorkspaceApps;
 use App\Support\Decimal;
 use Illuminate\Support\Str;
 
 /**
- * Payments Made (Doc 07 section 13): completed supplier payments by their
- * dates. Reversed ones never count, nor transfers between accounts. Tax
+ * Payments Made (Doc 07 section 13): completed supplier and expense payments
+ * by their dates, each with what it paid - a purchase or an expense - and to
+ * whom. Reversed ones never count, nor transfers between accounts. Tax
  * withheld is shown apart, while withholding applies: it never left an
  * account. Each in the account's currency; the totals in the base one. It may
- * be narrowed to one payment account. Expense payments join with their app.
+ * be narrowed to one payment account, or to one supplier or payee contact.
+ * The columns are named for the apps the business has used.
  */
 class PaymentsMadeReport extends Report
 {
@@ -21,30 +28,29 @@ class PaymentsMadeReport extends Report
     {
         $base     = $workspace->base_currency;
         $withheld = $this->withholdingShown($workspace);
+        $apps     = WorkspaceApps::for($workspace);
+        $bought   = $apps->hasHistory('purchases') || ! $apps->hasHistory('expenses');
+        $spent    = $apps->hasHistory('expenses');
         $rows     = [];
 
         foreach ($this->purchases->paymentsMade($workspace, $filters['from'], $filters['to'], $filters) as $payment) {
-            $rows[] = [
-                'payment_date' => $payment->payment_date,
-                'number'       => $payment->number,
-                'type'         => 'Supplier Payment',
-                'payee'        => $payment->contact?->name,
-                'document'     => $payment->purchase?->number,
-                'account'      => $payment->account?->name,
-                'method'       => $payment->method ? Str::headline($payment->method) : null,
-                'reference'    => $payment->reference,
-                'currency'     => $payment->account?->currency,
-                'amount'       => Decimal::round(Decimal::of($payment->amount)),
-                'base_amount'  => Decimal::round(Decimal::of($payment->base_amount)),
-                'withheld'     => $this->figures->base($payment->withholding_amount, $payment->purchase?->exchange_rate ?? '1'),
-                'location'     => $payment->location?->name,
-                'link'         => "/purchases/payments/{$payment->id}",
-            ];
+            $rows[] = $this->row($payment, 'Supplier Payment', $payment->contact?->name, $payment->purchase, "/purchases/payments/{$payment->id}");
         }
+
+        foreach ($this->expenses->paymentsMade($workspace, $filters['from'], $filters['to'], $filters) as $payment) {
+            $rows[] = $this->row($payment, 'Expense Payment', $payment->expense ? $this->figures->payeeName($payment->expense) : null, $payment->expense, "/expenses/payments/{$payment->id}");
+        }
+
+        usort($rows, fn (array $a, array $b) => [$a['payment_date'], $a['number']] <=> [$b['payment_date'], $b['number']]);
 
         $paid    = Decimal::sum(array_column($rows, 'base_amount'));
         $taken   = Decimal::sum(array_column($rows, 'withheld'));
         $account = $filters['account'] ?? null;
+        $whom    = match (true) {
+            $bought && $spent => 'suppliers and payees',
+            $spent            => 'payees',
+            default           => 'suppliers',
+        };
 
         return new ReportTable(
             title: 'Payments Made',
@@ -53,8 +59,8 @@ class PaymentsMadeReport extends Report
                 $this->column('payment_date', 'Date', 'date'),
                 $this->column('number', 'Voucher'),
                 $this->column('type', 'Payment Type'),
-                $this->column('payee', 'Supplier'),
-                $this->column('document', 'Purchase'),
+                $this->column('payee', $bought && $spent ? 'Supplier or Payee' : ($spent ? 'Payee' : 'Supplier')),
+                $this->column('document', $bought && $spent ? 'Purchase or Expense' : ($spent ? 'Expense' : 'Purchase')),
                 $this->column('account', 'Payment Account'),
                 $this->column('method', 'Method'),
                 $this->column('reference', 'Reference'),
@@ -71,8 +77,29 @@ class PaymentsMadeReport extends Report
                 $withheld ? ['label' => 'Tax Withheld', 'value' => $taken, 'currency' => $base] : null,
             ])),
             notes: [$withheld
-                ? 'Reversed payments are left out. Tax withheld from suppliers is owed to the tax office, not paid out of an account, so it is not counted as paid.'
+                ? "Reversed payments are left out. Tax withheld from {$whom} is owed to the tax office, not paid out of an account, so it is not counted as paid."
                 : 'Reversed payments are left out.'],
         );
+    }
+
+    /** A payment's row: what it paid - a purchase or an expense, $paid - and whom, in its account's currency and the base one. */
+    private function row(SupplierPayment|ExpensePayment $payment, string $type, ?string $payee, Purchase|Expense|null $paid, string $link): array
+    {
+        return [
+            'payment_date' => $payment->payment_date,
+            'number'       => $payment->number,
+            'type'         => $type,
+            'payee'        => $payee,
+            'document'     => $paid?->number,
+            'account'      => $payment->account?->name,
+            'method'       => $payment->method ? Str::headline($payment->method) : null,
+            'reference'    => $payment->reference,
+            'currency'     => $payment->account?->currency,
+            'amount'       => Decimal::round(Decimal::of($payment->amount)),
+            'base_amount'  => Decimal::round(Decimal::of($payment->base_amount)),
+            'withheld'     => $this->figures->base($payment->withholding_amount, $paid?->exchange_rate ?? '1'),
+            'location'     => $payment->location?->name,
+            'link'         => $link,
+        ];
     }
 }

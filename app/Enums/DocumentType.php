@@ -4,8 +4,7 @@ namespace App\Enums;
 
 /**
  * The kinds of document a business numbers (Doc 11 section 21), each with its
- * own run of numbers: Sales Lite's and Purchases Lite's so far; expenses and
- * their payment vouchers join with their app.
+ * own run of numbers: Sales Lite's, Purchases Lite's and Expenses Lite's.
  */
 enum DocumentType: string
 {
@@ -16,6 +15,8 @@ enum DocumentType: string
     case CustomerReceipt = 'customer_receipt';
     case Purchase = 'purchase';
     case SupplierVoucher = 'supplier_voucher';
+    case Expense = 'expense';
+    case ExpenseVoucher = 'expense_voucher';
 
     public function label(): string
     {
@@ -27,6 +28,8 @@ enum DocumentType: string
             self::CustomerReceipt => 'Customer Payment Receipt',
             self::Purchase        => 'Purchase',
             self::SupplierVoucher => 'Supplier Payment Voucher',
+            self::Expense         => 'Expense',
+            self::ExpenseVoucher  => 'Expense Payment Voucher',
         };
     }
 
@@ -41,10 +44,12 @@ enum DocumentType: string
             self::CustomerReceipt => 'customer payment receipts',
             self::Purchase        => 'purchases',
             self::SupplierVoucher => 'supplier payment vouchers',
+            self::Expense         => 'expenses',
+            self::ExpenseVoucher  => 'expense payment vouchers',
         };
     }
 
-    /** The prefix a business starts with: QUO-00001, INV-00001, PUR-00001, SPV-00001. */
+    /** The prefix a business starts with: QUO-00001, INV-00001, PUR-00001, SPV-00001, EXP-00001, EPV-00001. */
     public function defaultPrefix(): string
     {
         return match ($this) {
@@ -55,13 +60,19 @@ enum DocumentType: string
             self::CustomerReceipt => 'RCT-',
             self::Purchase        => 'PUR-',
             self::SupplierVoucher => 'SPV-',
+            self::Expense         => 'EXP-',
+            self::ExpenseVoucher  => 'EPV-',
         };
     }
 
     /** The app family that makes it: its numbering shows while that app is on. */
     public function family(): string
     {
-        return $this === self::Purchase || $this === self::SupplierVoucher ? 'purchases' : 'sales';
+        return match ($this) {
+            self::Purchase, self::SupplierVoucher => 'purchases',
+            self::Expense, self::ExpenseVoucher   => 'expenses',
+            default                               => 'sales',
+        };
     }
 
     /** The sales documents Sales Lite makes, by the part of their address that names them: /sales/invoices. */

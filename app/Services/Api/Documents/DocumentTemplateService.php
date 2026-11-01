@@ -72,6 +72,8 @@ class DocumentTemplateService
             DocumentType::CustomerReceipt => $this->documentPdf->receipt($workspace, $this->documentSample->receipt($workspace, $settings)),
             DocumentType::Purchase        => $this->documentPdf->purchase($workspace, $this->documentSample->purchase($workspace, $settings)),
             DocumentType::SupplierVoucher => $this->documentPdf->supplierVoucher($workspace, $this->documentSample->supplierVoucher($workspace, $settings)),
+            DocumentType::Expense         => $this->documentPdf->expense($workspace, $this->documentSample->expense($workspace, $settings)),
+            DocumentType::ExpenseVoucher  => $this->documentPdf->expenseVoucher($workspace, $this->documentSample->expenseVoucher($workspace, $settings)),
             default                       => $this->documentPdf->sales($workspace, $this->documentSample->sales($workspace, $type, $settings)),
         };
     }

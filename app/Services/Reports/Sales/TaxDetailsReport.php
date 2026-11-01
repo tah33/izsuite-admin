@@ -4,6 +4,8 @@ namespace App\Services\Reports\Sales;
 
 use App\Enums\DocumentType;
 use App\Enums\TaxTreatment;
+use App\Models\User\Expense;
+use App\Models\User\Purchase;
 use App\Models\User\Workspace;
 use App\Services\Reports\Report;
 use App\Services\Reports\ReportTable;
@@ -11,11 +13,11 @@ use App\Support\Decimal;
 
 /**
  * Tax Details (Doc 07 sections 16 and 20, the Tax Summary's drill-down): the
- * tax on each issued invoice and credit note - and each recorded purchase -
- * of the period, as the document kept it - in its own currency, and in the
- * base currency at its rate. A credit note takes tax off. It may be narrowed
- * to one treatment, or to one rate (`tax`, a Tax Summary row's key). Each
- * row opens its document.
+ * tax on each issued invoice and credit note - and each recorded purchase
+ * and expense - of the period, as the document kept it - in its own
+ * currency, and in the base currency at its rate. A credit note takes tax
+ * off. It may be narrowed to one treatment, or to one rate (`tax`, a Tax
+ * Summary row's key). Each row opens its document.
  */
 class TaxDetailsReport extends Report
 {
@@ -55,29 +57,11 @@ class TaxDetailsReport extends Report
         }
 
         foreach ($this->purchases->recorded($workspace, $filters['from'], $filters['to'], $filters) as $purchase) {
-            foreach ($purchase->taxes ?? [] as $tax) {
-                $treatment = TaxTreatment::tryFrom($tax['treatment'] ?? '') ?? TaxTreatment::Standard;
+            array_push($rows, ...$this->paidRows($purchase, 'Purchase', $this->figures->supplierName($purchase), "/purchases/{$purchase->id}", $filters));
+        }
 
-                if ((($filters['tax'] ?? null) && $this->taxKey($tax) !== $filters['tax'])
-                    || (($filters['tax_treatment'] ?? null) && $treatment->value !== $filters['tax_treatment'])) {
-                    continue;
-                }
-
-                $rows[] = [
-                    'document_date' => $purchase->document_date,
-                    'number'        => $purchase->number,
-                    'type'          => 'Purchase',
-                    'contact'       => $this->figures->supplierName($purchase),
-                    'tax'           => $this->taxLabel($tax),
-                    'treatment'     => $treatment->label(),
-                    'currency'      => $purchase->currency,
-                    'taxable'       => Decimal::round(Decimal::of($tax['taxable_amount'])),
-                    'tax_amount'    => Decimal::round(Decimal::of($tax['tax_amount'])),
-                    'base_taxable'  => $this->figures->base($tax['taxable_amount'], $purchase->exchange_rate),
-                    'base_tax'      => $this->figures->base($tax['tax_amount'], $purchase->exchange_rate),
-                    'link'          => "/purchases/{$purchase->id}",
-                ];
-            }
+        foreach ($this->expenses->recorded($workspace, $filters['from'], $filters['to'], $filters) as $expense) {
+            array_push($rows, ...$this->paidRows($expense, 'Expense', $this->figures->payeeName($expense), "/expenses/{$expense->id}", $filters));
         }
 
         usort($rows, fn (array $a, array $b) => [$a['document_date'], $a['number']] <=> [$b['document_date'], $b['number']]);
@@ -100,8 +84,40 @@ class TaxDetailsReport extends Report
             ],
             rows: $rows,
             totals: ['document_date' => 'Total', ...$this->totals($rows, ['base_taxable', 'base_tax'])],
-            notes: ["Each document's tax as it kept it, in its own currency and in {$base} at its rate. Credit notes show as negative amounts; purchases' tax is the tax paid on them."],
+            notes: ["Each document's tax as it kept it, in its own currency and in {$base} at its rate. Credit notes show as negative amounts; purchases' and expenses' tax is the tax paid on them."],
         );
+    }
+
+    /** A recorded purchase's or expense's rows: each tax it paid that the filters let through - $contact the supplier or payee. */
+    private function paidRows(Purchase|Expense $document, string $type, string $contact, string $link, array $filters): array
+    {
+        $rows = [];
+
+        foreach ($document->taxes ?? [] as $tax) {
+            $treatment = TaxTreatment::tryFrom($tax['treatment'] ?? '') ?? TaxTreatment::Standard;
+
+            if ((($filters['tax'] ?? null) && $this->taxKey($tax) !== $filters['tax'])
+                || (($filters['tax_treatment'] ?? null) && $treatment->value !== $filters['tax_treatment'])) {
+                continue;
+            }
+
+            $rows[] = [
+                'document_date' => $document->document_date,
+                'number'        => $document->number,
+                'type'          => $type,
+                'contact'       => $contact,
+                'tax'           => $this->taxLabel($tax),
+                'treatment'     => $treatment->label(),
+                'currency'      => $document->currency,
+                'taxable'       => Decimal::round(Decimal::of($tax['taxable_amount'])),
+                'tax_amount'    => Decimal::round(Decimal::of($tax['tax_amount'])),
+                'base_taxable'  => $this->figures->base($tax['taxable_amount'], $document->exchange_rate),
+                'base_tax'      => $this->figures->base($tax['tax_amount'], $document->exchange_rate),
+                'link'          => $link,
+            ];
+        }
+
+        return $rows;
     }
 
     /** " · VAT 15%" or " · Exempt" when narrowed to one rate or treatment. */

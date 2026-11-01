@@ -167,4 +167,10 @@ class Contact extends Model
     {
         return $this->hasMany(Purchase::class);
     }
+
+    /** The expenses it was paid on as payee - any status. */
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class);
+    }
 }

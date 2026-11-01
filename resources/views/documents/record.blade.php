@@ -1,6 +1,7 @@
-{{-- A purchase's record (Doc 09 section 10): the business, the supplier
-     and their invoice, the lines, the totals and what it still owes, drawn up
-     for its PDF (DocumentRenderer). --}}
+{{-- A purchase's or an expense's record (Doc 09 and Doc 10, section 10):
+     the business, the supplier or payee and their invoice or receipt, the
+     lines, the totals and what it still owes, drawn up for its PDF
+     (DocumentRenderer). --}}
 <!DOCTYPE html>
 <html lang="{{ $lang }}">
 <head>

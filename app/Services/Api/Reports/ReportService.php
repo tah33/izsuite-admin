@@ -8,6 +8,7 @@ use App\Models\User\PaymentAccount;
 use App\Models\User\Workspace;
 use App\Repositories\User\BusinessSettingRepository;
 use App\Repositories\User\ContactRepository;
+use App\Repositories\User\ExpenseCategoryRepository;
 use App\Repositories\User\ItemLabelRepository;
 use App\Repositories\User\ItemRepository;
 use App\Repositories\User\PaymentAccountRepository;
@@ -39,6 +40,7 @@ class ReportService
         protected ContactRepository $contactRepository,
         protected ItemRepository $itemRepository,
         protected ItemLabelRepository $itemLabelRepository,
+        protected ExpenseCategoryRepository $expenseCategoryRepository,
         protected PaymentAccountRepository $paymentAccountRepository,
         protected BusinessSettingRepository $businessSettingRepository,
         protected DocumentTemplates $documentTemplates,
@@ -115,27 +117,29 @@ class ReportService
 
     /**
      * The dates and filters a report is built with: the range, an as-of day,
-     * the grouping, and what it is narrowed to - with the contact, item,
-     * category and account named, each the business's own.
+     * the grouping - by category, unless told, for Expenses by Category, by
+     * month for the rest - and what it is narrowed to: with the contact, item,
+     * category, expense category and account named, each the business's own.
      */
     private function filters(Workspace $workspace, string $key, array $input): array
     {
         [$from, $to] = $this->reportPeriod->range($workspace, $input['range'] ?? null, $input['date_from'] ?? null, $input['date_to'] ?? null);
 
         $filters = [
-            'from'               => $from,
-            'to'                 => $to,
-            'as_of'              => $input['as_of'] ?? $this->reportPeriod->today($workspace),
-            'group_by'           => $input['group_by'] ?? 'month',
-            'location_id'        => $input['location_id'] ?? null,
-            'contact_id'         => $input['contact_id'] ?? null,
-            'currency'           => $input['currency'] ?? null,
-            'item_id'            => $input['item_id'] ?? null,
-            'category_id'        => $input['category_id'] ?? null,
-            'payment_status'     => $input['payment_status'] ?? null,
-            'payment_account_id' => $input['payment_account_id'] ?? null,
-            'tax_treatment'      => $input['tax_treatment'] ?? null,
-            'tax'                => $input['tax'] ?? null,
+            'from'                => $from,
+            'to'                  => $to,
+            'as_of'               => $input['as_of'] ?? $this->reportPeriod->today($workspace),
+            'group_by'            => $input['group_by'] ?? ($key === 'expenses-by-category' ? 'category' : 'month'),
+            'location_id'         => $input['location_id'] ?? null,
+            'contact_id'          => $input['contact_id'] ?? null,
+            'currency'            => $input['currency'] ?? null,
+            'item_id'             => $input['item_id'] ?? null,
+            'category_id'         => $input['category_id'] ?? null,
+            'expense_category_id' => $input['expense_category_id'] ?? null,
+            'payment_status'      => $input['payment_status'] ?? null,
+            'payment_account_id'  => $input['payment_account_id'] ?? null,
+            'tax_treatment'       => $input['tax_treatment'] ?? null,
+            'tax'                 => $input['tax'] ?? null,
         ];
 
         $max = self::MAX_PERIODS[$filters['group_by']] ?? null;
@@ -163,6 +167,11 @@ class ReportService
         if ($filters['category_id']) {
             $filters['category'] = $this->itemLabelRepository->findFor($workspace, ItemLabel::Category, (int) $filters['category_id'])
                 ?? throw ValidationException::withMessages(['category_id' => 'Choose one of your item categories.']);
+        }
+
+        if ($filters['expense_category_id']) {
+            $filters['expense_category'] = $this->expenseCategoryRepository->findFor($workspace, (int) $filters['expense_category_id'])
+                ?? throw ValidationException::withMessages(['expense_category_id' => 'Choose one of your expense categories.']);
         }
 
         if ($filters['payment_account_id'] || $key === 'account-transactions') {

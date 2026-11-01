@@ -2,7 +2,9 @@
 
 namespace App\Services\Api\Documents;
 
+use App\Enums\ExpenseStatus;
 use App\Enums\PurchaseStatus;
+use App\Models\User\Expense;
 use App\Models\User\Purchase;
 use App\Models\User\SalesDocument;
 use App\Models\User\Workspace;
@@ -50,6 +52,7 @@ class DocumentIndexService
         return [
             'sales'     => $apps->row('sales')?->app?->name ?? 'Sales',
             'purchases' => $apps->row('purchases')?->app?->name ?? 'Purchases',
+            'expenses'  => $apps->row('expenses')?->app?->name ?? 'Expenses',
         ];
     }
 
@@ -74,8 +77,24 @@ class DocumentIndexService
         return Csv::download('documents-'.$today.'.csv', ['Date', 'Number', 'Type', 'Contact', 'Source Application', 'Status', 'Payment Status', 'Total', 'Currency', 'Balance Due', 'Location'], $rows);
     }
 
-    private function csvRow(SalesDocument|Purchase $document, string $today, array $sources): array
+    private function csvRow(SalesDocument|Purchase|Expense $document, string $today, array $sources): array
     {
+        if ($document instanceof Expense) {
+            return [
+                $document->document_date,
+                $document->number ?? 'Draft',
+                'Expense',
+                $document->payeeName() ?? '',
+                $sources['expenses'] ?? '',
+                $document->status->label(),
+                ucwords(str_replace('_', ' ', (string) $document->payment_status)),
+                (string) $document->grand_total,
+                $document->currency,
+                $document->status === ExpenseStatus::Recorded ? (string) $document->balance_due : '',
+                $document->location?->name ?? '',
+            ];
+        }
+
         if ($document instanceof Purchase) {
             return [
                 $document->document_date,

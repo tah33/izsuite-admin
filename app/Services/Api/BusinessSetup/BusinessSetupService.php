@@ -6,6 +6,7 @@ use App\Models\User\Workspace;
 use App\Repositories\User\AccountTransactionRepository;
 use App\Repositories\User\ContactRepository;
 use App\Repositories\User\PaymentAccountRepository;
+use App\Repositories\User\ExpenseRepository;
 use App\Repositories\User\PurchaseRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Repositories\User\WorkspaceRepository;
@@ -28,6 +29,7 @@ class BusinessSetupService
         protected ContactRepository $contactRepository,
         protected SalesDocumentRepository $salesDocumentRepository,
         protected PurchaseRepository $purchaseRepository,
+        protected ExpenseRepository $expenseRepository,
         protected AccountTransactionRepository $accountTransactionRepository,
     ) {}
 
@@ -46,8 +48,8 @@ class BusinessSetupService
      * A currency a payment account uses cannot be dropped - the account would
      * be left in a currency the business no longer takes. The base currency
      * itself changes freely only until the business has issued or sent a
-     * document, recorded a purchase or given a payment account an opening
-     * balance (Doc 11 section 7): after that its totals are in it.
+     * document, recorded a purchase or an expense, or given a payment account
+     * an opening balance (Doc 11 section 7): after that its totals are in it.
      */
     public function saveCurrencies(Workspace $workspace, array $data): array
     {
@@ -56,10 +58,11 @@ class BusinessSetupService
 
         if ($data['base_currency'] !== $workspace->base_currency
             && ($this->salesDocumentRepository->hasTransactions($workspace) || $this->purchaseRepository->hasTransactions($workspace)
+                || $this->expenseRepository->hasTransactions($workspace)
                 || $this->paymentAccountRepository->hasOpeningBalance($workspace)
                 || $this->accountTransactionRepository->existsForWorkspace($workspace))) {
             throw ValidationException::withMessages([
-                'base_currency' => 'The base currency cannot change once documents have been issued or sent, purchases recorded, or a payment account has an opening balance or money recorded through it.',
+                'base_currency' => 'The base currency cannot change once documents have been issued or sent, purchases or expenses recorded, or a payment account has an opening balance or money recorded through it.',
             ]);
         }
 
