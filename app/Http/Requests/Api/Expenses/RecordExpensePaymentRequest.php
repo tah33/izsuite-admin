@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Expenses;
 
+use App\Http\Requests\Api\Concerns\PicksPaymentAccount;
 use App\Models\User\PaymentAccount;
 use App\Models\User\SalesPayment;
 use App\Models\User\WithholdingTax;
@@ -10,6 +11,8 @@ use Illuminate\Validation\Rule;
 
 class RecordExpensePaymentRequest extends FormRequest
 {
+    use PicksPaymentAccount;
+
     public function authorize(): bool
     {
         return true;
@@ -30,7 +33,7 @@ class RecordExpensePaymentRequest extends FormRequest
 
         return [
             'payment_date'       => ['required', 'date_format:Y-m-d'],
-            'payment_account_id' => ['required', 'integer', Rule::exists(PaymentAccount::class, 'id')->where('workspace_id', $workspace?->id)->where('is_active', true)->where('allow_supplier_payments', true)],
+            'payment_account_id' => ['required', 'integer', Rule::exists(PaymentAccount::class, 'id')->where('workspace_id', $workspace?->id)->where('is_active', true)->where('allow_supplier_payments', true)->where($this->usableAccount())],
             'amount'             => ['required', 'numeric', 'decimal:0,2', 'gt:0', 'max:9999999999999.99'],
             'applied_amount'     => ['nullable', 'numeric', 'decimal:0,2', 'gt:0', 'max:9999999999999.99'],
             'method'             => ['nullable', Rule::in(SalesPayment::METHODS)],

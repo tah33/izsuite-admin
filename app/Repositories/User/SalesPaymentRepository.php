@@ -33,6 +33,7 @@ class SalesPaymentRepository
             ->where('workspace_id', $workspace->id)
             ->when($kind !== 'all', fn (Builder $query) => $query->where('kind', $kind))
             ->when($filters['contact_id'] ?? null, fn (Builder $query, $id) => $query->where('contact_id', $id))
+            ->atLocations($filters['location_ids'] ?? null)
             ->with(['document:id,number', 'contact:id,name', 'account:id,name,currency'])
             ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $query->where(fn (Builder $query) => $query
                 ->where('number', 'like', "%{$search}%")

@@ -13,10 +13,10 @@ class WorkspaceMemberRepository
     /** What a member comes back with: role, account (last sign-in) and locations. */
     private const RELATIONS = ['role:id,name,template', 'user:id,email,email_verified_at,last_login_at', 'locations:id'];
 
-    /** $user's membership of the business while it is active, with its role. */
+    /** $user's membership of the business while it is active, with its role and locations. */
     public function activeFor(Workspace $workspace, User $user): ?WorkspaceMember
     {
-        return $workspace->members()->with('role')->where('user_id', $user->id)->where('status', WorkspaceMember::ACTIVE)->first();
+        return $workspace->members()->with(['role', 'locations:id'])->where('user_id', $user->id)->where('status', WorkspaceMember::ACTIVE)->first();
     }
 
     /** $user as a member of the business under $role - made once, kept after. */
@@ -87,6 +87,23 @@ class WorkspaceMemberRepository
     public function syncLocations(WorkspaceMember $member, array $locationIds): void
     {
         $member->locations()->sync($locationIds);
+    }
+
+    /** The members with Selected Locations - all but the removed - with the locations chosen for them. */
+    public function withChosenLocations(Workspace $workspace): Collection
+    {
+        return $workspace->members()
+            ->with('locations:id')
+            ->where('location_access', WorkspaceMember::SELECTED_LOCATIONS)
+            ->where('status', '!=', WorkspaceMember::REMOVED)
+            ->orderBy('name')
+            ->get();
+    }
+
+    /** Location $locationId among those $member may use ($on), or not. */
+    public function toggleLocation(WorkspaceMember $member, int $locationId, bool $on): void
+    {
+        $on ? $member->locations()->syncWithoutDetaching([$locationId]) : $member->locations()->detach($locationId);
     }
 
     public function delete(WorkspaceMember $member): void

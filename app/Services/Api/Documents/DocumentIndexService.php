@@ -40,7 +40,7 @@ class DocumentIndexService
     /** $filters are validated (see ListDocumentsRequest). */
     public function list(Workspace $workspace, array $filters, int $perPage): LengthAwarePaginator
     {
-        return $this->documentIndexRepository->paginateFor($workspace, $filters, $perPage, $this->today($workspace), $this->types());
+        return $this->documentIndexRepository->paginateFor($workspace, [...$filters, 'location_ids' => $this->access->locations()], $perPage, $this->today($workspace), $this->types());
     }
 
     public function today(Workspace $workspace): string
@@ -66,7 +66,7 @@ class DocumentIndexService
         $today   = $this->today($workspace);
         $sources = $this->sources($workspace);
         $types   = $this->types();
-        $count   = $this->documentIndexRepository->countFor($workspace, $filters, $today, $types);
+        $count   = $this->documentIndexRepository->countFor($workspace, [...$filters, 'location_ids' => $this->access->locations()], $today, $types);
 
         ActivityLogService::record('exported', "Exported {$count} documents", $workspace, [
             'source'  => 'api',
@@ -74,7 +74,7 @@ class DocumentIndexService
         ]);
 
         $rows = (function () use ($workspace, $filters, $today, $sources, $types) {
-            foreach ($this->documentIndexRepository->lazyFor($workspace, $filters, $today, $types) as $document) {
+            foreach ($this->documentIndexRepository->lazyFor($workspace, [...$filters, 'location_ids' => $this->access->locations()], $today, $types) as $document) {
                 yield $this->csvRow($document, $today, $sources);
             }
         })();

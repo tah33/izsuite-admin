@@ -44,6 +44,9 @@ class NavigationResource extends JsonResource
             // What the user may do in the business (Doc 12): "*" alone for full access.
             'permissions' => $this->resource['permissions'] ?? [],
 
+            // Whether they may use every location (Doc 12 section 20).
+            'all_locations' => $this->resource['all_locations'] ?? true,
+
             'menu'      => [
                 'core'   => $this->resource['menu']['core'],
                 'apps'   => array_map(fn (array $entry) => [

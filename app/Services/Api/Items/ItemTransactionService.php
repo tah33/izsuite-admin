@@ -14,7 +14,8 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
  * An item's related transactions on its profile (Doc 04 sections 16 and 17):
  * each document line that holds it, as it was kept - read only, each opening
  * its document. Another business's item is a 404. Only documents of the
- * kinds the user's role may view are among them (Doc 12).
+ * kinds the user's role may view, at the locations they may use, are among
+ * them (Doc 12).
  */
 class ItemTransactionService
 {
@@ -30,7 +31,7 @@ class ItemTransactionService
         $item  = $this->itemRepository->findFor($workspace, $itemId) ?? abort(404, 'Item not found.');
         $types = $this->access->viewable([...array_values(DocumentType::KINDS), DocumentType::Purchase]);
 
-        return $this->itemTransactionRepository->paginateFor($workspace, $item, $perPage, $types);
+        return $this->itemTransactionRepository->paginateFor($workspace, $item, $perPage, $types, $this->access->locations());
     }
 
     /** The business's today, which a document's status is read against. */

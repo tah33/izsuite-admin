@@ -39,6 +39,7 @@ class ExpensePaymentRepository
                     ->orWhere('payee_name', 'like', "%{$search}%"))))
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
             ->when($filters['contact_id'] ?? null, fn (Builder $query, $id) => $query->where('contact_id', $id))
+            ->atLocations($filters['location_ids'] ?? null)
             ->when($filters['payment_account_id'] ?? null, fn (Builder $query, $id) => $query->where('payment_account_id', $id))
             ->when($filters['date_from'] ?? null, fn (Builder $query, string $date) => $query->where('payment_date', '>=', $date))
             ->when($filters['date_to'] ?? null, fn (Builder $query, string $date) => $query->where('payment_date', '<=', $date))

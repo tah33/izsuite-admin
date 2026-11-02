@@ -58,7 +58,7 @@ class AccountTransactionsReport extends Report
             $rows[] = [...$this->line($openedOn, 'Opening Balance', $balance), 'money_in' => $moneyIn === '0.00' ? null : $moneyIn, 'money_out' => $moneyOut === '0.00' ? null : $moneyOut, 'status' => 'Completed'];
         }
 
-        foreach ($this->transactions->allFor($account, ['date_from' => $filters['from'], 'date_to' => $filters['to']]) as $row) {
+        foreach ($this->transactions->allFor($account, ['date_from' => $filters['from'], 'date_to' => $filters['to'], 'location_ids' => $filters['location_ids'] ?? null]) as $row) {
             $in        = $row->direction === AccountTransaction::IN;
             $completed = $row->status === AccountTransaction::COMPLETED;
 

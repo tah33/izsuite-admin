@@ -166,6 +166,7 @@ class ExpenseRepository
             ->when($filters['contact_id'] ?? null, fn (Builder $query, $id) => $query->where('contact_id', $id))
             ->when($filters['category_id'] ?? null, fn (Builder $query, $id) => $query->whereHas('lines', fn (Builder $query) => $query->where('expense_category_id', $id)))
             ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('location_id', $id))
+            ->atLocations($filters['location_ids'] ?? null)
             ->when($filters['currency'] ?? null, fn (Builder $query, string $currency) => $query->where('currency', $currency))
             ->when($filters['date_from'] ?? null, fn (Builder $query, string $date) => $query->where('document_date', '>=', $date))
             ->when($filters['date_to'] ?? null, fn (Builder $query, string $date) => $query->where('document_date', '<=', $date))

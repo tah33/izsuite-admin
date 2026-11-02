@@ -3,6 +3,7 @@
 namespace App\Models\User;
 
 use App\Enums\ExpenseStatus;
+use App\Models\Concerns\AtLocation;
 use App\Models\Concerns\HasFiles;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -27,6 +28,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Expense extends Model
 {
+    use AtLocation;
     use HasFiles;
 
     public const PAYMENT_NOT_APPLICABLE = 'not_applicable';

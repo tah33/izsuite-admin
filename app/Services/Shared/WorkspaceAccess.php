@@ -5,15 +5,17 @@ namespace App\Services\Shared;
 use App\Enums\DocumentType;
 use App\Models\User\User;
 use App\Models\User\Workspace;
+use App\Models\User\WorkspaceMember;
 use App\Repositories\User\WorkspaceMemberRepository;
 use App\Support\Permissions;
 use Illuminate\Http\Request;
 
 /**
- * What someone may do in a business (Doc 12 section 2, step 3 - the package
- * and the app are checked before, by `workspace` and `app`): its owner
- * everything; a member what their role allows, while the membership and the
- * role are both active; anyone else nothing.
+ * What someone may do in a business (Doc 12 section 2, steps 3 and 4 - the
+ * package and the app are checked before, by `workspace` and `app`): its
+ * owner everything, everywhere; a member what their role allows, while the
+ * membership and the role are both active, at the locations they may use;
+ * anyone else nothing.
  *
  * Worked out once per request for each business and person.
  */
@@ -32,17 +34,19 @@ class WorkspaceAccess
      */
     public function granted(User $user, Workspace $workspace): array
     {
-        $request = app()->bound('request') ? app(Request::class) : null;
-        $key     = "granted:{$workspace->id}:{$user->id}";
+        return $this->resolved($user, $workspace)['granted'];
+    }
 
-        if ($request?->attributes->has($key)) {
-            return $request->attributes->get($key);
-        }
-
-        $granted = $this->resolve($user, $workspace);
-        $request?->attributes->set($key, $granted);
-
-        return $granted;
+    /**
+     * The locations $user may use in $workspace (Doc 12 section 20): null for
+     * every one - the owner's, and a member's with All Locations - else the
+     * ids of those chosen for them, active or not.
+     *
+     * @return list<int>|null
+     */
+    public function locationsOf(User $user, Workspace $workspace): ?array
+    {
+        return $this->resolved($user, $workspace)['locations'];
     }
 
     /** Whether $user holds $permissions - any one of them, when several. */
@@ -69,6 +73,28 @@ class WorkspaceAccess
     }
 
     /**
+     * As locationsOf(), for the signed-in user in the business the request is
+     * for - none at all without them.
+     *
+     * @return list<int>|null
+     */
+    public function locations(): ?array
+    {
+        $request   = app(Request::class);
+        $workspace = $request->attributes->get('workspace');
+
+        return $request->user() !== null && $workspace instanceof Workspace ? $this->locationsOf($request->user(), $workspace) : [];
+    }
+
+    /** Whether the signed-in user may use location $id: see and make records there. */
+    public function usesLocation(int $id): bool
+    {
+        $locations = $this->locations();
+
+        return $locations === null || in_array($id, $locations, true);
+    }
+
+    /**
      * Of $types, those whose records the signed-in user may view: what a
      * list across them shows, so each of its rows opens.
      *
@@ -80,15 +106,38 @@ class WorkspaceAccess
         return array_values(array_filter($types, fn (DocumentType $type) => $this->can("{$type->permissionGroup()}.view")));
     }
 
-    /** @return list<string> */
+    /** @return array{granted: list<string>, locations: list<int>|null} */
+    private function resolved(User $user, Workspace $workspace): array
+    {
+        $request = app()->bound('request') ? app(Request::class) : null;
+        $key     = "access:{$workspace->id}:{$user->id}";
+
+        if ($request?->attributes->has($key)) {
+            return $request->attributes->get($key);
+        }
+
+        $resolved = $this->resolve($user, $workspace);
+        $request?->attributes->set($key, $resolved);
+
+        return $resolved;
+    }
+
+    /** @return array{granted: list<string>, locations: list<int>|null} */
     private function resolve(User $user, Workspace $workspace): array
     {
         if ($workspace->isOwnedBy($user)) {
-            return [Permissions::ALL];
+            return ['granted' => [Permissions::ALL], 'locations' => null];
         }
 
         $member = $this->members->activeFor($workspace, $user);
 
-        return $member?->role?->is_active ? $member->role->granted() : [];
+        return [
+            'granted'   => $member?->role?->is_active ? $member->role->granted() : [],
+            'locations' => match (true) {
+                $member === null                                                 => [],
+                $member->location_access === WorkspaceMember::SELECTED_LOCATIONS => $member->locations->map(fn ($location) => (int) $location->id)->values()->all(),
+                default                                                          => null,
+            },
+        ];
     }
 }

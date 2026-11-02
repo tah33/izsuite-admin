@@ -61,6 +61,7 @@ class SalesReportRepository
             ->where('sales_documents.status', SalesDocumentStatus::Issued->value)
             ->whereBetween('sales_documents.document_date', [$from, $to])
             ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('sales_documents.location_id', $id))
+            ->when(isset($filters['location_ids']), fn (Builder $query) => $query->whereIn('sales_documents.location_id', $filters['location_ids']))
             ->when($filters['contact_id'] ?? null, fn (Builder $query, $id) => $query->where('sales_documents.contact_id', $id))
             ->when($filters['currency'] ?? null, fn (Builder $query, string $currency) => $query->where('sales_documents.currency', $currency))
             ->when($filters['item_id'] ?? null, fn (Builder $query, $id) => $query->where('sales_document_lines.item_id', $id))
@@ -104,6 +105,7 @@ class SalesReportRepository
             ->where('status', SalesPayment::COMPLETED)
             ->whereBetween('payment_date', [$from, $to])
             ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('location_id', $id))
+            ->when(isset($filters['location_ids']), fn (Builder $query) => $query->whereIn('location_id', $filters['location_ids']))
             ->when($filters['contact_id'] ?? null, fn (Builder $query, $id) => $query->where('contact_id', $id))
             ->when($filters['payment_account_id'] ?? null, fn (Builder $query, $id) => $query->where('payment_account_id', $id))
             ->when($filters['currency'] ?? null, fn (Builder $query, string $currency) => $query->whereHas('account', fn (Builder $query) => $query->where('currency', $currency)))
@@ -164,12 +166,13 @@ class SalesReportRepository
      *
      * @param  list<DocumentType>  $types
      */
-    public function latestDocuments(Workspace $workspace, int $limit, ?int $locationId, array $types): Collection
+    public function latestDocuments(Workspace $workspace, int $limit, ?int $locationId, array $types, ?array $locationIds = null): Collection
     {
         return SalesDocument::query()
             ->where('workspace_id', $workspace->id)
             ->whereIn('type', array_map(fn (DocumentType $type) => $type->value, $types))
             ->when($locationId, fn (Builder $query, int $id) => $query->where('location_id', $id))
+            ->atLocations($locationIds)
             ->with('contact:id,name')
             ->orderByDesc('document_date')
             ->orderByDesc('id')
@@ -178,11 +181,12 @@ class SalesReportRepository
     }
 
     /** The newest payments and refunds, reversed ones too. */
-    public function latestMoney(Workspace $workspace, int $limit, ?int $locationId): Collection
+    public function latestMoney(Workspace $workspace, int $limit, ?int $locationId, ?array $locationIds = null): Collection
     {
         return SalesPayment::query()
             ->where('workspace_id', $workspace->id)
             ->when($locationId, fn (Builder $query, int $id) => $query->where('location_id', $id))
+            ->atLocations($locationIds)
             ->with(['contact:id,name', 'account:id,currency'])
             ->orderByDesc('payment_date')
             ->orderByDesc('id')
@@ -198,6 +202,7 @@ class SalesReportRepository
             ->where("{$table}type", $type->value)
             ->where("{$table}status", SalesDocumentStatus::Issued->value)
             ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where("{$table}location_id", $id))
+            ->when(isset($filters['location_ids']), fn (Builder $query) => $query->whereIn("{$table}location_id", $filters['location_ids']))
             ->when($filters['contact_id'] ?? null, fn (Builder $query, $id) => $query->where("{$table}contact_id", $id))
             ->when($filters['currency'] ?? null, fn (Builder $query, string $currency) => $query->where("{$table}currency", $currency));
     }

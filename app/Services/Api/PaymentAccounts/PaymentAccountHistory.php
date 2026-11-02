@@ -6,6 +6,7 @@ use App\Models\User\AccountTransaction;
 use App\Models\User\PaymentAccount;
 use App\Models\User\Workspace;
 use App\Repositories\User\AccountTransactionRepository;
+use App\Services\Shared\WorkspaceAccess;
 use App\Support\Csv;
 use App\Support\Decimal;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -26,12 +27,13 @@ class PaymentAccountHistory
     public function __construct(
         protected PaymentAccountService $paymentAccountService,
         protected AccountTransactionRepository $accountTransactionRepository,
+        protected WorkspaceAccess $access,
     ) {}
 
     public function page(Workspace $workspace, int $accountId, array $filters, int $perPage): LengthAwarePaginator
     {
         $account = $this->paymentAccountService->find($workspace, $accountId);
-        $page    = $this->accountTransactionRepository->paginateFor($account, $filters, $perPage);
+        $page    = $this->accountTransactionRepository->paginateFor($account, [...$filters, 'location_ids' => $this->access->locations()], $perPage);
 
         $page->getCollection()->each(fn (AccountTransaction $row) => $row->setAttribute('running_balance', $this->running($account, $row)));
 
@@ -41,7 +43,7 @@ class PaymentAccountHistory
     public function export(Workspace $workspace, int $accountId, array $filters): StreamedResponse
     {
         $account = $this->paymentAccountService->find($workspace, $accountId);
-        $rows    = $this->accountTransactionRepository->allFor($account, $filters);
+        $rows    = $this->accountTransactionRepository->allFor($account, [...$filters, 'location_ids' => $this->access->locations()]);
 
         return Csv::download(
             Str::slug($account->name).'-transactions.csv',

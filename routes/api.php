@@ -47,6 +47,7 @@ use App\Http\Controllers\Api\ItemSettingController;
 use App\Http\Controllers\Api\ItemTransactionController;
 use App\Http\Controllers\Api\LanguageController;
 use App\Http\Controllers\Api\LocationController;
+use App\Http\Controllers\Api\LocationUserController;
 use App\Http\Controllers\Api\LoginAsController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\NavigationController;
@@ -271,6 +272,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/{id}/activate', [LocationController::class, 'activate'])->whereNumber('id')->name('api.locations.activate');
         Route::post('/{id}/deactivate', [LocationController::class, 'deactivate'])->whereNumber('id')->name('api.locations.deactivate');
         Route::post('/{id}/primary', [LocationController::class, 'primary'])->whereNumber('id')->name('api.locations.primary');
+        Route::put('/{id}/users', [LocationUserController::class, 'update'])->whereNumber('id')->name('api.locations.users.update');
         Route::delete('/{id}', [LocationController::class, 'destroy'])->whereNumber('id')->name('api.locations.destroy');
     });
 

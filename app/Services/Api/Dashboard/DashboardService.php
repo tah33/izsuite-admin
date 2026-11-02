@@ -72,7 +72,7 @@ class DashboardService
 
         $today   = $this->reportPeriod->today($workspace);
         $asOf    = min($to, $today);
-        $filters = ['from' => $from, 'to' => $to, 'location_id' => $input['location_id'] ?? null, 'week_start' => $workspace->weekStartDay(), 'date_format' => $workspace->date_format];
+        $filters = ['from' => $from, 'to' => $to, 'location_id' => $input['location_id'] ?? null, 'location_ids' => $this->access->locations(), 'week_start' => $workspace->weekStartDay(), 'date_format' => $workspace->date_format];
         $apps    = WorkspaceApps::for($workspace);
         $sources = array_filter(['sales' => $apps->row('sales')?->app?->name, 'purchases' => $apps->row('purchases')?->app?->name, 'expenses' => $apps->row('expenses')?->app?->name]);
         $on      = fn (string $family) => $apps->has($family) && isset($sources[$family]) && $this->access->can(self::VIEWS[$family]);
@@ -210,7 +210,7 @@ class DashboardService
     {
         $types = $this->access->viewable(array_values(DocumentType::KINDS));
 
-        $documents = ($types ? $this->salesReportRepository->latestDocuments($workspace, self::RECENT_SHOWN, $locationId, $types) : collect())->map(fn (SalesDocument $document) => [
+        $documents = ($types ? $this->salesReportRepository->latestDocuments($workspace, self::RECENT_SHOWN, $locationId, $types, $this->access->locations()) : collect())->map(fn (SalesDocument $document) => [
             'date'     => $document->document_date,
             'type'     => $document->type->label(),
             'number'   => $document->number,
@@ -223,7 +223,7 @@ class DashboardService
             'created'  => $document->created_at?->getTimestamp() ?? 0,
         ]);
 
-        $payments = $this->ifAllowed('sales.payments.view', fn () => $this->salesReportRepository->latestMoney($workspace, self::RECENT_SHOWN, $locationId))->map(fn (SalesPayment $payment) => [
+        $payments = $this->ifAllowed('sales.payments.view', fn () => $this->salesReportRepository->latestMoney($workspace, self::RECENT_SHOWN, $locationId, $this->access->locations()))->map(fn (SalesPayment $payment) => [
             'date'     => $payment->payment_date,
             'type'     => $payment->kind === SalesPayment::REFUND ? 'Customer Refund' : 'Customer Payment',
             'number'   => $payment->number,
@@ -241,7 +241,7 @@ class DashboardService
 
     private function recentPurchases(Workspace $workspace, ?int $locationId, string $source): array
     {
-        $purchases = $this->ifAllowed('purchases.purchases.view', fn () => $this->purchaseReportRepository->latestPurchases($workspace, self::RECENT_SHOWN, $locationId))->map(fn (Purchase $purchase) => [
+        $purchases = $this->ifAllowed('purchases.purchases.view', fn () => $this->purchaseReportRepository->latestPurchases($workspace, self::RECENT_SHOWN, $locationId, $this->access->locations()))->map(fn (Purchase $purchase) => [
             'date'     => $purchase->document_date,
             'type'     => 'Purchase',
             'number'   => $purchase->number,
@@ -254,7 +254,7 @@ class DashboardService
             'created'  => $purchase->created_at?->getTimestamp() ?? 0,
         ]);
 
-        $payments = $this->ifAllowed('purchases.payments.view', fn () => $this->purchaseReportRepository->latestPayments($workspace, self::RECENT_SHOWN, $locationId))->map(fn (SupplierPayment $payment) => [
+        $payments = $this->ifAllowed('purchases.payments.view', fn () => $this->purchaseReportRepository->latestPayments($workspace, self::RECENT_SHOWN, $locationId, $this->access->locations()))->map(fn (SupplierPayment $payment) => [
             'date'     => $payment->payment_date,
             'type'     => 'Supplier Payment',
             'number'   => $payment->number,
@@ -272,7 +272,7 @@ class DashboardService
 
     private function recentExpenses(Workspace $workspace, ?int $locationId, string $source): array
     {
-        $expenses = $this->ifAllowed('expenses.expenses.view', fn () => $this->expenseReportRepository->latestExpenses($workspace, self::RECENT_SHOWN, $locationId))->map(fn (Expense $expense) => [
+        $expenses = $this->ifAllowed('expenses.expenses.view', fn () => $this->expenseReportRepository->latestExpenses($workspace, self::RECENT_SHOWN, $locationId, $this->access->locations()))->map(fn (Expense $expense) => [
             'date'     => $expense->document_date,
             'type'     => 'Expense',
             'number'   => $expense->number,
@@ -285,7 +285,7 @@ class DashboardService
             'created'  => $expense->created_at?->getTimestamp() ?? 0,
         ]);
 
-        $payments = $this->ifAllowed('expenses.payments.view', fn () => $this->expenseReportRepository->latestPayments($workspace, self::RECENT_SHOWN, $locationId))->map(fn (ExpensePayment $payment) => [
+        $payments = $this->ifAllowed('expenses.payments.view', fn () => $this->expenseReportRepository->latestPayments($workspace, self::RECENT_SHOWN, $locationId, $this->access->locations()))->map(fn (ExpensePayment $payment) => [
             'date'     => $payment->payment_date,
             'type'     => 'Expense Payment',
             'number'   => $payment->number,
@@ -312,7 +312,7 @@ class DashboardService
     {
         $net = $this->accountTransactionRepository->netByAccountUntil($workspace, $asOf);
 
-        return $this->paymentAccountRepository->getFor($workspace)->map(fn (PaymentAccount $account) => [
+        return $this->paymentAccountRepository->getFor($workspace, $this->access->locations())->map(fn (PaymentAccount $account) => [
             'id'       => $account->id,
             'name'     => $account->name,
             'type'     => $account->type,

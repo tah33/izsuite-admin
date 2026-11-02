@@ -4,6 +4,7 @@ namespace App\Models\User;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * A branch, shop, office or warehouse of one business (workspace), Doc 12
@@ -55,5 +56,11 @@ class Location extends Model
     public function workspace(): BelongsTo
     {
         return $this->belongsTo(Workspace::class);
+    }
+
+    /** The users with Selected Locations it was chosen for (Doc 12 section 20). */
+    public function members(): BelongsToMany
+    {
+        return $this->belongsToMany(WorkspaceMember::class, 'workspace_member_locations');
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Models\User;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -121,5 +122,20 @@ class PaymentAccount extends Model
     public function transactions(): HasMany
     {
         return $this->hasMany(AccountTransaction::class);
+    }
+
+    // ── Scopes ──
+
+    /**
+     * The accounts a user of the locations $ids may use (Doc 12 section 21):
+     * the whole business's, and those of their locations - every one for null.
+     *
+     * @param  list<int>|null  $ids
+     */
+    public function scopeUsableAt(Builder $query, ?array $ids): void
+    {
+        if ($ids !== null) {
+            $query->where(fn (Builder $query) => $query->whereNull($this->qualifyColumn('location_id'))->orWhereIn($this->qualifyColumn('location_id'), $ids));
+        }
     }
 }

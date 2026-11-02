@@ -2,6 +2,7 @@
 
 namespace App\Models\User;
 
+use App\Models\Concerns\AtLocation;
 use App\Models\Concerns\HasFiles;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -24,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class SupplierPayment extends Model
 {
+    use AtLocation;
     use HasFiles;
 
     public const COMPLETED = 'completed';

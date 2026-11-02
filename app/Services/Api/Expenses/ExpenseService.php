@@ -16,6 +16,7 @@ use App\Services\Expenses\ExpenseRules;
 use App\Services\Sales\SalesCalculator;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\BusinessCalendar;
+use App\Services\Shared\WorkspaceAccess;
 use App\Support\Csv;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -50,6 +51,7 @@ class ExpenseService
         protected SalesCalculator $salesCalculator,
         protected ExpenseRules $expenseRules,
         protected BusinessCalendar $businessCalendar,
+        protected WorkspaceAccess $access,
     ) {}
 
     /** The business's today, which overdue is measured by: "2026-10-28". */
@@ -60,7 +62,7 @@ class ExpenseService
 
     public function list(Workspace $workspace, array $filters, int $perPage): LengthAwarePaginator
     {
-        return $this->expenseRepository->paginateFor($workspace, $filters, $perPage, $this->today($workspace));
+        return $this->expenseRepository->paginateFor($workspace, [...$filters, 'location_ids' => $this->access->locations()], $perPage, $this->today($workspace));
     }
 
     /** Another business's expense answers like one that does not exist. */
@@ -162,7 +164,7 @@ class ExpenseService
     public function export(Workspace $workspace, array $filters): StreamedResponse
     {
         $today = $this->today($workspace);
-        $rows  = $this->expenseRepository->lazyFor($workspace, $filters, $today)->map(fn (Expense $expense) => [
+        $rows  = $this->expenseRepository->lazyFor($workspace, [...$filters, 'location_ids' => $this->access->locations()], $today)->map(fn (Expense $expense) => [
             $expense->document_date,
             $expense->number ?? 'Draft',
             $expense->receipt_number,

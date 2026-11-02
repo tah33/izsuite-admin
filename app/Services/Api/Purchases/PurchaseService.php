@@ -15,6 +15,7 @@ use App\Services\Purchases\PurchaseRules;
 use App\Services\Sales\SalesCalculator;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\BusinessCalendar;
+use App\Services\Shared\WorkspaceAccess;
 use App\Support\Csv;
 use App\Support\Decimal;
 use Carbon\CarbonImmutable;
@@ -49,6 +50,7 @@ class PurchaseService
         protected SalesCalculator $salesCalculator,
         protected PurchaseRules $purchaseRules,
         protected BusinessCalendar $businessCalendar,
+        protected WorkspaceAccess $access,
     ) {}
 
     /** The business's today, which overdue is measured by: "2026-10-28". */
@@ -59,7 +61,7 @@ class PurchaseService
 
     public function list(Workspace $workspace, array $filters, int $perPage): LengthAwarePaginator
     {
-        return $this->purchaseRepository->paginateFor($workspace, $filters, $perPage, $this->today($workspace));
+        return $this->purchaseRepository->paginateFor($workspace, [...$filters, 'location_ids' => $this->access->locations()], $perPage, $this->today($workspace));
     }
 
     /** Another business's purchase answers like one that does not exist. */
@@ -160,7 +162,7 @@ class PurchaseService
     public function export(Workspace $workspace, array $filters): StreamedResponse
     {
         $today = $this->today($workspace);
-        $rows  = $this->purchaseRepository->lazyFor($workspace, $filters, $today)->map(fn (Purchase $purchase) => [
+        $rows  = $this->purchaseRepository->lazyFor($workspace, [...$filters, 'location_ids' => $this->access->locations()], $today)->map(fn (Purchase $purchase) => [
             $purchase->document_date,
             $purchase->number ?? 'Draft',
             $purchase->supplier_invoice_number,

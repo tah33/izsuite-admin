@@ -6,10 +6,10 @@ use App\Enums\DocumentType;
 use App\Models\User\TaxRate;
 use App\Models\User\Workspace;
 use App\Repositories\User\ContactRepository;
-use App\Repositories\User\LocationRepository;
 use App\Repositories\User\SalesSettingRepository;
 use App\Repositories\User\TaxRateRepository;
 use App\Services\Api\BusinessSetup\ExchangeRateService;
+use App\Services\Shared\LocationAccess;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Arr;
 
@@ -36,7 +36,7 @@ class SalesFormService
     public function __construct(
         protected SalesSettingRepository $salesSettingRepository,
         protected ContactRepository $contactRepository,
-        protected LocationRepository $locationRepository,
+        protected LocationAccess $locationAccess,
         protected TaxRateRepository $taxRateRepository,
         protected ExchangeRateService $exchangeRateService,
         protected SalesDocumentService $salesDocumentService,
@@ -63,7 +63,7 @@ class SalesFormService
             'payment_terms'      => $type === DocumentType::Invoice ? $terms : null,
             'currency'           => $currency,
             'exchange_rate'      => $this->exchangeRateService->rateOn($workspace, $currency, $date),
-            'location_id'        => $this->locationRepository->getFor($workspace)->first()?->id,
+            'location_id'        => $this->locationAccess->defaultFor($workspace),
             'notes'              => $settings->notes,
             'terms'              => $settings->terms,
             'price_tax_mode'     => $workspace->price_tax_mode,

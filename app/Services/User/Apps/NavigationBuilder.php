@@ -109,6 +109,9 @@ class NavigationBuilder
             // full access. Pages and buttons follow it; the API enforces it.
             'permissions' => $granted,
 
+            // Whether they may use every location, or only those chosen for them (section 20).
+            'all_locations' => $workspace === null || $this->access->locationsOf($user, $workspace) === null,
+
             'menu' => [
                 'core'   => $this->tree($items->where('section', MenuItem::SECTION_CORE)),
                 'apps'   => $this->appEntries($on, $items->where('section', MenuItem::SECTION_APPS), ! in_array(Permissions::ALL, $granted, true)),

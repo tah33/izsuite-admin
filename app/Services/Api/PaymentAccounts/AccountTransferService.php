@@ -11,6 +11,7 @@ use App\Repositories\User\PaymentAccountRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\BusinessCalendar;
+use App\Services\Shared\WorkspaceAccess;
 use App\Support\Decimal;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -35,6 +36,7 @@ class AccountTransferService
         protected PaymentAccountRepository $paymentAccountRepository,
         protected AccountLedger $accountLedger,
         protected BusinessCalendar $businessCalendar,
+        protected WorkspaceAccess $access,
     ) {}
 
     /** Another business's transfer answers like one that does not exist. */
@@ -176,7 +178,7 @@ class AccountTransferService
 
     private function account(Workspace $workspace, int $id, string $field): PaymentAccount
     {
-        $account = $this->paymentAccountRepository->findFor($workspace, $id);
+        $account = $this->paymentAccountRepository->findFor($workspace, $id, $this->access->locations());
 
         if (! $account?->is_active) {
             throw ValidationException::withMessages([$field => 'Choose one of your active payment accounts.']);

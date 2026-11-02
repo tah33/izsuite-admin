@@ -6,9 +6,9 @@ use App\Models\User\TaxRate;
 use App\Models\User\Workspace;
 use App\Repositories\User\ContactRepository;
 use App\Repositories\User\ExpenseSettingRepository;
-use App\Repositories\User\LocationRepository;
 use App\Repositories\User\TaxRateRepository;
 use App\Services\Api\BusinessSetup\ExchangeRateService;
+use App\Services\Shared\LocationAccess;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Arr;
 
@@ -32,7 +32,7 @@ class ExpenseFormService
     public function __construct(
         protected ExpenseSettingRepository $expenseSettingRepository,
         protected ContactRepository $contactRepository,
-        protected LocationRepository $locationRepository,
+        protected LocationAccess $locationAccess,
         protected TaxRateRepository $taxRateRepository,
         protected ExchangeRateService $exchangeRateService,
         protected ExpenseService $expenseService,
@@ -58,7 +58,7 @@ class ExpenseFormService
             'payment_terms'   => $terms,
             'currency'        => $currency,
             'exchange_rate'   => $this->exchangeRateService->rateOn($workspace, $currency, $date),
-            'location_id'     => $this->locationRepository->getFor($workspace)->first()?->id,
+            'location_id'     => $this->locationAccess->defaultFor($workspace),
             'notes'           => $settings->notes,
             'price_tax_mode'  => $workspace->price_tax_mode,
             'tax_rounding'    => $workspace->tax_rounding,

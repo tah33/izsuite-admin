@@ -14,6 +14,7 @@ use App\Services\Sales\SalesCalculator;
 use App\Services\Sales\SalesDocumentRules;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\BusinessCalendar;
+use App\Services\Shared\WorkspaceAccess;
 use App\Support\Decimal;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -51,6 +52,7 @@ class SalesDocumentService
         protected SalesCalculator $salesCalculator,
         protected SalesDocumentRules $salesDocumentRules,
         protected BusinessCalendar $businessCalendar,
+        protected WorkspaceAccess $access,
     ) {}
 
     /** The business's today, which expiry and overdue are measured by: "2026-10-28". */
@@ -61,7 +63,7 @@ class SalesDocumentService
 
     public function list(Workspace $workspace, DocumentType $type, array $filters, int $perPage): LengthAwarePaginator
     {
-        return $this->salesDocumentRepository->paginateFor($workspace, $type, $filters, $perPage, $this->today($workspace));
+        return $this->salesDocumentRepository->paginateFor($workspace, $type, [...$filters, 'location_ids' => $this->access->locations()], $perPage, $this->today($workspace));
     }
 
     /** Another business's document - or one of another type - answers like one that does not exist. */

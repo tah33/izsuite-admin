@@ -19,6 +19,7 @@ use App\Services\Reports\ReportCatalog;
 use App\Services\Reports\ReportPeriod;
 use App\Services\Reports\ReportTable;
 use App\Services\Shared\ActivityLogService;
+use App\Services\Shared\WorkspaceAccess;
 use App\Support\Csv;
 use App\Support\Xlsx;
 use Illuminate\Validation\ValidationException;
@@ -45,6 +46,7 @@ class ReportService
         protected BusinessSettingRepository $businessSettingRepository,
         protected DocumentTemplates $documentTemplates,
         protected GotenbergClient $gotenbergClient,
+        protected WorkspaceAccess $access,
     ) {}
 
     public function catalog(Workspace $workspace): array
@@ -136,6 +138,7 @@ class ReportService
             'as_of'               => $input['as_of'] ?? $this->reportPeriod->today($workspace),
             'group_by'            => $input['group_by'] ?? ($key === 'expenses-by-category' ? 'category' : 'month'),
             'location_id'         => $input['location_id'] ?? null,
+            'location_ids'        => $this->access->locations(),
             'contact_id'          => $input['contact_id'] ?? null,
             'currency'            => $input['currency'] ?? null,
             'item_id'             => $input['item_id'] ?? null,
@@ -193,11 +196,11 @@ class ReportService
     private function account(Workspace $workspace, mixed $id): PaymentAccount
     {
         if ($id) {
-            return $this->paymentAccountRepository->findFor($workspace, (int) $id)
+            return $this->paymentAccountRepository->findFor($workspace, (int) $id, $this->access->locations())
                 ?? throw ValidationException::withMessages(['payment_account_id' => 'Choose one of your payment accounts.']);
         }
 
-        $accounts = $this->paymentAccountRepository->getFor($workspace);
+        $accounts = $this->paymentAccountRepository->getFor($workspace, $this->access->locations());
 
         return $accounts->firstWhere('is_active', true) ?? $accounts->first()
             ?? throw ValidationException::withMessages(['payment_account_id' => 'Add a payment account to see its transactions.']);

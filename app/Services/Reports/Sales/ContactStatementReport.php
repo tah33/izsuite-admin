@@ -29,6 +29,7 @@ use App\Support\Decimal;
  * Operational, not a ledger statement, and kept in date order.
  *
  * Expects $filters['contact'] and $filters['side']: customer or supplier.
+ * Only what is at the locations the user may use ($filters['location_ids']).
  */
 class ContactStatementReport extends Report
 {
@@ -51,8 +52,8 @@ class ContactStatementReport extends Report
         $supplier = ($filters['side'] ?? 'customer') === 'supplier';
         $currency = $filters['currency'] ?? null;
         $shown    = $currency ?? $workspace->base_currency;
-        $entries  = $supplier ? $this->supplierEntries($workspace, $contact->id, $currency, $filters['to']) : $this->entries($workspace, $contact->id, $currency, $filters['to']);
-        $owed     = $supplier ? $this->owedToSupplier($workspace, $contact->id, $currency, $filters['to']) : $this->owed($workspace, $contact->id, $currency, $filters['to']);
+        $entries  = $supplier ? $this->supplierEntries($workspace, $contact->id, $currency, $filters['to'], $filters['location_ids'] ?? null) : $this->entries($workspace, $contact->id, $currency, $filters['to'], $filters['location_ids'] ?? null);
+        $owed     = $supplier ? $this->owedToSupplier($workspace, $contact->id, $currency, $filters['to'], $filters['location_ids'] ?? null) : $this->owed($workspace, $contact->id, $currency, $filters['to'], $filters['location_ids'] ?? null);
         $apps     = WorkspaceApps::for($workspace);
         $spent    = $apps->hasHistory('expenses');
         $bought   = $apps->hasHistory('purchases') || ! $spent;
@@ -124,10 +125,10 @@ class ContactStatementReport extends Report
     }
 
     /** Every movement on the customer's account up to $to, oldest first: invoices, credit notes, then money on the day. */
-    private function entries(Workspace $workspace, int $contactId, ?string $currency, string $to): array
+    private function entries(Workspace $workspace, int $contactId, ?string $currency, string $to, ?array $locations): array
     {
         $entries = [];
-        $scope   = ['contact_id' => $contactId, 'currency' => $currency];
+        $scope   = ['contact_id' => $contactId, 'currency' => $currency, 'location_ids' => $locations];
 
         foreach ([DocumentType::Invoice, DocumentType::CreditNote] as $order => $type) {
             foreach ($this->sales->issued($workspace, $type, self::DAWN, $to, $scope) as $document) {
@@ -144,7 +145,7 @@ class ContactStatementReport extends Report
             }
         }
 
-        foreach ($this->sales->moneyMoved($workspace, self::DAWN, $to, ['contact_id' => $contactId, 'document_currency' => $currency]) as $money) {
+        foreach ($this->sales->moneyMoved($workspace, self::DAWN, $to, ['contact_id' => $contactId, 'document_currency' => $currency, 'location_ids' => $locations]) as $money) {
             $refund   = $money->kind === SalesPayment::REFUND;
             $amount   = $currency ? Decimal::round(Decimal::of($money->applied_amount)) : Decimal::round(Decimal::of($money->base_amount));
             $withheld = $currency ? Decimal::round(Decimal::of($money->withholding_amount)) : $this->figures->base($money->withholding_amount, $money->document?->exchange_rate ?? '1');
@@ -165,11 +166,11 @@ class ContactStatementReport extends Report
     }
 
     /** Every movement on the supplier's account up to $to, oldest first: purchases and expenses, then payments on the day. */
-    private function supplierEntries(Workspace $workspace, int $contactId, ?string $currency, string $to): array
+    private function supplierEntries(Workspace $workspace, int $contactId, ?string $currency, string $to, ?array $locations): array
     {
         $entries = [];
 
-        foreach ($this->purchases->recorded($workspace, self::DAWN, $to, ['contact_id' => $contactId, 'currency' => $currency]) as $purchase) {
+        foreach ($this->purchases->recorded($workspace, self::DAWN, $to, ['contact_id' => $contactId, 'currency' => $currency, 'location_ids' => $locations]) as $purchase) {
             $entries[] = $this->entry($purchase->document_date, 0, $purchase->id, 'Purchase', $purchase->number, $purchase->due_date, [
                 'currency' => $purchase->currency,
                 'original' => (string) $purchase->grand_total,
@@ -179,7 +180,7 @@ class ContactStatementReport extends Report
             ]);
         }
 
-        foreach ($this->expenses->recorded($workspace, self::DAWN, $to, ['contact_id' => $contactId, 'currency' => $currency]) as $expense) {
+        foreach ($this->expenses->recorded($workspace, self::DAWN, $to, ['contact_id' => $contactId, 'currency' => $currency, 'location_ids' => $locations]) as $expense) {
             $entries[] = $this->entry($expense->document_date, 1, $expense->id, 'Expense', $expense->number, $expense->due_date, [
                 'currency' => $expense->currency,
                 'original' => (string) $expense->grand_total,
@@ -189,7 +190,7 @@ class ContactStatementReport extends Report
             ]);
         }
 
-        foreach ($this->purchases->paymentsMade($workspace, self::DAWN, $to, ['contact_id' => $contactId, 'document_currency' => $currency]) as $payment) {
+        foreach ($this->purchases->paymentsMade($workspace, self::DAWN, $to, ['contact_id' => $contactId, 'document_currency' => $currency, 'location_ids' => $locations]) as $payment) {
             $entries[] = $this->entry($payment->payment_date, 2, $payment->id, 'Payment', $payment->number, null, [
                 'currency' => $payment->purchase?->currency,
                 'original' => Decimal::round(Decimal::of($payment->applied_amount)),
@@ -199,7 +200,7 @@ class ContactStatementReport extends Report
             ]);
         }
 
-        foreach ($this->expenses->paymentsMade($workspace, self::DAWN, $to, ['contact_id' => $contactId, 'document_currency' => $currency]) as $payment) {
+        foreach ($this->expenses->paymentsMade($workspace, self::DAWN, $to, ['contact_id' => $contactId, 'document_currency' => $currency, 'location_ids' => $locations]) as $payment) {
             $entries[] = $this->entry($payment->payment_date, 2, $payment->id, 'Payment', $payment->number, null, [
                 'currency' => $payment->expense?->currency,
                 'original' => Decimal::round(Decimal::of($payment->applied_amount)),
@@ -220,9 +221,9 @@ class ContactStatementReport extends Report
     }
 
     /** What each of the supplier's purchases and expenses was still owed at $to, by "p12" or "e5" - in its currency, or the base one. */
-    private function owedToSupplier(Workspace $workspace, int $contactId, ?string $currency, string $to): array
+    private function owedToSupplier(Workspace $workspace, int $contactId, ?string $currency, string $to, ?array $locations): array
     {
-        $scope = ['contact_id' => $contactId, 'currency' => $currency];
+        $scope = ['contact_id' => $contactId, 'currency' => $currency, 'location_ids' => $locations];
         $shown = fn (string $owed, mixed $rate) => $currency ? $owed : $this->figures->base($owed, $rate);
 
         return [
@@ -236,9 +237,9 @@ class ContactStatementReport extends Report
     }
 
     /** What each of the customer's invoices still owed at $to, by id - in its currency, or the base one. */
-    private function owed(Workspace $workspace, int $contactId, ?string $currency, string $to): array
+    private function owed(Workspace $workspace, int $contactId, ?string $currency, string $to, ?array $locations): array
     {
-        return $this->sales->invoicesAsOf($workspace, $to, ['contact_id' => $contactId, 'currency' => $currency])
+        return $this->sales->invoicesAsOf($workspace, $to, ['contact_id' => $contactId, 'currency' => $currency, 'location_ids' => $locations])
             ->mapWithKeys(fn ($invoice) => [$invoice->id => $currency
                 ? $this->figures->owedAsOf($invoice)
                 : $this->figures->base($this->figures->owedAsOf($invoice), $invoice->exchange_rate)])

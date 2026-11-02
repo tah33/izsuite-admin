@@ -14,7 +14,9 @@ use App\Models\User\Workspace;
 use App\Models\User\WorkspaceFile;
 use App\Repositories\User\WorkspaceFileRepository;
 use App\Services\Files\FileStorage;
+use App\Services\Shared\LocationAccess;
 use App\Services\Shared\WorkspaceAccess;
+use App\Support\RouteRecords;
 
 /**
  * Links that download a business's files: a public file's own address, or,
@@ -34,17 +36,28 @@ class FileLinkService
         ExpensePayment::class  => 'expenses.payments.view',
     ];
 
+    /** The record kinds that are at a location (see LocationAccess), by the record's class. */
+    private const AT_LOCATION = [
+        SalesDocument::class   => RouteRecords::SALES_DOCUMENT,
+        SalesPayment::class    => RouteRecords::SALES_PAYMENT,
+        Purchase::class        => RouteRecords::PURCHASE,
+        SupplierPayment::class => RouteRecords::SUPPLIER_PAYMENT,
+        Expense::class         => RouteRecords::EXPENSE,
+        ExpensePayment::class  => RouteRecords::EXPENSE_PAYMENT,
+    ];
+
     public function __construct(
         protected WorkspaceFileRepository $workspaceFileRepository,
         protected FileStorage $fileStorage,
         protected WorkspaceAccess $access,
+        protected LocationAccess $locationAccess,
     ) {}
 
     /**
      * One of the business's files, if the user may see the record it is
-     * attached to - a sales document's by its kind. The logo and a
-     * template's signature are every member's. Another business's file
-     * answers like one that does not exist.
+     * attached to - a sales document's by its kind - at its location. The
+     * logo and a template's signature are every member's. Another business's
+     * file answers like one that does not exist.
      */
     public function find(Workspace $workspace, int $id): WorkspaceFile
     {
@@ -52,11 +65,15 @@ class FileLinkService
             ?? abort(404, 'File not found.');
 
         $needs = $file->attachable_type === SalesDocument::class
-            ? 'sales.'.str_replace('-', '_', $this->workspaceFileRepository->attachableOf($file)?->type->kind() ?? 'invoices').'.view'
+            ? ($this->workspaceFileRepository->attachableOf($file)?->type->permissionGroup() ?? 'sales.invoices').'.view'
             : self::VIEWED_WITH[$file->attachable_type] ?? null;
 
         if ($needs !== null) {
             $this->access->authorize($needs);
+        }
+
+        if (isset(self::AT_LOCATION[$file->attachable_type])) {
+            abort_unless($this->locationAccess->reaches($workspace, self::AT_LOCATION[$file->attachable_type], (int) $file->attachable_id), 403, LocationAccess::REFUSED);
         }
 
         return $file;

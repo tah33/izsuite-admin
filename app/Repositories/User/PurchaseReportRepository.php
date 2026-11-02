@@ -59,6 +59,7 @@ class PurchaseReportRepository
             ->where('purchases.status', PurchaseStatus::Recorded->value)
             ->whereBetween('purchases.document_date', [$from, $to])
             ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('purchases.location_id', $id))
+            ->when(isset($filters['location_ids']), fn (Builder $query) => $query->whereIn('purchases.location_id', $filters['location_ids']))
             ->when($filters['contact_id'] ?? null, fn (Builder $query, $id) => $query->where('purchases.contact_id', $id))
             ->when($filters['currency'] ?? null, fn (Builder $query, string $currency) => $query->where('purchases.currency', $currency))
             ->when($filters['item_id'] ?? null, fn (Builder $query, $id) => $query->where('purchase_lines.item_id', $id))
@@ -103,6 +104,7 @@ class PurchaseReportRepository
             ->where('status', SupplierPayment::COMPLETED)
             ->whereBetween('payment_date', [$from, $to])
             ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('location_id', $id))
+            ->when(isset($filters['location_ids']), fn (Builder $query) => $query->whereIn('location_id', $filters['location_ids']))
             ->when($filters['contact_id'] ?? null, fn (Builder $query, $id) => $query->where('contact_id', $id))
             ->when($filters['payment_account_id'] ?? null, fn (Builder $query, $id) => $query->where('payment_account_id', $id))
             ->when($filters['currency'] ?? null, fn (Builder $query, string $currency) => $query->whereHas('account', fn (Builder $query) => $query->where('currency', $currency)))
@@ -139,11 +141,12 @@ class PurchaseReportRepository
     }
 
     /** The newest purchases, drafts and void ones too - the Dashboard's Recent Transactions. */
-    public function latestPurchases(Workspace $workspace, int $limit, ?int $locationId): Collection
+    public function latestPurchases(Workspace $workspace, int $limit, ?int $locationId, ?array $locationIds = null): Collection
     {
         return Purchase::query()
             ->where('workspace_id', $workspace->id)
             ->when($locationId, fn (Builder $query, int $id) => $query->where('location_id', $id))
+            ->atLocations($locationIds)
             ->with('contact:id,name')
             ->orderByDesc('document_date')
             ->orderByDesc('id')
@@ -152,11 +155,12 @@ class PurchaseReportRepository
     }
 
     /** The newest supplier payments, reversed ones too. */
-    public function latestPayments(Workspace $workspace, int $limit, ?int $locationId): Collection
+    public function latestPayments(Workspace $workspace, int $limit, ?int $locationId, ?array $locationIds = null): Collection
     {
         return SupplierPayment::query()
             ->where('workspace_id', $workspace->id)
             ->when($locationId, fn (Builder $query, int $id) => $query->where('location_id', $id))
+            ->atLocations($locationIds)
             ->with(['contact:id,name', 'account:id,currency'])
             ->orderByDesc('payment_date')
             ->orderByDesc('id')
@@ -171,6 +175,7 @@ class PurchaseReportRepository
             ->where("{$table}workspace_id", $workspace->id)
             ->where("{$table}status", PurchaseStatus::Recorded->value)
             ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where("{$table}location_id", $id))
+            ->when(isset($filters['location_ids']), fn (Builder $query) => $query->whereIn("{$table}location_id", $filters['location_ids']))
             ->when($filters['contact_id'] ?? null, fn (Builder $query, $id) => $query->where("{$table}contact_id", $id))
             ->when($filters['currency'] ?? null, fn (Builder $query, string $currency) => $query->where("{$table}currency", $currency));
     }

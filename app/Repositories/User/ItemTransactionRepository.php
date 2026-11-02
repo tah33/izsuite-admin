@@ -27,8 +27,11 @@ use Illuminate\Support\Facades\DB;
  */
 class ItemTransactionRepository
 {
-    /** @param  list<DocumentType>  $types  the kinds of document whose lines are listed - sales kinds, Purchase: those the user may view */
-    public function paginateFor(Workspace $workspace, Item $item, int $perPage, array $types): LengthAwarePaginator
+    /**
+     * @param  list<DocumentType>  $types  the kinds of document whose lines are listed - sales kinds, Purchase: those the user may view
+     * @param  list<int>|null  $locationIds  the locations the user may use - every one for null
+     */
+    public function paginateFor(Workspace $workspace, Item $item, int $perPage, array $types, ?array $locationIds = null): LengthAwarePaginator
     {
         $sales = array_map(fn (DocumentType $type) => $type->value, array_filter($types, fn (DocumentType $type) => $type->family() === 'sales'));
 
@@ -37,6 +40,7 @@ class ItemTransactionRepository
                 ->join('sales_documents as documents', 'documents.id', '=', 'sales_document_lines.sales_document_id')
                 ->where('documents.workspace_id', $workspace->id)
                 ->whereIn('documents.type', $sales)
+                ->when($locationIds !== null, fn (Builder $query) => $query->whereIn('documents.location_id', $locationIds))
                 ->where('sales_document_lines.item_id', $item->id),
             'sales_document_lines',
             'sales',
@@ -47,7 +51,8 @@ class ItemTransactionRepository
                 PurchaseLine::query()
                     ->join('purchases as documents', 'documents.id', '=', 'purchase_lines.purchase_id')
                     ->where('documents.workspace_id', $workspace->id)
-                    ->where('purchase_lines.item_id', $item->id),
+                    ->where('purchase_lines.item_id', $item->id)
+                    ->when($locationIds !== null, fn (Builder $query) => $query->whereIn('documents.location_id', $locationIds)),
                 'purchase_lines',
                 'purchases',
             ));

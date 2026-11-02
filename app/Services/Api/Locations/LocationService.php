@@ -11,6 +11,7 @@ use App\Repositories\User\PurchaseRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Shared\ActivityLogService;
+use App\Services\Shared\WorkspaceAccess;
 use App\Services\User\Workspaces\PlanLimits;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
@@ -22,6 +23,10 @@ use Illuminate\Support\Str;
  * Primary, and the Primary is never turned off or deleted - another is made
  * Primary first. An inactive location takes no new transactions but keeps
  * the ones it has.
+ *
+ * A user with Selected Locations sees, and changes, only those (Doc 12
+ * section 20) - and adds none: a new one would be outside what they may use.
+ * Each comes with how many users may use it.
  */
 class LocationService
 {
@@ -34,16 +39,19 @@ class LocationService
         protected ExpenseRepository $expenseRepository,
         protected PaymentAccountRepository $paymentAccountRepository,
         protected PlanLimits $planLimits,
+        protected WorkspaceAccess $access,
     ) {}
 
     public function list(Workspace $workspace): Collection
     {
-        return $this->locationRepository->getFor($workspace);
+        return $this->locationRepository->listFor($workspace, $this->access->locations());
     }
 
     /** Only as many as the business's plan gives it (see PlanLimits). The first is the Primary. */
     public function create(Workspace $workspace, array $data): Location
     {
+        abort_if($this->access->locations() !== null, 403, 'Only a user with access to every location can add one.');
+
         $this->planLimits->ensureCanAddLocation($workspace);
 
         $location = $this->locationRepository->create($workspace, [...$data, 'is_primary' => ! $this->locationRepository->hasPrimary($workspace)]);
@@ -52,7 +60,7 @@ class LocationService
         // add its own vaguer "POST api/v1/locations" entry for the same request.
         ActivityLogService::record('created', "Added location {$this->quoted($location)}", $location, ['source' => 'api']);
 
-        return $location;
+        return $this->listed($workspace, $location);
     }
 
     public function update(Workspace $workspace, int $id, array $data): Location
@@ -66,7 +74,7 @@ class LocationService
             'fields' => array_keys(array_diff_key($location->getChanges(), ['updated_at' => true])),
         ]);
 
-        return $location;
+        return $this->listed($workspace, $location);
     }
 
     /** Turned on again: it takes new transactions. */
@@ -78,7 +86,7 @@ class LocationService
 
         ActivityLogService::record('updated', "Activated location {$this->quoted($location)}", $location, ['source' => 'api']);
 
-        return $location;
+        return $this->listed($workspace, $location);
     }
 
     /** Turned off: no new transactions, its own kept (Doc 12 section 19). Never the Primary. */
@@ -94,7 +102,7 @@ class LocationService
 
         ActivityLogService::record('updated', "Deactivated location {$this->quoted($location)}", $location, ['source' => 'api']);
 
-        return $location;
+        return $this->listed($workspace, $location);
     }
 
     /** The business's Primary Location from now on - only an active one. */
@@ -110,7 +118,7 @@ class LocationService
 
         ActivityLogService::record('updated', "Made {$this->quoted($location)} the Primary Location", $location, ['source' => 'api']);
 
-        return $location;
+        return $this->listed($workspace, $location);
     }
 
     /**
@@ -161,15 +169,23 @@ class LocationService
         return '"'.Str::limit($location->name, 100).'"';
     }
 
+    /** $location as the list has it: with how many users may use it. */
+    private function listed(Workspace $workspace, Location $location): Location
+    {
+        return $this->locationRepository->listFor($workspace, [$location->id])->first() ?? $location;
+    }
+
     /**
      * A location of another business - the owner's own other one, or someone
-     * else's - answers exactly like one that does not exist. Aborting with our own message also keeps Laravel's default out of
-     * the response - "No query results for model [App\Models\User\Location]" -
-     * which names an internal class.
+     * else's - answers exactly like one that does not exist, and so does one
+     * the user may not use. Aborting with our own message also keeps Laravel's
+     * default out of the response - "No query results for model
+     * [App\Models\User\Location]" - which names an internal class.
      */
     private function findOwned(Workspace $workspace, int $id): Location
     {
-        return $this->locationRepository->findFor($workspace, $id)
-            ?? abort(404, 'Location not found.');
+        $location = $this->locationRepository->findFor($workspace, $id);
+
+        return $location && $this->access->usesLocation($location->id) ? $location : abort(404, 'Location not found.');
     }
 }

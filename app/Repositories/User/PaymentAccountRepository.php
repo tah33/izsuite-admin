@@ -15,15 +15,22 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class PaymentAccountRepository
 {
-    /** All of them, alphabetical, with their locations: a business has a handful, and the list shows every one. */
-    public function getFor(Workspace $workspace): Collection
+    /**
+     * All of them, alphabetical, with their locations: a business has a
+     * handful, and the list shows every one - for a user of the locations
+     * $locationIds, those they may use (see PaymentAccount::usableAt).
+     *
+     * @param  list<int>|null  $locationIds
+     */
+    public function getFor(Workspace $workspace, ?array $locationIds = null): Collection
     {
-        return $workspace->paymentAccounts()->with('location:id,name')->orderBy('name')->orderBy('id')->get();
+        return $workspace->paymentAccounts()->usableAt($locationIds)->with('location:id,name')->orderBy('name')->orderBy('id')->get();
     }
 
-    public function findFor(Workspace $workspace, int $id): ?PaymentAccount
+    /** @param  list<int>|null  $locationIds  as for getFor() */
+    public function findFor(Workspace $workspace, int $id, ?array $locationIds = null): ?PaymentAccount
     {
-        return $workspace->paymentAccounts()->with('location:id,name')->find($id);
+        return $workspace->paymentAccounts()->usableAt($locationIds)->with('location:id,name')->find($id);
     }
 
     /**

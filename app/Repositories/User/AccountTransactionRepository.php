@@ -119,7 +119,9 @@ class AccountTransactionRepository
     /**
      * The account's rows with their running net, worked out over the whole
      * history before $filters narrow it - read through a subquery under the
-     * table's own name, so the relations still load.
+     * table's own name, so the relations still load. Rows at a location the
+     * user may not use ($filters['location_ids']) are left out; a transfer is
+     * at none, and stays.
      */
     private function history(PaymentAccount $account, array $filters): Builder
     {
@@ -133,6 +135,9 @@ class AccountTransactionRepository
             ->with(self::SHOWN_WITH)
             ->when($filters['type'] ?? null, fn (Builder $query, string $type) => $query->where('type', $type))
             ->when($filters['date_from'] ?? null, fn (Builder $query, string $date) => $query->where('transaction_date', '>=', $date))
-            ->when($filters['date_to'] ?? null, fn (Builder $query, string $date) => $query->where('transaction_date', '<=', $date));
+            ->when($filters['date_to'] ?? null, fn (Builder $query, string $date) => $query->where('transaction_date', '<=', $date))
+            ->when(isset($filters['location_ids']), fn (Builder $query) => $query->where(fn (Builder $query) => $query
+                ->whereNull('location_id')
+                ->orWhereIn('location_id', $filters['location_ids'])));
     }
 }

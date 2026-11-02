@@ -5,10 +5,10 @@ namespace App\Services\Api\Purchases;
 use App\Models\User\TaxRate;
 use App\Models\User\Workspace;
 use App\Repositories\User\ContactRepository;
-use App\Repositories\User\LocationRepository;
 use App\Repositories\User\PurchaseSettingRepository;
 use App\Repositories\User\TaxRateRepository;
 use App\Services\Api\BusinessSetup\ExchangeRateService;
+use App\Services\Shared\LocationAccess;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Arr;
 
@@ -32,7 +32,7 @@ class PurchaseFormService
     public function __construct(
         protected PurchaseSettingRepository $purchaseSettingRepository,
         protected ContactRepository $contactRepository,
-        protected LocationRepository $locationRepository,
+        protected LocationAccess $locationAccess,
         protected TaxRateRepository $taxRateRepository,
         protected ExchangeRateService $exchangeRateService,
         protected PurchaseService $purchaseService,
@@ -58,7 +58,7 @@ class PurchaseFormService
             'payment_terms'      => $terms,
             'currency'           => $currency,
             'exchange_rate'      => $this->exchangeRateService->rateOn($workspace, $currency, $date),
-            'location_id'        => $this->locationRepository->getFor($workspace)->first()?->id,
+            'location_id'        => $this->locationAccess->defaultFor($workspace),
             'notes'              => $settings->notes,
             'price_tax_mode'     => $workspace->price_tax_mode,
             'tax_rounding'       => $workspace->tax_rounding,

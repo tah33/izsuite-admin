@@ -138,13 +138,15 @@ final class RoutePermissions
             'api.setup.update'   => 'settings.business',
             'api.setup.complete' => 'settings.business',
 
-            'api.locations.index'      => self::MEMBER,
-            'api.locations.store'      => 'settings.locations',
-            'api.locations.update'     => 'settings.locations',
-            'api.locations.destroy'    => 'settings.locations',
-            'api.locations.activate'   => 'settings.locations',
-            'api.locations.deactivate' => 'settings.locations',
-            'api.locations.primary'    => 'settings.locations',
+            'api.locations.index'        => self::MEMBER,
+            'api.locations.store'        => 'settings.locations',
+            'api.locations.update'       => 'settings.locations',
+            'api.locations.destroy'      => 'settings.locations',
+            'api.locations.activate'     => 'settings.locations',
+            'api.locations.deactivate'   => 'settings.locations',
+            'api.locations.primary'      => 'settings.locations',
+            // Who may use a location is the users' to set (Doc 12 section 18: Assign Users).
+            'api.locations.users.update' => 'settings.users',
 
             'api.payment-terms.index'   => self::MEMBER,
             'api.payment-terms.store'   => 'settings.business',

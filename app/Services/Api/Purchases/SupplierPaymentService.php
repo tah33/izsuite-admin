@@ -18,6 +18,7 @@ use App\Services\Documents\DocumentNumbers;
 use App\Services\Documents\DocumentTemplates;
 use App\Services\Purchases\PurchaseRules;
 use App\Services\Shared\ActivityLogService;
+use App\Services\Shared\WorkspaceAccess;
 use App\Support\Decimal;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -55,11 +56,12 @@ class SupplierPaymentService
         protected AccountLedger $accountLedger,
         protected DocumentNumbers $documentNumbers,
         protected DocumentTemplates $documentTemplates,
+        protected WorkspaceAccess $access,
     ) {}
 
     public function list(Workspace $workspace, array $filters, int $perPage): LengthAwarePaginator
     {
-        return $this->supplierPaymentRepository->paginateFor($workspace, $filters, $perPage);
+        return $this->supplierPaymentRepository->paginateFor($workspace, [...$filters, 'location_ids' => $this->access->locations()], $perPage);
     }
 
     /** Another business's payment answers like one that does not exist. */

@@ -7,6 +7,7 @@ use App\Models\User\Workspace;
 use App\Repositories\User\AccountTransactionRepository;
 use App\Repositories\User\PaymentAccountRepository;
 use App\Services\Shared\ActivityLogService;
+use App\Services\Shared\WorkspaceAccess;
 use App\Support\Decimal;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -40,6 +41,7 @@ class PaymentAccountService
     public function __construct(
         protected PaymentAccountRepository $paymentAccountRepository,
         protected AccountTransactionRepository $accountTransactionRepository,
+        protected WorkspaceAccess $access,
     ) {}
 
     /** Every account, each with its recorded balance and whether money has moved through it. */
@@ -48,7 +50,7 @@ class PaymentAccountService
         $net  = $this->accountTransactionRepository->netByAccount($workspace);
         $used = array_flip($this->accountTransactionRepository->accountsWithHistory($workspace));
 
-        return $this->paymentAccountRepository->getFor($workspace)
+        return $this->paymentAccountRepository->getFor($workspace, $this->access->locations())
             ->each(fn (PaymentAccount $account) => $this->withBalance($account, $net[$account->id] ?? null, isset($used[$account->id])));
     }
 

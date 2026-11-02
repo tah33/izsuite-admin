@@ -87,12 +87,13 @@ class SavePaymentAccountRequest extends FormRequest
                     $validator->errors()->add('opening_balance_date', 'Enter the date the opening balance was the balance on.');
                 }
             },
-            // A new account - or one moved - goes to an active location.
+            // A new account - or one moved - goes to an active location the
+            // user may use, or to the whole business.
             function (Validator $validator) {
                 $workspace = $this->attributes->get('workspace');
                 $current   = $this->route('id') ? app(PaymentAccountRepository::class)->findFor($workspace, (int) $this->route('id'))?->location_id : null;
 
-                $this->checkLocation($validator, $workspace, $this->input('location_id'), $current);
+                $this->checkLocation($validator, $workspace, $this->input('location_id'), $current, shared: true);
             },
         ];
     }

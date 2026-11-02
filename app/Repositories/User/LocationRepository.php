@@ -4,6 +4,8 @@ namespace App\Repositories\User;
 
 use App\Models\User\Location;
 use App\Models\User\Workspace;
+use App\Models\User\WorkspaceMember;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -21,6 +23,31 @@ class LocationRepository
     public function getFor(Workspace $workspace): Collection
     {
         return $workspace->locations()->orderBy('name')->orderBy('id')->get();
+    }
+
+    /**
+     * As getFor() - only those of $ids, when given - each with how many of
+     * the business's users may use it (Doc 12 section 16): those with All
+     * Locations and those it was chosen for, invited or active.
+     *
+     * @param  list<int>|null  $ids
+     */
+    public function listFor(Workspace $workspace, ?array $ids): Collection
+    {
+        $everywhere = $workspace->members()
+            ->whereIn('status', WorkspaceMember::COUNTED)
+            ->where('location_access', WorkspaceMember::ALL_LOCATIONS)
+            ->count();
+
+        return $workspace->locations()
+            ->when($ids !== null, fn (Builder $query) => $query->whereIn('locations.id', $ids))
+            ->withCount(['members as chosen_count' => fn (Builder $query) => $query
+                ->whereIn('workspace_members.status', WorkspaceMember::COUNTED)
+                ->where('workspace_members.location_access', WorkspaceMember::SELECTED_LOCATIONS)])
+            ->orderBy('name')
+            ->orderBy('id')
+            ->get()
+            ->each(fn (Location $location) => $location->setAttribute('users_count', $everywhere + (int) $location->chosen_count));
     }
 
     public function findFor(Workspace $workspace, int $id): ?Location

@@ -10,6 +10,7 @@ use App\Models\User\WorkspaceRole;
 use App\Repositories\User\LocationRepository;
 use App\Repositories\User\UserRepository;
 use App\Repositories\User\WorkspaceMemberRepository;
+use App\Repositories\User\WorkspaceRepository;
 use App\Repositories\User\WorkspaceRoleRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Shared\ActivityLogService;
@@ -46,6 +47,7 @@ class MemberService
         protected UserRepository $userRepository,
         protected PlanLimits $planLimits,
         protected InvitationSender $invitations,
+        protected WorkspaceRepository $workspaceRepository,
     ) {}
 
     public function list(Workspace $workspace): Collection
@@ -140,6 +142,9 @@ class MemberService
             $this->memberRepository->update($member, $fields);
             $this->memberRepository->syncLocations($member, $locations);
         });
+
+        // Their sidebar carries their permissions and locations: built afresh.
+        $this->workspaceRepository->bumpNavVersion($workspace);
 
         $member = $this->find($workspace, $member->id);
 
