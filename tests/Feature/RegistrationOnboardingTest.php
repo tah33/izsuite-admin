@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Events\UserRegistered;
+use App\Jobs\AddDefaultRoles;
 use App\Jobs\AddExpenseCategories;
 use App\Jobs\AddOwnerAsStaff;
 use App\Jobs\AddPaymentTerms;
@@ -95,7 +96,7 @@ class RegistrationOnboardingTest extends TestCase
 
         $user = $this->register();
 
-        Bus::assertChained([CreateStarterWorkspace::class, CreateMainLocation::class, AddOwnerAsStaff::class, AddExpenseCategories::class, AddPaymentTerms::class]);
+        Bus::assertChained([CreateStarterWorkspace::class, CreateMainLocation::class, AddOwnerAsStaff::class, AddExpenseCategories::class, AddPaymentTerms::class, AddDefaultRoles::class]);
 
         $this->assertSame(0, $user->workspaces()->count());
         $this->assertSame(0, $user->locations()->count());
@@ -114,7 +115,9 @@ class RegistrationOnboardingTest extends TestCase
         $this->assertSame([$workspace->id], $user->userStaff()->sole()->assigned_workspaces);
         $this->assertSame(10, $workspace->expenseCategories()->count());
         $this->assertSame(6, $workspace->paymentTerms()->count());
-        $this->assertSame(5, ActivityLog::where('properties->source', 'registration')->count());
+        $this->assertSame(8, $workspace->roles()->count());
+        $this->assertSame('Business Owner', $workspace->members()->sole()->role->name);
+        $this->assertSame(6, ActivityLog::where('properties->source', 'registration')->count());
     }
 
     public function test_what_the_setup_makes_is_logged_for_the_account_after_its_registration(): void
@@ -132,6 +135,7 @@ class RegistrationOnboardingTest extends TestCase
             'Added staff member "Amina Rahman"',
             'Added the starter expense categories',
             'Added the starter payment terms',
+            'Added the default roles',
         ], $setup->pluck('description')->all());
         $this->assertTrue($setup->every(fn (ActivityLog $log) => $log->id > $registered->id));
     }

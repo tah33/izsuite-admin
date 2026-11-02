@@ -222,6 +222,18 @@ class Workspace extends Model
         return $this->hasMany(UserStaff::class);
     }
 
+    /** Its roles (Doc 12 section 10): the default templates and those it added. */
+    public function roles(): HasMany
+    {
+        return $this->hasMany(WorkspaceRole::class);
+    }
+
+    /** Who belongs to it, with which role (Doc 12 section 4) - its owner included. */
+    public function members(): HasMany
+    {
+        return $this->hasMany(WorkspaceMember::class);
+    }
+
     public function contacts(): HasMany
     {
         return $this->hasMany(Contact::class);

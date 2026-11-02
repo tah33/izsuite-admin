@@ -2,10 +2,19 @@
 
 namespace App\Services\Api\Files;
 
+use App\Models\User\Contact;
+use App\Models\User\Expense;
+use App\Models\User\ExpensePayment;
+use App\Models\User\Item;
+use App\Models\User\Purchase;
+use App\Models\User\SalesDocument;
+use App\Models\User\SalesPayment;
+use App\Models\User\SupplierPayment;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceFile;
 use App\Repositories\User\WorkspaceFileRepository;
 use App\Services\Files\FileStorage;
+use App\Services\Shared\WorkspaceAccess;
 
 /**
  * Links that download a business's files: a public file's own address, or,
@@ -14,16 +23,43 @@ use App\Services\Files\FileStorage;
  */
 class FileLinkService
 {
+    /** What a file's record needs to be seen (Doc 12 section 12), by the record's class. */
+    private const VIEWED_WITH = [
+        Contact::class         => 'contacts.view',
+        Item::class            => 'items.view',
+        Purchase::class        => 'purchases.attachments.view',
+        Expense::class         => 'expenses.attachments.view',
+        SalesPayment::class    => 'sales.payments.view',
+        SupplierPayment::class => 'purchases.payments.view',
+        ExpensePayment::class  => 'expenses.payments.view',
+    ];
+
     public function __construct(
         protected WorkspaceFileRepository $workspaceFileRepository,
         protected FileStorage $fileStorage,
+        protected WorkspaceAccess $access,
     ) {}
 
-    /** One of the business's files. Another business's answers like one that does not exist. */
+    /**
+     * One of the business's files, if the user may see the record it is
+     * attached to - a sales document's by its kind. The logo and a
+     * template's signature are every member's. Another business's file
+     * answers like one that does not exist.
+     */
     public function find(Workspace $workspace, int $id): WorkspaceFile
     {
-        return $this->workspaceFileRepository->findFor($workspace, $id)
+        $file = $this->workspaceFileRepository->findFor($workspace, $id)
             ?? abort(404, 'File not found.');
+
+        $needs = $file->attachable_type === SalesDocument::class
+            ? 'sales.'.str_replace('-', '_', $this->workspaceFileRepository->attachableOf($file)?->type->kind() ?? 'invoices').'.view'
+            : self::VIEWED_WITH[$file->attachable_type] ?? null;
+
+        if ($needs !== null) {
+            $this->access->authorize($needs);
+        }
+
+        return $file;
     }
 
     /** @return array{url: ?string, name: string} */

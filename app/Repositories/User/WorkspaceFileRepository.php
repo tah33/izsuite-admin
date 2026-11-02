@@ -21,6 +21,12 @@ class WorkspaceFileRepository
         return WorkspaceFile::where('workspace_id', $workspace->id)->find($id);
     }
 
+    /** The record $file is attached to - null once it is gone. */
+    public function attachableOf(WorkspaceFile $file): ?Model
+    {
+        return $file->attachable()->first();
+    }
+
     /** Every file the business has, whatever it belongs to. */
     public function allFor(Workspace $workspace): Collection
     {

@@ -12,8 +12,10 @@ use Symfony\Component\HttpFoundation\Response;
  * picked in the frontend's top bar - or, without one, the signed-in user's
  * oldest workspace.
  *
- * Only the user's own workspaces count: any other id is a 404, so a caller
- * cannot tell "not yours" from "does not exist". A user with no workspace gets
+ * Only a business the user owns or is an active member of counts (Doc 12
+ * section 4): any other id is a 404, so a caller cannot tell "not yours"
+ * from "does not exist". What a member may do in it is for `access` to
+ * say. A user with no workspace gets
  * none, and the endpoints that need one say so - or, behind
  * `workspace:required` (a business's locations, staff, settings), are never
  * reached: the answer is a 404 that says to create one first.

@@ -8,7 +8,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /**
  * The business sidebar NavigationBuilder makes, as the dashboard reads it:
  * the business, which app families it has used - by name, whether on, and
- * at what edition - and the menu.
+ * at what edition - what the user may do in it, and the menu.
  */
 class NavigationResource extends JsonResource
 {
@@ -40,6 +40,9 @@ class NavigationResource extends JsonResource
                 'status'      => $app['status'],
                 'has_history' => $app['has_history'],
             ], (array) $this->resource['apps']),
+
+            // What the user may do in the business (Doc 12): "*" alone for full access.
+            'permissions' => $this->resource['permissions'] ?? [],
 
             'menu'      => [
                 'core'   => $this->resource['menu']['core'],

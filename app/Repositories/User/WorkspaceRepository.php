@@ -5,6 +5,8 @@ namespace App\Repositories\User;
 use App\Models\Billing\Package;
 use App\Models\User\User;
 use App\Models\User\Workspace;
+use App\Models\User\WorkspaceMember;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 class WorkspaceRepository
@@ -56,16 +58,28 @@ class WorkspaceRepository
         return Workspace::where('user_id', $user->id)->orderBy('id')->first();
     }
 
-    /** oldestForUser(), with the plan - the business a request answers for when none is picked. */
+    /**
+     * oldestForUser(), with the plan - the business a request answers for when
+     * none is picked. Owning none, the oldest the account is an active member of.
+     */
     public function oldestForUserWithPackage(User $user): ?Workspace
     {
-        return Workspace::where('user_id', $user->id)->with('package')->orderBy('id')->first();
+        return Workspace::where('user_id', $user->id)->with('package')->orderBy('id')->first()
+            ?? $this->openTo($user)->with('package')->orderBy('id')->first();
     }
 
-    /** One of the account's workspaces, with its plan - the business a request picked. */
+    /** One the account owns or is an active member of (Doc 12 section 4), with its plan - the business a request picked. */
     public function findForUserWithPackage(User $user, int $id): ?Workspace
     {
-        return Workspace::where('user_id', $user->id)->with('package')->find($id);
+        return $this->openTo($user)->with('package')->find($id);
+    }
+
+    /** The businesses $user owns, and those they are an active member of. */
+    private function openTo(User $user): Builder
+    {
+        return Workspace::where(fn (Builder $query) => $query
+            ->where('user_id', $user->id)
+            ->orWhereHas('members', fn (Builder $members) => $members->where('user_id', $user->id)->where('status', WorkspaceMember::ACTIVE)));
     }
 
     public function update(Workspace $workspace, array $data): Workspace

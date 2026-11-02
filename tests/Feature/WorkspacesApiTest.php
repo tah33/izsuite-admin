@@ -459,20 +459,21 @@ class WorkspacesApiTest extends TestCase
         $this->deleteJson("/api/v1/workspaces/{$id}")->assertOk();
 
         // One descriptive entry per write, and no generic `api_auto` one on top.
-        // Adding the business also adds its Main Location, its owner as staff
-        // and its starter expense categories and payment terms, and those are
-        // logged as registration logs them.
+        // Adding the business also adds its Main Location, its owner as staff,
+        // its starter expense categories and payment terms and its default
+        // roles, and those are logged as registration logs them.
         $logs = ActivityLog::where('user_id', $user->id)->orderBy('id')->get();
 
-        $this->assertCount(7, $logs);
+        $this->assertCount(8, $logs);
         $this->assertSame(['created', 'Added workspace "Main Workspace"'], [$logs[0]->action, $logs[0]->description]);
         $this->assertSame(['created', 'Added location "Main Location"'], [$logs[1]->action, $logs[1]->description]);
         $this->assertSame(['created', "Added staff member \"{$user->name}\""], [$logs[2]->action, $logs[2]->description]);
         $this->assertSame(['created', 'Added the starter expense categories'], [$logs[3]->action, $logs[3]->description]);
         $this->assertSame(['created', 'Added the starter payment terms'], [$logs[4]->action, $logs[4]->description]);
-        $this->assertSame(['api', 'api', 'api', 'api', 'api'], $logs->take(5)->pluck('properties.source')->all());
-        $this->assertSame(['updated', 'Updated workspace "Renamed"'], [$logs[5]->action, $logs[5]->description]);
-        $this->assertSame(['name'], $logs[5]->properties['fields']);
-        $this->assertSame(['deleted', 'Deleted workspace "Renamed"'], [$logs[6]->action, $logs[6]->description]);
+        $this->assertSame(['created', 'Added the default roles'], [$logs[5]->action, $logs[5]->description]);
+        $this->assertSame(['api', 'api', 'api', 'api', 'api', 'api'], $logs->take(6)->pluck('properties.source')->all());
+        $this->assertSame(['updated', 'Updated workspace "Renamed"'], [$logs[6]->action, $logs[6]->description]);
+        $this->assertSame(['name'], $logs[6]->properties['fields']);
+        $this->assertSame(['deleted', 'Deleted workspace "Renamed"'], [$logs[7]->action, $logs[7]->description]);
     }
 }

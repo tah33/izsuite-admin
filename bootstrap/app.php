@@ -4,6 +4,7 @@ use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\CheckEmailVerified;
 use App\Http\Middleware\ConvertAdminRedirectsToJson;
 use App\Http\Middleware\EnsureAppActive;
+use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\LogApiWriteActivity;
 use App\Http\Middleware\PermissionCheckMiddleware;
@@ -47,6 +48,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'verified'   => CheckEmailVerified::class,
             'workspace'  => ResolveWorkspace::class,
             'app'        => EnsureAppActive::class,
+            'access'     => EnsurePermission::class,
         ]);
 
         $middleware->web(append: [

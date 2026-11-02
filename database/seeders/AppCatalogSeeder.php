@@ -146,6 +146,28 @@ class AppCatalogSeeder extends Seeder
         ['bottom', null, 'Settings', 'settings', '/settings', null, null],
     ];
 
+    /** The permission a menu item needs (Doc 12 section 12), by its route; one not here is shown to every member. */
+    private const MENU_PERMISSIONS = [
+        '/dashboard'          => 'dashboard.view',
+        '/contacts'           => 'contacts.view',
+        '/items'              => 'items.view',
+        '/payment-accounts'   => 'payment_accounts.view',
+        '/documents'          => 'documents.view',
+        '/reports'            => 'reports.view',
+        '/sales/invoices'     => 'sales.invoices.view',
+        '/sales/quotations'   => 'sales.quotations.view',
+        '/sales/proformas'    => 'sales.proformas.view',
+        '/sales/credit-notes' => 'sales.credit_notes.view',
+        '/sales/payments'     => 'sales.payments.view',
+        '/purchases'          => 'purchases.purchases.view',
+        '/purchases/payments' => 'purchases.payments.view',
+        '/expenses'           => 'expenses.expenses.view',
+        '/expenses/payments'  => 'expenses.payments.view',
+        '/staff'              => 'settings.users',
+        '/apps-center'        => 'settings.apps',
+        '/settings'           => 'settings.view',
+    ];
+
     public function run(): void
     {
         $packages = Package::orderBy('rank')->get()->keyBy('key');
@@ -214,12 +236,13 @@ class AppCatalogSeeder extends Seeder
             MenuItem::firstOrCreate(
                 ['section' => $section, 'family_key' => $family, 'route' => $route],
                 [
-                    'label'       => $label,
-                    'icon'        => $icon,
-                    'min_edition' => $minEdition,
-                    'show_if'     => $showIf,
-                    'sort_order'  => $menuOrder += 10,
-                    'is_active'   => true,
+                    'label'          => $label,
+                    'icon'           => $icon,
+                    'min_edition'    => $minEdition,
+                    'show_if'        => $showIf,
+                    'permission_key' => self::MENU_PERMISSIONS[$route] ?? null,
+                    'sort_order'     => $menuOrder += 10,
+                    'is_active'      => true,
                 ],
             );
         }

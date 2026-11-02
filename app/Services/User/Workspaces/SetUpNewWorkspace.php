@@ -12,16 +12,21 @@ use App\Repositories\User\ExpenseCategoryRepository;
 use App\Repositories\User\LocationRepository;
 use App\Repositories\User\PaymentTermRepository;
 use App\Repositories\User\UserStaffRepository;
+use App\Repositories\User\WorkspaceMemberRepository;
+use App\Repositories\User\WorkspaceRoleRepository;
 use App\Services\Shared\ActivityLogService;
+use App\Services\User\Apps\WorkspaceApps;
+use App\Support\Permissions;
 use Illuminate\Support\Str;
 
 /**
  * What every business starts with besides its apps (see ProvisionWorkspaceApps):
  * a "Main Location" - code MAIN, its Primary, on its owner's time zone, with
  * no country or address: the owner fills those in later -
- * its owner on its staff: their name and e-mail, active, assigned to it - and
- * the starter lists of expense categories (Doc 10 section 7) and payment terms
- * (Doc 11 section 14), its own to change.
+ * its owner on its staff: their name and e-mail, active, assigned to it - the
+ * starter lists of expense categories (Doc 10 section 7) and payment terms
+ * (Doc 11 section 14), its own to change, and the default roles with its
+ * owner as Business Owner (Doc 12 section 11).
  *
  * Registration does this for an account's first business, from the queue (see
  * QueueNewAccountSetup); the Workspace page for every business added after, as
@@ -42,6 +47,8 @@ class SetUpNewWorkspace
         private UserStaffRepository $staffMembers,
         private ExpenseCategoryRepository $expenseCategories,
         private PaymentTermRepository $paymentTerms,
+        private WorkspaceRoleRepository $roles,
+        private WorkspaceMemberRepository $members,
     ) {}
 
     public function handle(Workspace $workspace, User $owner, string $source): void
@@ -50,6 +57,30 @@ class SetUpNewWorkspace
         $this->addOwnerAsStaff($workspace, $owner, $source);
         $this->addExpenseCategories($workspace, $owner, $source);
         $this->addPaymentTerms($workspace, $owner, $source);
+        $this->addRoles($workspace, $owner, $source);
+    }
+
+    /**
+     * The default role templates (Doc 12 section 11) - their permissions among
+     * the apps on now; apps turned on later wait for someone to grant them -
+     * and the owner as a member under Business Owner. One log entry for all.
+     */
+    public function addRoles(Workspace $workspace, User $owner, string $source): void
+    {
+        $families = WorkspaceApps::for($workspace)->active()->keys()->all();
+
+        $added = $this->roles->addTemplates($workspace, fn (string $template) => [
+            'name'        => Permissions::TEMPLATES[$template][0],
+            'description' => Permissions::TEMPLATES[$template][1],
+            'full_access' => in_array($template, Permissions::FULL_ACCESS_TEMPLATES, true),
+            'permissions' => Permissions::forTemplate($template, $families),
+        ]);
+
+        $this->members->firstOrCreateFor($workspace, $owner, $this->roles->ownerRoleOf($workspace));
+
+        if ($added > 0) {
+            ActivityLogService::record('created', 'Added the default roles', $workspace, ['source' => $source], $owner);
+        }
     }
 
     public function addMainLocation(Workspace $workspace, User $owner, string $source): Location

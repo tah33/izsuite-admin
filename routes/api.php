@@ -62,6 +62,7 @@ use App\Http\Controllers\Api\PurchasePdfController;
 use App\Http\Controllers\Api\PurchaseSettingController;
 use App\Http\Controllers\Api\RegionalSettingController;
 use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SalesConversionController;
 use App\Http\Controllers\Api\SalesDocumentAttachmentController;
 use App\Http\Controllers\Api\SalesDocumentController;
@@ -169,13 +170,13 @@ Route::prefix('v1')->group(function () {
     // The First-Time Business Setup wizard (Doc 11 section 3): where a new
     // business's setup stands, the step it moves on to, and finishing it. Each
     // step saves through the settings below.
-    Route::middleware(['auth:sanctum', 'workspace:required'])->prefix('setup')->group(function () {
+    Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('setup')->group(function () {
         Route::get('/', [SetupController::class, 'show'])->name('api.setup.show');
         Route::put('/', [SetupController::class, 'update'])->name('api.setup.update');
         Route::post('/complete', [SetupController::class, 'complete'])->name('api.setup.complete');
     });
 
-    Route::middleware(['auth:sanctum', 'workspace:required'])->prefix('business-settings')->group(function () {
+    Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('business-settings')->group(function () {
         Route::get('/', [BusinessSettingController::class, 'show'])->name('api.business-settings.show');
         Route::post('/', [BusinessSettingController::class, 'save'])->name('api.business-settings.save');
 
@@ -251,7 +252,7 @@ Route::prefix('v1')->group(function () {
      | Every id is looked up among the business's own rows, so another
      | business's location is a 404, the same as one that does not exist.
      | -------------------------------------------------------- */
-    Route::middleware(['auth:sanctum', 'workspace:required'])->prefix('locations')->group(function () {
+    Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('locations')->group(function () {
         Route::get('/', [LocationController::class, 'index'])->name('api.locations.index');
         Route::post('/', [LocationController::class, 'store'])->name('api.locations.store');
         Route::put('/{id}', [LocationController::class, 'update'])->whereNumber('id')->name('api.locations.update');
@@ -286,11 +287,28 @@ Route::prefix('v1')->group(function () {
      | workspace must be one of the owner's own, and an assigned app one that
      | is active.
      | -------------------------------------------------------- */
-    Route::middleware(['auth:sanctum', 'workspace:required'])->prefix('user-staff')->group(function () {
+    Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('user-staff')->group(function () {
         Route::get('/', [UserStaffController::class, 'index'])->name('api.user-staff.index');
         Route::post('/', [UserStaffController::class, 'store'])->name('api.user-staff.store');
         Route::put('/{id}', [UserStaffController::class, 'update'])->whereNumber('id')->name('api.user-staff.update');
         Route::delete('/{id}', [UserStaffController::class, 'destroy'])->whereNumber('id')->name('api.user-staff.destroy');
+    });
+
+    /* ----------------------------------------------------------
+     | The business's roles (Doc 12 sections 10 to 15): the default
+     | templates and its own, each with the permissions it allows -
+     | permissions lists what a role can hold among the apps on now
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('roles')->group(function () {
+        Route::get('/', [RoleController::class, 'index'])->name('api.roles.index');
+        Route::get('/permissions', [RoleController::class, 'permissions'])->name('api.roles.permissions');
+        Route::post('/', [RoleController::class, 'store'])->name('api.roles.store');
+        Route::get('/{id}', [RoleController::class, 'show'])->whereNumber('id')->name('api.roles.show');
+        Route::put('/{id}', [RoleController::class, 'update'])->whereNumber('id')->name('api.roles.update');
+        Route::delete('/{id}', [RoleController::class, 'destroy'])->whereNumber('id')->name('api.roles.destroy');
+        Route::post('/{id}/copy', [RoleController::class, 'copy'])->whereNumber('id')->name('api.roles.copy');
+        Route::post('/{id}/activate', [RoleController::class, 'activate'])->whereNumber('id')->name('api.roles.activate');
+        Route::post('/{id}/deactivate', [RoleController::class, 'deactivate'])->whereNumber('id')->name('api.roles.deactivate');
     });
 
     /* ----------------------------------------------------------
@@ -300,7 +318,7 @@ Route::prefix('v1')->group(function () {
      | Each reads what the business's apps keep - Sales Lite's so far - and
      | changes nothing. Totals are in the base currency.
      | -------------------------------------------------------- */
-    Route::middleware(['auth:sanctum', 'workspace:required'])->group(function () {
+    Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->group(function () {
         Route::get('/dashboard', DashboardController::class)->name('api.dashboard');
 
         Route::get('/documents', [DocumentIndexController::class, 'index'])->name('api.documents.index');
@@ -321,7 +339,7 @@ Route::prefix('v1')->group(function () {
      | own rows, so another business's is a 404. Contacts and items come a
      | page at a time; payment accounts all at once.
      | -------------------------------------------------------- */
-    Route::middleware(['auth:sanctum', 'workspace:required'])->group(function () {
+    Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->group(function () {
         Route::get('/contacts', [ContactController::class, 'index'])->name('api.contacts.index');
         Route::get('/contacts/export', [ExportController::class, 'contacts'])->name('api.contacts.export');
         Route::post('/contacts', [ContactController::class, 'store'])->name('api.contacts.store');
@@ -434,7 +452,7 @@ Route::prefix('v1')->group(function () {
      | is numbered (see routes/web.php for what the link opens); a payment's
      | receipt has its PDF and email.
      | -------------------------------------------------------- */
-    Route::middleware(['auth:sanctum', 'workspace:required', 'app:sales'])->prefix('sales')->group(function () {
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:sales', 'access'])->prefix('sales')->group(function () {
         Route::post('/calculate', [SalesFormController::class, 'calculate'])->name('api.sales.calculate');
 
         Route::get('/payments', [SalesPaymentController::class, 'index'])->name('api.sales.payments.index');
@@ -494,7 +512,7 @@ Route::prefix('v1')->group(function () {
      | lists them, and a payment is reversed, never deleted. Another
      | business's records are a 404.
      | -------------------------------------------------------- */
-    Route::middleware(['auth:sanctum', 'workspace:required', 'app:purchases'])->prefix('purchases')->group(function () {
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:purchases', 'access'])->prefix('purchases')->group(function () {
         Route::get('/payments', [SupplierPaymentController::class, 'index'])->name('api.purchases.payments.index');
         Route::get('/payments/{id}', [SupplierPaymentController::class, 'show'])->whereNumber('id')->name('api.purchases.payments.show');
         Route::post('/payments/{id}/reverse', [SupplierPaymentController::class, 'reverse'])->whereNumber('id')->name('api.purchases.payments.reverse');
@@ -530,7 +548,7 @@ Route::prefix('v1')->group(function () {
      | The categories - one list - are listed, added, changed and deleted
      | while unused. Another business's records are a 404.
      | -------------------------------------------------------- */
-    Route::middleware(['auth:sanctum', 'workspace:required', 'app:expenses'])->group(function () {
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:expenses', 'access'])->group(function () {
         Route::get('/expense-categories', [ExpenseCategoryController::class, 'index'])->name('api.expense-categories.index');
         Route::post('/expense-categories', [ExpenseCategoryController::class, 'store'])->name('api.expense-categories.store');
         Route::put('/expense-categories/{id}', [ExpenseCategoryController::class, 'update'])->whereNumber('id')->name('api.expense-categories.update');
@@ -575,7 +593,7 @@ Route::prefix('v1')->group(function () {
      | Route::middleware(['auth:sanctum', 'workspace', 'app:sales'])
      | - or `app:{family},full` for what only the Full edition has.
      | -------------------------------------------------------- */
-    Route::middleware(['auth:sanctum', 'workspace'])->group(function () {
+    Route::middleware(['auth:sanctum', 'workspace', 'access'])->group(function () {
         Route::get('/navigation', NavigationController::class)->name('api.navigation');
         Route::get('/apps-center', AppsCenterController::class)->name('api.apps-center');
         Route::post('/apps/{appKey}/activate', [AppActivationController::class, 'activate'])->name('api.apps.activate');

@@ -9,6 +9,8 @@ use App\Models\User\Workspace;
 use App\Models\User\WorkspaceApp;
 use App\Repositories\Admin\MenuItemRepository;
 use App\Services\Shared\BusinessCalendar;
+use App\Services\Shared\WorkspaceAccess;
+use App\Support\Permissions;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
@@ -33,6 +35,7 @@ class NavigationBuilder
         private ShowIfRules $rules,
         private MenuItemRepository $menuItems,
         private BusinessCalendar $calendar,
+        private WorkspaceAccess $access,
     ) {}
 
     public function for(?Workspace $workspace, User $user): array
@@ -50,14 +53,15 @@ class NavigationBuilder
 
     private function build(?Workspace $workspace, User $user): array
     {
-        $apps = $workspace ? WorkspaceApps::for($workspace) : null;
-        $on   = $apps?->active() ?? collect();
+        $apps    = $workspace ? WorkspaceApps::for($workspace) : null;
+        $on      = $apps?->active() ?? collect();
+        $granted = $workspace ? $this->access->granted($user, $workspace) : [];
 
         $items = $this->menuItems->activeOrdered()
             ->filter(fn (MenuItem $item) => $item->family_key === null
                 || ($on->has($item->family_key)
                     && $on[$item->family_key]->app->edition->covers($item->min_edition ?? Edition::Lite)))
-            ->filter(fn (MenuItem $item) => $this->userMay($user, $workspace, $item->permission_key))
+            ->filter(fn (MenuItem $item) => $this->userMay($granted, $item->permission_key))
             ->filter(fn (MenuItem $item) => ! $item->show_if || $this->rules->passes($item->show_if, $workspace));
 
         return [
@@ -101,27 +105,29 @@ class NavigationBuilder
                 'has_history' => true,
             ])->all() ?? []),
 
+            // What the user may do here (Doc 12): "*" alone for the owner and
+            // full access. Pages and buttons follow it; the API enforces it.
+            'permissions' => $granted,
+
             'menu' => [
                 'core'   => $this->tree($items->where('section', MenuItem::SECTION_CORE)),
-                'apps'   => $this->appEntries($on, $items->where('section', MenuItem::SECTION_APPS)),
+                'apps'   => $this->appEntries($on, $items->where('section', MenuItem::SECTION_APPS), ! in_array(Permissions::ALL, $granted, true)),
                 'bottom' => $this->tree($items->where('section', MenuItem::SECTION_BOTTOM)),
             ],
         ];
     }
 
-    /**
-     * Whether $user may see an item that needs $permission.
-     *
-     * Only the owner can open a business for now, and the owner may do
-     * everything. When staff can sign in, their roles are checked here.
-     */
-    private function userMay(User $user, ?Workspace $workspace, ?string $permission): bool
+    /** Whether someone holding $granted may see an item that needs $permission. */
+    private function userMay(array $granted, ?string $permission): bool
     {
-        return $permission === null || (bool) $workspace?->isOwnedBy($user);
+        return $permission === null || in_array(Permissions::ALL, $granted, true) || in_array($permission, $granted, true);
     }
 
-    /** One entry per active family, in the catalog's order, holding its items. */
-    private function appEntries(Collection $on, Collection $items): array
+    /**
+     * One entry per active family, in the catalog's order, holding its items -
+     * none, for a member whose role opens nothing of it ($pruneEmpty).
+     */
+    private function appEntries(Collection $on, Collection $items, bool $pruneEmpty): array
     {
         return $on
             ->sortBy(fn (WorkspaceApp $row) => [$row->app->sort_order, $row->app->name])
@@ -132,6 +138,7 @@ class NavigationBuilder
                 'edition'  => $row->app->edition->value,
                 'children' => $this->tree($items->where('family_key', $row->family_key)),
             ])
+            ->filter(fn (array $entry) => ! $pruneEmpty || $entry['children'] !== [])
             ->values()
             ->all();
     }

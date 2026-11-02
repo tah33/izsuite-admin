@@ -11,6 +11,7 @@ use App\Models\User\Workspace;
 use App\Repositories\User\ImportRepository;
 use App\Repositories\User\UserRepository;
 use App\Services\Shared\ActivityLogService;
+use App\Services\Shared\WorkspaceAccess;
 use App\Support\Csv;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -46,6 +47,7 @@ class ImportService
         protected ItemTransfer $itemTransfer,
         protected ImportRepository $importRepository,
         protected UserRepository $userRepository,
+        protected WorkspaceAccess $access,
     ) {}
 
     public function transfer(string $kind): Transfer
@@ -56,11 +58,19 @@ class ImportService
         };
     }
 
-    /** One of the business's imports; another business's answers like one that does not exist. */
+    /**
+     * One of the business's imports, for someone who may import its kind -
+     * as starting it needed (Doc 12 section 13). Another business's answers
+     * like one that does not exist.
+     */
     public function find(Workspace $workspace, int $id): Import
     {
-        return $this->importRepository->findFor($workspace, $id)
+        $import = $this->importRepository->findFor($workspace, $id)
             ?? abort(404, 'Import not found.');
+
+        $this->access->authorize("{$import->kind}.import");
+
+        return $import;
     }
 
     /** Any business's import, for the jobs that work through one. */
