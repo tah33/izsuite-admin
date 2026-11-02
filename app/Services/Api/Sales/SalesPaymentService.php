@@ -102,6 +102,7 @@ class SalesPaymentService
                     DocumentType::CustomerReceipt,
                     CarbonImmutable::parse($data['payment_date']),
                     fn (string $number) => $this->salesPaymentRepository->receiptNumberTaken($workspace, $number),
+                    $invoice->location_id,
                 ),
                 'sales_document_id'  => $invoice->id,
                 'contact_id'         => $invoice->contact_id,

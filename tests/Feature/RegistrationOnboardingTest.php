@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Events\UserRegistered;
 use App\Jobs\AddExpenseCategories;
 use App\Jobs\AddOwnerAsStaff;
+use App\Jobs\AddPaymentTerms;
 use App\Jobs\CreateMainLocation;
 use App\Jobs\CreateStarterWorkspace;
 use App\Models\Shared\ActivityLog;
@@ -94,7 +95,7 @@ class RegistrationOnboardingTest extends TestCase
 
         $user = $this->register();
 
-        Bus::assertChained([CreateStarterWorkspace::class, CreateMainLocation::class, AddOwnerAsStaff::class, AddExpenseCategories::class]);
+        Bus::assertChained([CreateStarterWorkspace::class, CreateMainLocation::class, AddOwnerAsStaff::class, AddExpenseCategories::class, AddPaymentTerms::class]);
 
         $this->assertSame(0, $user->workspaces()->count());
         $this->assertSame(0, $user->locations()->count());
@@ -112,7 +113,8 @@ class RegistrationOnboardingTest extends TestCase
         $this->assertSame(1, $user->locations()->count());
         $this->assertSame([$workspace->id], $user->userStaff()->sole()->assigned_workspaces);
         $this->assertSame(10, $workspace->expenseCategories()->count());
-        $this->assertSame(4, ActivityLog::where('properties->source', 'registration')->count());
+        $this->assertSame(6, $workspace->paymentTerms()->count());
+        $this->assertSame(5, ActivityLog::where('properties->source', 'registration')->count());
     }
 
     public function test_what_the_setup_makes_is_logged_for_the_account_after_its_registration(): void
@@ -129,6 +131,7 @@ class RegistrationOnboardingTest extends TestCase
             'Added workspace "Billing Starter"',
             'Added staff member "Amina Rahman"',
             'Added the starter expense categories',
+            'Added the starter payment terms',
         ], $setup->pluck('description')->all());
         $this->assertTrue($setup->every(fn (ActivityLog $log) => $log->id > $registered->id));
     }

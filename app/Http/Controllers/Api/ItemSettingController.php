@@ -10,8 +10,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Settings > Items: whether the business uses Brand Management. Its
- * categories and brands themselves are at /item-categories and /item-brands.
+ * Settings > Items: whether the business uses Brand Management and warranty
+ * fields, its units of measure, SKUs and barcode format. Its categories and
+ * brands themselves are at /item-categories and /item-brands.
  */
 class ItemSettingController extends Controller
 {
@@ -35,7 +36,7 @@ class ItemSettingController extends Controller
     public function update(SaveItemSettingsRequest $request): JsonResponse
     {
         try {
-            $settings = $this->itemSettingService->save($this->currentWorkspace($request), $request->boolean('brands_enabled'));
+            $settings = $this->itemSettingService->save($this->currentWorkspace($request), $request->validated());
 
             return response()->json([
                 'message' => 'Item settings saved successfully.',

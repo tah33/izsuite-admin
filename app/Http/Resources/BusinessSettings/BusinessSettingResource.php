@@ -38,10 +38,6 @@ class BusinessSettingResource extends JsonResource
             'city'                       => $this->city,
             'zip_code'                   => $this->zip_code,
             'timezone'                   => $this->timezone,
-            'tax_1_name'                 => $this->tax_1_name,
-            'tax_1_no'                   => $this->tax_1_no,
-            'tax_2_name'                 => $this->tax_2_name,
-            'tax_2_no'                   => $this->tax_2_no,
             'stock_accounting_method'    => $this->stock_accounting_method,
         ];
     }

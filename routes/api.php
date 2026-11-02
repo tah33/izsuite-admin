@@ -50,6 +50,7 @@ use App\Http\Controllers\Api\NavigationController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PaymentAccountController;
 use App\Http\Controllers\Api\PaymentAccountTransactionController;
+use App\Http\Controllers\Api\PaymentTermController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PurchaseAttachmentController;
@@ -400,6 +401,12 @@ Route::prefix('v1')->group(function () {
         Route::get('/exchange-rates', [ExchangeRateController::class, 'index'])->name('api.exchange-rates.index');
         Route::post('/exchange-rates', [ExchangeRateController::class, 'store'])->name('api.exchange-rates.store');
         Route::delete('/exchange-rates/{id}', [ExchangeRateController::class, 'destroy'])->whereNumber('id')->name('api.exchange-rates.destroy');
+
+        // Payment terms (Doc 11 section 14): one list for sales, purchases and expenses.
+        Route::get('/payment-terms', [PaymentTermController::class, 'index'])->name('api.payment-terms.index');
+        Route::post('/payment-terms', [PaymentTermController::class, 'store'])->name('api.payment-terms.store');
+        Route::put('/payment-terms/{id}', [PaymentTermController::class, 'update'])->whereNumber('id')->name('api.payment-terms.update');
+        Route::delete('/payment-terms/{id}', [PaymentTermController::class, 'destroy'])->whereNumber('id')->name('api.payment-terms.destroy');
     });
 
     /* ----------------------------------------------------------

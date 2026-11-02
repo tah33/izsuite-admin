@@ -77,6 +77,7 @@ class NavigationBuilder
                 'tax_mode'        => $workspace->tax_mode,
                 'withholding_tax' => (bool) $workspace->withholding_tax,
                 'brands_enabled'  => (bool) $workspace->brands_enabled,
+                'warranty_enabled' => (bool) $workspace->warranty_enabled,
 
                 // How every page writes dates, times, numbers and rates (Doc 11 sections 5 and 7).
                 'regional'        => [

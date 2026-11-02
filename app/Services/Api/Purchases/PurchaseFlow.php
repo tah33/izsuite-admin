@@ -64,6 +64,7 @@ class PurchaseFlow
                 DocumentType::Purchase,
                 CarbonImmutable::parse($purchase->document_date),
                 fn (string $number) => $this->purchaseRepository->numberTaken($workspace, $number),
+                $purchase->location_id,
             ),
             'status'            => PurchaseStatus::Recorded,
             'payment_status'    => bccomp((string) $purchase->grand_total, '0', 2) > 0 ? Purchase::PAYMENT_UNPAID : Purchase::PAYMENT_PAID,

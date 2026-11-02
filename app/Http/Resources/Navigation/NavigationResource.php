@@ -27,6 +27,7 @@ class NavigationResource extends JsonResource
                 'tax_mode'        => $workspace['tax_mode'],
                 'withholding_tax' => $workspace['withholding_tax'] ?? false,
                 'brands_enabled'  => $workspace['brands_enabled'],
+                'warranty_enabled' => $workspace['warranty_enabled'] ?? true,
                 'regional'        => $workspace['regional'] ?? null,
                 'setup_completed' => $workspace['setup_completed'] ?? true,
             ] : null,

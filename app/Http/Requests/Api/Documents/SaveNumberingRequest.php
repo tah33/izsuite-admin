@@ -23,7 +23,8 @@ class SaveNumberingRequest extends FormRequest
      * How a kind of document is numbered (Doc 11 section 21), for a save and
      * for a preview of it alike. A prefix is up to 20 letters, digits and
      * # / . _ - and may be empty; a number starts at 1 or above and is padded
-     * to 1 to 10 digits.
+     * to 1 to 10 digits. Whether it carries the location's code may be left
+     * out - it stays as it was.
      */
     public function rules(): array
     {
@@ -32,6 +33,7 @@ class SaveNumberingRequest extends FormRequest
             'starting_number' => ['required', 'integer', 'min:1', 'max:999999999'],
             'number_length'   => ['required', 'integer', 'min:1', 'max:10'],
             'period'          => ['required', Rule::enum(NumberingPeriod::class)],
+            'location_code'   => ['sometimes', 'boolean'],
         ];
     }
 

@@ -6,6 +6,7 @@ use App\Models\User\Item;
 use App\Models\User\TaxRate;
 use App\Repositories\User\ItemRepository;
 use App\Repositories\User\TaxRateRepository;
+use App\Support\Barcodes;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -99,7 +100,26 @@ class SaveItemRequest extends FormRequest
             $this->checkComponents($validator, $edited);
             $this->checkUseInCombos($validator, $edited);
             $this->checkTaxes($validator, $edited);
+            $this->checkBarcode($validator, $edited);
         }];
+    }
+
+    /**
+     * A barcode is of the business's format (Doc 11 section 18) - one the item
+     * already has may stay, so the rest of it can still be edited.
+     */
+    private function checkBarcode(Validator $validator, ?Item $edited): void
+    {
+        $barcode = $this->input('barcode');
+        $format  = $this->attributes->get('workspace')?->barcode_format ?? 'any';
+
+        if (! is_string($barcode) || $barcode === '' || $barcode === $edited?->barcode || $validator->errors()->has('barcode')) {
+            return;
+        }
+
+        if (! Barcodes::valid($barcode, $format)) {
+            $validator->errors()->add('barcode', Barcodes::rule($format));
+        }
     }
 
     /**

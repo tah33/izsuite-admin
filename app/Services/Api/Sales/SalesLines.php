@@ -35,7 +35,10 @@ class SalesLines
         $items = $this->itemRepository->findManyWithComponents($workspace->id, array_filter(array_column($lines, 'item_id')))->keyBy('id');
         $rates = $this->taxRateRepository->findManyFor($workspace, array_filter(array_column($lines, 'tax_rate_id')))->keyBy('id');
 
-        return array_map(function (array $line, int $index) use ($items, $rates) {
+        // Warranty fields switched off (Doc 11 section 18): new lines carry none.
+        $warranties = (bool) $workspace->warranty_enabled;
+
+        return array_map(function (array $line, int $index) use ($items, $rates, $warranties) {
             $item     = $items->get($line['item_id'] ?? 0);
             $rate     = $rates->get($line['tax_rate_id'] ?? 0);
             $discount = isset($line['discount_value']) && $line['discount_value'] !== '' && ($line['discount_type'] ?? null);
@@ -52,7 +55,7 @@ class SalesLines
                 'discount_value' => $discount ? (string) $line['discount_value'] : null,
                 ...$this->tax($rate),
                 'components'     => $item ? $this->components($item) : null,
-                'warranty'       => $item ? $this->warranty($item) : null,
+                'warranty'       => $item && $warranties ? $this->warranty($item) : null,
             ];
         }, $lines, array_keys($lines));
     }

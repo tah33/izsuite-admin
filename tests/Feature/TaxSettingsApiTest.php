@@ -66,6 +66,12 @@ class TaxSettingsApiTest extends TestCase
             'default_purchase_tax_id' => $input->id,
             'default_expense_tax_id'  => null,
             'withholding_tax'         => false,
+            'tax_registration_status' => null,
+            'tax_country'             => null,
+            'tax_1_name'              => null,
+            'tax_1_no'            => null,
+            'tax_2_name'              => null,
+            'tax_2_no'            => null,
         ]]);
 
         $log = ActivityLog::where('user_id', $this->user->id)->sole();

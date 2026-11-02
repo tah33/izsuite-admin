@@ -150,6 +150,7 @@ class CreditNoteService
                     DocumentType::CreditNote,
                     CarbonImmutable::parse($note->document_date),
                     fn (string $number) => $this->salesDocumentRepository->numberTaken($workspace, DocumentType::CreditNote, $number),
+                    $note->location_id,
                 ),
                 'status'            => SalesDocumentStatus::Issued,
                 'issued_at'         => now(),

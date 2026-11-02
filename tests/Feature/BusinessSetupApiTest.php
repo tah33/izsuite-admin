@@ -56,6 +56,12 @@ class BusinessSetupApiTest extends TestCase
                 'default_purchase_tax_id' => null,
                 'default_expense_tax_id'  => null,
                 'withholding_tax'         => false,
+                'tax_registration_status' => null,
+                'tax_country'             => null,
+                'tax_1_name'              => null,
+                'tax_1_no'                => null,
+                'tax_2_name'              => null,
+                'tax_2_no'                => null,
             ]]);
     }
 

@@ -59,11 +59,7 @@ class SaveBusinessSettingsRequest extends FormRequest
             // accepts as backward-compatible aliases.
             'timezone'                   => ['required', 'string', 'timezone:all_with_bc'],
 
-            'tax_1_name'                 => ['nullable', 'string', 'max:50'],
-            'tax_1_no'                   => ['nullable', 'string', 'max:50'],
-            'tax_2_name'                 => ['nullable', 'string', 'max:50'],
-            'tax_2_no'                   => ['nullable', 'string', 'max:50'],
-
+            // The tax registration numbers are Settings > Taxes' (Doc 11 section 9).
             'stock_accounting_method'    => ['required', Rule::in(BusinessSetting::STOCK_ACCOUNTING_METHODS)],
 
             // Yes to a new country once the business has transacted (Doc 11 section 5).
@@ -76,8 +72,6 @@ class SaveBusinessSettingsRequest extends FormRequest
         return [
             'timezone'   => 'time zone',
             'zip_code'   => 'postal code',
-            'tax_1_no'   => 'tax 1 number',
-            'tax_2_no'   => 'tax 2 number',
         ];
     }
 

@@ -86,7 +86,7 @@ class DocumentNumberingTest extends TestCase
         $this->putJson('/api/v1/business-settings/numbering/invoice', $settings)
             ->assertOk()
             ->assertJsonPath('message', 'Numbering saved successfully.')
-            ->assertJsonPath('data', ['type' => 'invoice', 'label' => 'Invoice', ...$settings, 'next_number' => 'SI/2026-0100']);
+            ->assertJsonPath('data', ['type' => 'invoice', 'label' => 'Invoice', ...$settings, 'location_code' => false, 'next_number' => 'SI/2026-0100']);
 
         $log = ActivityLog::where('user_id', $this->user->id)->sole();
         $this->assertSame('Changed how invoices are numbered', $log->description);

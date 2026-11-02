@@ -8,6 +8,7 @@ use App\Repositories\User\ItemRepository;
 use App\Repositories\User\PurchaseRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Services\Shared\ActivityLogService;
+use App\Services\User\Workspaces\WorkspaceSequence;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Arr;
@@ -21,6 +22,7 @@ class ItemService
         protected ItemRepository $itemRepository,
         protected SalesDocumentRepository $salesDocumentRepository,
         protected PurchaseRepository $purchaseRepository,
+        protected WorkspaceSequence $workspaceSequence,
     ) {}
 
     /** The brand is searched and filtered only while the business uses brands (Doc 04 section 7). */
@@ -40,7 +42,7 @@ class ItemService
         $components = Arr::pull($data, 'components');
 
         $item = DB::transaction(function () use ($workspace, $data, $components) {
-            $item = $this->itemRepository->create($workspace, $this->withoutComboFields($data));
+            $item = $this->itemRepository->create($workspace, $this->withSku($workspace, $this->withoutComboFields($data)));
 
             if ($item->isCombo()) {
                 $this->itemRepository->replaceComponents($item, $components ?? []);
@@ -63,7 +65,28 @@ class ItemService
      */
     public function import(Workspace $workspace, array $data): Item
     {
-        return $this->itemRepository->create($workspace, $this->withoutComboFields($data));
+        return DB::transaction(fn () => $this->itemRepository->create($workspace, $this->withSku($workspace, $this->withoutComboFields($data))));
+    }
+
+    /**
+     * A new item without a SKU is given the next one while the business has
+     * SKUs given automatically (Doc 11 section 18): its prefix and a running
+     * number - SKU-00001 - skipping any an item already has. Called inside the
+     * transaction that saves it, so a failed save gives the number back.
+     */
+    private function withSku(Workspace $workspace, array $data): array
+    {
+        if (! $workspace->sku_auto || filled($data['sku'] ?? null)) {
+            return $data;
+        }
+
+        $prefix = (string) $workspace->sku_prefix;
+
+        do {
+            $sku = $prefix.str_pad((string) $this->workspaceSequence->next($workspace->id, "sku|{$prefix}"), 5, '0', STR_PAD_LEFT);
+        } while ($this->itemRepository->skuTaken($workspace, $sku));
+
+        return [...$data, 'sku' => $sku];
     }
 
     /**

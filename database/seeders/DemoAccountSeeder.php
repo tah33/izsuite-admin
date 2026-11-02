@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Jobs\AddExpenseCategories;
 use App\Jobs\AddOwnerAsStaff;
+use App\Jobs\AddPaymentTerms;
 use App\Jobs\CreateMainLocation;
 use App\Jobs\CreateStarterWorkspace;
 use App\Models\User\User;
@@ -43,6 +44,7 @@ class DemoAccountSeeder extends Seeder
             CreateMainLocation::dispatchSync($user->id);
             AddOwnerAsStaff::dispatchSync($user->id);
             AddExpenseCategories::dispatchSync($user->id);
+            AddPaymentTerms::dispatchSync($user->id);
         } finally {
             Model::setEventDispatcher($dispatcher);
         }

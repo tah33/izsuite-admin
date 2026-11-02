@@ -23,4 +23,12 @@ class BusinessSettingRepository
             [...$data, 'user_id' => $workspace->user_id],
         );
     }
+
+    /** Some of the saved settings - the tax registration, say - the rest left as they are. */
+    public function update(BusinessSetting $settings, array $data): BusinessSetting
+    {
+        $settings->update($data);
+
+        return $settings;
+    }
 }

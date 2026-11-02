@@ -44,6 +44,12 @@ class LocationRepository
         return $workspace->locations()->where('is_primary', true)->exists();
     }
 
+    /** The business's Primary location, if it has marked one. */
+    public function primaryFor(Workspace $workspace): ?Location
+    {
+        return $workspace->locations()->where('is_primary', true)->first();
+    }
+
     /** $location the business's Primary, and no other. */
     public function makePrimary(Location $location): Location
     {

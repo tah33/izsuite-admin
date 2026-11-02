@@ -99,6 +99,7 @@ class ExpensePaymentService
                     DocumentType::ExpenseVoucher,
                     CarbonImmutable::parse($data['payment_date']),
                     fn (string $number) => $this->expensePaymentRepository->voucherNumberTaken($workspace, $number),
+                    $expense->location_id,
                 ),
                 'expense_id'         => $expense->id,
                 'contact_id'         => $expense->contact_id,

@@ -10,8 +10,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * How one kind of document is numbered in a business (Doc 11 section 21): its
  * prefix, the number it starts at, how many digits the number is padded to,
- * and the period it carries. There is a row only once the business changes the
- * defaults - defaultsFor() is what it uses until then.
+ * the period it carries, and whether it carries its location's code. There is
+ * a row only once the business changes the defaults - defaultsFor() is what
+ * it uses until then.
  */
 class DocumentNumbering extends Model
 {
@@ -23,6 +24,7 @@ class DocumentNumbering extends Model
         'starting_number',
         'number_length',
         'period',
+        'location_code',
     ];
 
     protected $casts = [
@@ -30,6 +32,7 @@ class DocumentNumbering extends Model
         'period'          => NumberingPeriod::class,
         'starting_number' => 'integer',
         'number_length'   => 'integer',
+        'location_code'   => 'boolean',
     ];
 
     /** A type's numbering until the business changes it: INV-00001 onwards, one continuous run. */
@@ -41,6 +44,7 @@ class DocumentNumbering extends Model
             'starting_number' => 1,
             'number_length'   => 5,
             'period'          => NumberingPeriod::None,
+            'location_code'   => false,
         ]);
     }
 

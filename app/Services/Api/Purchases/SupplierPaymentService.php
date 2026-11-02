@@ -103,6 +103,7 @@ class SupplierPaymentService
                     DocumentType::SupplierVoucher,
                     CarbonImmutable::parse($data['payment_date']),
                     fn (string $number) => $this->supplierPaymentRepository->voucherNumberTaken($workspace, $number),
+                    $purchase->location_id,
                 ),
                 'purchase_id'        => $purchase->id,
                 'contact_id'         => $purchase->contact_id,

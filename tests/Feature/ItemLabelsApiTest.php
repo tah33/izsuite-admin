@@ -211,12 +211,12 @@ class ItemLabelsApiTest extends TestCase
         $user     = $this->signIn();
         $business = $this->businessOf($user);
 
-        $this->getJson('/api/v1/business-settings/items')->assertOk()->assertExactJson(['data' => ['brands_enabled' => false]]);
+        $this->getJson('/api/v1/business-settings/items')->assertOk()->assertExactJson(['data' => ['brands_enabled' => false, 'warranty_enabled' => true, 'default_unit' => null, 'units' => [], 'units_in_use' => [], 'sku_auto' => false, 'sku_prefix' => 'SKU-', 'barcode_format' => 'any']]);
 
         $this->putJson('/api/v1/business-settings/items', ['brands_enabled' => true])
             ->assertOk()
             ->assertJsonPath('message', 'Item settings saved successfully.')
-            ->assertExactJson(['message' => 'Item settings saved successfully.', 'data' => ['brands_enabled' => true]]);
+            ->assertExactJson(['message' => 'Item settings saved successfully.', 'data' => ['brands_enabled' => true, 'warranty_enabled' => true, 'default_unit' => null, 'units' => [], 'units_in_use' => [], 'sku_auto' => false, 'sku_prefix' => 'SKU-', 'barcode_format' => 'any']]);
 
         $this->assertTrue($business->fresh()->brands_enabled);
 

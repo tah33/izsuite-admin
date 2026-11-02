@@ -22,6 +22,7 @@ class DocumentNumberingResource extends JsonResource
             'starting_number' => $scheme->starting_number,
             'number_length'   => $scheme->number_length,
             'period'          => $scheme->period->value,
+            'location_code'   => (bool) $scheme->location_code,
             'next_number'     => $this->resource['next_number'],
         ];
     }

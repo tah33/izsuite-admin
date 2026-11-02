@@ -21,6 +21,12 @@ class BusinessSetting extends Model
         'limited_liability_company', 'cooperative', 'non_profit', 'other',
     ];
 
+    /**
+     * Whether the business is registered for tax (Doc 11 section 9). Not
+     * registered, its tax numbers are kept but not printed.
+     */
+    public const TAX_REGISTRATION_STATUSES = ['registered', 'not_registered'];
+
     protected $fillable = [
         'user_id',
         'workspace_id',
@@ -42,6 +48,8 @@ class BusinessSetting extends Model
         'city',
         'zip_code',
         'timezone',
+        'tax_registration_status',
+        'tax_country',
         'tax_1_name',
         'tax_1_no',
         'tax_2_name',

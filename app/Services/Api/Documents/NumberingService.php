@@ -21,7 +21,7 @@ use App\Services\Shared\BusinessCalendar;
  */
 class NumberingService
 {
-    private const FIELDS = ['prefix', 'starting_number', 'number_length', 'period'];
+    private const FIELDS = ['prefix', 'starting_number', 'number_length', 'period', 'location_code'];
 
     public function __construct(
         protected DocumentNumberingRepository $documentNumberingRepository,

@@ -286,7 +286,7 @@ class ExpensesLiteTest extends TestCase
     {
         $this->getJson('/api/v1/business-settings/expenses')
             ->assertOk()
-            ->assertExactJson(['data' => ['payment_terms' => 30, 'notes' => null, 'duplicate_check' => true]]);
+            ->assertExactJson(['data' => ['payment_terms' => 30, 'notes' => null, 'duplicate_check' => true, 'default_expense_tax_id' => null]]);
 
         $this->putJson('/api/v1/business-settings/expenses', ['payment_terms' => 7, 'notes' => 'Keep the receipt.', 'duplicate_check' => false])
             ->assertOk()

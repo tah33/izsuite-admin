@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\Api\BusinessSetup;
 
+use App\Models\User\BusinessSetting;
 use App\Models\User\TaxRate;
 use App\Models\User\Workspace;
+use App\Support\Countries;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -36,6 +38,16 @@ class SaveBusinessTaxesRequest extends FormRequest
             'default_purchase_tax_id' => ['sometimes', 'nullable', 'integer', $rateFor(TaxRate::PURCHASES)],
             'default_expense_tax_id'  => ['sometimes', 'nullable', 'integer', $rateFor(TaxRate::EXPENSES)],
             'withholding_tax'         => ['sometimes', 'boolean'],
+
+            // Its tax registration (Doc 11 section 9): registered or not, the
+            // country it is registered in, and up to two numbers - a GST and a
+            // state VAT, say. Kept with the business's own settings.
+            'tax_registration_status' => ['sometimes', 'nullable', Rule::in(BusinessSetting::TAX_REGISTRATION_STATUSES)],
+            'tax_country'             => ['sometimes', 'nullable', 'string', Rule::in(Countries::codes())],
+            'tax_1_name'              => ['sometimes', 'nullable', 'string', 'max:50'],
+            'tax_1_no'                => ['sometimes', 'nullable', 'string', 'max:50'],
+            'tax_2_name'              => ['sometimes', 'nullable', 'string', 'max:50'],
+            'tax_2_no'                => ['sometimes', 'nullable', 'string', 'max:50'],
         ];
     }
 
@@ -49,6 +61,8 @@ class SaveBusinessTaxesRequest extends FormRequest
             'default_sales_tax_id.exists'    => 'Choose one of your active sales taxes.',
             'default_purchase_tax_id.exists' => 'Choose one of your active purchase taxes.',
             'default_expense_tax_id.exists'  => 'Choose one of your active expense taxes.',
+            'tax_registration_status.in'     => 'Choose whether the business is registered for tax.',
+            'tax_country.in'                 => 'Choose a country from the list.',
         ];
     }
 }

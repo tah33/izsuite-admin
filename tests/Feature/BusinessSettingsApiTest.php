@@ -63,10 +63,6 @@ class BusinessSettingsApiTest extends TestCase
             'city'                       => 'Dhaka',
             'zip_code'                   => '1207',
             'timezone'                   => 'Asia/Dhaka',
-            'tax_1_name'                 => 'VAT',
-            'tax_1_no'                   => 'BIN-123456',
-            'tax_2_name'                 => '',
-            'tax_2_no'                   => '',
             'stock_accounting_method'    => 'fifo',
         ], $overrides);
     }
@@ -130,8 +126,7 @@ class BusinessSettingsApiTest extends TestCase
             ->assertJsonStructure(['data' => [
                 'business_name', 'trading_name', 'registration_number', 'legal_structure', 'industry', 'start_date', 'language', 'logo_url', 'website',
                 'business_contact_number', 'alternate_contact_number', 'email', 'address_line_1', 'address_line_2', 'country', 'state', 'city',
-                'zip_code', 'timezone', 'tax_1_name', 'tax_1_no', 'tax_2_name', 'tax_2_no',
-                'stock_accounting_method',
+                'zip_code', 'timezone', 'stock_accounting_method',
             ]])
             ->assertJsonPath('data.business_name', 'Global Traders Inc.')
             ->assertJsonPath('data.start_date', '2024-03-15')
@@ -245,7 +240,7 @@ class BusinessSettingsApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.start_date', null)
             ->assertJsonPath('data.website', null)
-            ->assertJsonPath('data.tax_1_name', null);
+            ->assertJsonPath('data.email', null);
     }
 
     public function test_optional_fields_can_be_cleared(): void
@@ -254,20 +249,19 @@ class BusinessSettingsApiTest extends TestCase
 
         $this->postJson('/api/v1/business-settings', $this->payload())
             ->assertOk()
-            ->assertJsonPath('data.tax_1_name', 'VAT');
+            ->assertJsonPath('data.email', 'accounts@globaltraders.example');
 
         $this->postJson('/api/v1/business-settings', $this->payload([
             'start_date'              => '',
             'website'                 => '',
             'business_contact_number' => '',
-            'tax_1_name'              => '',
-            'tax_1_no'                => '',
+            'email'                   => '',
         ]))
             ->assertOk()
             ->assertJsonPath('data.start_date', null)
             ->assertJsonPath('data.website', null)
             ->assertJsonPath('data.business_contact_number', null)
-            ->assertJsonPath('data.tax_1_name', null);
+            ->assertJsonPath('data.email', null);
     }
 
     public function test_every_required_field_is_enforced(): void
@@ -299,10 +293,10 @@ class BusinessSettingsApiTest extends TestCase
         $this->postJson('/api/v1/business-settings', $this->payload([
             'business_name' => str_repeat('a', 256),
             'zip_code'      => str_repeat('1', 21),
-            'tax_1_name'    => str_repeat('a', 51),
+            'trading_name'  => str_repeat('a', 151),
         ]))
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['business_name', 'zip_code', 'tax_1_name']);
+            ->assertJsonValidationErrors(['business_name', 'zip_code', 'trading_name']);
     }
 
     /* ---------------------------------------------------------- language */

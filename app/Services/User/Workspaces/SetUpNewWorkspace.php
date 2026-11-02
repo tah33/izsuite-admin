@@ -4,11 +4,13 @@ namespace App\Services\User\Workspaces;
 
 use App\Models\User\ExpenseCategory;
 use App\Models\User\Location;
+use App\Models\User\PaymentTerm;
 use App\Models\User\User;
 use App\Models\User\UserStaff;
 use App\Models\User\Workspace;
 use App\Repositories\User\ExpenseCategoryRepository;
 use App\Repositories\User\LocationRepository;
+use App\Repositories\User\PaymentTermRepository;
 use App\Repositories\User\UserStaffRepository;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Support\Str;
@@ -18,13 +20,14 @@ use Illuminate\Support\Str;
  * a "Main Location" - code MAIN, its Primary, on its owner's time zone, with
  * no country or address: the owner fills those in later -
  * its owner on its staff: their name and e-mail, active, assigned to it - and
- * the starter list of expense categories (Doc 10 section 7), its own to change.
+ * the starter lists of expense categories (Doc 10 section 7) and payment terms
+ * (Doc 11 section 14), its own to change.
  *
  * Registration does this for an account's first business, from the queue (see
  * QueueNewAccountSetup); the Workspace page for every business added after, as
  * it is made. Safe to run twice: a business that already has its "Main
- * Location", its owner on its staff (matched by e-mail), or a category of a
- * starter name keeps them, and nothing is logged again.
+ * Location", its owner on its staff (matched by e-mail), or a category or term
+ * of a starter's name keeps them, and nothing is logged again.
  *
  * $source is where the log entries say it came from: 'registration' or 'api'.
  */
@@ -38,6 +41,7 @@ class SetUpNewWorkspace
         private LocationRepository $locations,
         private UserStaffRepository $staffMembers,
         private ExpenseCategoryRepository $expenseCategories,
+        private PaymentTermRepository $paymentTerms,
     ) {}
 
     public function handle(Workspace $workspace, User $owner, string $source): void
@@ -45,6 +49,7 @@ class SetUpNewWorkspace
         $this->addMainLocation($workspace, $owner, $source);
         $this->addOwnerAsStaff($workspace, $owner, $source);
         $this->addExpenseCategories($workspace, $owner, $source);
+        $this->addPaymentTerms($workspace, $owner, $source);
     }
 
     public function addMainLocation(Workspace $workspace, User $owner, string $source): Location
@@ -69,6 +74,16 @@ class SetUpNewWorkspace
 
         if ($added > 0) {
             ActivityLogService::record('created', $added === count(ExpenseCategory::STARTER) ? 'Added the starter expense categories' : "Added {$added} starter expense categories", $workspace, ['source' => $source], $owner);
+        }
+    }
+
+    /** The starter payment terms (PaymentTerm::STARTER) - one log entry for all of them. */
+    public function addPaymentTerms(Workspace $workspace, User $owner, string $source): void
+    {
+        $added = $this->paymentTerms->addStarter($workspace);
+
+        if ($added > 0) {
+            ActivityLogService::record('created', $added === count(PaymentTerm::STARTER) ? 'Added the starter payment terms' : "Added {$added} starter payment terms", $workspace, ['source' => $source], $owner);
         }
     }
 

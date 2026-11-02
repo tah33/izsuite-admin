@@ -22,6 +22,7 @@ class BusinessDataWorkspaceMigrationTest extends TestCase
 
     /** Later migrations that changed the same tables, newest first. */
     private const LATER_MIGRATIONS = [
+        'migrations/2025_01_01_000102_add_tax_registration_item_settings_and_location_numbering.php',
         'migrations/2025_01_01_000100_add_setup_progress_to_workspaces.php',
         'migrations/2025_01_01_000099_add_regional_settings_to_workspaces.php',
         'migrations/2025_01_01_000098_add_business_profile_and_location_details.php',

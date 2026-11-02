@@ -56,7 +56,8 @@ class SalesSnapshots
             'phone'               => $settings?->business_contact_number,
             'email'               => $settings?->email,
             'website'             => $settings?->website,
-            'tax_numbers'         => array_values(array_filter([
+            // Not registered for tax (Doc 11 section 9), it keeps its numbers but prints none.
+            'tax_numbers'         => $settings?->tax_registration_status === 'not_registered' ? [] : array_values(array_filter([
                 $settings?->tax_1_no ? ['name' => $settings->tax_1_name, 'number' => $settings->tax_1_no] : null,
                 $settings?->tax_2_no ? ['name' => $settings->tax_2_name, 'number' => $settings->tax_2_no] : null,
             ])),

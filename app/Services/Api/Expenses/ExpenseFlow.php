@@ -65,6 +65,7 @@ class ExpenseFlow
                 DocumentType::Expense,
                 CarbonImmutable::parse($expense->document_date),
                 fn (string $number) => $this->expenseRepository->numberTaken($workspace, $number),
+                $expense->location_id,
             ),
             'status'            => ExpenseStatus::Recorded,
             'payment_status'    => bccomp((string) $expense->grand_total, '0', 2) > 0 ? Expense::PAYMENT_UNPAID : Expense::PAYMENT_PAID,

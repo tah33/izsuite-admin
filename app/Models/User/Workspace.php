@@ -62,6 +62,9 @@ class Workspace extends Model
     /** How many decimals an exchange rate is kept to (Doc 11 section 7). */
     public const RATE_PRECISIONS = [2, 3, 4, 5, 6, 7, 8];
 
+    /** What items' barcodes are checked against (Doc 11 section 18): anything, or an EAN-13 or UPC-A with its check digit. */
+    public const BARCODE_FORMATS = ['any', 'ean13', 'upca'];
+
     /**
      * The First-Time Business Setup's steps, in order, with their names (Doc
      * 11 section 3). Only the payment account may be skipped; the rest are
@@ -87,6 +90,9 @@ class Workspace extends Model
         'nav_version'           => 'integer',
         'additional_currencies' => 'array',
         'brands_enabled'          => 'boolean',
+        'warranty_enabled'        => 'boolean',
+        'units'                   => 'array',
+        'sku_auto'                => 'boolean',
         'withholding_tax'         => 'boolean',
         'fiscal_year_start_month' => 'integer',
         'rate_precision'          => 'integer',
@@ -109,17 +115,23 @@ class Workspace extends Model
             foreach ([...RegionalDefaults::BASE, 'rate_precision' => 6] as $setting => $value) {
                 $workspace->{$setting} ??= $value;
             }
+
+            // Item settings (Doc 11 section 18): warranties on, SKUs typed in, any barcode.
+            $workspace->warranty_enabled ??= true;
+            $workspace->sku_auto ??= false;
+            $workspace->sku_prefix ??= 'SKU-';
+            $workspace->barcode_format ??= 'any';
         });
 
         static::created(fn (self $workspace) => app(ProvisionWorkspaceApps::class)->handle($workspace));
 
         // The cached sidebar carries the business's name, currencies, tax
-        // choices, whether it uses brands, how it writes dates, times, numbers
-        // and rates, and whether it is set up, so a change to any of them needs
-        // a fresh one.
+        // choices, whether it uses brands and warranties, how it writes dates,
+        // times, numbers and rates, and whether it is set up, so a change to
+        // any of them needs a fresh one.
         static::updating(function (self $workspace) {
             if ($workspace->isDirty([
-                'name', 'base_currency', 'additional_currencies', 'tax_mode', 'withholding_tax', 'brands_enabled',
+                'name', 'base_currency', 'additional_currencies', 'tax_mode', 'withholding_tax', 'brands_enabled', 'warranty_enabled',
                 'date_format', 'time_format', 'number_format', 'rate_precision', 'setup_completed_at',
             ])) {
                 $workspace->nav_version = $workspace->nav_version + 1;
@@ -303,6 +315,12 @@ class Workspace extends Model
     public function expenseCategories(): HasMany
     {
         return $this->hasMany(ExpenseCategory::class);
+    }
+
+    /** Its one list of payment terms, for sales, purchases and expenses alike. */
+    public function paymentTerms(): HasMany
+    {
+        return $this->hasMany(PaymentTerm::class);
     }
 
     /** What it spent on running itself (Expenses Lite). */

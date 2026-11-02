@@ -5,6 +5,7 @@ namespace App\Listeners;
 use App\Events\UserRegistered;
 use App\Jobs\AddExpenseCategories;
 use App\Jobs\AddOwnerAsStaff;
+use App\Jobs\AddPaymentTerms;
 use App\Jobs\CreateMainLocation;
 use App\Jobs\CreateStarterWorkspace;
 use Illuminate\Support\Facades\Bus;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Bus;
 /**
  * Queues what a new account starts with: the "Billing Starter" workspace, its
  * "Main Location", the owner as a staff member of it, and its starter expense
- * categories.
+ * categories and payment terms.
  *
  * Only queues - registration does not wait for any of it - and only once the
  * new account is committed, so a worker never looks for a user that is not
@@ -38,6 +39,7 @@ class QueueNewAccountSetup
             new CreateMainLocation($event->userId),
             new AddOwnerAsStaff($event->userId),
             new AddExpenseCategories($event->userId),
+            new AddPaymentTerms($event->userId),
         ])->dispatch();
     }
 }

@@ -6,6 +6,7 @@ use App\Enums\DocumentType;
 use App\Models\User\DocumentNumbering;
 use App\Models\User\Workspace;
 use App\Repositories\User\DocumentNumberingRepository;
+use App\Repositories\User\LocationRepository;
 use App\Services\Shared\BusinessCalendar;
 use App\Services\User\Workspaces\WorkspaceSequence;
 use Carbon\CarbonInterface;
@@ -26,6 +27,10 @@ use Carbon\CarbonInterface;
  * again by a prefix "INV-2026-" - so next() asks the caller which numbers are
  * already taken, and skips them. Gaps are allowed (Doc 14 section 14.6);
  * repeats never are.
+ *
+ * A type numbered with the location's code (Doc 11 section 21) runs on per
+ * location - INV-DHK-00001 and INV-CTG-00001 - each from its own counter. A
+ * record with no location takes the Primary's code, as a preview does.
  */
 class DocumentNumbers
 {
@@ -33,6 +38,7 @@ class DocumentNumbers
         private DocumentNumberingRepository $documentNumberingRepository,
         private WorkspaceSequence $workspaceSequence,
         private BusinessCalendar $businessCalendar,
+        private LocationRepository $locationRepository,
     ) {}
 
     /** How $type is numbered: the business's own way, or the defaults. */
@@ -41,41 +47,49 @@ class DocumentNumbers
         return $this->documentNumberingRepository->findFor($workspace, $type) ?? DocumentNumbering::defaultsFor($type);
     }
 
-    /** The number the next document dated $date would get under $scheme - nothing is taken. */
-    public function preview(Workspace $workspace, DocumentNumbering $scheme, CarbonInterface $date): string
+    /**
+     * The number the next document dated $date would get under $scheme - at
+     * the location of $locationId, or the Primary. Nothing is taken.
+     */
+    public function preview(Workspace $workspace, DocumentNumbering $scheme, CarbonInterface $date, ?int $locationId = null): string
     {
         $period = $this->period($workspace, $scheme, $date);
+        $code   = $this->code($workspace, $scheme, $locationId);
 
-        return $this->format($scheme, $period, $this->workspaceSequence->peek($workspace->id, $this->counter($scheme, $period), $scheme->starting_number));
+        return $this->format($scheme, $period, $this->workspaceSequence->peek($workspace->id, $this->counter($scheme, $period, $code), $scheme->starting_number), $code);
     }
 
     /**
      * Takes the next number for a $type dated $date. $taken is asked whether a
      * number is already on a document; one that is, is skipped. Call it inside
      * the transaction that saves the document, so a failed save gives the
-     * number back.
+     * number back. $locationId is the record's location.
      *
      * @param  (callable(string): bool)|null  $taken
      */
-    public function next(Workspace $workspace, DocumentType $type, CarbonInterface $date, ?callable $taken = null): string
+    public function next(Workspace $workspace, DocumentType $type, CarbonInterface $date, ?callable $taken = null, ?int $locationId = null): string
     {
         $scheme  = $this->scheme($workspace, $type);
         $period  = $this->period($workspace, $scheme, $date);
-        $counter = $this->counter($scheme, $period);
+        $code    = $this->code($workspace, $scheme, $locationId);
+        $counter = $this->counter($scheme, $period, $code);
 
         do {
-            $number = $this->format($scheme, $period, $this->workspaceSequence->next($workspace->id, $counter, $scheme->starting_number));
+            $number = $this->format($scheme, $period, $this->workspaceSequence->next($workspace->id, $counter, $scheme->starting_number), $code);
         } while ($taken && $taken($number));
 
         return $number;
     }
 
-    /** INV-00026, INV-2026-00026, INV-2026-27-00026: the prefix, the period if any, the padded number. */
-    public function format(DocumentNumbering $scheme, ?string $period, int $value): string
+    /**
+     * INV-00026, INV-2026-00026, INV-DHK-2026-00026: the prefix, the location's
+     * code and the period if any, the padded number.
+     */
+    public function format(DocumentNumbering $scheme, ?string $period, int $value, ?string $code = null): string
     {
         $digits = str_pad((string) $value, $scheme->number_length, '0', STR_PAD_LEFT);
 
-        return $scheme->prefix.($period !== null ? "{$period}-" : '').$digits;
+        return $scheme->prefix.($code !== null ? "{$code}-" : '').($period !== null ? "{$period}-" : '').$digits;
     }
 
     private function period(Workspace $workspace, DocumentNumbering $scheme, CarbonInterface $date): ?string
@@ -83,8 +97,21 @@ class DocumentNumbers
         return $scheme->period->key($date, $this->businessCalendar->financialYearStart($workspace));
     }
 
-    private function counter(DocumentNumbering $scheme, ?string $period): string
+    /** The location code a number of $scheme carries: its location's, else the Primary's - null when the scheme carries none. */
+    private function code(Workspace $workspace, DocumentNumbering $scheme, ?int $locationId): ?string
     {
-        return implode('|', [$scheme->document_type->value, $scheme->prefix, $period ?? '']);
+        if (! $scheme->location_code) {
+            return null;
+        }
+
+        $location = $locationId ? $this->locationRepository->findFor($workspace, $locationId) : null;
+
+        return ($location ?? $this->locationRepository->primaryFor($workspace))?->code;
+    }
+
+    /** A location's own run is counted apart: "invoice|INV-||DHK". */
+    private function counter(DocumentNumbering $scheme, ?string $period, ?string $code = null): string
+    {
+        return implode('|', [$scheme->document_type->value, $scheme->prefix, $period ?? '', ...($code !== null ? [$code] : [])]);
     }
 }

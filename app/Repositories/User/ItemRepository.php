@@ -130,6 +130,22 @@ class ItemRepository
     }
 
     /**
+     * Those of $units the business's items are measured in.
+     *
+     * @return list<string>
+     */
+    public function unitsUsed(Workspace $workspace, array $units): array
+    {
+        return $units ? $workspace->items()->whereIn('unit', array_values($units))->distinct()->pluck('unit')->all() : [];
+    }
+
+    /** Whether one of the business's items has $sku already. */
+    public function skuTaken(Workspace $workspace, string $sku): bool
+    {
+        return $workspace->items()->where('sku', $sku)->exists();
+    }
+
+    /**
      * A combo's components, replaced by $rows ([item_id, quantity] each) in the
      * order given. Empty takes them all away.
      */

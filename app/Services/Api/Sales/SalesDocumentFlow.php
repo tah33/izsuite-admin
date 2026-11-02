@@ -194,6 +194,7 @@ class SalesDocumentFlow
                 $document->type,
                 CarbonImmutable::parse($document->document_date),
                 fn (string $number) => $this->salesDocumentRepository->numberTaken($workspace, $document->type, $number),
+                $document->location_id,
             ),
             'issued_at'         => $document->issued_at ?? now(),
             'business_snapshot' => $this->salesSnapshots->business($workspace, $document->location, $document->type->isPaidFrom() ? $document->currency : null),
