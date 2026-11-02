@@ -6,6 +6,7 @@ use App\Models\User\PurchaseSetting;
 use App\Models\User\Workspace;
 use App\Repositories\User\PurchaseSettingRepository;
 use App\Services\Shared\ActivityLogService;
+use App\Support\SettingChanges;
 
 /**
  * Settings > Purchases (Doc 11 section 16): the payment terms a supplier
@@ -35,11 +36,12 @@ class PurchaseSettingService
         // Logged here, like every save, so LogApiWriteActivity does not write
         // its own vaguer entry - with the fields that differ from before.
         ActivityLogService::record('updated', 'Updated the purchase settings', $workspace, [
-            'source' => 'api',
-            'fields' => array_keys(array_diff_assoc(
+            'source'  => 'api',
+            'fields'  => array_keys(array_diff_assoc(
                 array_map('strval', $settings->only(self::FIELDS)),
                 array_map('strval', $before),
             )),
+            'changes' => SettingChanges::between($before, $settings->only(self::FIELDS)),
         ]);
 
         return $settings;

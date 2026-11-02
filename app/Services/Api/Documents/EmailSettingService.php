@@ -8,6 +8,7 @@ use App\Repositories\User\BusinessSettingRepository;
 use App\Repositories\User\EmailSettingRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\Shared\ActivityLogService;
+use App\Support\SettingChanges;
 
 /**
  * Settings > Email (Doc 11 sections 15 and 22): the name a business's emails
@@ -36,9 +37,13 @@ class EmailSettingService
     /** $data is validated (see SaveEmailSettingRequest). */
     public function save(Workspace $workspace, array $data): array
     {
-        $this->emailSettingRepository->save($workspace, $data);
+        $before  = $this->emailSettingRepository->forWorkspace($workspace)->only(array_keys($data));
+        $setting = $this->emailSettingRepository->save($workspace, $data);
 
-        ActivityLogService::record('updated', 'Changed the email settings', $workspace, ['source' => 'api']);
+        ActivityLogService::record('updated', 'Changed the email settings', $workspace, [
+            'source'  => 'api',
+            'changes' => SettingChanges::between($before, $setting->only(array_keys($data))),
+        ]);
 
         return $this->get($workspace);
     }

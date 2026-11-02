@@ -13,6 +13,7 @@ use App\Services\Documents\DocumentPdf;
 use App\Services\Documents\DocumentSample;
 use App\Services\Documents\DocumentTypes;
 use App\Services\Shared\ActivityLogService;
+use App\Support\SettingChanges;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 
@@ -50,9 +51,13 @@ class DocumentTemplateService
     /** $data is validated (see SaveDocumentTemplateRequest). */
     public function save(Workspace $workspace, DocumentType $type, array $data): array
     {
+        $before   = ($this->documentTemplateRepository->findFor($workspace, $type) ?? DocumentTemplate::defaultsFor($type, $workspace))->only(array_keys($data));
         $template = $this->documentTemplateRepository->save($workspace, $type, $data);
 
-        ActivityLogService::record('updated', "Changed the {$type->label()} template", $workspace, ['source' => 'api']);
+        ActivityLogService::record('updated', "Changed the {$type->label()} template", $workspace, [
+            'source'  => 'api',
+            'changes' => SettingChanges::between($before, $template->only(array_keys($data))),
+        ]);
 
         return $this->row($template);
     }

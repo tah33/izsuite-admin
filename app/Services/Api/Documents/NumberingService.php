@@ -10,6 +10,7 @@ use App\Services\Documents\DocumentNumbers;
 use App\Services\Documents\DocumentTypes;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\BusinessCalendar;
+use App\Support\SettingChanges;
 
 /**
  * Settings > Documents > Numbering (Doc 11 section 21): how each kind of
@@ -48,9 +49,12 @@ class NumberingService
         $before = $this->documentNumbers->scheme($workspace, $type);
         $scheme = $this->documentNumberingRepository->save($workspace, $type, $data);
 
+        $values = fn (DocumentNumbering $numbering) => array_combine(self::FIELDS, array_map(fn (string $field) => $this->value($numbering, $field), self::FIELDS));
+
         ActivityLogService::record('updated', "Changed how {$type->plural()} are numbered", $workspace, [
-            'source' => 'api',
-            'fields' => array_values(array_filter(self::FIELDS, fn (string $field) => $this->value($before, $field) !== $this->value($scheme, $field))),
+            'source'  => 'api',
+            'fields'  => array_values(array_filter(self::FIELDS, fn (string $field) => $this->value($before, $field) !== $this->value($scheme, $field))),
+            'changes' => SettingChanges::between($values($before), $values($scheme)),
         ]);
 
         return $this->row($workspace, $scheme);

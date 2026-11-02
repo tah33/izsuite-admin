@@ -8,6 +8,7 @@ use App\Repositories\User\BusinessSettingRepository;
 use App\Repositories\User\TaxRateRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\Shared\ActivityLogService;
+use App\Support\SettingChanges;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -100,8 +101,9 @@ class TaxSettingService
         $description = array_keys($data) === ['tax_mode'] ? "Set taxes to \"{$data['tax_mode']}\"" : 'Updated the tax settings';
 
         ActivityLogService::record('updated', $description, $workspace, [
-            'source' => 'api',
-            'fields' => array_keys(array_diff_assoc(array_map('strval', $after), array_map('strval', $before))),
+            'source'  => 'api',
+            'fields'  => array_keys(array_diff_assoc(array_map('strval', $after), array_map('strval', $before))),
+            'changes' => SettingChanges::between($before, $after),
         ]);
 
         return $after;

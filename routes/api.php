@@ -2,6 +2,7 @@
 
 use App\Enums\DocumentType;
 use App\Http\Controllers\Api\AccountTransferController;
+use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\AppActivationController;
 use App\Http\Controllers\Api\AppCategoryController;
 use App\Http\Controllers\Api\AppController;
@@ -401,6 +402,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/exchange-rates', [ExchangeRateController::class, 'index'])->name('api.exchange-rates.index');
         Route::post('/exchange-rates', [ExchangeRateController::class, 'store'])->name('api.exchange-rates.store');
         Route::delete('/exchange-rates/{id}', [ExchangeRateController::class, 'destroy'])->whereNumber('id')->name('api.exchange-rates.destroy');
+
+        // Settings > Security & Audit > Activity Log (Doc 11 section 24): the business's activity, and who appears in it.
+        Route::get('/activity-log', [ActivityLogController::class, 'index'])->name('api.activity-log.index');
+        Route::get('/activity-log/users', [ActivityLogController::class, 'users'])->name('api.activity-log.users');
 
         // Payment terms (Doc 11 section 14): one list for sales, purchases and expenses.
         Route::get('/payment-terms', [PaymentTermController::class, 'index'])->name('api.payment-terms.index');

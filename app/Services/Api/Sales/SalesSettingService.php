@@ -6,6 +6,7 @@ use App\Models\User\SalesSetting;
 use App\Models\User\Workspace;
 use App\Repositories\User\SalesSettingRepository;
 use App\Services\Shared\ActivityLogService;
+use App\Support\SettingChanges;
 
 /**
  * Settings > Sales (Doc 11 section 15): the payment terms, validity, discounts,
@@ -35,11 +36,12 @@ class SalesSettingService
         // its own vaguer entry. The fields are those that differ from before -
         // from the defaults, the first time.
         ActivityLogService::record('updated', 'Updated the sales settings', $workspace, [
-            'source' => 'api',
-            'fields' => array_keys(array_diff_assoc(
+            'source'  => 'api',
+            'fields'  => array_keys(array_diff_assoc(
                 array_map('strval', $settings->only(self::FIELDS)),
                 array_map('strval', $before),
             )),
+            'changes' => SettingChanges::between($before, $settings->only(self::FIELDS)),
         ]);
 
         return $settings;

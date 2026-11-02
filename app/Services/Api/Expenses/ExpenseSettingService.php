@@ -8,6 +8,7 @@ use App\Models\User\Workspace;
 use App\Repositories\User\ExpenseSettingRepository;
 use App\Repositories\User\TaxRateRepository;
 use App\Services\Shared\ActivityLogService;
+use App\Support\SettingChanges;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 
@@ -52,11 +53,12 @@ class ExpenseSettingService
         // Logged here, like every save, so LogApiWriteActivity does not write
         // its own vaguer entry - with the fields that differ from before.
         ActivityLogService::record('updated', 'Updated the expense settings', $workspace, [
-            'source' => 'api',
-            'fields' => array_keys(array_diff_assoc(
+            'source'  => 'api',
+            'fields'  => array_keys(array_diff_assoc(
                 array_map('strval', $settings->only(self::FIELDS)),
                 array_map('strval', $before),
             )),
+            'changes' => SettingChanges::between($before, $settings->only(self::FIELDS)),
         ]);
 
         return $settings;

@@ -3,15 +3,47 @@
 namespace App\Repositories\Shared;
 
 use App\Models\Shared\ActivityLog;
+use App\Models\User\User;
+use App\Models\User\Workspace;
 use App\QueryFilters\ActionFilter;
 use App\QueryFilters\DateRangeFilter;
 use App\QueryFilters\SearchFilter;
 use App\QueryFilters\UserIdFilter;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pipeline\Pipeline;
 
 class ActivityLogRepository
 {
+    /**
+     * One business's activity, newest first (Settings > Security & Audit):
+     * searched by what was done, narrowed to a user, a date range, or the
+     * entries that recorded changes.
+     */
+    public function paginateForWorkspace(Workspace $workspace, array $filters, int $perPage): LengthAwarePaginator
+    {
+        return app(Pipeline::class)
+            ->send(ActivityLog::with('user')->where('workspace_id', $workspace->id))
+            ->through([
+                new UserIdFilter($filters['user_id'] ?? null),
+                new DateRangeFilter($filters['date_from'] ?? null, $filters['date_to'] ?? null),
+                new SearchFilter($filters['search'] ?? null, columns: ['description']),
+            ])
+            ->thenReturn()
+            ->when($filters['changes_only'] ?? false, fn ($query) => $query->whereNotNull('properties->changes'))
+            ->latest('id')
+            ->paginate($perPage);
+    }
+
+    /** Whoever appears in a business's activity, for its user filter. */
+    public function usersFor(Workspace $workspace): Collection
+    {
+        return User::whereIn('id', ActivityLog::where('workspace_id', $workspace->id)->whereNotNull('user_id')->select('user_id'))
+            ->orderBy('first_name')
+            ->orderBy('id')
+            ->get();
+    }
+
     /**
      * Get paginated activity logs with filters.
      */

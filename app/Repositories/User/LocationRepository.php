@@ -50,6 +50,16 @@ class LocationRepository
         return $workspace->locations()->where('is_primary', true)->first();
     }
 
+    /**
+     * The names of those of $ids that are the business's locations, by id.
+     *
+     * @return array<int, string>
+     */
+    public function namesFor(Workspace $workspace, array $ids): array
+    {
+        return $ids ? $workspace->locations()->whereIn('id', $ids)->pluck('name', 'id')->all() : [];
+    }
+
     /** $location the business's Primary, and no other. */
     public function makePrimary(Location $location): Location
     {
