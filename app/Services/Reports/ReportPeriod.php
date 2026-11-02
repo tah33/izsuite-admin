@@ -4,6 +4,7 @@ namespace App\Services\Reports;
 
 use App\Models\User\Workspace;
 use App\Services\Shared\BusinessCalendar;
+use App\Support\RegionalDefaults;
 use Carbon\CarbonImmutable;
 
 /**
@@ -12,7 +13,9 @@ use Carbon\CarbonImmutable;
  * in the business's own time zone; and the day, week or month its figures are
  * grouped by, which follows the range's length (Doc 02 section 6).
  *
- * A week starts on Monday. Periods are keyed by their first day ("2026-10-26").
+ * A week starts on the business's own first day of the week (Doc 11 section
+ * 5) - Monday unless it says otherwise, and given as a Carbon day number.
+ * Periods are keyed by their first day ("2026-10-26").
  */
 class ReportPeriod
 {
@@ -35,7 +38,7 @@ class ReportPeriod
 
         return match ($range ?? 'this_month') {
             'today'        => [$today->toDateString(), $today->toDateString()],
-            'this_week'    => [$today->startOfWeek(CarbonImmutable::MONDAY)->toDateString(), $today->endOfWeek(CarbonImmutable::SUNDAY)->toDateString()],
+            'this_week'    => [$today->startOfWeek($workspace->weekStartDay())->toDateString(), $today->startOfWeek($workspace->weekStartDay())->addDays(6)->toDateString()],
             'this_quarter' => [$today->firstOfQuarter()->toDateString(), $today->lastOfQuarter()->toDateString()],
             'this_year'    => [$today->startOfYear()->toDateString(), $today->endOfYear()->toDateString()],
             default        => [$today->startOfMonth()->toDateString(), $today->endOfMonth()->toDateString()],
@@ -55,23 +58,23 @@ class ReportPeriod
         return $days <= 31 ? 'day' : ($days <= 92 ? 'week' : 'month');
     }
 
-    /** The first day of the $grain $date falls in. */
-    public function bucket(string $date, string $grain): string
+    /** The first day of the $grain $date falls in - a week starting on $weekStart. */
+    public function bucket(string $date, string $grain, ?int $weekStart = null): string
     {
         $day = CarbonImmutable::parse($date);
 
         return match ($grain) {
-            'week'  => $day->startOfWeek(CarbonImmutable::MONDAY)->toDateString(),
+            'week'  => $day->startOfWeek($weekStart ?? CarbonImmutable::MONDAY)->toDateString(),
             'month' => $day->startOfMonth()->toDateString(),
             default => $day->toDateString(),
         };
     }
 
     /** @return list<string> every period from $from to $to, so a quiet one still shows */
-    public function buckets(string $from, string $to, string $grain): array
+    public function buckets(string $from, string $to, string $grain, ?int $weekStart = null): array
     {
         $keys = [];
-        $day  = CarbonImmutable::parse($this->bucket($from, $grain));
+        $day  = CarbonImmutable::parse($this->bucket($from, $grain, $weekStart));
         $end  = CarbonImmutable::parse($to);
 
         while ($day <= $end && count($keys) < 400) {
@@ -91,7 +94,7 @@ class ReportPeriod
     {
         $start = CarbonImmutable::parse($key);
         $end   = match ($grain) {
-            'week'  => $start->endOfWeek(CarbonImmutable::SUNDAY),
+            'week'  => $start->addDays(6),
             'month' => $start->endOfMonth(),
             default => $start,
         };
@@ -99,15 +102,16 @@ class ReportPeriod
         return [max($key, $from), min($end->toDateString(), $to)];
     }
 
-    /** "28 Oct 2026", "Week of 26 Oct 2026", "Oct 2026". */
-    public function label(string $key, string $grain): string
+    /** "28 Oct 2026", "Week of 26 Oct 2026", "Oct 2026" - a day in the business's date format (Doc 11 section 5). */
+    public function label(string $key, string $grain, ?string $dateFormat = null): string
     {
-        $day = CarbonImmutable::parse($key);
+        $day    = CarbonImmutable::parse($key);
+        $format = $dateFormat ?? RegionalDefaults::BASE['date_format'];
 
         return match ($grain) {
-            'week'  => 'Week of '.$day->format('j M Y'),
+            'week'  => 'Week of '.$day->format($format),
             'month' => $day->format('M Y'),
-            default => $day->format('j M Y'),
+            default => $day->format($format),
         };
     }
 }

@@ -74,14 +74,17 @@ class DocumentTemplate extends Model
         'show_payment_instructions' => 'boolean',
     ];
 
-    /** How a $type looks until the business changes it. */
-    public static function defaultsFor(DocumentType $type): self
+    /**
+     * How a $type looks until the business changes it - in $workspace's date
+     * and number formats, on its paper (Doc 11 section 5), when one is given.
+     */
+    public static function defaultsFor(DocumentType $type, ?Workspace $workspace = null): self
     {
         return new self([
             'document_type'             => $type,
             'color'                     => '#1d4ed8',
             'font'                      => 'sans',
-            'paper_size'                => 'a4',
+            'paper_size'                => $workspace?->paper_size ?? 'a4',
             'header_layout'             => 'logo_left',
             'show_logo'                 => true,
             'visible_fields'            => self::VISIBLE_FIELDS,
@@ -92,8 +95,8 @@ class DocumentTemplate extends Model
             'footer_text'               => null,
             'footer_layout'             => 'split',
             'language'                  => 'en',
-            'date_format'               => 'd M Y',
-            'number_format'             => 'comma_dot',
+            'date_format'               => $workspace?->date_format ?? 'd M Y',
+            'number_format'             => $workspace?->number_format ?? 'comma_dot',
         ]);
     }
 

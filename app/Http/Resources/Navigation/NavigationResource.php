@@ -27,6 +27,7 @@ class NavigationResource extends JsonResource
                 'tax_mode'        => $workspace['tax_mode'],
                 'withholding_tax' => $workspace['withholding_tax'] ?? false,
                 'brands_enabled'  => $workspace['brands_enabled'],
+                'regional'        => $workspace['regional'] ?? null,
             ] : null,
 
             // By family. An object even when empty, so the client always gets a

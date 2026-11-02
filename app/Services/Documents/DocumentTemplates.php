@@ -22,7 +22,7 @@ class DocumentTemplates
     /** The business's template for $type, or the defaults. */
     public function current(Workspace $workspace, DocumentType $type): DocumentTemplate
     {
-        return $this->documentTemplateRepository->findFor($workspace, $type) ?? DocumentTemplate::defaultsFor($type);
+        return $this->documentTemplateRepository->findFor($workspace, $type) ?? DocumentTemplate::defaultsFor($type, $workspace);
     }
 
     /** What a document keeps when it is numbered: the template's settings and its signature image. */
@@ -40,7 +40,7 @@ class DocumentTemplates
      */
     public function settingsFor(Workspace $workspace, DocumentType $type, ?array $snapshot): array
     {
-        $settings = [...DocumentTemplate::defaultsFor($type)->settings(null), ...($snapshot ?: $this->snapshot($workspace, $type))];
+        $settings = [...DocumentTemplate::defaultsFor($type, $workspace)->settings(null), ...($snapshot ?: $this->snapshot($workspace, $type))];
 
         if (! preg_match('/^#[0-9a-fA-F]{6}$/', (string) $settings['color'])) {
             $settings['color'] = DocumentTemplate::defaultsFor($type)->color;

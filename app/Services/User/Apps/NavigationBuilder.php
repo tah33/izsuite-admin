@@ -8,6 +8,7 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceApp;
 use App\Repositories\Admin\MenuItemRepository;
+use App\Services\Shared\BusinessCalendar;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
@@ -31,6 +32,7 @@ class NavigationBuilder
     public function __construct(
         private ShowIfRules $rules,
         private MenuItemRepository $menuItems,
+        private BusinessCalendar $calendar,
     ) {}
 
     public function for(?Workspace $workspace, User $user): array
@@ -75,6 +77,15 @@ class NavigationBuilder
                 'tax_mode'        => $workspace->tax_mode,
                 'withholding_tax' => (bool) $workspace->withholding_tax,
                 'brands_enabled'  => (bool) $workspace->brands_enabled,
+
+                // How every page writes dates, times, numbers and rates (Doc 11 sections 5 and 7).
+                'regional'        => [
+                    'date_format'    => $workspace->date_format,
+                    'time_format'    => $workspace->time_format,
+                    'number_format'  => $workspace->number_format,
+                    'timezone'       => $this->calendar->timezone($workspace),
+                    'rate_precision' => $workspace->rate_precision,
+                ],
             ] : null,
 
             // An object even when empty, so the client always gets a map.

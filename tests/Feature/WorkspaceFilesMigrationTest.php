@@ -49,7 +49,8 @@ class WorkspaceFilesMigrationTest extends TestCase
         $withUrl  = $user->workspaces()->create(['name' => 'With URL']);
         $without  = $user->workspaces()->create(['name' => 'Without']);
 
-        // A later migration replaced the Landmark these rows were saved with.
+        // Later migrations replaced the Landmark and the fiscal year these rows were saved with.
+        (require database_path('migrations/2025_01_01_000099_add_regional_settings_to_workspaces.php'))->down();
         (require database_path('migrations/2025_01_01_000098_add_business_profile_and_location_details.php'))->down();
 
         $migration = require database_path(self::MIGRATION);

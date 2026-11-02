@@ -38,7 +38,7 @@ class DocumentTemplateService
     {
         $saved = $this->documentTemplateRepository->getFor($workspace);
 
-        return array_map(fn (DocumentType $type) => $this->row($saved->get($type->value) ?? DocumentTemplate::defaultsFor($type)), $this->documentTypes->for($workspace));
+        return array_map(fn (DocumentType $type) => $this->row($saved->get($type->value) ?? DocumentTemplate::defaultsFor($type, $workspace)), $this->documentTypes->for($workspace));
     }
 
     /** The document type named in the address - 404 for one that is not, whose app is off, or that has no template yet. */
@@ -89,7 +89,7 @@ class DocumentTemplateService
     {
         // The image belongs to the template's row, so a template never changed is saved as it is first.
         $template = $this->documentTemplateRepository->findFor($workspace, $type)
-            ?? $this->documentTemplateRepository->save($workspace, $type, Arr::except(DocumentTemplate::defaultsFor($type)->settings(null), 'signature_file_id'));
+            ?? $this->documentTemplateRepository->save($workspace, $type, Arr::except(DocumentTemplate::defaultsFor($type, $workspace)->settings(null), 'signature_file_id'));
 
         $this->recordFileService->add($workspace, $template, FileCollection::Signature, $uploads, $field, $this->record($type));
 

@@ -44,11 +44,11 @@ class SalesTrendReport extends Report
         $grain = $this->period->grain($filters['from'], $filters['to']);
         $rows  = [];
 
-        foreach ($this->period->buckets($filters['from'], $filters['to'], $grain) as $key) {
+        foreach ($this->period->buckets($filters['from'], $filters['to'], $grain, $filters['week_start'] ?? null) as $key) {
             [$start, $end] = $this->period->bounds($key, $grain, $filters['from'], $filters['to']);
 
             $rows[$key] = [
-                'period'       => $this->period->label($key, $grain),
+                'period'       => $this->period->label($key, $grain, $filters['date_format'] ?? null),
                 'invoices'     => 0,
                 'sales'        => '0.00',
                 'credit_notes' => '0.00',
@@ -58,7 +58,7 @@ class SalesTrendReport extends Report
         }
 
         foreach ($this->sales->issued($workspace, DocumentType::Invoice, $filters['from'], $filters['to'], $filters) as $invoice) {
-            $key = $this->period->bucket($invoice->document_date, $grain);
+            $key = $this->period->bucket($invoice->document_date, $grain, $filters['week_start'] ?? null);
 
             $rows[$key]['invoices']++;
             $rows[$key]['sales']     = $this->add($rows[$key]['sales'], Decimal::of($invoice->base_net_total));
@@ -66,7 +66,7 @@ class SalesTrendReport extends Report
         }
 
         foreach ($this->sales->issued($workspace, DocumentType::CreditNote, $filters['from'], $filters['to'], $filters) as $note) {
-            $key = $this->period->bucket($note->document_date, $grain);
+            $key = $this->period->bucket($note->document_date, $grain, $filters['week_start'] ?? null);
 
             $rows[$key]['credit_notes'] = $this->subtract($rows[$key]['credit_notes'], Decimal::of($note->base_net_total));
             $rows[$key]['net_sales']    = $this->subtract($rows[$key]['net_sales'], Decimal::of($note->base_net_total));

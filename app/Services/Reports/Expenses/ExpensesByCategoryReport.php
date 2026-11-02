@@ -81,7 +81,7 @@ class ExpensesByCategoryReport extends Report
             // An expense whose lines fall into two groups counts once in the total.
             totals: ['group' => 'Total', 'expenses' => $count, ...$this->totals($rows, self::FIGURES)],
             notes: array_values(array_filter([
-                "In {$base}, at the rate each expense kept. Expense Amount is before tax, with any tax that cannot be claimed back. Paid and outstanding are as they stood on {$this->day($asOf)}, tax included; drafts and void expenses are left out.",
+                "In {$base}, at the rate each expense kept. Expense Amount is before tax, with any tax that cannot be claimed back. Paid and outstanding are as they stood on {$this->day($asOf, $filters)}, tax included; drafts and void expenses are left out.",
                 $group === 'category' || $category ? 'An expense counts in each category its lines are in; what paid it is shared out by the lines\' totals.' : null,
             ])),
         );

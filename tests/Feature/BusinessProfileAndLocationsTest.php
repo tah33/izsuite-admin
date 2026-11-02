@@ -133,6 +133,9 @@ class BusinessProfileAndLocationsTest extends TestCase
         $business = $owner->workspaces()->create(['name' => 'Old Business']);
         $other    = $owner->workspaces()->create(['name' => 'No Settings']);
 
+        // The fiscal year these rows are saved with moved out later.
+        (require database_path('migrations/2025_01_01_000099_add_regional_settings_to_workspaces.php'))->down();
+
         $migration = require database_path(self::MIGRATION);
         $migration->down();
 
@@ -180,7 +183,6 @@ class BusinessProfileAndLocationsTest extends TestCase
             'zip_code'                   => '1207',
             'country'                    => 'BD',
             'timezone'                   => 'Asia/Dhaka',
-            'financial_year_start_month' => '7',
             'stock_accounting_method'    => 'fifo',
             ...$overrides,
         ];

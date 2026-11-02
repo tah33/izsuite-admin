@@ -31,7 +31,7 @@ class OutstandingPurchasesReport extends Report
 
         return new ReportTable(
             title: 'Outstanding Purchases',
-            period: 'As of '.$this->day($asOf),
+            period: 'As of '.$this->day($asOf, $filters),
             columns: array_values(array_filter([
                 $this->column('number', 'Purchase'),
                 $this->column('supplier', 'Supplier'),

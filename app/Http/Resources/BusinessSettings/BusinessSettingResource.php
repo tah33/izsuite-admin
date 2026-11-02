@@ -42,7 +42,6 @@ class BusinessSettingResource extends JsonResource
             'tax_1_no'                   => $this->tax_1_no,
             'tax_2_name'                 => $this->tax_2_name,
             'tax_2_no'                   => $this->tax_2_no,
-            'financial_year_start_month' => $this->financial_year_start_month,
             'stock_accounting_method'    => $this->stock_accounting_method,
         ];
     }

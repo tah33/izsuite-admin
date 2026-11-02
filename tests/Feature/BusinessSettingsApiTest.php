@@ -22,7 +22,7 @@ class BusinessSettingsApiTest extends TestCase
     use RefreshDatabase;
 
     private const REQUIRED_FIELDS = [
-        'business_name', 'language', 'country', 'timezone', 'financial_year_start_month', 'stock_accounting_method',
+        'business_name', 'language', 'country', 'timezone', 'stock_accounting_method',
     ];
 
     protected function setUp(): void
@@ -67,7 +67,6 @@ class BusinessSettingsApiTest extends TestCase
             'tax_1_no'                   => 'BIN-123456',
             'tax_2_name'                 => '',
             'tax_2_no'                   => '',
-            'financial_year_start_month' => '7',
             'stock_accounting_method'    => 'fifo',
         ], $overrides);
     }
@@ -132,11 +131,10 @@ class BusinessSettingsApiTest extends TestCase
                 'business_name', 'trading_name', 'registration_number', 'legal_structure', 'industry', 'start_date', 'language', 'logo_url', 'website',
                 'business_contact_number', 'alternate_contact_number', 'email', 'address_line_1', 'address_line_2', 'country', 'state', 'city',
                 'zip_code', 'timezone', 'tax_1_name', 'tax_1_no', 'tax_2_name', 'tax_2_no',
-                'financial_year_start_month', 'stock_accounting_method',
+                'stock_accounting_method',
             ]])
             ->assertJsonPath('data.business_name', 'Global Traders Inc.')
             ->assertJsonPath('data.start_date', '2024-03-15')
-            ->assertJsonPath('data.financial_year_start_month', 7)
             ->assertJsonPath('data.logo_url', null)
             ->assertJsonMissingPath('data.user_id');
     }
@@ -218,7 +216,6 @@ class BusinessSettingsApiTest extends TestCase
             'user_id'                    => $user->id,
             'workspace_id'               => $this->businessOf($user)->id,
             'business_name'              => 'Global Traders Inc.',
-            'financial_year_start_month' => 7,
             'stock_accounting_method'    => 'fifo',
         ]);
     }
@@ -360,21 +357,6 @@ class BusinessSettingsApiTest extends TestCase
             $this->postJson('/api/v1/business-settings', $this->payload(['timezone' => $zone]))
                 ->assertOk()
                 ->assertJsonPath('data.timezone', $zone);
-        }
-    }
-
-    public function test_financial_year_start_month_must_be_a_month_number(): void
-    {
-        $this->signIn(User::factory()->create());
-
-        foreach (['0', '13', 'abc', '1.5'] as $month) {
-            $this->postJson('/api/v1/business-settings', $this->payload(['financial_year_start_month' => $month]))
-                ->assertUnprocessable()
-                ->assertJsonValidationErrors('financial_year_start_month');
-        }
-
-        foreach (['1', '12'] as $month) {
-            $this->postJson('/api/v1/business-settings', $this->payload(['financial_year_start_month' => $month]))->assertOk();
         }
     }
 

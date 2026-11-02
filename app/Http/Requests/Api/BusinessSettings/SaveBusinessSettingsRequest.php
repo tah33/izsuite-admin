@@ -19,7 +19,8 @@ class SaveBusinessSettingsRequest extends FormRequest
      * The business profile (Doc 11 section 4): its name, country, language
      * and time zone are required - the rest, the address among it, may be
      * left empty. The form writes the whole row in one go. The country is a
-     * code, as a contact's is.
+     * code, as a contact's is. The fiscal year start is a regional setting
+     * now (SaveRegionalSettingsRequest).
      *
      * The language must be one an admin has left active - the same list GET
      * /languages hands the form. The business's currency is not here: it is
@@ -63,8 +64,10 @@ class SaveBusinessSettingsRequest extends FormRequest
             'tax_2_name'                 => ['nullable', 'string', 'max:50'],
             'tax_2_no'                   => ['nullable', 'string', 'max:50'],
 
-            'financial_year_start_month' => ['required', 'integer', 'between:1,12'],
             'stock_accounting_method'    => ['required', Rule::in(BusinessSetting::STOCK_ACCOUNTING_METHODS)],
+
+            // Yes to a new country once the business has transacted (Doc 11 section 5).
+            'confirm_country_change'     => ['sometimes', 'boolean'],
         ];
     }
 

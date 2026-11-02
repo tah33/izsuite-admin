@@ -29,9 +29,9 @@ class BusinessCalendar
         return now($this->timezone($workspace))->toImmutable()->startOfDay();
     }
 
-    /** 1 (January) to 12. January until the business says otherwise. */
+    /** 1 (January) to 12, as its regional settings say (Doc 11 section 5). January until the business says otherwise. */
     public function financialYearStart(Workspace $workspace): int
     {
-        return $this->businessSettingRepository->findFor($workspace)?->financial_year_start_month ?: 1;
+        return $workspace->fiscal_year_start_month ?: 1;
     }
 }

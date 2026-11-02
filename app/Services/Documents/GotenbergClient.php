@@ -19,9 +19,10 @@ class GotenbergClient
 {
     /** Paper sizes in inches, width by height - a wide report turned on its side. */
     private const PAPER = [
-        'a4'           => ['8.27', '11.69'],
-        'letter'       => ['8.5', '11'],
-        'a4_landscape' => ['11.69', '8.27'],
+        'a4'               => ['8.27', '11.69'],
+        'letter'           => ['8.5', '11'],
+        'a4_landscape'     => ['11.69', '8.27'],
+        'letter_landscape' => ['11', '8.5'],
     ];
 
     public function pdf(string $html, string $paper, string $footer): string

@@ -81,7 +81,10 @@ class ReportService
         return ["{$key}-{$this->reportPeriod->today($workspace)}.xlsx", Xlsx::make($table->title, $table->columns, $this->withTotals($table), (bool) $table->totals)];
     }
 
-    /** @return array{0: string, 1: string} the report as a PDF - landscape when it is wide - and its file name */
+    /**
+     * @return array{0: string, 1: string} the report as a PDF - in the business's date and number formats, on its
+     *                                     paper, landscape when it is wide (Doc 11 section 5) - and its file name
+     */
     public function pdf(Workspace $workspace, string $key, array $input): array
     {
         [$key, $table] = $this->built($workspace, $key, $input);
@@ -92,13 +95,15 @@ class ReportService
         $html = view('reports.report', [
             'table'    => $table,
             'business' => $this->businessSettingRepository->findFor($workspace)?->business_name ?: $workspace->name,
-            'format'   => DocumentFormat::of($template),
+            'format'   => DocumentFormat::of($workspace->regional()),
             'color'    => $template['color'],
         ])->render();
 
         $footer = view('documents.footer', ['template' => ['footer_text' => null]])->render();
 
-        return ["{$key}-{$this->reportPeriod->today($workspace)}.pdf", $this->gotenbergClient->pdf($html, count($table->columns) > 8 ? 'a4_landscape' : 'a4', $footer)];
+        $paper = $workspace->paper_size === 'letter' ? 'letter' : 'a4';
+
+        return ["{$key}-{$this->reportPeriod->today($workspace)}.pdf", $this->gotenbergClient->pdf($html, count($table->columns) > 8 ? "{$paper}_landscape" : $paper, $footer)];
     }
 
     /** @return array{0: string, 1: ReportTable} the report's own key - a key it had before gives the one it has now - and the report */
@@ -140,6 +145,8 @@ class ReportService
             'payment_account_id'  => $input['payment_account_id'] ?? null,
             'tax_treatment'       => $input['tax_treatment'] ?? null,
             'tax'                 => $input['tax'] ?? null,
+            'week_start'          => $workspace->weekStartDay(),
+            'date_format'         => $workspace->date_format,
         ];
 
         $max = self::MAX_PERIODS[$filters['group_by']] ?? null;

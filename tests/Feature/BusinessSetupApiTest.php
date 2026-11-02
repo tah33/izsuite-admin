@@ -44,7 +44,7 @@ class BusinessSetupApiTest extends TestCase
 
         $this->getJson('/api/v1/business-settings/currencies')
             ->assertOk()
-            ->assertExactJson(['data' => ['base_currency' => 'USD', 'additional_currencies' => []]]);
+            ->assertExactJson(['data' => ['base_currency' => 'USD', 'additional_currencies' => [], 'rate_precision' => 6]]);
 
         $this->getJson('/api/v1/business-settings/taxes')
             ->assertOk()
@@ -84,7 +84,7 @@ class BusinessSetupApiTest extends TestCase
             ->assertJsonPath('message', 'Currencies saved successfully.')
             ->assertExactJson([
                 'message' => 'Currencies saved successfully.',
-                'data'    => ['base_currency' => 'BDT', 'additional_currencies' => ['EUR', 'USD']],
+                'data'    => ['base_currency' => 'BDT', 'additional_currencies' => ['EUR', 'USD'], 'rate_precision' => 6],
             ]);
 
         $business = $this->businessOf($user)->fresh();
@@ -243,7 +243,7 @@ class BusinessSetupApiTest extends TestCase
                 'user_id' => $user->id, 'workspace_id' => $business->id, 'business_name' => $business->name,
                 'currency' => $currency, 'language' => 'en', 'country' => 'Bangladesh', 'state' => 'Dhaka',
                 'city' => 'Dhaka', 'zip_code' => '1207', 'address_line_1' => 'Near City Center', 'timezone' => 'Asia/Dhaka',
-                'tax_1_name' => $tax, 'financial_year_start_month' => 7, 'stock_accounting_method' => 'fifo',
+                'tax_1_name' => $tax, 'stock_accounting_method' => 'fifo',
             ]);
         }
 
@@ -265,7 +265,7 @@ class BusinessSetupApiTest extends TestCase
         DB::table('business_settings')->insert([
             'user_id' => $user->id, 'workspace_id' => $this->businessOf($user)->id, 'business_name' => 'Acme',
             'language' => 'en', 'country' => 'Bangladesh', 'state' => 'Dhaka', 'city' => 'Dhaka', 'zip_code' => '1207',
-            'address_line_1' => 'Near City Center', 'timezone' => 'Asia/Dhaka', 'financial_year_start_month' => 7, 'stock_accounting_method' => 'fifo',
+            'address_line_1' => 'Near City Center', 'timezone' => 'Asia/Dhaka', 'stock_accounting_method' => 'fifo',
         ]);
 
         (require database_path('migrations/2025_01_01_000068_give_businesses_a_currency_and_tax_choice.php'))->down();

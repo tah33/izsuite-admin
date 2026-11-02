@@ -3,19 +3,17 @@
 namespace App\Services\Api\BusinessSetup;
 
 use App\Models\User\Workspace;
-use App\Repositories\User\AccountTransactionRepository;
 use App\Repositories\User\ContactRepository;
 use App\Repositories\User\PaymentAccountRepository;
-use App\Repositories\User\ExpenseRepository;
-use App\Repositories\User\PurchaseRepository;
-use App\Repositories\User\SalesDocumentRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\Shared\ActivityLogService;
+use App\Services\Shared\BusinessActivity;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * A business's currencies (Doc 01 section 11): Settings > Currencies. Its tax
+ * A business's currencies (Doc 01 section 11, Doc 11 section 7): Settings >
+ * Currencies - and how many decimals its exchange rates are kept to. Its tax
  * choice is TaxSettingService's, and its exchange rates ExchangeRateService's.
  *
  * They live on the workspace. A change bumps its nav_version (see Workspace),
@@ -27,10 +25,7 @@ class BusinessSetupService
         protected WorkspaceRepository $workspaceRepository,
         protected PaymentAccountRepository $paymentAccountRepository,
         protected ContactRepository $contactRepository,
-        protected SalesDocumentRepository $salesDocumentRepository,
-        protected PurchaseRepository $purchaseRepository,
-        protected ExpenseRepository $expenseRepository,
-        protected AccountTransactionRepository $accountTransactionRepository,
+        protected BusinessActivity $businessActivity,
     ) {}
 
     public function currencies(Workspace $workspace): array
@@ -38,6 +33,7 @@ class BusinessSetupService
         return [
             'base_currency'         => $workspace->base_currency,
             'additional_currencies' => array_values($workspace->additional_currencies ?? []),
+            'rate_precision'        => $workspace->rate_precision,
         ];
     }
 
@@ -50,17 +46,14 @@ class BusinessSetupService
      * itself changes freely only until the business has issued or sent a
      * document, recorded a purchase or an expense, or given a payment account
      * an opening balance (Doc 11 section 7): after that its totals are in it.
+     * The rate precision, left out, stays as it is.
      */
     public function saveCurrencies(Workspace $workspace, array $data): array
     {
         $additional = array_values(array_unique($data['additional_currencies'] ?? []));
         sort($additional);
 
-        if ($data['base_currency'] !== $workspace->base_currency
-            && ($this->salesDocumentRepository->hasTransactions($workspace) || $this->purchaseRepository->hasTransactions($workspace)
-                || $this->expenseRepository->hasTransactions($workspace)
-                || $this->paymentAccountRepository->hasOpeningBalance($workspace)
-                || $this->accountTransactionRepository->existsForWorkspace($workspace))) {
+        if ($data['base_currency'] !== $workspace->base_currency && $this->businessActivity->exists($workspace)) {
             throw ValidationException::withMessages([
                 'base_currency' => 'The base currency cannot change once documents have been issued or sent, purchases or expenses recorded, or a payment account has an opening balance or money recorded through it.',
             ]);
@@ -79,6 +72,7 @@ class BusinessSetupService
             $this->workspaceRepository->forceUpdate($workspace, [
                 'base_currency'         => $data['base_currency'],
                 'additional_currencies' => $additional ?: null,
+                'rate_precision'        => $data['rate_precision'] ?? $workspace->rate_precision,
             ]);
 
             // A contact's default currency that the business stops using gives

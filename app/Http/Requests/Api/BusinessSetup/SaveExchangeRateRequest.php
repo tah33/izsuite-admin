@@ -2,11 +2,14 @@
 
 namespace App\Http\Requests\Api\BusinessSetup;
 
+use App\Http\Requests\Api\Concerns\RoundsExchangeRates;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class SaveExchangeRateRequest extends FormRequest
 {
+    use RoundsExchangeRates;
+
     public function authorize(): bool
     {
         return true;
@@ -18,6 +21,8 @@ class SaveExchangeRateRequest extends FormRequest
         if (is_string($this->input('currency'))) {
             $this->merge(['currency' => strtoupper(trim($this->input('currency')))]);
         }
+
+        $this->roundRate('rate');
     }
 
     /**

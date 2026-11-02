@@ -58,6 +58,7 @@ use App\Http\Controllers\Api\PurchaseFlowController;
 use App\Http\Controllers\Api\PurchaseFormController;
 use App\Http\Controllers\Api\PurchasePdfController;
 use App\Http\Controllers\Api\PurchaseSettingController;
+use App\Http\Controllers\Api\RegionalSettingController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SalesConversionController;
 use App\Http\Controllers\Api\SalesDocumentAttachmentController;
@@ -164,6 +165,11 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'workspace:required'])->prefix('business-settings')->group(function () {
         Route::get('/', [BusinessSettingController::class, 'show'])->name('api.business-settings.show');
         Route::post('/', [BusinessSettingController::class, 'save'])->name('api.business-settings.save');
+
+        // Settings > Regional & Localization (Doc 11 section 5): date, time and
+        // number formats, the week start, paper and fiscal year start.
+        Route::get('/regional', [RegionalSettingController::class, 'show'])->name('api.business-settings.regional.show');
+        Route::put('/regional', [RegionalSettingController::class, 'update'])->name('api.business-settings.regional.update');
 
         // Settings > Currencies and Settings > Taxes (Doc 01 sections 11, 12;
         // Doc 11 section 9): the base currency, the other currencies, whether

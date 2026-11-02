@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Expenses;
 
+use App\Http\Requests\Api\Concerns\RoundsExchangeRates;
 use App\Models\User\Contact;
 use App\Models\User\Location;
 use App\Repositories\User\LocationRepository;
@@ -11,6 +12,8 @@ use Illuminate\Validation\Validator;
 
 class SaveExpenseRequest extends FormRequest
 {
+    use RoundsExchangeRates;
+
     public function authorize(): bool
     {
         return true;
@@ -32,6 +35,8 @@ class SaveExpenseRequest extends FormRequest
         if ($this->input('currency') === $workspace?->base_currency) {
             $this->merge(['exchange_rate' => '1']);
         }
+
+        $this->roundRate('exchange_rate');
 
         if (is_array($this->input('lines')) && ! $workspace?->usesTaxes()) {
             $this->merge(['lines' => array_map(fn ($line) => is_array($line) ? [...$line, 'tax_rate_id' => null] : $line, $this->input('lines'))]);

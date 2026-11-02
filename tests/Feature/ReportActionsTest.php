@@ -49,10 +49,10 @@ class ReportActionsTest extends TestCase
 
         $chairs = ['invoices' => 1, 'subtotal' => '270.00', 'net_sales' => '270.00', 'tax' => '40.50', 'total' => '310.50'];
 
-        $byItem = $this->getJson("/api/v1/reports/sales-summary?item_id={$this->chair->id}")->assertOk()->assertJsonPath('data.period', '1 Oct 2026 - 31 Oct 2026 · Office Chair')->json('data.rows.0');
+        $byItem = $this->getJson("/api/v1/reports/sales-summary?item_id={$this->chair->id}")->assertOk()->assertJsonPath('data.period', '01 Oct 2026 - 31 Oct 2026 · Office Chair')->json('data.rows.0');
         $this->assertSame($chairs, array_intersect_key($byItem, $chairs));
 
-        $byCategory = $this->getJson("/api/v1/reports/sales-summary?category_id={$category}")->assertJsonPath('data.period', '1 Oct 2026 - 31 Oct 2026 · Chairs items')->json('data.rows.0');
+        $byCategory = $this->getJson("/api/v1/reports/sales-summary?category_id={$category}")->assertJsonPath('data.period', '01 Oct 2026 - 31 Oct 2026 · Chairs items')->json('data.rows.0');
         $this->assertSame($chairs, array_intersect_key($byCategory, $chairs));
 
         $this->getJson("/api/v1/reports/top-items?category_id={$category}")->assertJsonCount(1, 'data.rows')->assertJsonPath('data.rows.0.item', 'Office Chair');
@@ -99,7 +99,7 @@ class ReportActionsTest extends TestCase
 
         $this->getJson("/api/v1/reports/payments-received?payment_account_id={$bank->id}")
             ->assertOk()
-            ->assertJsonPath('data.period', '1 Oct 2026 - 31 Oct 2026 · City Bank')
+            ->assertJsonPath('data.period', '01 Oct 2026 - 31 Oct 2026 · City Bank')
             ->assertJsonCount(1, 'data.rows')
             ->assertJsonPath('data.rows.0.amount', '60.00');
 
@@ -111,14 +111,14 @@ class ReportActionsTest extends TestCase
     {
         $invoice = $this->issuedInvoice();
 
-        $this->getJson('/api/v1/reports/tax-summary?tax_treatment=exempt')->assertOk()->assertJsonPath('data.rows', [])->assertJsonPath('data.period', '1 Oct 2026 - 31 Oct 2026 · Exempt');
+        $this->getJson('/api/v1/reports/tax-summary?tax_treatment=exempt')->assertOk()->assertJsonPath('data.rows', [])->assertJsonPath('data.period', '01 Oct 2026 - 31 Oct 2026 · Exempt');
 
         $link = $this->getJson('/api/v1/reports/tax-summary')->json('data.rows.0.link');
         $this->assertStringStartsWith('/reports/tax-details?', $link);
 
         $details = $this->getJson('/api/v1/'.ltrim($link, '/'))->assertOk()->json('data');
 
-        $this->assertSame('1 Oct 2026 - 31 Oct 2026 · VAT 15%', $details['period']);
+        $this->assertSame('01 Oct 2026 - 31 Oct 2026 · VAT 15%', $details['period']);
         $this->assertSame(
             ['INV-00001', 'Invoice', 'Uddin Traders', 'VAT 15%', 'USD', '270.00', '40.50', '270.00', '40.50', "/sales/invoices/{$invoice}"],
             array_values(array_intersect_key($details['rows'][0], array_flip(['number', 'type', 'contact', 'tax', 'currency', 'taxable', 'tax_amount', 'base_taxable', 'base_tax', 'link']))),
@@ -137,7 +137,7 @@ class ReportActionsTest extends TestCase
         // With no account chosen, the first active one.
         $report = $this->getJson('/api/v1/reports/account-transactions')->assertOk()->assertJsonPath('data.sortable', false)->json('data');
 
-        $this->assertSame('1 Oct 2026 - 31 Oct 2026 · Cash (USD)', $report['period']);
+        $this->assertSame('01 Oct 2026 - 31 Oct 2026 · Cash (USD)', $report['period']);
         $this->assertSame(
             [['Balance Brought Forward', null, null, '0.00', null], ['Opening Balance', '500.00', null, '500.00', 'Completed'], ['Customer Payment', '100.00', null, '600.00', 'Completed'], ['Customer Payment', '50.00', null, '600.00', 'Reversed']],
             array_map(fn (array $row) => [$row['type'], $row['money_in'], $row['money_out'], $row['balance'], $row['status']], $report['rows']),

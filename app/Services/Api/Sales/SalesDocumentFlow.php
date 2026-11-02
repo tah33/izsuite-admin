@@ -258,7 +258,7 @@ class SalesDocumentFlow
 
         if ($choice !== 'current') {
             $plain = fn (string $rate) => str_contains($rate, '.') ? rtrim(rtrim($rate, '0'), '.') : $rate;
-            $day   = date('j M Y', strtotime($document->document_date));
+            $day   = date($workspace->date_format, strtotime($document->document_date));
 
             throw ValidationException::withMessages([
                 'exchange_rate' => "This invoice is at 1 {$document->currency} = {$plain($kept)} {$base}, but the rate for {$day} is {$plain($current)} {$base}. Choose which rate to issue it at.",

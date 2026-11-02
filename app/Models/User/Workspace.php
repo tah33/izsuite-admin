@@ -7,6 +7,7 @@ use App\Models\Admin\Currency;
 use App\Models\Billing\Package;
 use App\Models\Concerns\HasFiles;
 use App\Services\User\Apps\ProvisionWorkspaceApps;
+use App\Support\RegionalDefaults;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -24,8 +25,8 @@ use Illuminate\Database\Eloquent\Relations\MorphOne;
  *
  * Only name and user_id are fillable: the plan changes through
  * SyncAppsWithPackage's callers, nav_version only ever goes up by one, the
- * currencies through BusinessSetupService and the tax settings through
- * TaxSettingService.
+ * currencies through BusinessSetupService, the tax settings through
+ * TaxSettingService and the regional ones through RegionalSettingService.
  */
 class Workspace extends Model
 {
@@ -51,6 +52,15 @@ class Workspace extends Model
     /** Tax rounded to the cent on each line, or once on a document's total. */
     public const TAX_ROUNDINGS = ['line', 'total'];
 
+    /** Times as 14:05 or as 2:05 PM (Doc 11 section 5). */
+    public const TIME_FORMATS = ['24h', '12h'];
+
+    /** The day a week starts on, and its Carbon day number. */
+    public const WEEK_STARTS = ['monday' => 1, 'sunday' => 0, 'saturday' => 6];
+
+    /** How many decimals an exchange rate is kept to (Doc 11 section 7). */
+    public const RATE_PRECISIONS = [2, 3, 4, 5, 6, 7, 8];
+
     protected $fillable = [
         'name',
         'user_id',
@@ -59,8 +69,10 @@ class Workspace extends Model
     protected $casts = [
         'nav_version'           => 'integer',
         'additional_currencies' => 'array',
-        'brands_enabled'        => 'boolean',
-        'withholding_tax'       => 'boolean',
+        'brands_enabled'          => 'boolean',
+        'withholding_tax'         => 'boolean',
+        'fiscal_year_start_month' => 'integer',
+        'rate_precision'          => 'integer',
     ];
 
     /**
@@ -75,15 +87,22 @@ class Workspace extends Model
             $workspace->tax_mode ??= self::TAXES_LATER;
             $workspace->price_tax_mode ??= 'exclusive';
             $workspace->tax_rounding ??= 'line';
+
+            foreach ([...RegionalDefaults::BASE, 'rate_precision' => 6] as $setting => $value) {
+                $workspace->{$setting} ??= $value;
+            }
         });
 
         static::created(fn (self $workspace) => app(ProvisionWorkspaceApps::class)->handle($workspace));
 
         // The cached sidebar carries the business's name, currencies, tax
-        // choices and whether it uses brands, so a change to any of them needs
-        // a fresh one.
+        // choices, whether it uses brands and how it writes dates, times,
+        // numbers and rates, so a change to any of them needs a fresh one.
         static::updating(function (self $workspace) {
-            if ($workspace->isDirty(['name', 'base_currency', 'additional_currencies', 'tax_mode', 'withholding_tax', 'brands_enabled'])) {
+            if ($workspace->isDirty([
+                'name', 'base_currency', 'additional_currencies', 'tax_mode', 'withholding_tax', 'brands_enabled',
+                'date_format', 'time_format', 'number_format', 'rate_precision',
+            ])) {
                 $workspace->nav_version = $workspace->nav_version + 1;
             }
         });
@@ -99,6 +118,22 @@ class Workspace extends Model
     public function businessId(): string
     {
         return sprintf('BW-%06d', $this->id);
+    }
+
+    /**
+     * Its Regional and Localization settings (Doc 11 section 5): date, time
+     * and number formats, the day its week starts, its paper and the month
+     * its fiscal year starts.
+     */
+    public function regional(): array
+    {
+        return $this->only(array_keys(RegionalDefaults::BASE));
+    }
+
+    /** The Carbon number of the day its week starts on: Monday (1) unless it says otherwise. */
+    public function weekStartDay(): int
+    {
+        return self::WEEK_STARTS[$this->week_start] ?? self::WEEK_STARTS['monday'];
     }
 
     public function usesTaxes(): bool

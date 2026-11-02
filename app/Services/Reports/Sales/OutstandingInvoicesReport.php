@@ -35,7 +35,7 @@ class OutstandingInvoicesReport extends Report
 
         return new ReportTable(
             title: 'Outstanding Invoices',
-            period: 'As of '.$this->day($asOf),
+            period: 'As of '.$this->day($asOf, $filters),
             columns: array_values(array_filter([
                 $this->column('number', 'Invoice'),
                 $this->column('customer', 'Customer'),

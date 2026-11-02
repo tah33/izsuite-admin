@@ -77,7 +77,8 @@ class ExchangeRatesApiTest extends TestCase
             ->assertJsonValidationErrors(['currency' => 'Choose one of your other currencies. Switch it on under Settings > Currencies first.']);
         $this->set('GBP', '150', '2026-10-01')->assertJsonValidationErrors('currency');
         $this->set('USD', '0', '2026-10-01')->assertJsonValidationErrors(['rate' => 'A rate is above zero.']);
-        $this->set('USD', '1.123456789', '2026-10-01')->assertJsonValidationErrors(['rate' => 'A rate can have at most eight decimal places.']);
+        // More decimals than the business keeps are rounded, not refused (see RegionalSettingsTest); what is not a number is.
+        $this->set('USD', 'abc', '2026-10-01')->assertJsonValidationErrors('rate');
         $this->set('USD', '121', '01/10/2026')->assertJsonValidationErrors('effective_date');
 
         $this->assertSame(0, ExchangeRate::count());

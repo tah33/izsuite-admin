@@ -119,9 +119,9 @@ class SalesSummaryReport extends Report
 
         $rows = [];
 
-        foreach ($this->period->buckets($filters['from'], $filters['to'], $group) as $key) {
+        foreach ($this->period->buckets($filters['from'], $filters['to'], $group, $filters['week_start'] ?? null) as $key) {
             [$start, $end] = $this->period->bounds($key, $group, $filters['from'], $filters['to']);
-            $rows[$key]    = $this->row($this->period->label($key, $group), $this->documentsLink($start, $end, $filters));
+            $rows[$key]    = $this->row($this->period->label($key, $group, $filters['date_format'] ?? null), $this->documentsLink($start, $end, $filters));
         }
 
         return $rows;
@@ -157,9 +157,9 @@ class SalesSummaryReport extends Report
     private function groupOf(array $facts, string $group, array $filters): array
     {
         if (in_array($group, self::PERIODS, true)) {
-            $key = $this->period->bucket($facts['date'], $group);
+            $key = $this->period->bucket($facts['date'], $group, $filters['week_start'] ?? null);
 
-            return [$key, $this->period->label($key, $group), null];
+            return [$key, $this->period->label($key, $group, $filters['date_format'] ?? null), null];
         }
 
         return match ($group) {

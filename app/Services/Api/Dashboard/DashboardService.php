@@ -60,7 +60,7 @@ class DashboardService
 
         $today   = $this->reportPeriod->today($workspace);
         $asOf    = min($to, $today);
-        $filters = ['from' => $from, 'to' => $to, 'location_id' => $input['location_id'] ?? null];
+        $filters = ['from' => $from, 'to' => $to, 'location_id' => $input['location_id'] ?? null, 'week_start' => $workspace->weekStartDay(), 'date_format' => $workspace->date_format];
         $apps    = WorkspaceApps::for($workspace);
         $sources = array_filter(['sales' => $apps->row('sales')?->app?->name, 'purchases' => $apps->row('purchases')?->app?->name, 'expenses' => $apps->row('expenses')?->app?->name]);
         $on      = fn (string $family) => $apps->has($family) && isset($sources[$family]);
@@ -139,9 +139,9 @@ class DashboardService
         $grain = $this->reportPeriod->grain($filters['from'], $filters['to']);
         $rows  = [];
 
-        foreach ($this->reportPeriod->buckets($filters['from'], $filters['to'], $grain) as $key) {
+        foreach ($this->reportPeriod->buckets($filters['from'], $filters['to'], $grain, $filters['week_start']) as $key) {
             $rows[$key] = [
-                'label'     => $this->reportPeriod->label($key, $grain),
+                'label'     => $this->reportPeriod->label($key, $grain, $filters['date_format']),
                 'sales'     => $sales ? '0.00' : null,
                 'purchases' => $purchases ? '0.00' : null,
                 'expenses'  => $expenses ? '0.00' : null,
@@ -157,7 +157,7 @@ class DashboardService
 
         if ($purchases) {
             foreach ($this->purchaseReportRepository->recorded($workspace, $filters['from'], $filters['to'], $filters) as $purchase) {
-                $key = $this->reportPeriod->bucket($purchase->document_date, $grain);
+                $key = $this->reportPeriod->bucket($purchase->document_date, $grain, $filters['week_start']);
 
                 $rows[$key]['purchases'] = Decimal::round(bcadd($rows[$key]['purchases'], Decimal::of($purchase->base_net_total), 10));
             }
@@ -165,7 +165,7 @@ class DashboardService
 
         if ($expenses) {
             foreach ($this->expenseReportRepository->recorded($workspace, $filters['from'], $filters['to'], $filters) as $expense) {
-                $key = $this->reportPeriod->bucket($expense->document_date, $grain);
+                $key = $this->reportPeriod->bucket($expense->document_date, $grain, $filters['week_start']);
 
                 $rows[$key]['expenses'] = bcadd($rows[$key]['expenses'], $this->salesFigures->baseExpenseAmount($expense), 2);
             }

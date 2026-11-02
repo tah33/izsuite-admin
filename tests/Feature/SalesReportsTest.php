@@ -67,7 +67,7 @@ class SalesReportsTest extends TestCase
     {
         $this->getJson('/api/v1/reports/sales-summary?group_by=month')
             ->assertOk()
-            ->assertJsonPath('data.period', '1 Oct 2026 - 31 Oct 2026')
+            ->assertJsonPath('data.period', '01 Oct 2026 - 31 Oct 2026')
             ->assertJsonPath('data.rows.0', [
                 'group' => 'Oct 2026', 'invoices' => 1, 'subtotal' => '295.00', 'discounts' => '0.00', 'credit_notes' => '-25.00', 'net_sales' => '270.00', 'tax' => '40.50', 'total' => '310.50',
                 'link'  => '/documents?status=issued&date_from=2026-10-01&date_to=2026-10-31',

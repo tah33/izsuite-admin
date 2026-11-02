@@ -46,13 +46,11 @@ class BusinessSetting extends Model
         'tax_1_no',
         'tax_2_name',
         'tax_2_no',
-        'financial_year_start_month',
         'stock_accounting_method',
     ];
 
     protected $casts    = [
         'start_date'                 => 'date',
-        'financial_year_start_month' => 'integer',
     ];
 
     // ── Relationships ──

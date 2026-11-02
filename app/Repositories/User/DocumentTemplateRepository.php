@@ -32,6 +32,12 @@ class DocumentTemplateRepository
         return $workspace->documentTemplates()->updateOrCreate(['document_type' => $type->value], $data);
     }
 
+    /** Every template the business has changed takes $formats: date_format, number_format, paper_size. */
+    public function applyFormats(Workspace $workspace, array $formats): void
+    {
+        $workspace->documentTemplates()->update($formats);
+    }
+
     /** The template's signature or stamp image, if it has one. */
     public function signatureOf(DocumentTemplate $template): ?WorkspaceFile
     {

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\BusinessSetup;
 
 use App\Models\Admin\Currency;
+use App\Models\User\Workspace;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -45,6 +46,7 @@ class SaveBusinessCurrenciesRequest extends FormRequest
             'base_currency'           => ['required', 'string', $active],
             'additional_currencies'   => ['nullable', 'array'],
             'additional_currencies.*' => ['string', 'distinct', 'different:base_currency', $active],
+            'rate_precision'          => ['nullable', 'integer', Rule::in(Workspace::RATE_PRECISIONS)],
         ];
     }
 
@@ -64,6 +66,7 @@ class SaveBusinessCurrenciesRequest extends FormRequest
             'additional_currencies.*.exists'    => 'Choose only from the available currencies.',
             'additional_currencies.*.distinct'  => 'A currency can be chosen only once.',
             'additional_currencies.*.different' => 'The base currency is already the business\'s own; it is not another one.',
+            'rate_precision.in'                 => 'Keep exchange rates to between 2 and 8 decimal places.',
         ];
     }
 }

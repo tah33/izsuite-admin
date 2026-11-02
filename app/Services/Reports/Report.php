@@ -8,6 +8,7 @@ use App\Repositories\User\ExpenseReportRepository;
 use App\Repositories\User\PurchaseReportRepository;
 use App\Repositories\User\SalesReportRepository;
 use App\Support\Decimal;
+use App\Support\RegionalDefaults;
 
 /**
  * One of Basic Reports (Doc 07): built from the source records each time it
@@ -15,7 +16,7 @@ use App\Support\Decimal;
  * has worked out: from, to, as_of, group_by, location_id, contact_id,
  * currency and those a report takes of its own (item_id, category_id,
  * expense_category_id, payment_status, payment_account_id, tax_treatment,
- * tax).
+ * tax) - and the business's week_start and date_format (Doc 11 section 5).
  */
 abstract class Report
 {
@@ -35,15 +36,16 @@ abstract class Report
         return ['key' => $key, 'label' => $label, 'type' => $type, 'currency' => $currency];
     }
 
-    /** "1 Oct 2026 - 31 Oct 2026". */
+    /** "01 Oct 2026 - 31 Oct 2026". */
     protected function between(array $filters): string
     {
-        return $this->day($filters['from']).' - '.$this->day($filters['to']);
+        return $this->day($filters['from'], $filters).' - '.$this->day($filters['to'], $filters);
     }
 
-    protected function day(string $date): string
+    /** A day in the business's date format. */
+    protected function day(string $date, array $filters): string
     {
-        return date('j M Y', strtotime($date));
+        return date($filters['date_format'] ?? RegionalDefaults::BASE['date_format'], strtotime($date));
     }
 
     /**

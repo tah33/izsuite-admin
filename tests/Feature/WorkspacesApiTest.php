@@ -399,7 +399,6 @@ class WorkspacesApiTest extends TestCase
                 'zip_code'                   => '1207',
                 'address_line_1'                   => 'Near City Center',
                 'timezone'                   => 'Asia/Dhaka',
-                'financial_year_start_month' => 7,
                 'stock_accounting_method'    => 'fifo',
             ]);
         }

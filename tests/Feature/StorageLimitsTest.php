@@ -81,8 +81,7 @@ class StorageLimitsTest extends TestCase
         // The logo counts like any other file.
         $this->post('/api/v1/business-settings', [
             'business_name' => 'Uddin Traders', 'language' => 'en', 'country' => 'BD', 'state' => 'Dhaka', 'city' => 'Dhaka',
-            'zip_code' => '1207', 'address_line_1' => 'Near City Center', 'timezone' => 'Asia/Dhaka', 'financial_year_start_month' => 7,
-            'stock_accounting_method' => 'fifo', 'logo' => UploadedFile::fake()->image('logo.png')->size(350),
+            'zip_code' => '1207', 'address_line_1' => 'Near City Center', 'timezone' => 'Asia/Dhaka', 'stock_accounting_method' => 'fifo', 'logo' => UploadedFile::fake()->image('logo.png')->size(350),
         ], ['Accept' => 'application/json'])->assertOk();
 
         $this->assertSame(['used_bytes' => 850 * 1024, 'state' => 'warning'], array_intersect_key($this->usage()['storage'], array_flip(['used_bytes', 'state'])));
