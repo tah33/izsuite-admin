@@ -4,7 +4,6 @@ namespace App\Services\Api\Workspaces;
 
 use App\Models\User\User;
 use App\Models\User\Workspace;
-use App\Repositories\User\UserStaffRepository;
 use App\Repositories\User\WorkspaceFileRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\Files\FileStorage;
@@ -19,21 +18,21 @@ class WorkspaceService
 {
     public function __construct(
         protected WorkspaceRepository $workspaceRepository,
-        protected UserStaffRepository $userStaffRepository,
         protected FileStorage $fileStorage,
         protected SetUpNewWorkspace $setUpNewWorkspace,
         protected WorkspaceFileRepository $workspaceFileRepository,
         protected PlanLimits $planLimits,
     ) {}
 
+    /** The businesses $user owns, and those they are an active member of - for the top bar to pick from. */
     public function list(User $user): Collection
     {
-        return $this->workspaceRepository->getForUser($user);
+        return $this->workspaceRepository->getOpenTo($user);
     }
 
     /**
      * A business added here starts the way registration starts the first one:
-     * on Billing Starter, with its Main Location, and its owner on its staff.
+     * on Billing Starter, with its Main Location, and its owner as its first user.
      * All of it is made together or not at all, so a business never exists
      * without them. An account may own only so many on Billing Starter (see
      * PlanLimits).
@@ -74,7 +73,7 @@ class WorkspaceService
     {
         $workspace = $this->findOwned($user, $id);
 
-        // The business's own data - locations, settings, staff, contacts, items,
+        // The business's own data - locations, settings, users, contacts, items,
         // payment accounts, the rows of its files - goes with it: the database
         // cascades. The stored files do not, so they are removed once the rows
         // are gone.
@@ -83,9 +82,6 @@ class WorkspaceService
         $this->workspaceRepository->delete($workspace);
 
         $this->fileStorage->forgetLater($files);
-
-        // Staff of the owner's other businesses must not go on listing a workspace that is gone.
-        $this->userStaffRepository->forgetWorkspace($user, $id);
 
         ActivityLogService::record('deleted', "Deleted workspace {$this->quoted($workspace)}", $workspace, ['source' => 'api']);
     }

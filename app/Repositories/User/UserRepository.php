@@ -118,6 +118,11 @@ class UserRepository
         return User::where('email', strtolower($email))->exists();
     }
 
+    public function usernameExists(string $username): bool
+    {
+        return User::where('username', strtolower($username))->exists();
+    }
+
     public function create(array $data): User
     {
         return User::create($data);

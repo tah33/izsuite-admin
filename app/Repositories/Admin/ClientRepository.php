@@ -4,6 +4,7 @@ namespace App\Repositories\Admin;
 
 use App\Models\User\User;
 use App\Models\User\WorkspaceApp;
+use App\Models\User\WorkspaceMember;
 use App\QueryFilters\SearchFilter;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -49,8 +50,9 @@ class ClientRepository
 
     /**
      * A client with each business: its plan and storage limit, the apps it has
-     * on, how many staff, locations, contacts and items it holds, and what its
-     * files take up (storage_bytes). Anyone else is a 404.
+     * on, how many users (active or invited - users_count), locations,
+     * contacts and items it holds, and what its files take up (storage_bytes).
+     * Anyone else is a 404.
      */
     public function findWithBusinessesOrFail(int $id): User
     {
@@ -58,7 +60,10 @@ class ClientRepository
             ->select(['id', 'first_name', 'last_name', 'username', 'email', 'phone', 'status', 'timezone', 'currency', 'email_verified_at', 'last_login_at', 'created_at'])
             ->with(['workspaces' => fn ($q) => $q
                 ->select(['id', 'user_id', 'name', 'package_id', 'created_at'])
-                ->withCount(['staff', 'locations', 'contacts', 'items'])
+                ->withCount([
+                    'members as users_count' => fn ($q) => $q->whereIn('status', WorkspaceMember::COUNTED),
+                    'locations', 'contacts', 'items',
+                ])
                 ->withSum('businessFiles as storage_bytes', 'size')
                 ->orderBy('id')
                 ->with([

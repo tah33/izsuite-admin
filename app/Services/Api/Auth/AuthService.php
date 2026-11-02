@@ -96,6 +96,40 @@ class AuthService
     }
 
     /**
+     * An account made from an invitation (Doc 12 section 6: "A new user
+     * creates login credentials after accepting"), signed in at once.
+     *
+     * The invitation's link came to $email, so the address is taken as
+     * verified. No business of its own is made - the account joins the one
+     * that invited it, and can add its own later.
+     *
+     * @return array{user: User, token: NewAccessToken}
+     */
+    public function registerInvited(string $email, array $data): array
+    {
+        $user = $this->userRepository->create([
+            'first_name'        => $data['first_name'],
+            'last_name'         => $data['last_name'] ?? null,
+            'username'          => $this->usernameFrom($email),
+            'email'             => $email,
+            'password'          => $data['password'],
+            'role_id'           => $this->frontendRoleId(),
+            'status'            => 'active',
+            'email_verified_at' => now(),
+            'terms_accepted_at' => now(),
+
+            // The invitation's time zone, when it gave one; else the column's own default.
+            ...(empty($data['timezone']) ? [] : ['timezone' => $data['timezone']]),
+        ]);
+
+        ActivityLogService::record('created', 'Registered an izSuite account from an invitation', $user, ['source' => 'api']);
+
+        $token = $this->userRepository->createToken($user, self::DEFAULT_DEVICE_NAME, ['*'], $this->tokenExpiry(false));
+
+        return ['user' => $this->userRepository->loadRole($this->userRepository->updateLoginMeta($user)), 'token' => $token];
+    }
+
+    /**
      * Exchange email + password for a Sanctum access token.
      *
      * @return array{user: User, token: NewAccessToken}
@@ -253,6 +287,20 @@ class AuthService
         }
 
         return $roleId;
+    }
+
+    /** "amina.rahman" from amina.rahman@example.com - numbered on while taken: amina.rahman2. */
+    private function usernameFrom(string $email): string
+    {
+        $base = substr(trim((string) preg_replace('/[^a-z0-9._-]/', '', strtolower(strstr($email, '@', true) ?: $email)), '._-'), 0, 26);
+        $base = strlen($base) >= 3 ? $base : 'user'.$base;
+        $name = $base;
+
+        for ($n = 2; $this->userRepository->usernameExists($name); $n++) {
+            $name = $base.$n;
+        }
+
+        return $name;
     }
 
     private function tokenExpiry(bool $remember): Carbon

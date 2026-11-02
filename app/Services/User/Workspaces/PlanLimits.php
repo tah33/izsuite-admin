@@ -7,7 +7,7 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\Billing\PackageRepository;
 use App\Repositories\User\LocationRepository;
-use App\Repositories\User\UserStaffRepository;
+use App\Repositories\User\WorkspaceMemberRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\Files\StorageUsage;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -19,8 +19,8 @@ use Illuminate\Http\Exceptions\HttpResponseException;
  *
  * Adding past a limit is refused with a 403 that says so. A business already
  * over one - after a downgrade, or a limit lowered - keeps everything; it only
- * cannot add more. A business's users are its owner and the staff added to
- * it; the owner is on its staff too, and counted once.
+ * cannot add more. A business's users are its members who are active or
+ * invited (Doc 12 section 3) - its owner among them.
  */
 class PlanLimits
 {
@@ -28,7 +28,7 @@ class PlanLimits
         protected PackageRepository $packageRepository,
         protected WorkspaceRepository $workspaceRepository,
         protected LocationRepository $locationRepository,
-        protected UserStaffRepository $userStaffRepository,
+        protected WorkspaceMemberRepository $memberRepository,
         protected StorageUsage $storageUsage,
     ) {}
 
@@ -49,7 +49,21 @@ class PlanLimits
         $package = $this->workspaceRepository->packageOf($workspace);
 
         if ($package?->user_limit !== null && $this->users($workspace) >= $package->user_limit) {
-            $this->refuse($this->reached($package, $package->user_limit, 'user', 'users').' Upgrade the plan to add staff.');
+            $this->refuse($this->reached($package, $package->user_limit, 'user', 'users').' Upgrade the plan to add users.');
+        }
+    }
+
+    /**
+     * The business moving to $owner (Doc 12 section 9): one on Billing Starter
+     * only while they may own another business there.
+     */
+    public function ensureCanTakeOver(User $owner, Workspace $workspace): void
+    {
+        $starter = $this->packageRepository->starter();
+
+        if ($starter?->business_limit !== null && $this->workspaceRepository->packageOf($workspace)?->id === $starter->id
+            && $this->workspaceRepository->countForUserOnPackage($owner, $starter->id) >= $starter->business_limit) {
+            $this->refuse("{$owner->name} already has a {$starter->name} business, so this one cannot move to them on {$starter->name}.");
         }
     }
 
@@ -81,10 +95,10 @@ class PlanLimits
         ];
     }
 
-    /** Its owner, and every staff member besides them. */
+    /** Its active and invited users - the owner counted even where no member row says so yet. */
     private function users(Workspace $workspace): int
     {
-        return 1 + $this->userStaffRepository->countBesides($workspace, $this->workspaceRepository->ownerEmail($workspace));
+        return max(1, $this->memberRepository->countCounted($workspace));
     }
 
     /** "Billing Starter includes one user." */

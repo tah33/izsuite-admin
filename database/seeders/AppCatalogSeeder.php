@@ -141,7 +141,7 @@ class AppCatalogSeeder extends Seeder
         ['apps', 'inventory', 'Adjustments', 'sliders-horizontal', '/inventory/adjustments', 'lite', null],
 
         ['bottom', null, 'Workspaces', 'building-2', '/workspace', null, null],
-        ['bottom', null, 'Staff', 'user-check', '/staff', null, null],
+        ['bottom', null, 'Users', 'users', '/staff', null, null],
         ['bottom', null, 'Apps Center', 'layout-grid', '/apps-center', null, null],
         ['bottom', null, 'Settings', 'settings', '/settings', null, null],
     ];

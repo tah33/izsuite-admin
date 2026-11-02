@@ -5,12 +5,12 @@ namespace Tests\Feature;
 use App\Events\UserRegistered;
 use App\Jobs\AddDefaultRoles;
 use App\Jobs\AddExpenseCategories;
-use App\Jobs\AddOwnerAsStaff;
 use App\Jobs\AddPaymentTerms;
 use App\Jobs\CreateMainLocation;
 use App\Jobs\CreateStarterWorkspace;
 use App\Models\Shared\ActivityLog;
 use App\Models\User\User;
+use App\Models\User\WorkspaceMember;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
@@ -67,7 +67,7 @@ class RegistrationOnboardingTest extends TestCase
         Event::assertNotDispatched(UserRegistered::class);
     }
 
-    public function test_a_new_account_starts_with_its_workspace_location_and_owner_as_staff(): void
+    public function test_a_new_account_starts_with_its_workspace_location_and_owner_as_its_user(): void
     {
         $user = $this->register();
 
@@ -82,12 +82,11 @@ class RegistrationOnboardingTest extends TestCase
         $this->assertNull($location->state);
         $this->assertSame($user->id, $location->user_id);
 
-        $staff = $workspace->staff()->sole();
-        $this->assertSame('Amina Rahman', $staff->name);
-        $this->assertSame('amina@example.com', $staff->email);
-        $this->assertSame(1, $staff->status);
-        $this->assertSame([$workspace->id], $staff->assigned_workspaces);
-        $this->assertSame($user->id, $staff->user_id);
+        // Its owner is its one user, the Business Owner (Doc 12 section 9).
+        $member = $workspace->members()->sole();
+        $this->assertSame(['Amina Rahman', 'amina@example.com', 'active', $user->id], [$member->name, $member->email, $member->status, $member->user_id]);
+        $this->assertSame('Business Owner', $member->role->name);
+        $this->assertSame(0, $workspace->staff()->count());
     }
 
     public function test_the_setup_is_queued_not_done_during_the_request(): void
@@ -96,11 +95,11 @@ class RegistrationOnboardingTest extends TestCase
 
         $user = $this->register();
 
-        Bus::assertChained([CreateStarterWorkspace::class, CreateMainLocation::class, AddOwnerAsStaff::class, AddExpenseCategories::class, AddPaymentTerms::class, AddDefaultRoles::class]);
+        Bus::assertChained([CreateStarterWorkspace::class, CreateMainLocation::class, AddExpenseCategories::class, AddPaymentTerms::class, AddDefaultRoles::class]);
 
         $this->assertSame(0, $user->workspaces()->count());
         $this->assertSame(0, $user->locations()->count());
-        $this->assertSame(0, $user->userStaff()->count());
+        $this->assertSame(0, WorkspaceMember::count());
     }
 
     public function test_running_the_setup_twice_still_leaves_one_of_each(): void
@@ -112,12 +111,11 @@ class RegistrationOnboardingTest extends TestCase
 
         $workspace = $user->workspaces()->sole();
         $this->assertSame(1, $user->locations()->count());
-        $this->assertSame([$workspace->id], $user->userStaff()->sole()->assigned_workspaces);
         $this->assertSame(10, $workspace->expenseCategories()->count());
         $this->assertSame(6, $workspace->paymentTerms()->count());
         $this->assertSame(8, $workspace->roles()->count());
         $this->assertSame('Business Owner', $workspace->members()->sole()->role->name);
-        $this->assertSame(6, ActivityLog::where('properties->source', 'registration')->count());
+        $this->assertSame(5, ActivityLog::where('properties->source', 'registration')->count());
     }
 
     public function test_what_the_setup_makes_is_logged_for_the_account_after_its_registration(): void
@@ -132,7 +130,6 @@ class RegistrationOnboardingTest extends TestCase
         $this->assertEqualsCanonicalizing([
             'Added location "Main Location"',
             'Added workspace "Billing Starter"',
-            'Added staff member "Amina Rahman"',
             'Added the starter expense categories',
             'Added the starter payment terms',
             'Added the default roles',
@@ -144,11 +141,11 @@ class RegistrationOnboardingTest extends TestCase
     {
         CreateStarterWorkspace::dispatchSync(999);
         CreateMainLocation::dispatchSync(999);
-        AddOwnerAsStaff::dispatchSync(999);
+        AddDefaultRoles::dispatchSync(999);
 
         $this->assertDatabaseCount('workspaces', 0);
         $this->assertDatabaseCount('locations', 0);
-        $this->assertDatabaseCount('user_staff', 0);
+        $this->assertDatabaseCount('workspace_members', 0);
     }
 
     public function test_a_renamed_starter_workspace_still_gets_its_location_and_owner(): void
@@ -157,10 +154,10 @@ class RegistrationOnboardingTest extends TestCase
         $workspace = $user->workspaces()->create(['name' => 'Amina Traders']);
 
         CreateMainLocation::dispatchSync($user->id);
-        AddOwnerAsStaff::dispatchSync($user->id);
+        AddDefaultRoles::dispatchSync($user->id);
 
         $this->assertSame('Main Location', $workspace->locations()->sole()->name);
-        $this->assertSame([$workspace->id], $workspace->staff()->sole()->assigned_workspaces);
+        $this->assertSame($user->id, $workspace->members()->sole()->user_id);
     }
 
     public function test_with_no_workspace_left_there_is_nowhere_to_put_the_location_or_owner(): void
@@ -168,20 +165,20 @@ class RegistrationOnboardingTest extends TestCase
         $user = User::factory()->create();
 
         CreateMainLocation::dispatchSync($user->id);
-        AddOwnerAsStaff::dispatchSync($user->id);
+        AddDefaultRoles::dispatchSync($user->id);
 
         $this->assertDatabaseCount('locations', 0);
-        $this->assertDatabaseCount('user_staff', 0);
+        $this->assertDatabaseCount('workspace_members', 0);
     }
 
-    public function test_a_long_name_is_cut_to_fit_the_staff_column(): void
+    public function test_a_long_name_is_cut_to_fit_the_member_column(): void
     {
-        // Each half may be 255 characters on its own; the staff name holds 255 in all.
-        $user = User::factory()->create(['first_name' => str_repeat('a', 200), 'last_name' => str_repeat('b', 200)]);
-        $user->workspaces()->create(['name' => 'Billing Starter']);
+        // Each half may be 255 characters on its own; a member's name holds 150 in all.
+        $user      = User::factory()->create(['first_name' => str_repeat('a', 200), 'last_name' => str_repeat('b', 200)]);
+        $workspace = $user->workspaces()->create(['name' => 'Billing Starter']);
 
-        AddOwnerAsStaff::dispatchSync($user->id);
+        AddDefaultRoles::dispatchSync($user->id);
 
-        $this->assertSame(255, strlen($user->userStaff()->sole()->name));
+        $this->assertSame(150, strlen($workspace->members()->sole()->name));
     }
 }

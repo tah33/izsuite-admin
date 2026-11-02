@@ -18,7 +18,7 @@
                             <span class="font-semibold text-[var(--text-primary)]">{{ $workspace->name }}</span>
                             <span class="block text-xs text-[var(--text-muted)]">#{{ $workspace->id }} · {{ $workspace->created_at?->format('M d, Y') }}</span>
                             <span class="block text-xs text-[var(--text-muted)] mt-1">
-                                {{ trans_choice(':count staff|:count staff', $workspace->staff_count) }}
+                                {{ trans_choice(':count user|:count users', $workspace->users_count) }}
                                 · {{ trans_choice(':count location|:count locations', $workspace->locations_count) }}
                                 · {{ trans_choice(':count contact|:count contacts', $workspace->contacts_count) }}
                                 · {{ trans_choice(':count item|:count items', $workspace->items_count) }}

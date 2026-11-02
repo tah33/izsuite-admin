@@ -6,33 +6,29 @@ use App\Models\User\ExpenseCategory;
 use App\Models\User\Location;
 use App\Models\User\PaymentTerm;
 use App\Models\User\User;
-use App\Models\User\UserStaff;
 use App\Models\User\Workspace;
 use App\Repositories\User\ExpenseCategoryRepository;
 use App\Repositories\User\LocationRepository;
 use App\Repositories\User\PaymentTermRepository;
-use App\Repositories\User\UserStaffRepository;
 use App\Repositories\User\WorkspaceMemberRepository;
 use App\Repositories\User\WorkspaceRoleRepository;
 use App\Services\Shared\ActivityLogService;
 use App\Services\User\Apps\WorkspaceApps;
 use App\Support\Permissions;
-use Illuminate\Support\Str;
 
 /**
  * What every business starts with besides its apps (see ProvisionWorkspaceApps):
  * a "Main Location" - code MAIN, its Primary, on its owner's time zone, with
- * no country or address: the owner fills those in later -
- * its owner on its staff: their name and e-mail, active, assigned to it - the
- * starter lists of expense categories (Doc 10 section 7) and payment terms
- * (Doc 11 section 14), its own to change, and the default roles with its
- * owner as Business Owner (Doc 12 section 11).
+ * no country or address: the owner fills those in later - the starter lists of
+ * expense categories (Doc 10 section 7) and payment terms (Doc 11 section 14),
+ * its own to change, and the default roles with its owner as its first user,
+ * the Business Owner (Doc 12 sections 9 and 11).
  *
  * Registration does this for an account's first business, from the queue (see
  * QueueNewAccountSetup); the Workspace page for every business added after, as
  * it is made. Safe to run twice: a business that already has its "Main
- * Location", its owner on its staff (matched by e-mail), or a category or term
- * of a starter's name keeps them, and nothing is logged again.
+ * Location", its owner as a user, a default role, or a category or term of a
+ * starter's name keeps them, and nothing is logged again.
  *
  * $source is where the log entries say it came from: 'registration' or 'api'.
  */
@@ -44,7 +40,6 @@ class SetUpNewWorkspace
 
     public function __construct(
         private LocationRepository $locations,
-        private UserStaffRepository $staffMembers,
         private ExpenseCategoryRepository $expenseCategories,
         private PaymentTermRepository $paymentTerms,
         private WorkspaceRoleRepository $roles,
@@ -54,7 +49,6 @@ class SetUpNewWorkspace
     public function handle(Workspace $workspace, User $owner, string $source): void
     {
         $this->addMainLocation($workspace, $owner, $source);
-        $this->addOwnerAsStaff($workspace, $owner, $source);
         $this->addExpenseCategories($workspace, $owner, $source);
         $this->addPaymentTerms($workspace, $owner, $source);
         $this->addRoles($workspace, $owner, $source);
@@ -116,26 +110,5 @@ class SetUpNewWorkspace
         if ($added > 0) {
             ActivityLogService::record('created', $added === count(PaymentTerm::STARTER) ? 'Added the starter payment terms' : "Added {$added} starter payment terms", $workspace, ['source' => $source], $owner);
         }
-    }
-
-    /**
-     * The name is cut to fit its column: a first and a last name may each be
-     * as long as that column on their own.
-     */
-    public function addOwnerAsStaff(Workspace $workspace, User $owner, string $source): UserStaff
-    {
-        $staff = $this->staffMembers->firstOrCreateFor(
-            $workspace,
-            ['email' => $owner->email],
-            ['name' => Str::limit($owner->name, 255, ''), 'status' => UserStaff::STATUS_ACTIVE],
-        );
-
-        if ($staff->wasRecentlyCreated) {
-            ActivityLogService::record('created', 'Added staff member "'.Str::limit($staff->name, 100).'"', $staff, ['source' => $source], $owner);
-        }
-
-        $this->staffMembers->assignWorkspace($staff, $workspace->id);
-
-        return $staff;
     }
 }

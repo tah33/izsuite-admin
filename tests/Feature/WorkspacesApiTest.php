@@ -125,7 +125,7 @@ class WorkspacesApiTest extends TestCase
         $this->assertDatabaseHas('workspace_apps', ['workspace_id' => $id, 'family_key' => 'sales', 'app_id' => $this->sales->id, 'status' => 'active']);
     }
 
-    public function test_a_new_workspace_starts_with_a_main_location_and_its_owner_on_staff(): void
+    public function test_a_new_workspace_starts_with_a_main_location_and_its_owner_as_its_user(): void
     {
         $user = User::factory()->create(['first_name' => 'Amina', 'last_name' => 'Rahman', 'email' => 'amina@example.com']);
         Sanctum::actingAs($user);
@@ -136,12 +136,9 @@ class WorkspacesApiTest extends TestCase
         $location = $workspace->locations()->sole();
         $this->assertSame(['Main Location', null, null, $user->id], [$location->name, $location->country, $location->state, $location->user_id]);
 
-        $staff = $workspace->staff()->sole();
-        $this->assertSame('Amina Rahman', $staff->name);
-        $this->assertSame('amina@example.com', $staff->email);
-        $this->assertSame(1, $staff->status);
-        $this->assertSame([$workspace->id], $staff->assigned_workspaces);
-        $this->assertSame($user->id, $staff->user_id);
+        $member = $workspace->members()->sole();
+        $this->assertSame(['Amina Rahman', 'amina@example.com', 'active', $user->id], [$member->name, $member->email, $member->status, $member->user_id]);
+        $this->assertSame('Business Owner', $member->role->name);
     }
 
     public function test_each_new_workspace_gets_its_own_and_the_others_keep_theirs(): void
@@ -155,9 +152,9 @@ class WorkspacesApiTest extends TestCase
 
         // What each business's own pages list.
         $this->getJson('/api/v1/locations', [ResolveWorkspace::HEADER => (string) $second])->assertJsonPath('data.*.name', ['Main Location']);
-        $this->getJson('/api/v1/user-staff', [ResolveWorkspace::HEADER => (string) $second])->assertJsonPath('data.*.email', [$user->email]);
+        $this->getJson('/api/v1/members', [ResolveWorkspace::HEADER => (string) $second])->assertJsonPath('data.*.email', [$user->email]);
         $this->getJson('/api/v1/locations', [ResolveWorkspace::HEADER => (string) $first->id])->assertJsonPath('data.*.name', ['Head Office']);
-        $this->getJson('/api/v1/user-staff', [ResolveWorkspace::HEADER => (string) $first->id])->assertJsonPath('data', []);
+        $this->getJson('/api/v1/members', [ResolveWorkspace::HEADER => (string) $first->id])->assertJsonPath('data', []);
     }
 
     public function test_apps_and_plans_are_not_set_from_here(): void
@@ -209,8 +206,8 @@ class WorkspacesApiTest extends TestCase
         ]);
         Sanctum::actingAs($user);
 
-        // Which staff work in which workspace is set from the staff side, so a
-        // staff_id sent here is not a field of the workspace: it is ignored.
+        // Who works in a business is its users' list, so a staff_id sent here
+        // is not a field of the workspace: it is ignored.
         $response = $this->postJson('/api/v1/workspaces', $this->payload(['staff_id' => $staff->id]))
             ->assertCreated()
             ->assertJsonMissingPath('data.staff_id')
@@ -223,7 +220,6 @@ class WorkspacesApiTest extends TestCase
             ->assertOk()
             ->assertJsonMissingPath('data.0.staff_id')
             ->assertJsonMissingPath('data.0.staff');
-        $this->assertSame([], $staff->fresh()->assigned_workspaces ?? []);
     }
 
     public function test_the_name_is_required_and_limited(): void
@@ -459,21 +455,20 @@ class WorkspacesApiTest extends TestCase
         $this->deleteJson("/api/v1/workspaces/{$id}")->assertOk();
 
         // One descriptive entry per write, and no generic `api_auto` one on top.
-        // Adding the business also adds its Main Location, its owner as staff,
-        // its starter expense categories and payment terms and its default
-        // roles, and those are logged as registration logs them.
+        // Adding the business also adds its Main Location, its starter expense
+        // categories and payment terms and its default roles, and those are
+        // logged as registration logs them.
         $logs = ActivityLog::where('user_id', $user->id)->orderBy('id')->get();
 
-        $this->assertCount(8, $logs);
+        $this->assertCount(7, $logs);
         $this->assertSame(['created', 'Added workspace "Main Workspace"'], [$logs[0]->action, $logs[0]->description]);
         $this->assertSame(['created', 'Added location "Main Location"'], [$logs[1]->action, $logs[1]->description]);
-        $this->assertSame(['created', "Added staff member \"{$user->name}\""], [$logs[2]->action, $logs[2]->description]);
-        $this->assertSame(['created', 'Added the starter expense categories'], [$logs[3]->action, $logs[3]->description]);
-        $this->assertSame(['created', 'Added the starter payment terms'], [$logs[4]->action, $logs[4]->description]);
-        $this->assertSame(['created', 'Added the default roles'], [$logs[5]->action, $logs[5]->description]);
-        $this->assertSame(['api', 'api', 'api', 'api', 'api', 'api'], $logs->take(6)->pluck('properties.source')->all());
-        $this->assertSame(['updated', 'Updated workspace "Renamed"'], [$logs[6]->action, $logs[6]->description]);
-        $this->assertSame(['name'], $logs[6]->properties['fields']);
-        $this->assertSame(['deleted', 'Deleted workspace "Renamed"'], [$logs[7]->action, $logs[7]->description]);
+        $this->assertSame(['created', 'Added the starter expense categories'], [$logs[2]->action, $logs[2]->description]);
+        $this->assertSame(['created', 'Added the starter payment terms'], [$logs[3]->action, $logs[3]->description]);
+        $this->assertSame(['created', 'Added the default roles'], [$logs[4]->action, $logs[4]->description]);
+        $this->assertSame(['api', 'api', 'api', 'api', 'api'], $logs->take(5)->pluck('properties.source')->all());
+        $this->assertSame(['updated', 'Updated workspace "Renamed"'], [$logs[5]->action, $logs[5]->description]);
+        $this->assertSame(['name'], $logs[5]->properties['fields']);
+        $this->assertSame(['deleted', 'Deleted workspace "Renamed"'], [$logs[6]->action, $logs[6]->description]);
     }
 }

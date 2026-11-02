@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Jobs\AddExpenseCategories;
-use App\Jobs\AddOwnerAsStaff;
 use App\Jobs\AddDefaultRoles;
 use App\Jobs\AddPaymentTerms;
 use App\Jobs\CreateMainLocation;
@@ -43,7 +42,6 @@ class DemoAccountSeeder extends Seeder
         try {
             CreateStarterWorkspace::dispatchSync($user->id);
             CreateMainLocation::dispatchSync($user->id);
-            AddOwnerAsStaff::dispatchSync($user->id);
             AddExpenseCategories::dispatchSync($user->id);
             AddPaymentTerms::dispatchSync($user->id);
             AddDefaultRoles::dispatchSync($user->id);

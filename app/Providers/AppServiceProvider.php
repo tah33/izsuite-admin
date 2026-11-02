@@ -60,6 +60,10 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('register', fn (Request $request) => Limit::perMinute(10)->by('register|'.$request->ip()));
 
+        // An invitation's link carries a secret: opened, accepted or used to make
+        // an account, each try is counted, on its own budget.
+        RateLimiter::for('invitations', fn (Request $request) => Limit::perMinute(30)->by('invitations|'.$request->ip()));
+
         // Two ceilings, because one alone is easy to walk around: the IP limit
         // stops a fast burst, the per-address limit stops a slow grind through
         // the code space from a pool of addresses.

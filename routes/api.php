@@ -38,6 +38,7 @@ use App\Http\Controllers\Api\ExpenseSettingController;
 use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\FileController;
 use App\Http\Controllers\Api\ImportController;
+use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\ItemController;
 use App\Http\Controllers\Api\ItemFileController;
 use App\Http\Controllers\Api\ItemImageController;
@@ -47,6 +48,7 @@ use App\Http\Controllers\Api\ItemTransactionController;
 use App\Http\Controllers\Api\LanguageController;
 use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\LoginAsController;
+use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\NavigationController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PaymentAccountController;
@@ -80,7 +82,6 @@ use App\Http\Controllers\Api\SetupController;
 use App\Http\Controllers\Api\SupplierPaymentAttachmentController;
 use App\Http\Controllers\Api\SupplierPaymentController;
 use App\Http\Controllers\Api\TaxRateController;
-use App\Http\Controllers\Api\UserStaffController;
 use App\Http\Controllers\Api\WithholdingTaxController;
 use App\Http\Controllers\Api\WorkspaceController;
 use Illuminate\Support\Facades\Route;
@@ -148,6 +149,17 @@ Route::prefix('v1')->group(function () {
     });
 
     /* ----------------------------------------------------------
+     | An invitation to a business (Doc 12 section 6), by its link's secret:
+     | shown to whoever holds the link, accepted with the account signed in,
+     | or by making that account. Throttled: the link carries a secret.
+     | -------------------------------------------------------- */
+    Route::prefix('invitations')->middleware('throttle:invitations')->group(function () {
+        Route::get('/{token}', [InvitationController::class, 'show'])->where('token', '[A-Za-z0-9]{48}')->name('api.invitations.show');
+        Route::post('/{token}/register', [InvitationController::class, 'register'])->where('token', '[A-Za-z0-9]{48}')->name('api.invitations.register');
+        Route::post('/{token}/accept', [InvitationController::class, 'accept'])->middleware('auth:sanctum')->where('token', '[A-Za-z0-9]{48}')->name('api.invitations.accept');
+    });
+
+    /* ----------------------------------------------------------
      | Signed-in user's profile
      | -------------------------------------------------------- */
     Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
@@ -158,7 +170,7 @@ Route::prefix('v1')->group(function () {
     /* ----------------------------------------------------------
      | The business's settings - one set per business
      |
-     | This group, locations and user-staff answer for the business picked in
+     | This group, locations and members answer for the business picked in
      | the top bar (X-Workspace-Id; without it, the account's oldest). Each
      | business's data is its own: another business's ids are a 404, even the
      | same owner's. An account with no workspace gets a 404 asking for one.
@@ -265,33 +277,15 @@ Route::prefix('v1')->group(function () {
     /* ----------------------------------------------------------
      | Signed-in user's workspaces
      |
-     | Same rule as locations: every id is looked up among the caller's own
-     | rows, so someone else's workspace is a 404. A workspace has no staff
-     | member of its own - which staff work in it is set from the staff side,
-     | as their assigned workspaces (see user-staff below).
+     | The list is those the caller owns and those they are an active member
+     | of (Doc 12 section 4); only an owned one is changed or deleted here -
+     | another id is a 404. Who works in a business is its members' list.
      | -------------------------------------------------------- */
     Route::middleware('auth:sanctum')->prefix('workspaces')->group(function () {
         Route::get('/', [WorkspaceController::class, 'index'])->name('api.workspaces.index');
         Route::post('/', [WorkspaceController::class, 'store'])->name('api.workspaces.store');
         Route::put('/{id}', [WorkspaceController::class, 'update'])->whereNumber('id')->name('api.workspaces.update');
         Route::delete('/{id}', [WorkspaceController::class, 'destroy'])->whereNumber('id')->name('api.workspaces.destroy');
-    });
-
-    /* ----------------------------------------------------------
-     | The business's staff - the people who work for it, with their contact
-     | details, whether they are active, and the apps and workspaces they are
-     | assigned to
-     |
-     | The same rule as locations applies - every id is looked up among the
-     | business's own rows, so another business's is a 404. An assigned
-     | workspace must be one of the owner's own, and an assigned app one that
-     | is active.
-     | -------------------------------------------------------- */
-    Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('user-staff')->group(function () {
-        Route::get('/', [UserStaffController::class, 'index'])->name('api.user-staff.index');
-        Route::post('/', [UserStaffController::class, 'store'])->name('api.user-staff.store');
-        Route::put('/{id}', [UserStaffController::class, 'update'])->whereNumber('id')->name('api.user-staff.update');
-        Route::delete('/{id}', [UserStaffController::class, 'destroy'])->whereNumber('id')->name('api.user-staff.destroy');
     });
 
     /* ----------------------------------------------------------
@@ -309,6 +303,26 @@ Route::prefix('v1')->group(function () {
         Route::post('/{id}/copy', [RoleController::class, 'copy'])->whereNumber('id')->name('api.roles.copy');
         Route::post('/{id}/activate', [RoleController::class, 'activate'])->whereNumber('id')->name('api.roles.activate');
         Route::post('/{id}/deactivate', [RoleController::class, 'deactivate'])->whereNumber('id')->name('api.roles.deactivate');
+    });
+
+    /* ----------------------------------------------------------
+     | The business's users (Doc 12 sections 4 to 9): its members and
+     | invitations - invited, changed, suspended, removed, signed out - and
+     | the business handed to one of them, by its owner alone
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('members')->group(function () {
+        Route::get('/', [MemberController::class, 'index'])->name('api.members.index');
+        Route::get('/export', [MemberController::class, 'export'])->name('api.members.export');
+        Route::post('/', [MemberController::class, 'store'])->name('api.members.store');
+        Route::get('/{id}', [MemberController::class, 'show'])->whereNumber('id')->name('api.members.show');
+        Route::put('/{id}', [MemberController::class, 'update'])->whereNumber('id')->name('api.members.update');
+        Route::delete('/{id}', [MemberController::class, 'destroy'])->whereNumber('id')->name('api.members.destroy');
+        Route::post('/{id}/resend', [MemberController::class, 'resend'])->whereNumber('id')->name('api.members.resend');
+        Route::post('/{id}/suspend', [MemberController::class, 'suspend'])->whereNumber('id')->name('api.members.suspend');
+        Route::post('/{id}/reactivate', [MemberController::class, 'reactivate'])->whereNumber('id')->name('api.members.reactivate');
+        Route::post('/{id}/remove', [MemberController::class, 'remove'])->whereNumber('id')->name('api.members.remove');
+        Route::post('/{id}/sign-out', [MemberController::class, 'signOut'])->whereNumber('id')->name('api.members.sign-out');
+        Route::post('/{id}/transfer-ownership', [MemberController::class, 'transfer'])->whereNumber('id')->middleware('throttle:reset-password')->name('api.members.transfer');
     });
 
     /* ----------------------------------------------------------

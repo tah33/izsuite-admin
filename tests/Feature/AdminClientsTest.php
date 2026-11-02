@@ -82,7 +82,7 @@ class AdminClientsTest extends TestCase
         $client = $this->client('Rahim', 'Acme Traders');
         $client->workspaces()->create(['name' => 'Bolt Foods']);
 
-        // What every new business is given: its Main Location and its owner on its staff.
+        // What every new business is given: its Main Location and its owner as its one user.
         foreach ($client->workspaces()->get() as $workspace) {
             app(SetUpNewWorkspace::class)->handle($workspace, $client, 'api');
         }
@@ -90,7 +90,8 @@ class AdminClientsTest extends TestCase
         $this->actingAs($this->admin)
             ->get(route('admin.clients.show', $client->id))
             ->assertOk()
-            ->assertViewHas('totals', ['businesses' => 2, 'staff' => 2, 'locations' => 2, 'contacts' => 0, 'items' => 0, 'storage' => 0])
-            ->assertSee('1 location');
+            ->assertViewHas('totals', ['businesses' => 2, 'users' => 2, 'locations' => 2, 'contacts' => 0, 'items' => 0, 'storage' => 0])
+            ->assertSee('1 location')
+            ->assertSee('1 user');
     }
 }

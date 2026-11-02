@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Models\Admin\Role;
 use App\Models\Billing\Package;
 use App\Models\User\User;
+use App\Services\User\Workspaces\SetUpNewWorkspace;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\Concerns\SignsIntoBusinesses;
 use Tests\TestCase;
 
@@ -60,21 +62,26 @@ class PlanLimitsTest extends TestCase
 
     public function test_a_starter_business_has_one_user_its_owner(): void
     {
-        $business = $this->businessOf($this->user);
-        $business->staff()->create(['user_id' => $this->user->id, 'name' => $this->user->name, 'email' => strtoupper($this->user->email), 'status' => 1]);
+        Mail::fake();
 
-        // The owner on its staff is the one user.
+        $business = $this->businessOf($this->user);
+        app(SetUpNewWorkspace::class)->addRoles($business, $this->user, 'api');
+
+        // The owner is the one user.
         $this->getJson('/api/v1/business-settings/usage')->assertJsonPath('data.users', ['used' => 1, 'limit' => 1]);
 
-        $staff = fn (string $name, string $email) => ['name' => $name, 'email' => $email, 'phone' => '+8801700000000', 'status' => 1];
+        $invite = fn (string $name, string $email) => [
+            'name' => $name, 'email' => $email, 'role_id' => $business->roles()->where('template', 'view_only')->value('id'), 'location_access' => 'all',
+        ];
 
-        $this->postJson('/api/v1/user-staff', $staff('Rahim Uddin', 'rahim@example.com'))
+        $this->postJson('/api/v1/members', $invite('Rahim Uddin', 'rahim@example.com'))
             ->assertForbidden()
-            ->assertJsonPath('message', 'Billing Starter includes one user. Upgrade the plan to add staff.');
+            ->assertJsonPath('message', 'Billing Starter includes one user. Upgrade the plan to add users.');
 
+        // Someone invited counts until the invitation is cancelled.
         Package::where('key', Package::STARTER)->update(['user_limit' => 2]);
-        $this->postJson('/api/v1/user-staff', $staff('Rahim Uddin', 'rahim@example.com'))->assertCreated();
-        $this->postJson('/api/v1/user-staff', $staff('Karim Ali', 'karim@example.com'))->assertForbidden();
+        $this->postJson('/api/v1/members', $invite('Rahim Uddin', 'rahim@example.com'))->assertCreated();
+        $this->postJson('/api/v1/members', $invite('Karim Ali', 'karim@example.com'))->assertForbidden();
         $this->getJson('/api/v1/business-settings/usage')->assertJsonPath('data.users', ['used' => 2, 'limit' => 2]);
     }
 

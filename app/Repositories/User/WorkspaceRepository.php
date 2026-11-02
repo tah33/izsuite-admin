@@ -8,6 +8,7 @@ use App\Models\User\Workspace;
 use App\Models\User\WorkspaceMember;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 
 class WorkspaceRepository
 {
@@ -24,6 +25,28 @@ class WorkspaceRepository
     public function getForUser(User $user): Collection
     {
         return Workspace::with(self::RELATIONS)->where('user_id', $user->id)->orderBy('name')->orderBy('id')->get();
+    }
+
+    /** getForUser(), with the businesses $user is an active member of as well (Doc 12 section 4). */
+    public function getOpenTo(User $user): Collection
+    {
+        return $this->openTo($user)->with(self::RELATIONS)->orderBy('name')->orderBy('id')->get();
+    }
+
+    /**
+     * Makes $owner the account the business belongs to (Doc 12 section 9) -
+     * and the rows that hang off its owner's account, so that account being
+     * closed later never takes them along.
+     */
+    public function reassignOwner(Workspace $workspace, User $owner): void
+    {
+        Workspace::whereKey($workspace->id)->update(['user_id' => $owner->id]);
+
+        foreach (['locations', 'business_settings', 'user_staff'] as $table) {
+            DB::table($table)->where('workspace_id', $workspace->id)->update(['user_id' => $owner->id]);
+        }
+
+        $workspace->user_id = $owner->id;
     }
 
     /**

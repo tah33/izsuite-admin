@@ -18,7 +18,7 @@ class CreateStarterWorkspace implements ShouldQueue
 {
     use Queueable;
 
-    /** What it is called, and how AddOwnerAsStaff finds it afterwards. */
+    /** What it is called - and what the setup wizard renames once the business has a name of its own. */
     public const NAME = 'Billing Starter';
 
     public function __construct(

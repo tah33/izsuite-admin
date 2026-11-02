@@ -32,7 +32,13 @@ class WorkspaceRoleRepository
 
     public function ownerRoleOf(Workspace $workspace): ?WorkspaceRole
     {
-        return $workspace->roles()->where('template', WorkspaceRole::OWNER)->first();
+        return $this->templateOf($workspace, WorkspaceRole::OWNER);
+    }
+
+    /** The business's role made from default template $template ("administrator"). */
+    public function templateOf(Workspace $workspace, string $template): ?WorkspaceRole
+    {
+        return $workspace->roles()->where('template', $template)->first();
     }
 
     /** Made through the business, so its workspace is never read from $data. */

@@ -47,11 +47,11 @@ class ClientService
 
     /**
      * What $client - loaded by findWithBusinessesOrFail() - has across all
-     * their businesses: how many businesses, staff (each business's owner
-     * among them), locations, contacts and items, and the bytes their files
-     * take up.
+     * their businesses: how many businesses, users (active or invited - each
+     * business's owner among them), locations, contacts and items, and the
+     * bytes their files take up.
      *
-     * @return array{businesses: int, staff: int, locations: int, contacts: int, items: int, storage: int}
+     * @return array{businesses: int, users: int, locations: int, contacts: int, items: int, storage: int}
      */
     public function totals(User $client): array
     {
@@ -59,7 +59,7 @@ class ClientService
 
         return [
             'businesses' => $businesses->count(),
-            'staff'      => (int) $businesses->sum('staff_count'),
+            'users'      => (int) $businesses->sum('users_count'),
             'locations'  => (int) $businesses->sum('locations_count'),
             'contacts'   => (int) $businesses->sum('contacts_count'),
             'items'      => (int) $businesses->sum('items_count'),
