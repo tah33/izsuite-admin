@@ -44,34 +44,46 @@ class DocumentIndexRepository
 
     private const EXPENSES_WITH = ['contact:id,name', 'location:id,name'];
 
-    public function paginateFor(Workspace $workspace, array $filters, int $perPage, string $today): LengthAwarePaginator
+    /** @param  list<DocumentType>  $types  the kinds listed - see union() */
+    public function paginateFor(Workspace $workspace, array $filters, int $perPage, string $today, array $types): LengthAwarePaginator
     {
-        $page = $this->union($workspace, $filters, $today)->paginate($perPage);
+        $page = $this->union($workspace, $filters, $today, $types)->paginate($perPage);
 
         return $page->setCollection($this->records($page->getCollection()));
     }
 
-    /** Everything the filters let through, read a few hundred at a time - for an export. */
-    public function lazyFor(Workspace $workspace, array $filters, string $today): LazyCollection
+    /**
+     * Everything the filters let through, read a few hundred at a time - for an export.
+     *
+     * @param  list<DocumentType>  $types
+     */
+    public function lazyFor(Workspace $workspace, array $filters, string $today, array $types): LazyCollection
     {
-        return $this->union($workspace, $filters, $today)->lazy(500)->chunk(500)->flatMap(fn (LazyCollection $rows) => $this->records($rows->collect()));
+        return $this->union($workspace, $filters, $today, $types)->lazy(500)->chunk(500)->flatMap(fn (LazyCollection $rows) => $this->records($rows->collect()));
     }
 
-    public function countFor(Workspace $workspace, array $filters, string $today): int
+    /** @param  list<DocumentType>  $types */
+    public function countFor(Workspace $workspace, array $filters, string $today, array $types): int
     {
-        return $this->union($workspace, $filters, $today)->count();
+        return $this->union($workspace, $filters, $today, $types)->count();
     }
 
     /**
      * Each app's documents the filters let through, as one list of what
      * finds them - their family and id - and what orders them: newest first.
+     * Only documents of $types - sales kinds, Purchase, Expense - are among
+     * them: those the user may view.
+     *
+     * @param  list<DocumentType>  $types
      */
-    private function union(Workspace $workspace, array $filters, string $today): QueryBuilder
+    private function union(Workspace $workspace, array $filters, string $today, array $types): QueryBuilder
     {
+        $sales = array_map(fn (DocumentType $type) => $type->value, array_filter($types, fn (DocumentType $type) => $type->family() === 'sales'));
+
         $halves = array_values(array_filter([
-            $this->wants($filters, 'sales') ? $this->keys($this->sales($workspace, $filters, $today), 'sales') : null,
-            $this->wants($filters, 'purchases') ? $this->keys($this->purchases($workspace, $filters, $today), 'purchases') : null,
-            $this->wants($filters, 'expenses') ? $this->keys($this->expenses($workspace, $filters, $today), 'expenses') : null,
+            $sales && $this->wants($filters, 'sales') ? $this->keys($this->sales($workspace, $filters, $today)->whereIn('type', $sales), 'sales') : null,
+            in_array(DocumentType::Purchase, $types, true) && $this->wants($filters, 'purchases') ? $this->keys($this->purchases($workspace, $filters, $today), 'purchases') : null,
+            in_array(DocumentType::Expense, $types, true) && $this->wants($filters, 'expenses') ? $this->keys($this->expenses($workspace, $filters, $today), 'expenses') : null,
         ]));
 
         // Nothing asked for comes from an app with documents: an empty list, shaped like the rest.

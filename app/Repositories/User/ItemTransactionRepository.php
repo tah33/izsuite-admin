@@ -2,6 +2,7 @@
 
 namespace App\Repositories\User;
 
+use App\Enums\DocumentType;
 use App\Models\User\Item;
 use App\Models\User\PurchaseLine;
 use App\Models\User\SalesDocumentLine;
@@ -26,27 +27,33 @@ use Illuminate\Support\Facades\DB;
  */
 class ItemTransactionRepository
 {
-    public function paginateFor(Workspace $workspace, Item $item, int $perPage): LengthAwarePaginator
+    /** @param  list<DocumentType>  $types  the kinds of document whose lines are listed - sales kinds, Purchase: those the user may view */
+    public function paginateFor(Workspace $workspace, Item $item, int $perPage, array $types): LengthAwarePaginator
     {
-        $sales = $this->keys(
+        $sales = array_map(fn (DocumentType $type) => $type->value, array_filter($types, fn (DocumentType $type) => $type->family() === 'sales'));
+
+        $lines = $this->keys(
             SalesDocumentLine::query()
                 ->join('sales_documents as documents', 'documents.id', '=', 'sales_document_lines.sales_document_id')
                 ->where('documents.workspace_id', $workspace->id)
+                ->whereIn('documents.type', $sales)
                 ->where('sales_document_lines.item_id', $item->id),
             'sales_document_lines',
             'sales',
         );
 
-        $purchases = $this->keys(
-            PurchaseLine::query()
-                ->join('purchases as documents', 'documents.id', '=', 'purchase_lines.purchase_id')
-                ->where('documents.workspace_id', $workspace->id)
-                ->where('purchase_lines.item_id', $item->id),
-            'purchase_lines',
-            'purchases',
-        );
+        if (in_array(DocumentType::Purchase, $types, true)) {
+            $lines->unionAll($this->keys(
+                PurchaseLine::query()
+                    ->join('purchases as documents', 'documents.id', '=', 'purchase_lines.purchase_id')
+                    ->where('documents.workspace_id', $workspace->id)
+                    ->where('purchase_lines.item_id', $item->id),
+                'purchase_lines',
+                'purchases',
+            ));
+        }
 
-        $page = DB::query()->fromSub($sales->unionAll($purchases), 'lines')
+        $page = DB::query()->fromSub($lines, 'lines')
             ->orderByDesc('document_date')
             ->orderByDesc('created_at')
             ->orderBy('family')

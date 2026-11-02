@@ -4,6 +4,7 @@ namespace App\Http\Resources\Expenses;
 
 use App\Models\User\ExpenseLine;
 use App\Services\Expenses\ExpenseRules;
+use App\Services\Shared\AllowedActions;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -43,7 +44,7 @@ class ExpenseListResource extends JsonResource
             'grand_total'    => $this->grand_total,
             'amount_paid'    => $this->amount_paid,
             'balance_due'    => $this->balance_due,
-            'actions'        => $rules->actions($this->resource),
+            'actions'        => app(AllowedActions::class)->record('expenses.expenses', $rules->actions($this->resource)),
         ];
     }
 }

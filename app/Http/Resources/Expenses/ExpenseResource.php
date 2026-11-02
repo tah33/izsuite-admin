@@ -4,6 +4,7 @@ namespace App\Http\Resources\Expenses;
 
 use App\Services\Api\Sales\SalesSnapshots;
 use App\Services\Expenses\ExpenseRules;
+use App\Services\Shared\AllowedActions;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Arr;
@@ -39,7 +40,7 @@ class ExpenseResource extends JsonResource
             'status'             => $this->status->value,
             'payment_status'     => $this->payment_status,
             'overdue'            => $rules->overdue($this->resource, $this->today),
-            'actions'            => $rules->actions($this->resource),
+            'actions'            => app(AllowedActions::class)->record('expenses.expenses', $rules->actions($this->resource)),
             'contact_id'         => $this->contact_id,
             'payee_name'         => $this->payee_name,
             'payee'              => $payee ? Arr::only($payee, ['name', 'billing_address', 'tax_number']) : null,

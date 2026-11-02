@@ -159,11 +159,16 @@ class SalesReportRepository
             ->get();
     }
 
-    /** The newest documents, any status - the Dashboard's Recent Transactions. */
-    public function latestDocuments(Workspace $workspace, int $limit, ?int $locationId): Collection
+    /**
+     * The newest documents of $types, any status - the Dashboard's Recent Transactions.
+     *
+     * @param  list<DocumentType>  $types
+     */
+    public function latestDocuments(Workspace $workspace, int $limit, ?int $locationId, array $types): Collection
     {
         return SalesDocument::query()
             ->where('workspace_id', $workspace->id)
+            ->whereIn('type', array_map(fn (DocumentType $type) => $type->value, $types))
             ->when($locationId, fn (Builder $query, int $id) => $query->where('location_id', $id))
             ->with('contact:id,name')
             ->orderByDesc('document_date')

@@ -3,6 +3,7 @@
 namespace App\Http\Resources\PaymentAccounts;
 
 use App\Models\User\AccountTransfer;
+use App\Services\Shared\AllowedActions;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -28,11 +29,11 @@ class AccountTransferResource extends JsonResource
             'reference'       => $this->reference,
             'notes'           => $this->notes,
             'void_reason'     => $this->void_reason,
-            'actions'         => match ($this->status) {
+            'actions'         => app(AllowedActions::class)->transfer(match ($this->status) {
                 AccountTransfer::DRAFT     => ['edit', 'complete', 'delete'],
                 AccountTransfer::COMPLETED => ['void'],
                 default                    => [],
-            },
+            }),
         ];
     }
 }

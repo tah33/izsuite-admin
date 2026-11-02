@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Purchases;
 
+use App\Services\Shared\AllowedActions;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -40,7 +41,7 @@ class SupplierPaymentResource extends JsonResource
             'reversed_at'     => $this->reversed_at?->toIso8601String(),
             'reversed_by'     => $this->reverser ? trim("{$this->reverser->first_name} {$this->reverser->last_name}") : null,
             'reversal_reason' => $this->reversal_reason,
-            'actions'         => $this->isCompleted() ? ['reverse'] : [],
+            'actions'         => app(AllowedActions::class)->payment('purchases', $this->isCompleted() ? ['reverse'] : []),
         ];
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Services\Shared;
 
+use App\Enums\DocumentType;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\WorkspaceMemberRepository;
@@ -65,6 +66,18 @@ class WorkspaceAccess
     public function authorize(string|array $permissions): void
     {
         abort_unless($this->can($permissions), 403, self::REFUSED);
+    }
+
+    /**
+     * Of $types, those whose records the signed-in user may view: what a
+     * list across them shows, so each of its rows opens.
+     *
+     * @param  list<DocumentType>  $types
+     * @return list<DocumentType>
+     */
+    public function viewable(array $types): array
+    {
+        return array_values(array_filter($types, fn (DocumentType $type) => $this->can("{$type->permissionGroup()}.view")));
     }
 
     /** @return list<string> */

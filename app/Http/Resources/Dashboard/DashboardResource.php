@@ -12,7 +12,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * the Transaction Overview, with a series for each app on, the newest
  * transactions of all of them, and the payment accounts' balances at the
  * end of the range. Totals are in the base currency; each listed record in
- * its own. Wraps DashboardService::summary().
+ * its own. A part the user's role may not see is null too, or left out of
+ * the chart and the transactions. Wraps DashboardService::summary().
  */
 class DashboardResource extends JsonResource
 {

@@ -6,6 +6,7 @@ use App\Enums\DocumentType;
 use App\Models\User\SalesDocument;
 use App\Services\Api\Sales\SalesSnapshots;
 use App\Services\Documents\DocumentLinks;
+use App\Services\Shared\AllowedActions;
 use App\Services\Sales\SalesDocumentRules;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -43,7 +44,7 @@ class SalesDocumentResource extends JsonResource
             'status'               => $rules->status($this->resource, $this->today),
             'payment_status'       => $this->payment_status,
             'overdue'              => $rules->overdue($this->resource, $this->today),
-            'actions'              => $rules->actions($this->resource, $this->today),
+            'actions'              => app(AllowedActions::class)->sales($this->type, $rules->actions($this->resource, $this->today)),
             'contact_id'           => $this->contact_id,
             'customer'             => $this->customer_snapshot ?? ($this->contact ? app(SalesSnapshots::class)->customer($this->contact) : null),
             'business'             => $this->business_snapshot,
@@ -92,7 +93,7 @@ class SalesDocumentResource extends JsonResource
             ])->all(),
             'payments'             => SalesPaymentListResource::collection($this->payments),
             'issued_at'            => $this->issued_at?->toIso8601String(),
-            'delivery'             => $rules->delivery($this->resource, $this->today),
+            'delivery'             => app(AllowedActions::class)->delivery($this->type, $rules->delivery($this->resource, $this->today)),
             'link'                 => $this->activeLink ? new DocumentLinkResource(['link' => $this->activeLink, 'url' => app(DocumentLinks::class)->url($this->activeLink)]) : null,
             'emails'               => DocumentEmailResource::collection($this->emails),
         ];

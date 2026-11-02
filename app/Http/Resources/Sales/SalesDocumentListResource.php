@@ -4,6 +4,7 @@ namespace App\Http\Resources\Sales;
 
 use App\Enums\DocumentType;
 use App\Services\Sales\SalesDocumentRules;
+use App\Services\Shared\AllowedActions;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -44,8 +45,8 @@ class SalesDocumentListResource extends JsonResource
             'amount_paid'    => $this->amount_paid,
             'balance_due'    => $this->balance_due,
             'invoice'        => $this->when($this->type === DocumentType::CreditNote, fn () => ['id' => $this->source_id, 'number' => $this->source?->number]),
-            'actions'        => $rules->actions($this->resource, $this->today),
-            'delivery'       => $rules->delivery($this->resource, $this->today),
+            'actions'        => app(AllowedActions::class)->sales($this->type, $rules->actions($this->resource, $this->today)),
+            'delivery'       => app(AllowedActions::class)->delivery($this->type, $rules->delivery($this->resource, $this->today)),
         ];
     }
 }

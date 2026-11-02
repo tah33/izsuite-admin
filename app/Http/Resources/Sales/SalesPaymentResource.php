@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Sales;
 
 use App\Models\User\SalesPayment;
+use App\Services\Shared\AllowedActions;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -47,9 +48,9 @@ class SalesPaymentResource extends JsonResource
             'reversed_at'     => $this->reversed_at?->toIso8601String(),
             'reversed_by'     => $this->reverser ? trim("{$this->reverser->first_name} {$this->reverser->last_name}") : null,
             'reversal_reason' => $this->reversal_reason,
-            'actions'         => $this->isCompleted() ? ['reverse'] : [],
+            'actions'         => app(AllowedActions::class)->payment('sales', $this->isCompleted() ? ['reverse'] : []),
             // A payment's receipt is emailed while the payment stands; a refund has none.
-            'delivery'        => $this->kind === SalesPayment::PAYMENT && $this->isCompleted() ? ['email'] : [],
+            'delivery'        => app(AllowedActions::class)->payment('sales', $this->kind === SalesPayment::PAYMENT && $this->isCompleted() ? ['email'] : []),
             'emails'          => DocumentEmailResource::collection($this->whenLoaded('emails')),
         ];
     }

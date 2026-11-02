@@ -22,6 +22,7 @@ use App\Services\Reports\Sales\TaxDetailsReport;
 use App\Services\Reports\Sales\TaxSummaryReport;
 use App\Services\Reports\Sales\TopCustomersReport;
 use App\Services\Reports\Sales\TopItemsReport;
+use App\Services\Shared\WorkspaceAccess;
 use App\Services\User\Apps\WorkspaceApps;
 
 /**
@@ -31,7 +32,8 @@ use App\Services\User\Apps\WorkspaceApps;
  * on, or turned off since (Doc 06 section 19); Payments Made while
  * Purchases or Expenses has; Contact Statement while any of the three has;
  * Tax Summary and Tax Details while taxes are on or tax history exists (Doc
- * 07 section 16); Payment Account Transactions always.
+ * 07 section 16); Payment Account Transactions always. Each only for a role
+ * that may see what it shows (VIEWS); another is not found.
  */
 class ReportCatalog
 {
@@ -71,10 +73,25 @@ class ReportCatalog
         'account-transactions' => ['Payment Account Transactions', 'accounts', AccountTransactionsReport::class, ['period', 'payment_account'], "An account's money in and out, with its running balance.", null],
     ];
 
+    /**
+     * What a role needs to open a report besides Reports' View (Doc 12
+     * section 21), by what the report shows - any one of them.
+     */
+    private const VIEWS = [
+        'sales'     => ['sales.invoices.view'],
+        'purchases' => ['purchases.purchases.view'],
+        'expenses'  => ['expenses.expenses.view'],
+        'payables'  => ['purchases.payments.view', 'expenses.payments.view'],
+        'contacts'  => ['contacts.view'],
+        'taxes'     => ['sales.invoices.view', 'purchases.purchases.view', 'expenses.expenses.view'],
+        'accounts'  => ['payment_accounts.view'],
+    ];
+
     public function __construct(
         protected SalesReportRepository $salesReportRepository,
         protected PurchaseReportRepository $purchaseReportRepository,
         protected ExpenseReportRepository $expenseReportRepository,
+        protected WorkspaceAccess $access,
     ) {}
 
     /**
@@ -101,7 +118,7 @@ class ReportCatalog
         $entries = [];
 
         foreach (self::REPORTS as $key => [$name, $category, , $filters, $description, $needs]) {
-            if (! $needs || $has[$needs]) {
+            if ((! $needs || $has[$needs]) && $this->access->can(self::VIEWS[$needs ?? 'accounts'])) {
                 $entries[] = ['key' => $key, 'name' => $name, 'category' => self::CATEGORIES[$category], 'description' => $description, 'filters' => $filters, 'link' => null];
             }
         }

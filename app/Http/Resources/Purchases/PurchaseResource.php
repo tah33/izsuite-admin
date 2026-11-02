@@ -4,6 +4,7 @@ namespace App\Http\Resources\Purchases;
 
 use App\Services\Api\Sales\SalesSnapshots;
 use App\Services\Purchases\PurchaseRules;
+use App\Services\Shared\AllowedActions;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Arr;
@@ -35,7 +36,7 @@ class PurchaseResource extends JsonResource
             'status'                  => $this->status->value,
             'payment_status'          => $this->payment_status,
             'overdue'                 => $rules->overdue($this->resource, $this->today),
-            'actions'                 => $rules->actions($this->resource),
+            'actions'                 => app(AllowedActions::class)->record('purchases.purchases', $rules->actions($this->resource)),
             'contact_id'              => $this->contact_id,
             'supplier'                => $supplier ? Arr::only($supplier, ['name', 'billing_address', 'tax_number']) : null,
             'location_id'             => $this->location_id,

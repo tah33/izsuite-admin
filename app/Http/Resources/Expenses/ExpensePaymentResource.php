@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Expenses;
 
+use App\Services\Shared\AllowedActions;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -41,7 +42,7 @@ class ExpensePaymentResource extends JsonResource
             'reversed_at'     => $this->reversed_at?->toIso8601String(),
             'reversed_by'     => $this->reverser ? trim("{$this->reverser->first_name} {$this->reverser->last_name}") : null,
             'reversal_reason' => $this->reversal_reason,
-            'actions'         => $this->isCompleted() ? ['reverse'] : [],
+            'actions'         => app(AllowedActions::class)->payment('expenses', $this->isCompleted() ? ['reverse'] : []),
         ];
     }
 }

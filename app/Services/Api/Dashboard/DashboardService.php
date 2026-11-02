@@ -21,8 +21,11 @@ use App\Services\Reports\Sales\OutstandingInvoicesReport;
 use App\Services\Reports\Sales\SalesTrendReport;
 use App\Services\Reports\SalesFigures;
 use App\Services\Sales\SalesDocumentRules;
+use App\Services\Shared\WorkspaceAccess;
 use App\Services\User\Apps\WorkspaceApps;
 use App\Support\Decimal;
+use Closure;
+use Illuminate\Support\Collection;
 
 /**
  * The Billing Starter Dashboard's figures (Doc 02, Doc 08 section 21, Doc 09
@@ -33,12 +36,20 @@ use App\Support\Decimal;
  * the newest transactions of all three, and each payment account's balance.
  * Totals are in the base currency; what is owed, and balances, as they
  * stood at the end of the range - or today, if it ends later.
+ *
+ * Each part only for a role that may see it (Doc 12 section 21): an app's
+ * cards and series with its records' View, each kind of transaction with its
+ * own, the balances with Payment Accounts' - null otherwise, as for an app
+ * that is off.
  */
 class DashboardService
 {
     private const OUTSTANDING_SHOWN = 5;
 
     private const RECENT_SHOWN = 8;
+
+    /** What a role needs to see an app's part of the Dashboard. */
+    private const VIEWS = ['sales' => 'sales.invoices.view', 'purchases' => 'purchases.purchases.view', 'expenses' => 'expenses.expenses.view'];
 
     public function __construct(
         protected ReportPeriod $reportPeriod,
@@ -51,6 +62,7 @@ class DashboardService
         protected SalesDocumentRules $salesDocumentRules,
         protected PaymentAccountRepository $paymentAccountRepository,
         protected AccountTransactionRepository $accountTransactionRepository,
+        protected WorkspaceAccess $access,
     ) {}
 
     /** $input is validated (see DashboardRequest). */
@@ -63,7 +75,7 @@ class DashboardService
         $filters = ['from' => $from, 'to' => $to, 'location_id' => $input['location_id'] ?? null, 'week_start' => $workspace->weekStartDay(), 'date_format' => $workspace->date_format];
         $apps    = WorkspaceApps::for($workspace);
         $sources = array_filter(['sales' => $apps->row('sales')?->app?->name, 'purchases' => $apps->row('purchases')?->app?->name, 'expenses' => $apps->row('expenses')?->app?->name]);
-        $on      = fn (string $family) => $apps->has($family) && isset($sources[$family]);
+        $on      = fn (string $family) => $apps->has($family) && isset($sources[$family]) && $this->access->can(self::VIEWS[$family]);
 
         return [
             'from'      => $from,
@@ -75,8 +87,8 @@ class DashboardService
             'chart'     => $on('sales') || $on('purchases') || $on('expenses')
                 ? $this->chart($workspace, $filters, $on('sales'), $on('purchases'), $on('expenses'))
                 : null,
-            'recent'    => $this->recent($workspace, $filters['location_id'], $today, array_filter($sources, $on, ARRAY_FILTER_USE_KEY)),
-            'accounts'  => $this->accounts($workspace, $asOf),
+            'recent'    => $this->recent($workspace, $filters['location_id'], $today, array_filter($sources, fn (string $family) => $apps->has($family), ARRAY_FILTER_USE_KEY)),
+            'accounts'  => $this->access->can('payment_accounts.view') ? $this->accounts($workspace, $asOf) : null,
         ];
     }
 
@@ -176,7 +188,8 @@ class DashboardService
 
     /**
      * The newest documents and payments of the apps in $sources together,
-     * newest first, with the app they came from (Doc 02 section 9).
+     * newest first, with the app they came from (Doc 02 section 9) - of the
+     * kinds the role may view (Doc 12), so each opens.
      *
      * @param  array<string, string>  $sources  each family on, and the app it is on as: "Sales Lite"
      */
@@ -195,7 +208,9 @@ class DashboardService
 
     private function recentSales(Workspace $workspace, ?int $locationId, string $today, string $source): array
     {
-        $documents = $this->salesReportRepository->latestDocuments($workspace, self::RECENT_SHOWN, $locationId)->map(fn (SalesDocument $document) => [
+        $types = $this->access->viewable(array_values(DocumentType::KINDS));
+
+        $documents = ($types ? $this->salesReportRepository->latestDocuments($workspace, self::RECENT_SHOWN, $locationId, $types) : collect())->map(fn (SalesDocument $document) => [
             'date'     => $document->document_date,
             'type'     => $document->type->label(),
             'number'   => $document->number,
@@ -208,7 +223,7 @@ class DashboardService
             'created'  => $document->created_at?->getTimestamp() ?? 0,
         ]);
 
-        $payments = $this->salesReportRepository->latestMoney($workspace, self::RECENT_SHOWN, $locationId)->map(fn (SalesPayment $payment) => [
+        $payments = $this->ifAllowed('sales.payments.view', fn () => $this->salesReportRepository->latestMoney($workspace, self::RECENT_SHOWN, $locationId))->map(fn (SalesPayment $payment) => [
             'date'     => $payment->payment_date,
             'type'     => $payment->kind === SalesPayment::REFUND ? 'Customer Refund' : 'Customer Payment',
             'number'   => $payment->number,
@@ -226,7 +241,7 @@ class DashboardService
 
     private function recentPurchases(Workspace $workspace, ?int $locationId, string $source): array
     {
-        $purchases = $this->purchaseReportRepository->latestPurchases($workspace, self::RECENT_SHOWN, $locationId)->map(fn (Purchase $purchase) => [
+        $purchases = $this->ifAllowed('purchases.purchases.view', fn () => $this->purchaseReportRepository->latestPurchases($workspace, self::RECENT_SHOWN, $locationId))->map(fn (Purchase $purchase) => [
             'date'     => $purchase->document_date,
             'type'     => 'Purchase',
             'number'   => $purchase->number,
@@ -239,7 +254,7 @@ class DashboardService
             'created'  => $purchase->created_at?->getTimestamp() ?? 0,
         ]);
 
-        $payments = $this->purchaseReportRepository->latestPayments($workspace, self::RECENT_SHOWN, $locationId)->map(fn (SupplierPayment $payment) => [
+        $payments = $this->ifAllowed('purchases.payments.view', fn () => $this->purchaseReportRepository->latestPayments($workspace, self::RECENT_SHOWN, $locationId))->map(fn (SupplierPayment $payment) => [
             'date'     => $payment->payment_date,
             'type'     => 'Supplier Payment',
             'number'   => $payment->number,
@@ -257,7 +272,7 @@ class DashboardService
 
     private function recentExpenses(Workspace $workspace, ?int $locationId, string $source): array
     {
-        $expenses = $this->expenseReportRepository->latestExpenses($workspace, self::RECENT_SHOWN, $locationId)->map(fn (Expense $expense) => [
+        $expenses = $this->ifAllowed('expenses.expenses.view', fn () => $this->expenseReportRepository->latestExpenses($workspace, self::RECENT_SHOWN, $locationId))->map(fn (Expense $expense) => [
             'date'     => $expense->document_date,
             'type'     => 'Expense',
             'number'   => $expense->number,
@@ -270,7 +285,7 @@ class DashboardService
             'created'  => $expense->created_at?->getTimestamp() ?? 0,
         ]);
 
-        $payments = $this->expenseReportRepository->latestPayments($workspace, self::RECENT_SHOWN, $locationId)->map(fn (ExpensePayment $payment) => [
+        $payments = $this->ifAllowed('expenses.payments.view', fn () => $this->expenseReportRepository->latestPayments($workspace, self::RECENT_SHOWN, $locationId))->map(fn (ExpensePayment $payment) => [
             'date'     => $payment->payment_date,
             'type'     => 'Expense Payment',
             'number'   => $payment->number,
@@ -284,6 +299,12 @@ class DashboardService
         ]);
 
         return $expenses->concat($payments)->all();
+    }
+
+    /** What $query finds, while the role holds $permission (Doc 12) - nothing otherwise. */
+    private function ifAllowed(string $permission, Closure $query): Collection
+    {
+        return $this->access->can($permission) ? $query() : collect();
     }
 
     /** Each account's recorded balance on $asOf: its opening balance, once dated by then, and the money moved by then. */

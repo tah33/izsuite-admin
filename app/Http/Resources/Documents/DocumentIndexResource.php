@@ -9,6 +9,7 @@ use App\Models\User\Purchase;
 use App\Services\Expenses\ExpenseRules;
 use App\Services\Purchases\PurchaseRules;
 use App\Services\Sales\SalesDocumentRules;
+use App\Services\Shared\AllowedActions;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -58,8 +59,8 @@ class DocumentIndexResource extends JsonResource
             'currency'       => $this->currency,
             'balance_due'    => $rules->holdsBalance($this->resource) ? $this->balance_due : null,
             'location'       => $this->location?->name,
-            'actions'        => $rules->actions($this->resource, $this->today),
-            'delivery'       => $rules->delivery($this->resource, $this->today),
+            'actions'        => app(AllowedActions::class)->sales($this->type, $rules->actions($this->resource, $this->today)),
+            'delivery'       => app(AllowedActions::class)->delivery($this->type, $rules->delivery($this->resource, $this->today)),
         ];
     }
 
@@ -82,7 +83,7 @@ class DocumentIndexResource extends JsonResource
             'currency'       => $this->currency,
             'balance_due'    => $this->status === PurchaseStatus::Recorded ? $this->balance_due : null,
             'location'       => $this->location?->name,
-            'actions'        => $rules->actions($this->resource),
+            'actions'        => app(AllowedActions::class)->record('purchases.purchases', $rules->actions($this->resource)),
             'delivery'       => [],
         ];
     }
@@ -106,7 +107,7 @@ class DocumentIndexResource extends JsonResource
             'currency'       => $this->currency,
             'balance_due'    => $this->status === ExpenseStatus::Recorded ? $this->balance_due : null,
             'location'       => $this->location?->name,
-            'actions'        => $rules->actions($this->resource),
+            'actions'        => app(AllowedActions::class)->record('expenses.expenses', $rules->actions($this->resource)),
             'delivery'       => [],
         ];
     }

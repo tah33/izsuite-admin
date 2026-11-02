@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Purchases;
 
 use App\Services\Purchases\PurchaseRules;
+use App\Services\Shared\AllowedActions;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -38,7 +39,7 @@ class PurchaseListResource extends JsonResource
             'currency'                => $this->currency,
             'grand_total'             => $this->grand_total,
             'balance_due'             => $this->balance_due,
-            'actions'                 => $rules->actions($this->resource),
+            'actions'                 => app(AllowedActions::class)->record('purchases.purchases', $rules->actions($this->resource)),
         ];
     }
 }

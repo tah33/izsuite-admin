@@ -96,6 +96,19 @@ enum DocumentType: string
         return array_search($this, self::KINDS, true) ?: $this->value;
     }
 
+    /** The permissions its records come under (Doc 12): "sales.credit_notes" for a credit note, "purchases.payments" for a supplier's voucher. */
+    public function permissionGroup(): string
+    {
+        return match ($this) {
+            self::CustomerReceipt => 'sales.payments',
+            self::Purchase        => 'purchases.purchases',
+            self::SupplierVoucher => 'purchases.payments',
+            self::Expense         => 'expenses.expenses',
+            self::ExpenseVoucher  => 'expenses.payments',
+            default               => 'sales.'.str_replace('-', '_', $this->kind()),
+        };
+    }
+
     /** A quotation or proforma: it has an expiry date, and is sent rather than issued. */
     public function isOffer(): bool
     {
