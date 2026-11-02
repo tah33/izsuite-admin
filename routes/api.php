@@ -73,6 +73,7 @@ use App\Http\Controllers\Api\SalesPaymentController;
 use App\Http\Controllers\Api\SalesPdfController;
 use App\Http\Controllers\Api\SalesRefundController;
 use App\Http\Controllers\Api\SalesSettingController;
+use App\Http\Controllers\Api\SetupController;
 use App\Http\Controllers\Api\SupplierPaymentAttachmentController;
 use App\Http\Controllers\Api\SupplierPaymentController;
 use App\Http\Controllers\Api\TaxRateController;
@@ -162,6 +163,16 @@ Route::prefix('v1')->group(function () {
      | Saved with POST, not PUT: the form sends the logo as a file, and PHP only
      | parses multipart bodies on POST. It is still create-or-overwrite.
      | -------------------------------------------------------- */
+
+    // The First-Time Business Setup wizard (Doc 11 section 3): where a new
+    // business's setup stands, the step it moves on to, and finishing it. Each
+    // step saves through the settings below.
+    Route::middleware(['auth:sanctum', 'workspace:required'])->prefix('setup')->group(function () {
+        Route::get('/', [SetupController::class, 'show'])->name('api.setup.show');
+        Route::put('/', [SetupController::class, 'update'])->name('api.setup.update');
+        Route::post('/complete', [SetupController::class, 'complete'])->name('api.setup.complete');
+    });
+
     Route::middleware(['auth:sanctum', 'workspace:required'])->prefix('business-settings')->group(function () {
         Route::get('/', [BusinessSettingController::class, 'show'])->name('api.business-settings.show');
         Route::post('/', [BusinessSettingController::class, 'save'])->name('api.business-settings.save');

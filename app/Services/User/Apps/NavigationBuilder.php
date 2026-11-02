@@ -86,6 +86,9 @@ class NavigationBuilder
                     'timezone'       => $this->calendar->timezone($workspace),
                     'rate_precision' => $workspace->rate_precision,
                 ],
+
+                // Until it is, the business opens its setup wizard (Doc 11 section 3).
+                'setup_completed' => $workspace->isSetUp(),
             ] : null,
 
             // An object even when empty, so the client always gets a map.

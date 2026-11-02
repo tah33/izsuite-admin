@@ -64,4 +64,19 @@ final class RegionalDefaults
             ...(self::COUNTRIES[$country] ?? []),
         ];
     }
+
+    /**
+     * The currency $country - a code - pays in, as ICU knows it: BDT for BD,
+     * EUR for DE. Null for a country it has none for.
+     */
+    public static function currency(?string $country): ?string
+    {
+        if (! preg_match('/^[A-Z]{2}$/', strtoupper((string) $country))) {
+            return null;
+        }
+
+        $code = (new \NumberFormatter('en_'.strtoupper($country), \NumberFormatter::CURRENCY))->getTextAttribute(\NumberFormatter::CURRENCY_CODE);
+
+        return is_string($code) && preg_match('/^[A-Z]{3}$/', $code) && $code !== 'XXX' ? $code : null;
+    }
 }

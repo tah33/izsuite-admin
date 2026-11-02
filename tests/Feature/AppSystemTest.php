@@ -188,6 +188,7 @@ class AppSystemTest extends TestCase
             'withholding_tax' => false,
             'brands_enabled'  => false,
             'regional'        => ['date_format' => 'd M Y', 'time_format' => '24h', 'number_format' => 'comma_dot', 'timezone' => app_display_timezone(), 'rate_precision' => 6],
+            'setup_completed' => false,
         ], $nav['workspace']);
         $this->assertSame(
             ['name' => 'Sales Lite', 'edition' => 'lite', 'status' => 'active', 'has_history' => true],

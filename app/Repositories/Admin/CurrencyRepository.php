@@ -30,6 +30,12 @@ class CurrencyRepository
         return Currency::active()->orderBy('name')->get();
     }
 
+    /** Whether $code is one a business may use: on the list, and switched on. */
+    public function isActive(string $code): bool
+    {
+        return Currency::active()->where('code', $code)->exists();
+    }
+
     public function getPaginated(?string $search = null, int $perPage = 10): LengthAwarePaginator
     {
         return app(Pipeline::class)
