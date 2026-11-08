@@ -19,6 +19,12 @@ class MenuItemRepository
         return MenuItem::where('is_active', true)->orderBy('sort_order')->orderBy('id')->get();
     }
 
+    /** The switched-on pages an app family adds to the sidebar, in order (Doc 13 section 6). */
+    public function pagesOf(string $family): Collection
+    {
+        return MenuItem::where('is_active', true)->where('family_key', $family)->whereNotNull('route')->orderBy('sort_order')->orderBy('id')->get();
+    }
+
     /** The highest sort order in use, so a new item goes last. */
     public function maxSortOrder(): int
     {

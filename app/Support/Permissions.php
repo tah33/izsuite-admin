@@ -305,6 +305,17 @@ final class Permissions
         return $groups;
     }
 
+    /**
+     * The permission groups app $family brings to roles (Doc 13 section 6),
+     * by their labels: "Quotations", "Invoices", "Sales Values"…
+     *
+     * @return list<string>
+     */
+    public static function groupLabelsOf(string $family): array
+    {
+        return array_values(array_map(fn (array $group) => $group[0], array_filter(self::GROUPS, fn (array $group) => $group[1] === $family)));
+    }
+
     /** A permission's label as one line of the Activity Log: "Invoices: Issue". */
     public static function label(string $permission): string
     {

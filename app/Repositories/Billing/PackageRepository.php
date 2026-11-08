@@ -70,6 +70,26 @@ class PackageRepository
             ->all();
     }
 
+    /** @return array<int, string> app id => the name of the lowest active plan that includes it (Doc 13 section 5) */
+    public function lowestNames(): array
+    {
+        $names = [];
+
+        foreach (Package::where('is_active', true)->orderBy('rank')->with('apps:id')->get() as $package) {
+            foreach ($package->apps as $app) {
+                $names[$app->id] ??= $package->name;
+            }
+        }
+
+        return $names;
+    }
+
+    /** The active plans, lowest first, each with the apps it includes - for the public Pricing page. */
+    public function activeWithApps(): Collection
+    {
+        return Package::where('is_active', true)->orderBy('rank')->with(['apps' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order')->orderBy('name')])->get();
+    }
+
     /** The plan's Lite apps that are listed and available. */
     public function availableLiteApps(Package $package): Collection
     {

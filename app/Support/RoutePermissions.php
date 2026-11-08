@@ -189,6 +189,8 @@ final class RoutePermissions
             'api.members.transfer'   => self::MEMBER,
 
             'api.apps-center'        => 'settings.apps',
+            'api.apps-center.show'   => 'settings.apps',
+            'api.apps.deactivation'  => 'settings.apps',
             'api.apps.activate'      => 'settings.apps',
             'api.apps.deactivate'    => 'settings.apps',
             'api.activity-log.index' => 'settings.audit',

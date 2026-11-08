@@ -51,6 +51,7 @@ class AppsCenterResource extends JsonResource
             'name'     => $edition['name'],
             'edition'  => $edition['edition'],
             'state'    => $edition['state'],
+            'package'  => $edition['package'],
             'requires' => $edition['requires'],
             'missing'  => $edition['missing'],
             ...Arr::only($edition, ['replaces', 'falls_back_to', 'required_by']),

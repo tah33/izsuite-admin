@@ -128,6 +128,31 @@ class ReportCatalog
         return $entries;
     }
 
+    /**
+     * The reports app $family brings to the Reports page (Doc 13 section 6):
+     * its own, and - shared - those it draws on with the other apps.
+     *
+     * @return list<array{name: string, shared: bool}>
+     */
+    public static function namesFor(string $family): array
+    {
+        $shared = match ($family) {
+            'sales'                 => ['contacts', 'taxes'],
+            'purchases', 'expenses' => ['payables', 'contacts', 'taxes'],
+            default                 => [],
+        };
+
+        $names = [];
+
+        foreach (self::REPORTS as [$name, , , , , $needs]) {
+            if ($needs === $family || in_array($needs, $shared, true)) {
+                $names[] = ['name' => $name, 'shared' => $needs !== $family];
+            }
+        }
+
+        return $names;
+    }
+
     /** @return array{key: string, name: string, class: class-string<Report>, filters: list<string>} a report the business can open, by its key or one it had before - 404 otherwise */
     public function find(Workspace $workspace, string $key): array
     {

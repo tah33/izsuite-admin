@@ -40,6 +40,9 @@ class Application extends Model
         'app_key',
         'name',
         'description',
+        'long_description',
+        'features',
+        'support_url',
         'price',
         'logo_url',
         'category_id',
@@ -56,6 +59,7 @@ class Application extends Model
         'is_active'  => 'boolean',
         'sort_order' => 'integer',
         'edition'    => Edition::class,
+        'features'   => 'array',
     ];
 
     /**
@@ -128,6 +132,12 @@ class Application extends Model
         return $this->edition === Edition::Lite
             ? $this
             : static::where('family_key', $this->family_key)->where('edition', Edition::Lite)->first();
+    }
+
+    /** Of a family's editions, the one that names its card: Full, else the only one. */
+    public static function primaryOf(\Illuminate\Support\Collection $editions): self
+    {
+        return $editions->sortByDesc(fn (self $app) => $app->edition->rank())->first();
     }
 
     /** Listed, and not still coming soon: an app a business could turn on. */

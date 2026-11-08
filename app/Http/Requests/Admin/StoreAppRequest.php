@@ -54,6 +54,8 @@ class StoreAppRequest extends FormRequest
             'icon'       => trim((string) $this->input('icon')) ?: null,
             'sort_order' => $this->input('sort_order') ?? 0,
             'is_active'  => $this->boolean('is_active'),
+            // The app page's main features (Doc 13 section 6): one a line in the form.
+            'features'   => array_values(array_filter(array_map('trim', preg_split('/\R/', (string) $this->input('features_text')) ?: []))) ?: null,
         ]);
     }
 
@@ -62,6 +64,10 @@ class StoreAppRequest extends FormRequest
         return [
             'name'        => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'long_description' => ['nullable', 'string', 'max:5000'],
+            'features'    => ['nullable', 'array', 'max:12'],
+            'features.*'  => ['string', 'max:200'],
+            'support_url' => ['nullable', 'url', 'max:255'],
             'price'       => ['nullable', 'numeric', 'min:0'],
             'image'       => ['nullable', 'image', 'mimes:jpg,jpeg,png,svg,webp', 'max:2048'],
             'category_id' => ['required', 'integer', Rule::exists('app_categories', 'id')],
@@ -85,7 +91,10 @@ class StoreAppRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'category_id' => 'category',
+            'category_id'      => 'category',
+            'long_description' => 'full description',
+            'features.*'       => 'feature',
+            'support_url'      => 'support link',
         ];
     }
 

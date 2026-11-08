@@ -11,12 +11,14 @@ use App\Models\User\WorkspaceAppLog;
 use App\Repositories\User\WorkspaceAppRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\Shared\ActivityLogService;
+use App\Services\Shared\WorkspaceAccess;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
  * Turns an app on for a business, or replaces its family's Lite edition with
- * Full (Doc 01 sections 8 and 9).
+ * Full (Doc 01 sections 8 and 9) - by its owner, or a role with Manage Apps
+ * (Doc 13 section 7).
  *
  * Never a second row for a family: if it has one, the edition changes in place
  * - the UNIQUE (workspace_id, family_key) key backs that up if two requests
@@ -28,6 +30,7 @@ class ActivateApp
         private AppDependencies $dependencies,
         private WorkspaceAppRepository $workspaceApps,
         private WorkspaceRepository $workspaces,
+        private WorkspaceAccess $access,
     ) {}
 
     /**
@@ -35,7 +38,7 @@ class ActivateApp
      */
     public function handle(Workspace $workspace, Application $app, User $by): ?Application
     {
-        abort_unless($workspace->isOwnedBy($by), 403, 'Only the owner of this business can turn apps on or off.');
+        abort_unless($this->access->allows($by, $workspace, 'settings.apps'), 403, 'Your role does not allow turning apps on or off.');
 
         if (! $app->isAvailable()) {
             $this->refuse("{$app->name} is not available yet.");

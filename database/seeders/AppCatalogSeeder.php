@@ -100,6 +100,44 @@ class AppCatalogSeeder extends Seeder
      */
     private const FIRST = ['sales' => 10, 'purchases' => 20, 'expenses' => 30];
 
+    /**
+     * An app's own page (Doc 13 section 6): its full description and main
+     * features, for the apps that are built - app_key => [description,
+     * features]. Filled in where empty, so an admin's own words are kept.
+     */
+    private const DETAILS = [
+        'sales_lite' => [
+            'Everything a small business needs to quote, invoice and get paid: documents numbered your way, in your template and currency, shared as PDFs, by e-mail or by secure link.',
+            [
+                'Quotations, proforma invoices and invoices, with your numbering and template',
+                'A quotation or proforma turned into an invoice in one step',
+                'Customer payments, in part or in full, with receipts',
+                'Credit notes, and refunds of their credit',
+                'PDFs, e-mail and secure links for every document',
+                'Sales reports, and sales on the Dashboard',
+            ],
+        ],
+        'purchases_lite' => [
+            'Record what the business buys as the bills arrive, pay suppliers in part or in full, and see what is still owed.',
+            [
+                'Purchases from suppliers, with their bills attached',
+                'Supplier payments, in part or in full',
+                'What is owed to each supplier, and when it is due',
+                'Tax on purchases kept apart, where it can be claimed back',
+                'Purchase reports, and purchases on the Dashboard',
+            ],
+        ],
+        'expenses_lite' => [
+            'Keep every business expense with its receipt and category, paid now or later, with the tax that can be claimed back kept apart.',
+            [
+                'Expenses by category and payee, with receipts attached',
+                'Paid at once, or later in part or in full',
+                'Tax that can be claimed back kept apart',
+                'Expense reports, and expenses on the Dashboard',
+            ],
+        ],
+    ];
+
     /** family => [required family => minimum edition] */
     private const DEPENDENCIES = [
         'inventory'     => ['purchases' => 'lite'],
@@ -201,6 +239,12 @@ class AppCatalogSeeder extends Seeder
                             'sort_order'  => $sortOrder,
                         ],
                     );
+
+                    // Its own page's words, where nobody has written any yet.
+                    if ($app->long_description === null && isset(self::DETAILS[$app->app_key])) {
+                        [$longDescription, $features] = self::DETAILS[$app->app_key];
+                        $app->update(['long_description' => $longDescription, 'features' => $features]);
+                    }
 
                     // Plan access only for an app made just now: an admin's
                     // later changes in Package Access are left alone.

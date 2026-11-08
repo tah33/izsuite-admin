@@ -6,7 +6,9 @@ use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\AppActivationController;
 use App\Http\Controllers\Api\AppCategoryController;
 use App\Http\Controllers\Api\AppController;
+use App\Http\Controllers\Api\AppDetailsController;
 use App\Http\Controllers\Api\AppsCenterController;
+use App\Http\Controllers\Api\CatalogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BusinessCurrencyController;
 use App\Http\Controllers\Api\BusinessSettingController;
@@ -99,6 +101,8 @@ Route::prefix('v1')->group(function () {
 
     Route::get('/app-categories', [AppCategoryController::class, 'index'])->name('api.app-categories.index');
     Route::get('/apps', [AppController::class, 'index'])->name('api.apps.index');
+    // The website's Explore Apps and Pricing pages: the apps by category and the plans (Doc 13 sections 2 and 4).
+    Route::get('/catalog', CatalogController::class)->name('api.catalog');
     Route::get('/plans', [PlanController::class, 'index'])->name('api.plans.index');
     Route::get('/currencies', [CurrencyController::class, 'index'])->name('api.currencies.index');
     Route::get('/languages', [LanguageController::class, 'index'])->name('api.languages.index');
@@ -635,6 +639,9 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'workspace', 'access'])->group(function () {
         Route::get('/navigation', NavigationController::class)->name('api.navigation');
         Route::get('/apps-center', AppsCenterController::class)->name('api.apps-center');
+        // An app's own page, and what turning one off would do (Doc 13 sections 6 and 8).
+        Route::get('/apps-center/{family}', AppDetailsController::class)->where('family', '[a-z0-9][a-z0-9_-]*')->name('api.apps-center.show');
+        Route::get('/apps/{appKey}/deactivation', [AppActivationController::class, 'impact'])->name('api.apps.deactivation');
         Route::post('/apps/{appKey}/activate', [AppActivationController::class, 'activate'])->name('api.apps.activate');
         Route::post('/apps/{appKey}/deactivate', [AppActivationController::class, 'deactivate'])->name('api.apps.deactivate');
     });
