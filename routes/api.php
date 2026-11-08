@@ -58,6 +58,7 @@ use App\Http\Controllers\Api\PaymentTermController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ProfileSessionController;
+use App\Http\Controllers\Api\ProfileTwoFactorController;
 use App\Http\Controllers\Api\PurchaseAttachmentController;
 use App\Http\Controllers\Api\PurchaseController;
 use App\Http\Controllers\Api\PurchaseFlowController;
@@ -118,6 +119,10 @@ Route::prefix('v1')->group(function () {
         Route::post('/login', [AuthController::class, 'login'])
             ->middleware('throttle:login')
             ->name('api.auth.login');
+        // With two-factor authentication on (Doc 12 section 22): the authenticator app's code, after the password.
+        Route::post('/login/two-factor', [AuthController::class, 'loginWithCode'])
+            ->middleware('throttle:login')
+            ->name('api.auth.login.two-factor');
         // "Login as" from the admin panel: its one-time code, traded for a session as the client.
         Route::post('/login-as', [LoginAsController::class, 'redeem'])
             ->middleware('throttle:login')
@@ -171,6 +176,15 @@ Route::prefix('v1')->group(function () {
         Route::put('/', [ProfileController::class, 'update'])->name('api.profile.update');
         Route::post('/image', [ProfileController::class, 'changeImage'])->name('api.profile.image.update');
         Route::delete('/image', [ProfileController::class, 'removeImage'])->name('api.profile.image.destroy');
+
+        // Two-factor authentication: each step but the app's first code asks for
+        // the password again, so is limited as a password change is.
+        Route::prefix('two-factor')->group(function () {
+            Route::post('/setup', [ProfileTwoFactorController::class, 'setup'])->middleware('throttle:reset-password')->name('api.profile.two-factor.setup');
+            Route::post('/confirm', [ProfileTwoFactorController::class, 'confirm'])->middleware('throttle:30,1')->name('api.profile.two-factor.confirm');
+            Route::post('/recovery-codes', [ProfileTwoFactorController::class, 'recoveryCodes'])->middleware('throttle:reset-password')->name('api.profile.two-factor.recovery-codes');
+            Route::post('/disable', [ProfileTwoFactorController::class, 'disable'])->middleware('throttle:reset-password')->name('api.profile.two-factor.disable');
+        });
 
         Route::get('/sessions', [ProfileSessionController::class, 'index'])->name('api.profile.sessions.index');
         Route::post('/sessions/sign-out-others', [ProfileSessionController::class, 'signOutOthers'])->name('api.profile.sessions.sign-out-others');

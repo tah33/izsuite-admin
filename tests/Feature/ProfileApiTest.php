@@ -39,7 +39,7 @@ class ProfileApiTest extends TestCase
         $this->getJson('/api/v1/profile')
             ->assertOk()
             ->assertExactJsonStructure([
-                'data' => ['first_name', 'last_name', 'email', 'phone', 'avatar_url', 'language', 'timezone'],
+                'data' => ['first_name', 'last_name', 'email', 'phone', 'avatar_url', 'language', 'timezone', 'two_factor', 'recovery_codes_left'],
             ])
             ->assertJsonPath('data.first_name', 'Ayesha')
             ->assertJsonPath('data.last_name', 'Rahman')

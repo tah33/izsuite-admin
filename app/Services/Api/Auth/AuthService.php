@@ -7,6 +7,7 @@ use App\Mail\PasswordChanged;
 use App\Models\User\User;
 use App\Repositories\Admin\RoleRepository;
 use App\Repositories\User\UserRepository;
+use App\Services\Api\Profile\TwoFactorService;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Arr;
@@ -14,6 +15,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\NewAccessToken;
 use RuntimeException;
 
@@ -42,6 +44,8 @@ class AuthService
         protected UserRepository $userRepository,
         protected EmailVerificationService $emailVerification,
         protected RoleRepository $roleRepository,
+        protected TwoFactorService $twoFactor,
+        protected SignInChallenges $challenges,
     ) {}
 
     /**
@@ -132,9 +136,11 @@ class AuthService
     }
 
     /**
-     * Exchange email + password for a Sanctum access token.
+     * Exchange email + password for a Sanctum access token - or, with two-
+     * factor authentication on (Doc 12 section 22), for a challenge the app's
+     * code answers through loginWithCode().
      *
-     * @return array{user: User, token: NewAccessToken}
+     * @return array{user: User, token: NewAccessToken}|array{user: User, challenge: string}
      */
     public function login(array $data): array
     {
@@ -164,12 +170,64 @@ class AuthService
             $this->rejectUnverifiedEmail();
         }
 
-        // Where it signs in from, so the user can tell their devices apart (Doc 12 section 22).
+        // The password alone is not enough with two-factor authentication on.
+        if ($this->twoFactor->isOn($user)) {
+            return ['user' => $user, 'challenge' => $this->challenges->open($user, (bool) ($data['remember'] ?? false), $data['device_name'] ?? null)];
+        }
+
+        return $this->signIn($user, (bool) ($data['remember'] ?? false), $data['device_name'] ?? null);
+    }
+
+    /**
+     * The second step of a sign-in with two-factor authentication on: the
+     * challenge login() gave, answered with the app's code or a recovery
+     * code. A few wrong codes end the challenge, and the password is asked
+     * for again.
+     *
+     * @return array{user: User, token: NewAccessToken}
+     */
+    public function loginWithCode(array $data): array
+    {
+        $challenge = $this->challenges->find($data['challenge']);
+        $user      = $challenge ? $this->userRepository->find($challenge['user_id']) : null;
+
+        if (! $user || $user->status !== 'active' || ! $this->twoFactor->isOn($user)) {
+            throw ValidationException::withMessages(['challenge' => 'This sign-in has ended. Enter your password again.']);
+        }
+
+        $via = $this->twoFactor->passes($user, $data['code'] ?? null, $data['recovery_code'] ?? null);
+
+        if ($via === null) {
+            if (! $this->challenges->failed($data['challenge'], $challenge)) {
+                throw ValidationException::withMessages(['challenge' => 'Too many wrong codes. Enter your password again.']);
+            }
+
+            throw ValidationException::withMessages([
+                empty($data['code']) ? 'recovery_code' : 'code' => empty($data['code'])
+                    ? 'That recovery code is not right, or was used already.'
+                    : 'That code is not right. Try the newest one from your app.',
+            ]);
+        }
+
+        $this->challenges->close($data['challenge']);
+
+        return $this->signIn($user, $challenge['remember'], $challenge['device_name'], ['two_factor' => $via]);
+    }
+
+    /**
+     * A new session for $user, for twelve hours or, kept signed in, thirty
+     * days - with where it signs in from, so the user can tell their devices
+     * apart (Doc 12 section 22).
+     *
+     * @return array{user: User, token: NewAccessToken}
+     */
+    private function signIn(User $user, bool $remember, ?string $deviceName, array $logged = []): array
+    {
         $token = $this->userRepository->createToken(
             $user,
-            $data['device_name'] ?? self::DEFAULT_DEVICE_NAME,
+            $deviceName ?? self::DEFAULT_DEVICE_NAME,
             ['*'],
-            $this->tokenExpiry((bool) ($data['remember'] ?? false)),
+            $this->tokenExpiry($remember),
             request()->ip(),
             request()->userAgent(),
         );
@@ -182,6 +240,7 @@ class AuthService
         ActivityLogService::record('login', 'Signed in from the izSuite frontend', $user, [
             'source'     => 'api',
             'token_name' => $token->accessToken->name,
+            ...$logged,
         ]);
 
         return ['user' => $this->userRepository->loadRole($user), 'token' => $token];

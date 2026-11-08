@@ -9,15 +9,23 @@ use Illuminate\Support\Str;
  * What a save changed, for the Activity Log (Doc 11 section 24): each setting
  * that differs, with its previous and new value. Sensitive values - account
  * and card numbers - show only their last four characters; long texts are
- * cut short; bookkeeping columns are left out.
+ * cut short; bookkeeping columns and secrets are left out.
  */
 final class SettingChanges
 {
     /** Never shown whole. */
     private const MASKED = ['account_number', 'iban', 'swift_code', 'routing_number', 'merchant_number', 'card_number'];
 
-    /** Bookkeeping, not settings. */
-    private const IGNORED = ['created_at', 'updated_at', 'created_by', 'updated_by', 'nav_version'];
+    /**
+     * Bookkeeping, not settings - and secrets, which no log keeps, not even
+     * hashed: a password, a sign-in code, an authenticator app's secret and
+     * the recovery codes.
+     */
+    private const IGNORED = [
+        'created_at', 'updated_at', 'created_by', 'updated_by', 'nav_version',
+        'password', 'remember_token', 'verification_otp', 'verification_otp_expires_at',
+        'two_factor_secret', 'two_factor_recovery_codes', 'two_factor_last_step',
+    ];
 
     private const LONGEST = 200;
 

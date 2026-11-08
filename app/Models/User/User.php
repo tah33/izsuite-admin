@@ -60,6 +60,12 @@ class User extends Authenticatable
         // outside EmailVerificationService has any reason to read it.
         'verification_otp',
         'verification_otp_expires_at',
+
+        // The authenticator app's secret and the recovery codes' hashes (Doc 12
+        // section 22): only TwoFactorService reads them.
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_last_step',
     ];
 
     /**
@@ -93,6 +99,10 @@ class User extends Authenticatable
             'password'          => 'hashed',
             'last_login_at'     => 'datetime',
             'preferences'       => 'array',
+            'two_factor_secret'         => 'encrypted',
+            'two_factor_recovery_codes' => 'array',
+            'two_factor_confirmed_at'   => 'datetime',
+            'two_factor_last_step'      => 'integer',
         ];
     }
 

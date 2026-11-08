@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-08
-- **Code:** Doc 12 Phase E1 is committed: frontend `73cf6ca` on `nuxt`, and on `main` the admin commit right after `812e7b1`.
-- **Tests:** 622 backend tests pass (last full run 2026-11-08, on this code).
-- **Next step:** Doc 12 Phase E2.
+- **Code:** Doc 12 Phase E2 is committed: frontend `7de8bd9` on `nuxt`, and on `main` the admin commit right after `1a3e195`. Doc 12 is done.
+- **Tests:** 629 backend tests pass (last full run 2026-11-08, on this code).
+- **Next step:** Doc 13, starting with a gap check.
 
 Update this file at the end of every phase and commit it with that phase.
 
@@ -14,7 +14,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 12 Phase E2.
+   > Read PROJECT_STATUS.md, then start Doc 13.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -36,7 +36,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 09 | Purchases Lite | Done |
 | 10 | Expenses Lite | Done |
 | 11 | Business Setup and Settings | Done, except notification preferences (waits for Doc 14) |
-| **12** | **Users, Roles, Permissions and Locations** | **In progress: A, B, C1, C2, D1, D2, E1 done. E2 left** |
+| 12 | Users, Roles, Permissions and Locations | Done, except notification preferences (Doc 14) and package change rules (Doc 13) |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Not started as a doc, parts exist |
 | 14 | Shared Platform Services | Not started as a doc, parts exist |
 | 15 | izSuite System Administration Portal | Not started as a doc, parts exist |
@@ -47,24 +47,7 @@ Stock, full Sales, OCR and full Accounting features are left out of the Lite app
 
 ## What is next
 
-### 1. Doc 12 Phase E2: multi-factor authentication (next)
-
-Doc 12 section 22. Phase E was split in two. E1 (personal settings and active sessions) is done; see [Decisions worth knowing](#decisions-worth-knowing).
-
-**Suggested defaults. These are not agreed yet, so confirm or change them when starting:**
-
-- An authenticator app: six-digit codes that change every 30 seconds (TOTP). It is set up on My Profile by scanning a QR code or typing the key, then confirmed with a code.
-- Ten recovery codes, each usable once, shown once at setup and made anew on request.
-- Signing in asks for a code, or a recovery code, after the password. Login as from the admin panel does not ask.
-- Turning it off, or making new recovery codes, needs the password.
-- The codes are worked out in our own code, with no package. The QR code needs one small library; the suggestion is `qrcode` from npm, drawn in the browser. Confirm before it is added.
-- Not in E2: a business requiring it of its users (Doc 12 does not say), and support resetting it for someone who lost their phone (Doc 15).
-
-**Waits:** notification preferences (Doc 14). Section 25, package change rules (Doc 13).
-
-Doc 12 is finished after this.
-
-### 2. Doc 13: Apps Center, Packages, Subscriptions and Billing
+### 1. Doc 13: Apps Center, Packages, Subscriptions and Billing (next)
 
 Start with a gap check (see [How we work](#how-we-work)). Known today:
 
@@ -73,14 +56,14 @@ Start with a gap check (see [How we work](#how-we-work)). Known today:
 - **Careful:** the old `plans`, `subscriptions`, `invoices` and `payment_methods` tables and admin screens come from an earlier product. They work per user account, not per business, and do not fit Doc 13. The public Pricing and Explore Apps pages are hard-coded.
 - **Needs your decisions before billing:** payment provider(s), billing currencies, prices, trial and grace lengths.
 
-### 3. Doc 14 and Doc 15
+### 2. Doc 14 and Doc 15
 
 Both start with a gap check, since much was built along the way.
 
 - **Doc 14:** calculation, numbering, currency, tax, payment allocation and PDF and email delivery came with Sales Lite. The notification service does not exist yet, and notification preferences in Docs 11 and 12 wait for it.
 - **Doc 15:** the admin panel exists (Clients with Login as, Menu Builder, Packages, apps), but was never checked against this doc.
 
-### 4. The full apps
+### 3. The full apps
 
 After Doc 15, choose which app comes first. Docs 16 to 21 are written. Docs 22 and up must be written before they can be built.
 
@@ -218,7 +201,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 12: Phase C2, location access | `58945f6` | `b6d733b` | |
 | Doc 12: Phase D1, sales, purchase and expense values | `8135b5b` | `5e62e3a` | 000106 |
 | Doc 12: Phase D2, costs, balances, account details, tax | `812e7b1` | `7039f47` | 000107 |
-| Doc 12: Phase E1, personal settings and sessions | the commit after `812e7b1` | `73cf6ca` | 000108 |
+| Doc 12: Phase E1, personal settings and sessions | `1a3e195` | `73cf6ca` | 000108 |
+| Doc 12: Phase E2, multi-factor authentication | the commit after `1a3e195` | `7de8bd9` | 000109, 000110 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -261,7 +245,7 @@ These are easy to undo by mistake.
 
 - A business's formats live on `workspaces` and reach the frontend in the sidebar payload.
 - Payment terms are a list, but contacts and documents still store days.
-- The Activity Log records `workspace_id` and previous and new values, with account numbers masked.
+- The Activity Log records `workspace_id` and previous and new values, with account numbers masked. It never records a secret, not even hashed: passwords, sign-in codes, the authenticator app's secret and recovery codes are left out (`SettingChanges`). Before E2 a password change wrote its old and new hash there; migration 000110 took those out.
 
 **Users, roles, locations (Doc 12)**
 
@@ -285,6 +269,10 @@ These are easy to undo by mistake.
 - A new account from an invitation takes the invitation's phone, language and time zone.
 - Each sign-in keeps its IP address and browser (`ip_address` and `user_agent` on `personal_access_tokens`), named by `App\Support\DeviceName`. Sign-ins from before E1 show as "Unknown device". Login as sessions are listed too, marked "izSuite support".
 - Nobody changes the role they hold, not even its permissions (`RoleService::update`), and the role page shows it read-only. Changing one's own role or locations was already refused.
+- Two-factor authentication is an authenticator app (TOTP: six digits, 30 seconds, one step either side), worked out in `App\Support\Totp` with no package. The secret is kept encrypted, the ten recovery codes only as hashes (`App\Support\RecoveryCodes`), and each code works once (`two_factor_last_step`). The QR code is drawn in the browser by the `qrcode` npm package.
+- Setting it up, new recovery codes and turning it off each need the password (`TwoFactorService`), so an open session cannot switch it on against its owner.
+- With it on, the password step answers with a five-minute challenge instead of a session (`SignInChallenges`, in the cache); `POST /auth/login/two-factor` takes the app's code or a recovery code. Five wrong codes end the challenge. Login as from the admin panel does not ask.
+- The `reset-password` rate limit counts a signed-in request by its user's e-mail. It used to put every request without an e-mail - all password changes - in one bucket shared by everybody.
 - `/profile` answers in the usual envelopes, and the signed-in user (`UserResource`) carries only their name, e-mail, phone, image, language and time zone.
 
 ## Small things left
@@ -305,6 +293,8 @@ Each of these is yours to settle.
 - May an account delete its last business? It is allowed today.
 - Should Workspaces and Users stay at the bottom of the sidebar, or move under Settings? Doc 01 lists only Apps Center and Settings there.
 - Phase B kept the old `user_staff` table. Should it be dropped?
+- May a business require two-factor authentication of its users? Doc 12 does not say, so nothing makes anyone turn it on.
+- Who turns off someone's two-factor authentication when they lose both their phone and their recovery codes? Today nobody can; Doc 15's support tools would be the place.
 - Should View Activity Log keep needing every values and details permission (built in D2)? The other way is to mask them in the log, but masking cannot reach amounts written into an entry's text, such as "Recorded payment PAY-0001 of USD 100.00".
 
 ## Deploying to a server

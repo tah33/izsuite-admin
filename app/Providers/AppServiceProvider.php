@@ -101,9 +101,13 @@ class AppServiceProvider extends ServiceProvider
      * Limiters run before the FormRequest, so the address still arrives in
      * whatever casing the caller used. Folding it here stops "Bob@x.com" and
      * "bob@x.com" from getting a bucket each.
+     *
+     * A request that sends none - a signed-in user changing their password or
+     * their two-factor authentication - counts as its user's, else as its
+     * address's: never all in one bucket shared by everybody.
      */
     private function emailKey(Request $request): string
     {
-        return strtolower(trim((string) $request->input('email')));
+        return strtolower(trim((string) ($request->input('email') ?: $request->user()?->email ?: $request->ip())));
     }
 }
