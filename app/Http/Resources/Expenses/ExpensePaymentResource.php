@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Expenses;
 
+use App\Http\Resources\Concerns\HidesValues;
 use App\Services\Shared\AllowedActions;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -17,9 +18,14 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class ExpensePaymentResource extends JsonResource
 {
+    use HidesValues;
+
+    /** What a user without Expense Values does not see (Doc 12 section 14). */
+    private const VALUES = ['amount', 'applied_amount', 'balance_after'];
+
     public function toArray(Request $request): array
     {
-        return [
+        return $this->hideValues('expenses', [
             'id'              => $this->id,
             'number'          => $this->number,
             'status'          => $this->status,
@@ -32,17 +38,17 @@ class ExpensePaymentResource extends JsonResource
             'account'         => ['id' => $this->account->id, 'name' => $this->account->name, 'currency' => $this->account->currency],
             'amount'          => $this->amount,
             'applied_amount'  => $this->applied_amount,
-            'withholding'     => $this->withholding_tax_id || $this->withholding_name ? [
+            'withholding'     => $this->withholding_tax_id || $this->withholding_name ? $this->hideValues('expenses', [
                 'name'   => $this->withholding_name,
                 'rate'   => $this->withholding_rate,
                 'amount' => $this->withholding_amount,
-            ] : null,
+            ], ['amount']) : null,
             'balance_after'   => $this->balance_after,
             'recorded_by'     => $this->creator ? trim("{$this->creator->first_name} {$this->creator->last_name}") : null,
             'reversed_at'     => $this->reversed_at?->toIso8601String(),
             'reversed_by'     => $this->reverser ? trim("{$this->reverser->first_name} {$this->reverser->last_name}") : null,
             'reversal_reason' => $this->reversal_reason,
             'actions'         => app(AllowedActions::class)->payment('expenses', $this->isCompleted() ? ['reverse'] : []),
-        ];
+        ], self::VALUES);
     }
 }

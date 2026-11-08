@@ -86,6 +86,12 @@ class WorkspaceAccess
         return $request->user() !== null && $workspace instanceof Workspace ? $this->locationsOf($request->user(), $workspace) : [];
     }
 
+    /** Whether the signed-in user may see $family's values: its records' amounts, prices and totals (Doc 12 section 14). */
+    public function seesValues(string $family): bool
+    {
+        return $this->can("{$family}.values.view");
+    }
+
     /** Whether the signed-in user may use location $id: see and make records there. */
     public function usesLocation(int $id): bool
     {

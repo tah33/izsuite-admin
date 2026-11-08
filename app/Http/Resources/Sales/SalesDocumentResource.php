@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Sales;
 
 use App\Enums\DocumentType;
+use App\Http\Resources\Concerns\HidesValues;
 use App\Models\User\SalesDocument;
 use App\Services\Api\Sales\SalesSnapshots;
 use App\Services\Documents\DocumentLinks;
@@ -23,10 +24,18 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * The customer and business are as they were when it was numbered; a draft
  * shows the customer as they are. Expects lines, contact, location, source,
  * conversions, creditNotes, payments.account, activeLink and emails.sender
- * loaded.
+ * loaded. Its amounts are empty for a user without Sales Values.
  */
 class SalesDocumentResource extends JsonResource
 {
+    use HidesValues;
+
+    /** What a user without Sales Values does not see (Doc 12 section 14). */
+    private const VALUES = [
+        'discount_value', 'subtotal', 'discount_total', 'tax_total', 'grand_total', 'net_total', 'base_grand_total', 'taxes' => [],
+        'amount_paid', 'withholding_amount', 'credited_amount', 'applied_amount', 'refunded_amount', 'balance_due', 'refundable',
+    ];
+
     public function __construct($resource, private string $today)
     {
         parent::__construct($resource);
@@ -36,7 +45,7 @@ class SalesDocumentResource extends JsonResource
     {
         $rules = app(SalesDocumentRules::class);
 
-        return [
+        return $this->hideValues('sales', [
             'id'                   => $this->id,
             'type'                 => $this->type->value,
             'number'               => $this->number,
@@ -84,19 +93,19 @@ class SalesDocumentResource extends JsonResource
             'reason'               => $this->reason,
             'source'               => $this->source ? $this->link($this->source) : null,
             'conversions'          => $this->conversions->map(fn (SalesDocument $document) => $this->link($document))->all(),
-            'credit_notes'         => $this->creditNotes->map(fn (SalesDocument $note) => [
+            'credit_notes'         => $this->creditNotes->map(fn (SalesDocument $note) => $this->hideValues('sales', [
                 ...$this->link($note),
                 'document_date'  => $note->document_date,
                 'grand_total'    => $note->grand_total,
                 'balance_due'    => $note->balance_due,
                 'payment_status' => $note->payment_status,
-            ])->all(),
+            ], ['grand_total', 'balance_due']))->all(),
             'payments'             => SalesPaymentListResource::collection($this->payments),
             'issued_at'            => $this->issued_at?->toIso8601String(),
             'delivery'             => app(AllowedActions::class)->delivery($this->type, $rules->delivery($this->resource, $this->today)),
             'link'                 => $this->activeLink ? new DocumentLinkResource(['link' => $this->activeLink, 'url' => app(DocumentLinks::class)->url($this->activeLink)]) : null,
             'emails'               => DocumentEmailResource::collection($this->emails),
-        ];
+        ], self::VALUES);
     }
 
     /** Another document it is linked with, as the page links to it. */

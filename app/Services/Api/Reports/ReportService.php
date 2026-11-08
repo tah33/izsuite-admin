@@ -167,6 +167,9 @@ class ReportService
 
             // One side at a time: as asked, else the contact's own - a contact who is both, as a customer.
             $filters['side'] = $input['side'] ?? ($filters['contact']->isCustomer() ? 'customer' : 'supplier');
+
+            // A side shows its apps' records and values (Doc 12 section 14).
+            abort_unless($this->reportCatalog->showsSide($workspace, $filters['side']), 403, WorkspaceAccess::REFUSED);
         }
 
         if ($filters['item_id']) {

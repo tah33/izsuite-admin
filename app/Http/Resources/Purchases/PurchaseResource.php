@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Purchases;
 
+use App\Http\Resources\Concerns\HidesValues;
 use App\Services\Api\Sales\SalesSnapshots;
 use App\Services\Purchases\PurchaseRules;
 use App\Services\Shared\AllowedActions;
@@ -20,6 +21,11 @@ use Illuminate\Support\Arr;
  */
 class PurchaseResource extends JsonResource
 {
+    use HidesValues;
+
+    /** What a user without Purchase Values does not see (Doc 12 section 14). */
+    private const VALUES = ['discount_value', 'subtotal', 'discount_total', 'net_total', 'grand_total', 'base_grand_total', 'taxes' => [], 'amount_paid', 'withholding_amount', 'balance_due'];
+
     public function __construct($resource, private string $today)
     {
         parent::__construct($resource);
@@ -30,7 +36,7 @@ class PurchaseResource extends JsonResource
         $rules    = app(PurchaseRules::class);
         $supplier = $this->supplier_snapshot ?? ($this->contact ? app(SalesSnapshots::class)->customer($this->contact) : null);
 
-        return [
+        return $this->hideValues('purchases', [
             'id'                      => $this->id,
             'number'                  => $this->number,
             'status'                  => $this->status->value,
@@ -67,6 +73,6 @@ class PurchaseResource extends JsonResource
             'status_reason'           => $this->status_reason,
             'duplicate_reason'        => $this->duplicate_reason,
             'payments'                => SupplierPaymentListResource::collection($this->whenLoaded('payments')),
-        ];
+        ], self::VALUES);
     }
 }

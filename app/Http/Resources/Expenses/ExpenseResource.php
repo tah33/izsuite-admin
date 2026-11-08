@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Expenses;
 
+use App\Http\Resources\Concerns\HidesValues;
 use App\Services\Api\Sales\SalesSnapshots;
 use App\Services\Expenses\ExpenseRules;
 use App\Services\Shared\AllowedActions;
@@ -23,6 +24,11 @@ use Illuminate\Support\Arr;
  */
 class ExpenseResource extends JsonResource
 {
+    use HidesValues;
+
+    /** What a user without Expense Values does not see (Doc 12 section 14). */
+    private const VALUES = ['subtotal', 'net_total', 'grand_total', 'base_grand_total', 'taxes' => [], 'amount_paid', 'withholding_amount', 'balance_due'];
+
     public function __construct($resource, private string $today)
     {
         parent::__construct($resource);
@@ -34,7 +40,7 @@ class ExpenseResource extends JsonResource
         $payee = $this->payee_snapshot
             ?? ($this->contact ? app(SalesSnapshots::class)->customer($this->contact) : ($this->payee_name ? ['name' => $this->payee_name] : null));
 
-        return [
+        return $this->hideValues('expenses', [
             'id'                 => $this->id,
             'number'             => $this->number,
             'status'             => $this->status->value,
@@ -68,6 +74,6 @@ class ExpenseResource extends JsonResource
             'status_reason'      => $this->status_reason,
             'duplicate_reason'   => $this->duplicate_reason,
             'payments'           => ExpensePaymentListResource::collection($this->whenLoaded('payments')),
-        ];
+        ], self::VALUES);
     }
 }

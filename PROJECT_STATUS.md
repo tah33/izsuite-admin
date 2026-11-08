@@ -2,10 +2,10 @@
 
 What is done, what comes next, and how to carry on from another PC.
 
-- **Last updated:** 2026-11-04
-- **Code:** admin `58945f6` on `main`, frontend `b6d733b` on `nuxt`. Both pushed.
-- **Tests:** 608 backend tests pass (last full run 2026-11-02, on this code).
-- **Next step:** Doc 12 Phase D.
+- **Last updated:** 2026-11-08
+- **Code:** Doc 12 Phase D1 is pushed: frontend `5e62e3a` on `nuxt`, and on `main` the admin commit right after `1276feb`.
+- **Tests:** 612 backend tests pass (last full run 2026-11-08, on this code).
+- **Next step:** Doc 12 Phase D2.
 
 Update this file at the end of every phase and commit it with that phase.
 
@@ -14,7 +14,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 12 Phase D.
+   > Read PROJECT_STATUS.md, then start Doc 12 Phase D2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -36,7 +36,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 09 | Purchases Lite | Done |
 | 10 | Expenses Lite | Done |
 | 11 | Business Setup and Settings | Done, except notification preferences (waits for Doc 14) |
-| **12** | **Users, Roles, Permissions and Locations** | **In progress: A, B, C1, C2 done. D, E left** |
+| **12** | **Users, Roles, Permissions and Locations** | **In progress: A, B, C1, C2, D1 done. D2, E left** |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Not started as a doc, parts exist |
 | 14 | Shared Platform Services | Not started as a doc, parts exist |
 | 15 | izSuite System Administration Portal | Not started as a doc, parts exist |
@@ -47,30 +47,27 @@ Stock, full Sales, OCR and full Accounting features are left out of the Lite app
 
 ## What is next
 
-### 1. Doc 12 Phase D: sensitive values (next)
+### 1. Doc 12 Phase D2: costs, balances, account details, tax (next)
 
-Doc 12 section 14: users without the permission see masked or hidden values.
+Doc 12 section 14: users without the permission see masked or hidden values. Phase D was split in two. D1 (sales, purchase and expense values) is done; see [Decisions worth knowing](#decisions-worth-knowing).
 
 **To build.** These permissions do not exist yet:
 
-- View Sales Values
-- View Purchase Values
-- View Expense Values
 - View Item Purchase Prices or Costs
 - View Payment Account Balances
 - View Full Account Details
 - View Tax Information
 
-**Already built:** Record and Reverse Payments, Transfer Money, Create Credit Notes, Record Refunds, Manage Currency and Tax Settings, Manage Document Numbering. "Export Financial Data" is covered today by each area's own Export permission.
-
 **Suggested defaults. These are not agreed yet, so confirm or change them when starting:**
 
-- Add the seven to `app/Support/Permissions.php`. The role editor draws them by itself.
-- Hide values on the API (Resources and report tables), not only on the page. A hidden value comes back as `null` and the page shows a dash. This covers lists, records, the Documents page, Dashboard, Reports and their exports, PDFs, item profiles, contact statements and account pages.
-- A role that may create or edit a record also needs that record's values (`REQUIRES` in `Permissions.php`).
-- Existing roles keep what they see today: a migration gives each one the values it can already see. Each template gets the values of its own area. Back up the dev database first.
+- Add the four to `app/Support/Permissions.php` and hide on the API, the way D1 did (`HidesValues`). For example, `items.costs`, `payment_accounts.balances`, `payment_accounts.details` and `taxes.view`.
+- **Item costs:** purchase price on item lists, profiles, the item search for purchases, and the item export and import. Creating or editing items needs them.
+- **Balances:** on the Payment Accounts list and page, the Dashboard, account history (running balance) and the Payment Account Transactions report. Creating or editing an account, and transfers, need them.
+- **Full account details:** account numbers, IBAN, SWIFT and merchant numbers masked as `••••1234`. Customer PDFs keep printing the business's own payment details.
+- **Tax information:** the Tax Summary and Tax Details reports, and contact tax numbers, treatments and exemption numbers, including the contact export. Tax amounts on documents already follow D1's values.
+- Existing roles keep what they see today, through a migration like 000106. Back up the dev database first.
 
-**Start reading at:** `app/Support/Permissions.php`, `app/Services/Shared/AllowedActions.php`, `tests/Feature/RoleScreensTest.php`.
+**Start reading at:** `app/Support/Permissions.php`, `app/Http/Resources/Concerns/HidesValues.php`, `tests/Feature/ValueAccessTest.php`.
 
 ### 2. Doc 12 Phase E: personal settings and security
 
@@ -234,6 +231,7 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 12: Phase B, users and invitations | `c1c5dc6` | `85047a2` | 000105 |
 | Doc 12: Phase C1, the role in the screens | `4295998` | `c1c5f81` | |
 | Doc 12: Phase C2, location access | `58945f6` | `b6d733b` | |
+| Doc 12: Phase D1, sales, purchase and expense values | the commit after `1276feb` | `5e62e3a` | 000106 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -287,6 +285,9 @@ These are easy to undo by mistake.
 - A record route is refused at the wrong location by `RouteRecords` and `LocationAccess`, including its PDF, email, link and attachments. Lists take `location_ids` in their filters.
 - A record with no location is only for users of every location.
 - GET `/locations` returns only the user's own, so pickers and filters follow by themselves.
+- Each app's values have their own View: `sales.values.view`, `purchases.values.view`, `expenses.values.view`. Without it, the app's records still show, but their amounts come back as `null` (`HidesValues` in the Resources), and the screens show "—" or "Amounts are hidden for your role."
+- Anything more than viewing a record needs its values: creating, editing, sending, paying, exporting (`VALUED` in `Permissions.php`). A PDF needs them too.
+- A report that draws on several apps opens only if the role sees all of them, values included, so no report is ever half shown. The Documents page search matches amounts only for apps whose values the user may see.
 
 ## Small things left
 

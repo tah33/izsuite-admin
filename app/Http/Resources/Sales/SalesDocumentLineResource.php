@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Sales;
 
+use App\Http\Resources\Concerns\HidesValues;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -13,9 +14,14 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class SalesDocumentLineResource extends JsonResource
 {
+    use HidesValues;
+
+    /** What a user without Sales Values does not see (Doc 12 section 14). */
+    public const VALUES = ['unit_price', 'discount_value', 'discount_amount', 'amount', 'tax_amount'];
+
     public function toArray(Request $request): array
     {
-        return [
+        return $this->hideValues('sales', [
             'id'              => $this->id,
             'source_line_id'  => $this->source_line_id,
             'item_id'         => $this->item_id,
@@ -35,6 +41,6 @@ class SalesDocumentLineResource extends JsonResource
             'tax_amount'      => $this->tax_amount,
             'components'      => $this->components,
             'warranty'        => $this->warranty,
-        ];
+        ], self::VALUES);
     }
 }

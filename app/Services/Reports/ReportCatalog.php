@@ -33,7 +33,7 @@ use App\Services\User\Apps\WorkspaceApps;
  * Purchases or Expenses has; Contact Statement while any of the three has;
  * Tax Summary and Tax Details while taxes are on or tax history exists (Doc
  * 07 section 16); Payment Account Transactions always. Each only for a role
- * that may see what it shows (VIEWS); another is not found.
+ * that may see what it shows, values included (VIEWS); another is not found.
  */
 class ReportCatalog
 {
@@ -74,17 +74,17 @@ class ReportCatalog
     ];
 
     /**
-     * What a role needs to open a report besides Reports' View (Doc 12
-     * section 21), by what the report shows - any one of them.
+     * What seeing a part of a report takes besides Reports' View (Doc 12
+     * sections 14 and 21): its records' View and their app's values. A report
+     * that draws on several apps needs every part it has records for, so none
+     * shows half.
      */
-    private const VIEWS = [
-        'sales'     => ['sales.invoices.view'],
-        'purchases' => ['purchases.purchases.view'],
-        'expenses'  => ['expenses.expenses.view'],
-        'payables'  => ['purchases.payments.view', 'expenses.payments.view'],
-        'contacts'  => ['contacts.view'],
-        'taxes'     => ['sales.invoices.view', 'purchases.purchases.view', 'expenses.expenses.view'],
-        'accounts'  => ['payment_accounts.view'],
+    private const PARTS = [
+        'sales'             => ['sales.invoices.view', 'sales.values.view'],
+        'purchases'         => ['purchases.purchases.view', 'purchases.values.view'],
+        'expenses'          => ['expenses.expenses.view', 'expenses.values.view'],
+        'supplier_payments' => ['purchases.payments.view', 'purchases.values.view'],
+        'expense_payments'  => ['expenses.payments.view', 'expenses.values.view'],
     ];
 
     public function __construct(
@@ -118,7 +118,7 @@ class ReportCatalog
         $entries = [];
 
         foreach (self::REPORTS as $key => [$name, $category, , $filters, $description, $needs]) {
-            if ((! $needs || $has[$needs]) && $this->access->can(self::VIEWS[$needs ?? 'accounts'])) {
+            if ((! $needs || $has[$needs]) && $this->opens($needs ?? 'accounts', $sales, $purchases, $expenses)) {
                 $entries[] = ['key' => $key, 'name' => $name, 'category' => self::CATEGORIES[$category], 'description' => $description, 'filters' => $filters, 'link' => null];
             }
         }
@@ -135,5 +135,39 @@ class ReportCatalog
         abort_unless($entry && ! $entry['link'], 404, 'There is no such report, or its app is not on.');
 
         return [...$entry, 'class' => self::REPORTS[$key][2]];
+    }
+
+    /**
+     * Whether the signed-in user may see a statement's $side whole (PARTS): a
+     * customer's sales, a supplier's purchases and expenses - those the
+     * business has records of.
+     */
+    public function showsSide(Workspace $workspace, string $side): bool
+    {
+        $apps = WorkspaceApps::for($workspace);
+
+        return $side === 'customer'
+            ? $this->sees(['sales' => true])
+            : $this->sees(['purchases' => $apps->hasHistory('purchases'), 'expenses' => $apps->hasHistory('expenses')]);
+    }
+
+    /** Whether the signed-in user may open a report that shows $needs, the business having the apps' records it says (PARTS). */
+    private function opens(string $needs, bool $sales, bool $purchases, bool $expenses): bool
+    {
+        return match ($needs) {
+            'sales', 'purchases', 'expenses' => $this->sees([$needs => true]),
+            'payables' => $this->sees(['supplier_payments' => $purchases, 'expense_payments' => $expenses]),
+            'taxes'    => $this->sees(['sales' => $sales, 'purchases' => $purchases, 'expenses' => $expenses]),
+            // A statement for either side: a customer's, or a supplier's.
+            'contacts' => $this->access->can('contacts.view')
+                && ($sales && $this->sees(['sales' => true]) || ($purchases || $expenses) && $this->sees(['purchases' => $purchases, 'expenses' => $expenses])),
+            default    => $this->access->can('payment_accounts.view'),
+        };
+    }
+
+    /** @param  array<string, bool>  $parts  each part, and whether it counts */
+    private function sees(array $parts): bool
+    {
+        return collect($parts)->filter()->keys()->every(fn (string $part) => collect(self::PARTS[$part])->every(fn (string $permission) => $this->access->can($permission)));
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Expenses;
 
+use App\Http\Resources\Concerns\HidesValues;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -14,9 +15,14 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class ExpensePaymentListResource extends JsonResource
 {
+    use HidesValues;
+
+    /** What a user without Expense Values does not see (Doc 12 section 14). */
+    private const VALUES = ['amount', 'applied_amount', 'withholding_amount'];
+
     public function toArray(Request $request): array
     {
-        return [
+        return $this->hideValues('expenses', [
             'id'                 => $this->id,
             'number'             => $this->number,
             'status'             => $this->status,
@@ -29,6 +35,6 @@ class ExpensePaymentListResource extends JsonResource
             'amount'             => $this->amount,
             'applied_amount'     => $this->applied_amount,
             'withholding_amount' => $this->withholding_amount,
-        ];
+        ], self::VALUES);
     }
 }

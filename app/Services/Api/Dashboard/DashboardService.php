@@ -37,10 +37,10 @@ use Illuminate\Support\Collection;
  * Totals are in the base currency; what is owed, and balances, as they
  * stood at the end of the range - or today, if it ends later.
  *
- * Each part only for a role that may see it (Doc 12 section 21): an app's
- * cards and series with its records' View, each kind of transaction with its
- * own, the balances with Payment Accounts' - null otherwise, as for an app
- * that is off.
+ * Each part only for a role that may see it (Doc 12 sections 14 and 21): an
+ * app's cards and series with its records' View and its Values, each kind of
+ * transaction with its own View - its amount with its app's Values - the
+ * balances with Payment Accounts' - null otherwise, as for an app that is off.
  */
 class DashboardService
 {
@@ -75,7 +75,7 @@ class DashboardService
         $filters = ['from' => $from, 'to' => $to, 'location_id' => $input['location_id'] ?? null, 'location_ids' => $this->access->locations(), 'week_start' => $workspace->weekStartDay(), 'date_format' => $workspace->date_format];
         $apps    = WorkspaceApps::for($workspace);
         $sources = array_filter(['sales' => $apps->row('sales')?->app?->name, 'purchases' => $apps->row('purchases')?->app?->name, 'expenses' => $apps->row('expenses')?->app?->name]);
-        $on      = fn (string $family) => $apps->has($family) && isset($sources[$family]) && $this->access->can(self::VIEWS[$family]);
+        $on      = fn (string $family) => $apps->has($family) && isset($sources[$family]) && $this->access->can(self::VIEWS[$family]) && $this->access->seesValues($family);
 
         return [
             'from'      => $from,
@@ -215,7 +215,7 @@ class DashboardService
             'type'     => $document->type->label(),
             'number'   => $document->number,
             'contact'  => $this->salesFigures->customerName($document),
-            'amount'   => (string) $document->grand_total,
+            'amount'   => $this->shown('sales', (string) $document->grand_total),
             'currency' => $document->currency,
             'status'   => $this->salesDocumentRules->status($document, $today),
             'source'   => $source,
@@ -228,7 +228,7 @@ class DashboardService
             'type'     => $payment->kind === SalesPayment::REFUND ? 'Customer Refund' : 'Customer Payment',
             'number'   => $payment->number,
             'contact'  => $payment->contact?->name,
-            'amount'   => (string) $payment->amount,
+            'amount'   => $this->shown('sales', (string) $payment->amount),
             'currency' => $payment->account?->currency,
             'status'   => $payment->status,
             'source'   => $source,
@@ -246,7 +246,7 @@ class DashboardService
             'type'     => 'Purchase',
             'number'   => $purchase->number,
             'contact'  => $purchase->supplier_snapshot['name'] ?? $purchase->contact?->name,
-            'amount'   => (string) $purchase->grand_total,
+            'amount'   => $this->shown('purchases', (string) $purchase->grand_total),
             'currency' => $purchase->currency,
             'status'   => $purchase->status->value,
             'source'   => $source,
@@ -259,7 +259,7 @@ class DashboardService
             'type'     => 'Supplier Payment',
             'number'   => $payment->number,
             'contact'  => $payment->contact?->name,
-            'amount'   => (string) $payment->amount,
+            'amount'   => $this->shown('purchases', (string) $payment->amount),
             'currency' => $payment->account?->currency,
             'status'   => $payment->status,
             'source'   => $source,
@@ -277,7 +277,7 @@ class DashboardService
             'type'     => 'Expense',
             'number'   => $expense->number,
             'contact'  => $expense->payeeName(),
-            'amount'   => (string) $expense->grand_total,
+            'amount'   => $this->shown('expenses', (string) $expense->grand_total),
             'currency' => $expense->currency,
             'status'   => $expense->status->value,
             'source'   => $source,
@@ -290,7 +290,7 @@ class DashboardService
             'type'     => 'Expense Payment',
             'number'   => $payment->number,
             'contact'  => $payment->expense?->payeeName(),
-            'amount'   => (string) $payment->amount,
+            'amount'   => $this->shown('expenses', (string) $payment->amount),
             'currency' => $payment->account?->currency,
             'status'   => $payment->status,
             'source'   => $source,
@@ -299,6 +299,12 @@ class DashboardService
         ]);
 
         return $expenses->concat($payments)->all();
+    }
+
+    /** $amount, while the role may see $family's values (Doc 12 section 14) - null otherwise. */
+    private function shown(string $family, string $amount): ?string
+    {
+        return $this->access->seesValues($family) ? $amount : null;
     }
 
     /** What $query finds, while the role holds $permission (Doc 12) - nothing otherwise. */

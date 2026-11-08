@@ -4,6 +4,7 @@ namespace App\Http\Resources\Documents;
 
 use App\Enums\ExpenseStatus;
 use App\Enums\PurchaseStatus;
+use App\Http\Resources\Concerns\HidesValues;
 use App\Models\User\Expense;
 use App\Models\User\Purchase;
 use App\Services\Expenses\ExpenseRules;
@@ -22,10 +23,16 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * `delivery` are what its source record allows now (section 9) - the page
  * opens that record to do them. A purchase or an expense is sent nowhere;
  * an expense's contact is its payee. Expects contact, location and - for a
- * credit note - source loaded.
+ * credit note - source loaded. Its total and balance are empty for a user
+ * without its app's Values.
  */
 class DocumentIndexResource extends JsonResource
 {
+    use HidesValues;
+
+    /** What a user without the app's Values does not see (Doc 12 section 14). */
+    private const VALUES = ['grand_total', 'balance_due'];
+
     /** @param  array<string, string>  $sources  the app each family comes from */
     public function __construct($resource, private string $today, private array $sources)
     {
@@ -44,7 +51,7 @@ class DocumentIndexResource extends JsonResource
 
         $rules = app(SalesDocumentRules::class);
 
-        return [
+        return $this->hideValues('sales', [
             'id'             => $this->id,
             'kind'           => $this->type->kind(),
             'number'         => $this->number,
@@ -61,14 +68,14 @@ class DocumentIndexResource extends JsonResource
             'location'       => $this->location?->name,
             'actions'        => app(AllowedActions::class)->sales($this->type, $rules->actions($this->resource, $this->today)),
             'delivery'       => app(AllowedActions::class)->delivery($this->type, $rules->delivery($this->resource, $this->today)),
-        ];
+        ], self::VALUES);
     }
 
     private function purchase(): array
     {
         $rules = app(PurchaseRules::class);
 
-        return [
+        return $this->hideValues('purchases', [
             'id'             => $this->id,
             'kind'           => 'purchases',
             'number'         => $this->number,
@@ -85,14 +92,14 @@ class DocumentIndexResource extends JsonResource
             'location'       => $this->location?->name,
             'actions'        => app(AllowedActions::class)->record('purchases.purchases', $rules->actions($this->resource)),
             'delivery'       => [],
-        ];
+        ], self::VALUES);
     }
 
     private function expense(): array
     {
         $rules = app(ExpenseRules::class);
 
-        return [
+        return $this->hideValues('expenses', [
             'id'             => $this->id,
             'kind'           => 'expenses',
             'number'         => $this->number,
@@ -109,6 +116,6 @@ class DocumentIndexResource extends JsonResource
             'location'       => $this->location?->name,
             'actions'        => app(AllowedActions::class)->record('expenses.expenses', $rules->actions($this->resource)),
             'delivery'       => [],
-        ];
+        ], self::VALUES);
     }
 }

@@ -143,7 +143,7 @@ class DocumentIndexRepository
     {
         return SalesDocument::query()
             ->where('workspace_id', $workspace->id)
-            ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $this->search($query, $search, ['customer_reference', 'sales_reference']))
+            ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $this->search($query, $search, ['customer_reference', 'sales_reference'], amounts: $filters['values']['sales'] ?? false))
             ->when($filters['type'] ?? null, fn (Builder $query, string $type) => $query->where('type', $type))
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $this->whereStatus($query, $status, $today))
             ->when($filters['payment_status'] ?? null, fn (Builder $query, string $status) => $query->where('payment_status', $status))
@@ -159,7 +159,7 @@ class DocumentIndexRepository
     {
         return Purchase::query()
             ->where('workspace_id', $workspace->id)
-            ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $this->search($query, $search, ['reference', 'supplier_invoice_number']))
+            ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $this->search($query, $search, ['reference', 'supplier_invoice_number'], amounts: $filters['values']['purchases'] ?? false))
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
             ->when($filters['payment_status'] ?? null, fn (Builder $query, string $status) => $query->where('payment_status', $status))
             ->when(filter_var($filters['overdue'] ?? false, FILTER_VALIDATE_BOOLEAN), fn (Builder $query) => $query
@@ -173,7 +173,7 @@ class DocumentIndexRepository
     {
         return Expense::query()
             ->where('workspace_id', $workspace->id)
-            ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $this->search($query, $search, ['reference', 'receipt_number', 'payee_name'], ['category_name', 'description']))
+            ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $this->search($query, $search, ['reference', 'receipt_number', 'payee_name'], ['category_name', 'description'], amounts: $filters['values']['expenses'] ?? false))
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
             ->when($filters['payment_status'] ?? null, fn (Builder $query, string $status) => $query->where('payment_status', $status))
             ->when(filter_var($filters['overdue'] ?? false, FILTER_VALIDATE_BOOLEAN), fn (Builder $query) => $query
@@ -199,13 +199,13 @@ class DocumentIndexRepository
      * By number, the columns in $references - its references, a payee's name
      * typed in - the contact's name, a line's $lineColumns - its item, or an
      * expense line's category and description - or the total, typed as a
-     * number.
+     * number, while the user may see the app's values ($amounts).
      */
-    private function search(Builder $query, string $search, array $references, array $lineColumns = ['name']): Builder
+    private function search(Builder $query, string $search, array $references, array $lineColumns = ['name'], bool $amounts = false): Builder
     {
         $amount = str_replace(',', '', $search);
 
-        return $query->where(function (Builder $query) use ($search, $references, $lineColumns, $amount) {
+        return $query->where(function (Builder $query) use ($search, $references, $lineColumns, $amount, $amounts) {
             $query->where('number', 'like', "%{$search}%");
 
             foreach ($references as $column) {
@@ -218,7 +218,7 @@ class DocumentIndexRepository
                         $query->orWhere($column, 'like', "%{$search}%");
                     }
                 }))
-                ->when(is_numeric($amount), fn (Builder $query) => $query->orWhere('grand_total', $amount));
+                ->when($amounts && is_numeric($amount), fn (Builder $query) => $query->orWhere('grand_total', $amount));
         });
     }
 

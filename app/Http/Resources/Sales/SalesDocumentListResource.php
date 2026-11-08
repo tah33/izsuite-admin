@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Sales;
 
 use App\Enums\DocumentType;
+use App\Http\Resources\Concerns\HidesValues;
 use App\Services\Sales\SalesDocumentRules;
 use App\Services\Shared\AllowedActions;
 use Illuminate\Http\Request;
@@ -19,6 +20,11 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class SalesDocumentListResource extends JsonResource
 {
+    use HidesValues;
+
+    /** What a user without Sales Values does not see (Doc 12 section 14). */
+    private const VALUES = ['grand_total', 'amount_paid', 'balance_due'];
+
     public function __construct($resource, private string $today)
     {
         parent::__construct($resource);
@@ -28,7 +34,7 @@ class SalesDocumentListResource extends JsonResource
     {
         $rules = app(SalesDocumentRules::class);
 
-        return [
+        return $this->hideValues('sales', [
             'id'             => $this->id,
             'number'         => $this->number,
             'revision'       => $this->revision,
@@ -47,6 +53,6 @@ class SalesDocumentListResource extends JsonResource
             'invoice'        => $this->when($this->type === DocumentType::CreditNote, fn () => ['id' => $this->source_id, 'number' => $this->source?->number]),
             'actions'        => app(AllowedActions::class)->sales($this->type, $rules->actions($this->resource, $this->today)),
             'delivery'       => app(AllowedActions::class)->delivery($this->type, $rules->delivery($this->resource, $this->today)),
-        ];
+        ], self::VALUES);
     }
 }

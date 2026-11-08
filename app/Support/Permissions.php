@@ -15,6 +15,11 @@ namespace App\Support;
  * need Edit Draft, a draft needs the contacts and items it is made from, and
  * a payment the record it pays and the payment accounts.
  *
+ * An app's values - amounts, prices, totals - have a View of their own
+ * (section 14): a role without it sees the app's records with their values
+ * hidden. Anything more than viewing such a record - making, changing,
+ * sending, paying, exporting - needs its values in sight.
+ *
  * ALL stands for every permission there is, apps turned on later included:
  * what the Business Owner and a role with full access hold.
  */
@@ -58,18 +63,28 @@ final class Permissions
         'sales.payments'     => ['Customer Payments', 'sales', self::PAYMENTS],
         'sales.credit_notes' => ['Credit Notes', 'sales', [...self::DRAFTS, 'issue' => 'Issue', 'send' => 'Send or Share', 'void' => 'Void', 'delete' => 'Delete Draft']],
         'sales.refunds'      => ['Refunds', 'sales', ['record' => 'Record Refund']],
+        'sales.values'       => ['Sales Values', 'sales', ['view' => 'View Sales Values']],
         'sales.settings'     => ['Sales Settings', 'sales', self::APP_SETTINGS],
 
         'purchases.purchases'   => ['Purchases', 'purchases', [...self::DRAFTS, 'record' => 'Record', 'void' => 'Void', 'delete' => 'Delete Draft', 'export' => 'Export']],
         'purchases.payments'    => ['Supplier Payments', 'purchases', self::PAYMENTS],
         'purchases.attachments' => ['Purchase Attachments', 'purchases', self::ATTACHMENTS],
+        'purchases.values'      => ['Purchase Values', 'purchases', ['view' => 'View Purchase Values']],
         'purchases.settings'    => ['Purchase Settings', 'purchases', self::APP_SETTINGS],
 
         'expenses.expenses'    => ['Expenses', 'expenses', [...self::DRAFTS, 'record' => 'Record', 'void' => 'Void', 'delete' => 'Delete Draft', 'export' => 'Export']],
         'expenses.categories'  => ['Expense Categories', 'expenses', ['view' => self::VIEW, 'manage' => 'Add or Change']],
         'expenses.payments'    => ['Expense Payments', 'expenses', self::PAYMENTS],
         'expenses.attachments' => ['Receipt Attachments', 'expenses', self::ATTACHMENTS],
+        'expenses.values'      => ['Expense Values', 'expenses', ['view' => 'View Expense Values']],
         'expenses.settings'    => ['Expense Settings', 'expenses', self::APP_SETTINGS],
+    ];
+
+    /** The groups whose records carry their app's values: anything but viewing one needs them. */
+    private const VALUED = [
+        'sales.quotations', 'sales.proformas', 'sales.invoices', 'sales.payments', 'sales.credit_notes', 'sales.refunds',
+        'purchases.purchases', 'purchases.payments',
+        'expenses.expenses', 'expenses.payments',
     ];
 
     /** What a permission needs besides its group's View (and Edit Draft, for Issue and Record). */
@@ -287,6 +302,10 @@ final class Permissions
 
         if (in_array($action, ['issue', 'record'], true) && isset($actions['edit'])) {
             $needs[] = "{$group}.edit";
+        }
+
+        if ($action !== 'view' && in_array($group, self::VALUED, true)) {
+            $needs[] = self::GROUPS[$group][1].'.values.view';
         }
 
         return $needs;
