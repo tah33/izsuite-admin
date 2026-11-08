@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-08
-- **Code:** Doc 12 Phase D1 is pushed: frontend `5e62e3a` on `nuxt`, and on `main` the admin commit right after `1276feb`.
-- **Tests:** 612 backend tests pass (last full run 2026-11-08, on this code).
-- **Next step:** Doc 12 Phase D2.
+- **Code:** Doc 12 Phase D2 is committed: frontend `7039f47` on `nuxt`, and on `main` the admin commit right after `8135b5b`.
+- **Tests:** 617 backend tests pass (last full run 2026-11-08, on this code).
+- **Next step:** Doc 12 Phase E.
 
 Update this file at the end of every phase and commit it with that phase.
 
@@ -14,7 +14,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 12 Phase D2.
+   > Read PROJECT_STATUS.md, then start Doc 12 Phase E.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -36,7 +36,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 09 | Purchases Lite | Done |
 | 10 | Expenses Lite | Done |
 | 11 | Business Setup and Settings | Done, except notification preferences (waits for Doc 14) |
-| **12** | **Users, Roles, Permissions and Locations** | **In progress: A, B, C1, C2, D1 done. D2, E left** |
+| **12** | **Users, Roles, Permissions and Locations** | **In progress: A, B, C1, C2, D1, D2 done. E left** |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Not started as a doc, parts exist |
 | 14 | Shared Platform Services | Not started as a doc, parts exist |
 | 15 | izSuite System Administration Portal | Not started as a doc, parts exist |
@@ -47,29 +47,7 @@ Stock, full Sales, OCR and full Accounting features are left out of the Lite app
 
 ## What is next
 
-### 1. Doc 12 Phase D2: costs, balances, account details, tax (next)
-
-Doc 12 section 14: users without the permission see masked or hidden values. Phase D was split in two. D1 (sales, purchase and expense values) is done; see [Decisions worth knowing](#decisions-worth-knowing).
-
-**To build.** These permissions do not exist yet:
-
-- View Item Purchase Prices or Costs
-- View Payment Account Balances
-- View Full Account Details
-- View Tax Information
-
-**Suggested defaults. These are not agreed yet, so confirm or change them when starting:**
-
-- Add the four to `app/Support/Permissions.php` and hide on the API, the way D1 did (`HidesValues`). For example, `items.costs`, `payment_accounts.balances`, `payment_accounts.details` and `taxes.view`.
-- **Item costs:** purchase price on item lists, profiles, the item search for purchases, and the item export and import. Creating or editing items needs them.
-- **Balances:** on the Payment Accounts list and page, the Dashboard, account history (running balance) and the Payment Account Transactions report. Creating or editing an account, and transfers, need them.
-- **Full account details:** account numbers, IBAN, SWIFT and merchant numbers masked as `••••1234`. Customer PDFs keep printing the business's own payment details.
-- **Tax information:** the Tax Summary and Tax Details reports, and contact tax numbers, treatments and exemption numbers, including the contact export. Tax amounts on documents already follow D1's values.
-- Existing roles keep what they see today, through a migration like 000106. Back up the dev database first.
-
-**Start reading at:** `app/Support/Permissions.php`, `app/Http/Resources/Concerns/HidesValues.php`, `tests/Feature/ValueAccessTest.php`.
-
-### 2. Doc 12 Phase E: personal settings and security
+### 1. Doc 12 Phase E: personal settings and security (next)
 
 Doc 12 sections 22 and 23.
 
@@ -79,7 +57,7 @@ Doc 12 sections 22 and 23.
 
 Doc 12 is finished after this.
 
-### 3. Doc 13: Apps Center, Packages, Subscriptions and Billing
+### 2. Doc 13: Apps Center, Packages, Subscriptions and Billing
 
 Start with a gap check (see [How we work](#how-we-work)). Known today:
 
@@ -88,14 +66,14 @@ Start with a gap check (see [How we work](#how-we-work)). Known today:
 - **Careful:** the old `plans`, `subscriptions`, `invoices` and `payment_methods` tables and admin screens come from an earlier product. They work per user account, not per business, and do not fit Doc 13. The public Pricing and Explore Apps pages are hard-coded.
 - **Needs your decisions before billing:** payment provider(s), billing currencies, prices, trial and grace lengths.
 
-### 4. Doc 14 and Doc 15
+### 3. Doc 14 and Doc 15
 
 Both start with a gap check, since much was built along the way.
 
 - **Doc 14:** calculation, numbering, currency, tax, payment allocation and PDF and email delivery came with Sales Lite. The notification service does not exist yet, and notification preferences in Docs 11 and 12 wait for it.
 - **Doc 15:** the admin panel exists (Clients with Login as, Menu Builder, Packages, apps), but was never checked against this doc.
 
-### 5. The full apps
+### 4. The full apps
 
 After Doc 15, choose which app comes first. Docs 16 to 21 are written. Docs 22 and up must be written before they can be built.
 
@@ -231,7 +209,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 12: Phase B, users and invitations | `c1c5dc6` | `85047a2` | 000105 |
 | Doc 12: Phase C1, the role in the screens | `4295998` | `c1c5f81` | |
 | Doc 12: Phase C2, location access | `58945f6` | `b6d733b` | |
-| Doc 12: Phase D1, sales, purchase and expense values | the commit after `1276feb` | `5e62e3a` | 000106 |
+| Doc 12: Phase D1, sales, purchase and expense values | `8135b5b` | `5e62e3a` | 000106 |
+| Doc 12: Phase D2, costs, balances, account details, tax | the commit after `8135b5b` | `7039f47` | 000107 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -288,6 +267,11 @@ These are easy to undo by mistake.
 - Each app's values have their own View: `sales.values.view`, `purchases.values.view`, `expenses.values.view`. Without it, the app's records still show, but their amounts come back as `null` (`HidesValues` in the Resources), and the screens show "—" or "Amounts are hidden for your role."
 - Anything more than viewing a record needs its values: creating, editing, sending, paying, exporting (`VALUED` in `Permissions.php`). A PDF needs them too.
 - A report that draws on several apps opens only if the role sees all of them, values included, so no report is ever half shown. The Documents page search matches amounts only for apps whose values the user may see.
+- Purchase prices, balances, full account details and tax information each have their own permission: `items.costs`, `payment_accounts.balances`, `payment_accounts.details` and `taxes.view`. Without it the API sends `null`, and account, sort and merchant numbers only their last four characters (`hideWithout` and `maskWithout` in `HidesValues`). The screens show "—", and the account page says "Balances are hidden for your role."
+- Changing what holds them needs them. Creating, editing or importing items needs `items.costs`. Creating or editing an account needs balances and details, and transfers and the account export need balances. Creating, editing or importing contacts, and Currency and Tax Settings, need tax information.
+- Tax information covers a contact's tax ID, country, treatment and exemption number, the business's tax registration (Settings > Taxes, and on documents), the tax reports, and the contact export's tax columns. Line taxes follow the app's values. PDFs and emails stay whole, because they are what the customer receives.
+- The Dashboard's accounts card and the Payment Account Transactions report need balances. The Sales User template has no balances; the Finance User holds balances, details and tax information; the Purchase User holds purchase prices.
+- The Activity Log writes down amounts, prices, balances, numbers and tax details as they were. So View Activity Log needs all seven: the three apps' values and the four above.
 
 ## Small things left
 
@@ -307,6 +291,7 @@ Each of these is yours to settle.
 - May an account delete its last business? It is allowed today.
 - Should Workspaces and Users stay at the bottom of the sidebar, or move under Settings? Doc 01 lists only Apps Center and Settings there.
 - Phase B kept the old `user_staff` table. Should it be dropped?
+- Should View Activity Log keep needing every values and details permission (built in D2)? The other way is to mask them in the log, but masking cannot reach amounts written into an entry's text, such as "Recorded payment PAY-0001 of USD 100.00".
 
 ## Deploying to a server
 

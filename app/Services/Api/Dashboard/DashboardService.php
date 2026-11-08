@@ -40,7 +40,8 @@ use Illuminate\Support\Collection;
  * Each part only for a role that may see it (Doc 12 sections 14 and 21): an
  * app's cards and series with its records' View and its Values, each kind of
  * transaction with its own View - its amount with its app's Values - the
- * balances with Payment Accounts' - null otherwise, as for an app that is off.
+ * balances with Payment Accounts' View and View Balances - null otherwise, as
+ * for an app that is off.
  */
 class DashboardService
 {
@@ -88,7 +89,7 @@ class DashboardService
                 ? $this->chart($workspace, $filters, $on('sales'), $on('purchases'), $on('expenses'))
                 : null,
             'recent'    => $this->recent($workspace, $filters['location_id'], $today, array_filter($sources, fn (string $family) => $apps->has($family), ARRAY_FILTER_USE_KEY)),
-            'accounts'  => $this->access->can('payment_accounts.view') ? $this->accounts($workspace, $asOf) : null,
+            'accounts'  => $this->access->can('payment_accounts.view') && $this->access->can('payment_accounts.balances') ? $this->accounts($workspace, $asOf) : null,
         ];
     }
 

@@ -2,11 +2,20 @@
 
 namespace App\Http\Resources\PaymentAccounts;
 
+use App\Http\Resources\Concerns\HidesValues;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class PaymentAccountResource extends JsonResource
 {
+    use HidesValues;
+
+    /** What a user without Payment Accounts' View Balances does not see (Doc 12 section 14). */
+    private const BALANCES = ['opening_balance', 'balance'];
+
+    /** What a user without View Full Account Details sees masked: "•••• 6819". */
+    private const DETAILS = ['account_number', 'swift_code', 'merchant_number'];
+
     /**
      * Every field, flat, as the table holds it (Doc 05 sections 5 to 9), with
      * its location by name. Balances go out as strings with two decimals
@@ -17,7 +26,7 @@ class PaymentAccountResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return [
+        return $this->maskWithout('payment_accounts.details', $this->hideWithout('payment_accounts.balances', [
             'id'                      => $this->id,
             'type'                    => $this->type,
             'name'                    => $this->name,
@@ -45,6 +54,6 @@ class PaymentAccountResource extends JsonResource
             'default_payment'         => $this->default_payment,
             'notes'                   => $this->notes,
             'is_active'               => $this->is_active,
-        ];
+        ], self::BALANCES), self::DETAILS);
     }
 }

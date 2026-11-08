@@ -44,7 +44,7 @@ class PurchaseResource extends JsonResource
             'overdue'                 => $rules->overdue($this->resource, $this->today),
             'actions'                 => app(AllowedActions::class)->record('purchases.purchases', $rules->actions($this->resource)),
             'contact_id'              => $this->contact_id,
-            'supplier'                => $supplier ? Arr::only($supplier, ['name', 'billing_address', 'tax_number']) : null,
+            'supplier'                => $supplier ? $this->hideWithout('taxes.view', Arr::only($supplier, ['name', 'billing_address', 'tax_number']), ['tax_number']) : null,
             'location_id'             => $this->location_id,
             'location'                => $this->location?->name,
             'document_date'           => $this->document_date,

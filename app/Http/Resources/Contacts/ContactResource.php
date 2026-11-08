@@ -2,11 +2,17 @@
 
 namespace App\Http\Resources\Contacts;
 
+use App\Http\Resources\Concerns\HidesValues;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class ContactResource extends JsonResource
 {
+    use HidesValues;
+
+    /** What a user without View Tax Information does not see (Doc 12 section 14). */
+    public const TAX_DETAILS = ['tax_number', 'tax_country', 'tax_treatment', 'tax_exemption_number'];
+
     /**
      * Every field, flat, as the table holds it: countries as codes, a default
      * currency of null meaning the base currency, payment terms in days, and
@@ -18,7 +24,7 @@ class ContactResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return [
+        return $this->hideWithout('taxes.view', [
             'id'                       => $this->id,
             'contact_number'           => $this->contact_number,
             'contact_type'             => $this->contact_type,
@@ -60,6 +66,6 @@ class ContactResource extends JsonResource
             'in_sales'                 => (bool) ($this->in_sales ?? false),
             'in_purchases'             => (bool) ($this->in_purchases ?? false),
             'in_expenses'              => (bool) ($this->in_expenses ?? false),
-        ];
+        ], self::TAX_DETAILS);
     }
 }

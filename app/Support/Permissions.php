@@ -18,7 +18,11 @@ namespace App\Support;
  * An app's values - amounts, prices, totals - have a View of their own
  * (section 14): a role without it sees the app's records with their values
  * hidden. Anything more than viewing such a record - making, changing,
- * sending, paying, exporting - needs its values in sight.
+ * sending, paying, exporting - needs its values in sight. So do items'
+ * purchase prices, payment accounts' balances and full details, and tax
+ * information: a role sees them only with their own permission, and needs it
+ * to change what holds them. The Activity Log, which records them all as they
+ * were, needs every one of them.
  *
  * ALL stands for every permission there is, apps turned on later included:
  * what the Business Owner and a role with full access hold.
@@ -41,10 +45,14 @@ final class Permissions
     public const GROUPS = [
         'dashboard'        => ['Dashboard', null, ['view' => self::VIEW]],
         'contacts'         => ['Contacts', null, ['view' => self::VIEW, 'create' => 'Create', 'edit' => 'Edit', 'delete' => 'Delete', 'import' => 'Import', 'export' => 'Export']],
-        'items'            => ['Items', null, ['view' => self::VIEW, 'create' => 'Create', 'edit' => 'Edit', 'delete' => 'Delete', 'import' => 'Import', 'export' => 'Export']],
-        'payment_accounts' => ['Payment Accounts', null, ['view' => self::VIEW, 'create' => 'Create', 'edit' => 'Edit', 'delete' => 'Delete', 'transfer' => 'Transfer Money', 'export' => 'Export']],
+        'items'            => ['Items', null, ['view' => self::VIEW, 'create' => 'Create', 'edit' => 'Edit', 'delete' => 'Delete', 'import' => 'Import', 'export' => 'Export', 'costs' => 'View Purchase Prices or Costs']],
+        'payment_accounts' => ['Payment Accounts', null, [
+            'view' => self::VIEW, 'create' => 'Create', 'edit' => 'Edit', 'delete' => 'Delete', 'transfer' => 'Transfer Money', 'export' => 'Export',
+            'balances' => 'View Balances', 'details' => 'View Full Account Details',
+        ]],
         'documents'        => ['Documents', null, ['view' => self::VIEW, 'export' => 'Export']],
         'reports'          => ['Reports', null, ['view' => 'View Reports', 'export' => 'Export']],
+        'taxes'            => ['Tax Information', null, ['view' => 'View Tax Information']],
         'settings'         => ['Settings', null, [
             'view'         => self::VIEW,
             'business'     => 'Manage Business Settings',
@@ -89,6 +97,24 @@ final class Permissions
 
     /** What a permission needs besides its group's View (and Edit Draft, for Issue and Record). */
     private const REQUIRES = [
+        // A form or a file holds what it changes: a contact's tax details, an item's purchase price, an account's balance and numbers.
+        'contacts.create'            => ['taxes.view'],
+        'contacts.edit'              => ['taxes.view'],
+        'contacts.import'            => ['taxes.view'],
+        'items.create'               => ['items.costs'],
+        'items.edit'                 => ['items.costs'],
+        'items.import'               => ['items.costs'],
+        'payment_accounts.create'    => ['payment_accounts.balances', 'payment_accounts.details'],
+        'payment_accounts.edit'      => ['payment_accounts.balances', 'payment_accounts.details'],
+        'payment_accounts.transfer'  => ['payment_accounts.balances'],
+        'payment_accounts.export'    => ['payment_accounts.balances'],
+        'settings.currency_tax'      => ['taxes.view'],
+        // The Activity Log writes down what was changed and paid - amounts, prices, balances, numbers and tax details as they were.
+        'settings.audit'             => [
+            'items.costs', 'payment_accounts.balances', 'payment_accounts.details', 'taxes.view',
+            'sales.values.view', 'purchases.values.view', 'expenses.values.view',
+        ],
+
         'sales.quotations.create'    => ['contacts.view', 'items.view'],
         'sales.proformas.create'     => ['contacts.view', 'items.view'],
         'sales.invoices.create'      => ['contacts.view', 'items.view'],
@@ -219,7 +245,7 @@ final class Permissions
             ],
 
             'purchase_user' => [
-                'dashboard.view', 'contacts.view', 'contacts.create', 'contacts.edit', 'items.view', 'documents.view',
+                'dashboard.view', 'contacts.view', 'contacts.create', 'contacts.edit', 'items.view', 'items.costs', 'documents.view',
                 ...self::actionsOf('purchases.purchases', ['view', 'create', 'edit', 'record', 'delete']),
                 'purchases.payments.view', 'purchases.payments.record', 'purchases.attachments.view', 'purchases.attachments.manage',
             ],
@@ -232,8 +258,8 @@ final class Permissions
             ],
 
             'finance_user' => [
-                'dashboard.view', 'contacts.view', 'documents.view', 'reports.view', 'reports.export',
-                ...self::actionsOf('payment_accounts', ['view', 'create', 'edit', 'transfer', 'export']),
+                'dashboard.view', 'contacts.view', 'documents.view', 'reports.view', 'reports.export', 'taxes.view',
+                ...self::actionsOf('payment_accounts', ['view', 'create', 'edit', 'transfer', 'export', 'balances', 'details']),
                 'sales.invoices.view', 'sales.credit_notes.view', 'sales.payments.view', 'sales.payments.record', 'sales.payments.reverse', 'sales.refunds.record',
                 'purchases.purchases.view', 'purchases.payments.view', 'purchases.payments.record', 'purchases.payments.reverse',
                 'expenses.expenses.view', 'expenses.payments.view', 'expenses.payments.record', 'expenses.payments.reverse',

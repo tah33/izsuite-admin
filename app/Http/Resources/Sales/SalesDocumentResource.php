@@ -4,6 +4,7 @@ namespace App\Http\Resources\Sales;
 
 use App\Enums\DocumentType;
 use App\Http\Resources\Concerns\HidesValues;
+use App\Http\Resources\Contacts\ContactResource;
 use App\Models\User\SalesDocument;
 use App\Services\Api\Sales\SalesSnapshots;
 use App\Services\Documents\DocumentLinks;
@@ -24,7 +25,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * The customer and business are as they were when it was numbered; a draft
  * shows the customer as they are. Expects lines, contact, location, source,
  * conversions, creditNotes, payments.account, activeLink and emails.sender
- * loaded. Its amounts are empty for a user without Sales Values.
+ * loaded. Its amounts are empty for a user without Sales Values, and the
+ * customer's and business's tax details for one without View Tax
+ * Information.
  */
 class SalesDocumentResource extends JsonResource
 {
@@ -55,8 +58,8 @@ class SalesDocumentResource extends JsonResource
             'overdue'              => $rules->overdue($this->resource, $this->today),
             'actions'              => app(AllowedActions::class)->sales($this->type, $rules->actions($this->resource, $this->today)),
             'contact_id'           => $this->contact_id,
-            'customer'             => $this->customer_snapshot ?? ($this->contact ? app(SalesSnapshots::class)->customer($this->contact) : null),
-            'business'             => $this->business_snapshot,
+            'customer'             => $this->party($this->customer_snapshot ?? ($this->contact ? app(SalesSnapshots::class)->customer($this->contact) : null)),
+            'business'             => $this->business_snapshot ? $this->hideWithout('taxes.view', $this->business_snapshot, ['tax_numbers' => []]) : null,
             'location_id'          => $this->location_id,
             'location'             => $this->location?->name,
             'document_date'        => $this->document_date,
@@ -106,6 +109,12 @@ class SalesDocumentResource extends JsonResource
             'link'                 => $this->activeLink ? new DocumentLinkResource(['link' => $this->activeLink, 'url' => app(DocumentLinks::class)->url($this->activeLink)]) : null,
             'emails'               => DocumentEmailResource::collection($this->emails),
         ], self::VALUES);
+    }
+
+    /** The customer as kept - their tax details hidden from a user without View Tax Information. */
+    private function party(?array $customer): ?array
+    {
+        return $customer ? $this->hideWithout('taxes.view', $customer, ContactResource::TAX_DETAILS) : null;
     }
 
     /** Another document it is linked with, as the page links to it. */

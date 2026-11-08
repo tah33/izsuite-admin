@@ -99,7 +99,8 @@ class RoleScreensTest extends TestCase
         $sales = $this->getJson('/api/v1/dashboard', $pick)->assertOk()->json('data');
         $this->assertSame('335.50', $sales['sales']['outstanding']);
         $this->assertNull($sales['purchases']);
-        $this->assertNotNull($sales['accounts']);
+        // The accounts it records payments into, but not their balances: those are the Finance User's (Doc 12 section 14).
+        $this->assertNull($sales['accounts']);
         $this->assertSame(['Invoice', 'Quotation'], $this->kindsIn($sales));
 
         // The newest transactions are only of the kinds the role may open -

@@ -9,6 +9,7 @@ use App\Repositories\User\ExpenseRepository;
 use App\Repositories\User\PurchaseRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Services\Shared\ActivityLogService;
+use App\Services\Shared\WorkspaceAccess;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Arr;
@@ -22,12 +23,13 @@ class ContactService
         protected SalesDocumentRepository $salesDocumentRepository,
         protected PurchaseRepository $purchaseRepository,
         protected ExpenseRepository $expenseRepository,
+        protected WorkspaceAccess $access,
     ) {}
 
     /** The tax ID is searched only while the business uses taxes (Doc 03 section 3). */
     public function list(Workspace $workspace, array $filters, int $perPage): LengthAwarePaginator
     {
-        return $this->contactRepository->paginateFor($workspace, $filters, $perPage, $workspace->usesTaxes());
+        return $this->contactRepository->paginateFor($workspace, $filters, $perPage, $workspace->usesTaxes() && $this->access->can('taxes.view'));
     }
 
     public function find(Workspace $workspace, int $id): Contact

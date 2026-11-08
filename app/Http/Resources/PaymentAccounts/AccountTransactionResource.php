@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\PaymentAccounts;
 
+use App\Http\Resources\Concerns\HidesValues;
 use App\Models\User\AccountTransfer;
 use App\Models\User\ExpensePayment;
 use App\Models\User\SupplierPayment;
@@ -19,9 +20,11 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class AccountTransactionResource extends JsonResource
 {
+    use HidesValues;
+
     public function toArray(Request $request): array
     {
-        return [
+        return $this->hideWithout('payment_accounts.balances', [
             'id'               => $this->id,
             'transaction_date' => $this->transaction_date,
             'type'             => $this->type,
@@ -44,6 +47,6 @@ class AccountTransactionResource extends JsonResource
                 default                                => 'payment',
             }, 'id' => $this->source_id],
             'running_balance'  => $this->running_balance,
-        ];
+        ], ['running_balance']);
     }
 }

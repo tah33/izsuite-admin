@@ -33,7 +33,9 @@ use App\Services\User\Apps\WorkspaceApps;
  * Purchases or Expenses has; Contact Statement while any of the three has;
  * Tax Summary and Tax Details while taxes are on or tax history exists (Doc
  * 07 section 16); Payment Account Transactions always. Each only for a role
- * that may see what it shows, values included (VIEWS); another is not found.
+ * that may see what it shows, values included (PARTS) - the tax reports with
+ * Tax Information too, the account's with its balances; another is not
+ * found.
  */
 class ReportCatalog
 {
@@ -157,11 +159,11 @@ class ReportCatalog
         return match ($needs) {
             'sales', 'purchases', 'expenses' => $this->sees([$needs => true]),
             'payables' => $this->sees(['supplier_payments' => $purchases, 'expense_payments' => $expenses]),
-            'taxes'    => $this->sees(['sales' => $sales, 'purchases' => $purchases, 'expenses' => $expenses]),
+            'taxes'    => $this->access->can('taxes.view') && $this->sees(['sales' => $sales, 'purchases' => $purchases, 'expenses' => $expenses]),
             // A statement for either side: a customer's, or a supplier's.
             'contacts' => $this->access->can('contacts.view')
                 && ($sales && $this->sees(['sales' => true]) || ($purchases || $expenses) && $this->sees(['purchases' => $purchases, 'expenses' => $expenses])),
-            default    => $this->access->can('payment_accounts.view'),
+            default    => $this->access->can('payment_accounts.view') && $this->access->can('payment_accounts.balances'),
         };
     }
 

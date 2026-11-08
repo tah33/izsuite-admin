@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Items;
 
+use App\Http\Resources\Concerns\HidesValues;
 use App\Models\User\ItemComponent;
 use App\Models\User\TaxRate;
 use App\Services\Files\FileStorage;
@@ -10,6 +11,11 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class ItemResource extends JsonResource
 {
+    use HidesValues;
+
+    /** What a user without Items' View Purchase Prices or Costs does not see (Doc 12 section 14). */
+    private const COSTS = ['purchase_price'];
+
     /**
      * Every field, flat, as the table holds it, with its category and brand by
      * name. Prices go out as strings with two decimals ("12.50") - never as
@@ -29,7 +35,7 @@ class ItemResource extends JsonResource
     {
         $storage = app(FileStorage::class);
 
-        return [
+        return $this->hideWithout('items.costs', [
             'id'                    => $this->id,
             'item_number'           => $this->item_number,
             'type'                  => $this->type,
@@ -81,7 +87,7 @@ class ItemResource extends JsonResource
             'in_use'                => (bool) ($this->in_sales ?? false) || (bool) ($this->in_purchases ?? false),
             'in_sales'              => (bool) ($this->in_sales ?? false),
             'in_purchases'          => (bool) ($this->in_purchases ?? false),
-        ];
+        ], self::COSTS);
     }
 
     /** A default tax as the profile names it: "VAT (15%)", "Exports (Zero-Rated)". */

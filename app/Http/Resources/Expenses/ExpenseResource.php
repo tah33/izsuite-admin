@@ -49,7 +49,7 @@ class ExpenseResource extends JsonResource
             'actions'            => app(AllowedActions::class)->record('expenses.expenses', $rules->actions($this->resource)),
             'contact_id'         => $this->contact_id,
             'payee_name'         => $this->payee_name,
-            'payee'              => $payee ? Arr::only($payee, ['name', 'billing_address', 'tax_number']) : null,
+            'payee'              => $payee ? $this->hideWithout('taxes.view', Arr::only($payee, ['name', 'billing_address', 'tax_number']), ['tax_number']) : null,
             'location_id'        => $this->location_id,
             'location'           => $this->location?->name,
             'document_date'      => $this->document_date,

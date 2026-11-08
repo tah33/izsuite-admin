@@ -125,7 +125,7 @@ class ValueAccessTest extends TestCase
         $this->assertContains('sales-summary', $keys);
         $this->assertNotContains('tax-summary', $keys);
 
-        $pick = $this->member('Tax Analyst', ['reports.view', 'sales.invoices.view', 'sales.values.view', 'purchases.purchases.view', 'purchases.values.view']);
+        $pick = $this->member('Tax Analyst', ['reports.view', 'sales.invoices.view', 'sales.values.view', 'purchases.purchases.view', 'purchases.values.view', 'taxes.view']);
         $this->assertContains('tax-summary', array_column($this->getJson('/api/v1/reports', $pick)->json('data'), 'key'));
 
         // A statement shows one side's values: a customer's, not a supplier's.
