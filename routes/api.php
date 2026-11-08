@@ -84,6 +84,7 @@ use App\Http\Controllers\Api\SalesPdfController;
 use App\Http\Controllers\Api\SalesRefundController;
 use App\Http\Controllers\Api\SalesSettingController;
 use App\Http\Controllers\Api\SetupController;
+use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\SupplierPaymentAttachmentController;
 use App\Http\Controllers\Api\SupplierPaymentController;
 use App\Http\Controllers\Api\TaxRateController;
@@ -322,6 +323,16 @@ Route::prefix('v1')->group(function () {
      | templates and its own, each with the permissions it allows -
      | permissions lists what a role can hold among the apps on now
      | -------------------------------------------------------- */
+    /* ----------------------------------------------------------
+     | The business's subscription (Doc 13 section 11): its plan and status,
+     | the plans to compare, and its billing details - for the owner and
+     | roles with Manage Subscription
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('subscription')->group(function () {
+        Route::get('/', [SubscriptionController::class, 'show'])->name('api.subscription.show');
+        Route::put('/billing-details', [SubscriptionController::class, 'updateBillingDetails'])->name('api.subscription.billing-details');
+    });
+
     Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('roles')->group(function () {
         Route::get('/', [RoleController::class, 'index'])->name('api.roles.index');
         Route::get('/permissions', [RoleController::class, 'permissions'])->name('api.roles.permissions');

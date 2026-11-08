@@ -65,6 +65,8 @@ class SalesSnapshots
             'location'            => $location?->name,
             'location_header'     => $location?->document_header,
             'payment_accounts'    => $currency ? $this->paymentDetails->for($workspace, $currency, $location?->id) : [],
+            // "Powered by izSuite" as the plan has it now, kept with the document (Doc 13 section 18).
+            'powered_by'          => ! $workspace->package?->removes_branding,
         ];
     }
 

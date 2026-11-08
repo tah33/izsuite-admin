@@ -1,7 +1,8 @@
 {{-- The foot of every PDF page (Doc 06 section 15): the template's footer
      text, the page number and count - Chromium fills in the pageNumber and
      totalPages spans - and "Powered by izSuite", which Billing Starter always
-     shows. Laid out as the template says (section 14): split across the page,
+     shows and a plan without it leaves off ($poweredBy, Doc 13 section 18).
+     Laid out as the template says (section 14): split across the page,
      or centred on one line. A footer is its own page to Chromium: it takes no
      styles from the document, and needs its widths and sizes set. Chromium's
      own flex layout of the body is what holds it to the foot of the page, so
@@ -28,14 +29,16 @@
             @if ($text)
                 <span class="foot__text">{{ $text }}</span><span>·</span>
             @endif
-            <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span><span>·</span>
-            <span>Powered by izSuite</span>
+            <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
+            @if ($poweredBy ?? true)
+                <span>·</span><span>Powered by izSuite</span>
+            @endif
         </div>
     @else
         <div class="foot split">
             <span>{{ $text }}</span>
             <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
-            <span>Powered by izSuite</span>
+            <span>{{ ($poweredBy ?? true) ? 'Powered by izSuite' : '' }}</span>
         </div>
     @endif
 </body>

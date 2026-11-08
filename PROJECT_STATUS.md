@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-08
-- **Code:** Doc 13 Phase A is committed: frontend `cdcdf12` on `nuxt`, and on `main` the admin commit right after `e727463`.
-- **Tests:** 636 backend tests pass (last full run 2026-11-08, on this code).
-- **Next step:** Doc 13 Phase B. Its suggested defaults are under [What is next](#what-is-next).
+- **Code:** Doc 13 Phase B1 is committed: frontend `1ca411f` on `nuxt`, and on `main` the admin commit right after `e0d062c`.
+- **Tests:** 640 backend tests pass (last full run 2026-11-08, on this code).
+- **Next step:** Doc 13 Phase B2. Its suggested defaults are under [What is next](#what-is-next).
 
 Update this file at the end of every phase and commit it with that phase.
 
@@ -14,7 +14,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 13 Phase B.
+   > Read PROJECT_STATUS.md, then start Doc 13 Phase B2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -37,7 +37,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 10 | Expenses Lite | Done |
 | 11 | Business Setup and Settings | Done, except notification preferences (waits for Doc 14) |
 | 12 | Users, Roles, Permissions and Locations | Done, except notification preferences (Doc 14) and package change rules (Doc 13) |
-| **13** | **Apps Center, Packages, Subscriptions and Billing** | **In progress: A done. B, C, D left** |
+| **13** | **Apps Center, Packages, Subscriptions and Billing** | **In progress: A and B1 done. B2, C, D left** |
 | 14 | Shared Platform Services | Not started as a doc, parts exist |
 | 15 | izSuite System Administration Portal | Not started as a doc, parts exist |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
@@ -47,9 +47,9 @@ Stock, full Sales, OCR and full Accounting features are left out of the Lite app
 
 ## What is next
 
-### 1. Doc 13: Apps Center, Packages, Subscriptions and Billing (next: Phase B)
+### 1. Doc 13: Apps Center, Packages, Subscriptions and Billing (next: Phase B2)
 
-The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D, and Phase A is built (see [Decisions worth knowing](#decisions-worth-knowing)).
+The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D, with B in two parts. Phases A and B1 are built (see [Decisions worth knowing](#decisions-worth-knowing)).
 
 **Already built:**
 
@@ -58,18 +58,24 @@ The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D, and Ph
 - The Apps Center page groups apps by category, with each edition's state and its turn-on or turn-off button. Dependencies are checked both ways.
 - Packages Billing Starter (100 MB, 1 business, 1 user, 1 location), Standard and Premium, with limits set in the admin. Adding past a limit is refused (`PlanLimits`, `StorageUsage`), and a business over a limit keeps everything.
 - Settings > Storage & Usage shows usage against the limits. The admin can move a business to another package.
-- Every PDF says "Powered by izSuite". The Dashboard, Reports and Documents follow the apps that are on (section 20).
+- The Dashboard, Reports and Documents follow the apps that are on (section 20).
 
 **Phase A: Apps Center and app details** is built: search, filters and tabs, each app's own page, Manage Apps for roles, the turn-off summary with dependents, and the public Explore Apps and Pricing pages from the live catalog.
 
+**Phase B1: prices, the subscription page and branding** is built:
+
+- Plans have prices (monthly and yearly, in one currency), trial days, grace days and whether they remove "Powered by izSuite", set in the admin's plan form and shown in its list. The Pricing page shows them.
+- Settings > Apps & Subscription is the Subscription and Billing page: the plan and its status, its branding and apps, the plans compared side by side, usage and limits, and billing details (name, e-mail, address, country, tax ID), whose changes go in the Activity Log. A role without Manage Subscription sees only the plan, its apps and the usage.
+- "Powered by izSuite" follows the plan, and an issued document keeps what it was issued with (section 18).
+
 **Still missing**, by phase:
 
-**Phase B: packages, comparison and limits** (no payments yet). Suggested defaults, not agreed yet:
+**Phase B2: moving to a lower plan, and limit warnings** (no payments yet). Suggested defaults, not agreed yet:
 
-- Packages get prices (monthly and yearly), trial days, grace days and whether they remove "Powered by izSuite", set in the admin.
-- Settings > Apps & Subscription becomes the Subscription and Billing page: current package, status (Free on Billing Starter), package comparison, usage and limits, and billing details (name, e-mail, address, country, tax ID). Changes are recorded in the Activity Log.
-- Branding follows the package. An issued document keeps the branding it had when issued (section 18).
-- Moving to a lower package shows its impact first. The owner picks the users and locations that stay active; the rest are suspended or made inactive. Apps outside the package turn off and their Lite editions come back (section 14). Warnings appear as a limit nears and once it is reached.
+- Until Phase C only the admin moves a business between plans (Admin > Clients). Moving it to a lower plan shows the impact first: the apps that turn off, and the users, locations and storage over the new limits.
+- Apps outside the new plan turn off at once, their records kept, and their Lite editions come back (section 13).
+- Over a limit, the owner picks the users and locations that stay active, in Settings > Apps & Subscription. The rest are suspended or made inactive, and their history stays readable (section 14). Until the owner picks, nothing is switched off, and adding more stays refused.
+- Warnings in Settings and on the Dashboard as a limit nears (80%) and once it is reached, as storage already has.
 
 **Phase C: subscriptions, paid by bank transfer:**
 
@@ -82,7 +88,7 @@ The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D, and Ph
 
 **Waits:** notifications (section 19) for Doc 14. Usage charges such as SMS, AI, extra storage and API (section 17) wait until those services exist. Translated app names wait for Doc 14, and admin-side configuration beyond packages and the catalog waits for Doc 15.
 
-**Needs your decisions before Phase C:** prices for Standard and Premium, billing currencies, trial and grace lengths, and whether upgrades are prorated. **Before Phase D:** the payment provider and whether it handles subscription tax (Paddle does, as merchant of record; Stripe does not).
+**Needs your decisions before Phase C:** prices for Standard and Premium (the admin's plan form takes them now), billing currencies, trial and grace lengths, and whether upgrades are prorated. **Before Phase D:** the payment provider and whether it handles subscription tax (Paddle does, as merchant of record; Stripe does not).
 
 **Careful:** the old `plans`, `subscriptions`, `invoices` and `payment_methods` tables and admin screens come from an earlier recruitment product. They work per user account, not per business, and do not fit Doc 13. Phase C replaces them rather than reusing them, except the Bank Transfer payment method.
 
@@ -233,7 +239,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 12: Phase D2, costs, balances, account details, tax | `812e7b1` | `7039f47` | 000107 |
 | Doc 12: Phase E1, personal settings and sessions | `1a3e195` | `73cf6ca` | 000108 |
 | Doc 12: Phase E2, multi-factor authentication | `e727463` | `7de8bd9` | 000109, 000110 |
-| Doc 13: Phase A, Apps Center and app pages | the commit after `e727463` | `cdcdf12` | 000111 |
+| Doc 13: Phase A, Apps Center and app pages | `e0d062c` | `cdcdf12` | 000111 |
+| Doc 13: Phase B1, prices, subscription page, branding | the commit after `e0d062c` | `1ca411f` | 000112 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -311,7 +318,10 @@ These are easy to undo by mistake.
 - `AppCatalogSeeder` writes the Lite apps' descriptions only where they are empty, so an admin's words are kept. Run it after migrating, as for any deploy.
 - Each edition names the lowest active plan that includes it (`PackageRepository::lowestNames`).
 - Turning apps on and off needs Manage Apps (`settings.apps`); the owner always may. Turning one off shows its impact first (`GET /apps/{app}/deactivation`). The apps that need it can go with it (`with_dependents`), each fully off, the furthest first; without that it is refused, as before.
-- The public Explore Apps and Pricing pages read `GET /catalog`, which needs no sign-in. Paid plans say "Price to be announced" until Phase B. The hard-coded catalog and price calculator are gone.
+- The public Explore Apps and Pricing pages read `GET /catalog`, which needs no sign-in. The hard-coded catalog and price calculator are gone.
+- A plan's prices are on `packages` (`price_currency`, `price_monthly`, `price_yearly`), with `trial_days`, `grace_days` and `removes_branding`. An empty price means not announced, and the plan then says "Price to be announced". Billing Starter is free (0). Migration 000112 set Standard and Premium to remove the branding. Trial and grace days are kept for Phase C and do nothing yet.
+- "Powered by izSuite" follows the business's plan. A document saves `powered_by` in its business snapshot when it gets its number, and its PDF, print and secure link read that, so a later plan change never alters it; documents numbered before B1 have no such key and keep the branding. Drafts and report PDFs follow the plan as it is.
+- `GET /subscription` and `PUT /subscription/billing-details` need Manage Subscription (`settings.subscription`). Until Phase C the status is Free on Billing Starter and Active on any other plan. Billing details are one `workspace_billing` row per business, and each save goes in the Activity Log.
 - `/profile` answers in the usual envelopes, and the signed-in user (`UserResource`) carries only their name, e-mail, phone, image, language and time zone.
 
 ## Small things left

@@ -19,6 +19,7 @@
                         <th>{{ __('Rank') }}</th>
                         <th>{{ __('Plan') }}</th>
                         <th>{{ __('Key') }}</th>
+                        <th>{{ __('Price') }}</th>
                         <th>{{ __('Apps') }}</th>
                         <th>{{ __('Storage') }}</th>
                         <th>{{ __('Limits') }}</th>
@@ -31,13 +32,27 @@
                     @foreach($packages as $package)
                         <tr>
                             <td class="text-sm text-[var(--text-muted)]">{{ $package->rank }}</td>
-                            <td>
+                            <td class="min-w-[220px]">
                                 <span class="font-semibold text-[var(--text-primary)]">{{ $package->name }}</span>
                                 @if($package->description)
                                     <span class="block text-xs text-[var(--text-muted)] max-w-md">{{ $package->description }}</span>
                                 @endif
                             </td>
                             <td><code class="text-xs">{{ $package->key }}</code></td>
+                            <td class="text-sm whitespace-nowrap">
+                                @if($package->isFree())
+                                    {{ __('Free') }}
+                                @elseif($package->price_monthly === null && $package->price_yearly === null)
+                                    <span class="text-[var(--text-muted)]">{{ __('Not announced') }}</span>
+                                @else
+                                    @if($package->price_monthly !== null)
+                                        <span class="block">{{ $package->price_currency }} {{ $package->price_monthly }} {{ __('a month') }}</span>
+                                    @endif
+                                    @if($package->price_yearly !== null)
+                                        <span class="block">{{ $package->price_currency }} {{ $package->price_yearly }} {{ __('a year') }}</span>
+                                    @endif
+                                @endif
+                            </td>
                             <td class="text-sm">{{ $package->apps_count }}</td>
                             <td class="text-sm">
                                 @if($package->storage_limit_mb === null)
@@ -46,7 +61,7 @@
                                     {{ \App\Support\Bytes::format($package->storage_limit_mb * 1024 * 1024) }}
                                 @endif
                             </td>
-                            <td class="text-sm">
+                            <td class="text-sm whitespace-nowrap">
                                 @php
                                     $limits = array_filter([
                                         $package->business_limit !== null ? trans_choice(':count business per account|:count businesses per account', $package->business_limit) : null,

@@ -32,6 +32,12 @@ class Package extends Model
         'business_limit',
         'user_limit',
         'location_limit',
+        'price_currency',
+        'price_monthly',
+        'price_yearly',
+        'trial_days',
+        'grace_days',
+        'removes_branding',
         'is_active',
     ];
 
@@ -41,8 +47,19 @@ class Package extends Model
         'business_limit'   => 'integer',
         'user_limit'       => 'integer',
         'location_limit'   => 'integer',
+        'price_monthly'    => 'decimal:2',
+        'price_yearly'     => 'decimal:2',
+        'trial_days'       => 'integer',
+        'grace_days'       => 'integer',
+        'removes_branding' => 'boolean',
         'is_active'        => 'boolean',
     ];
+
+    /** Billing Starter, free forever (Doc 13 section 2). */
+    public function isFree(): bool
+    {
+        return $this->key === self::STARTER;
+    }
 
     /** The app ids, asked for once per instance. */
     private ?Collection $appIds = null;

@@ -38,6 +38,10 @@ final class RoutePermissions
             'api.files.link'               => self::MEMBER,
             'api.business-settings.usage'  => self::MEMBER,
 
+            // The subscription and its billing details (Doc 13 sections 11 and 21)
+            'api.subscription.show'            => 'settings.subscription',
+            'api.subscription.billing-details' => 'settings.subscription',
+
             // Contacts and items (Doc 03, Doc 04)
             'api.contacts.index'               => 'contacts.view',
             'api.contacts.show'                => 'contacts.view',

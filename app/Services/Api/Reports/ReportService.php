@@ -101,7 +101,8 @@ class ReportService
             'color'    => $template['color'],
         ])->render();
 
-        $footer = view('documents.footer', ['template' => ['footer_text' => null]])->render();
+        // A report is made today: "Powered by izSuite" as the business's plan has it now (Doc 13 section 18).
+        $footer = view('documents.footer', ['template' => ['footer_text' => null], 'poweredBy' => ! $workspace->package?->removes_branding])->render();
 
         $paper = $workspace->paper_size === 'letter' ? 'letter' : 'a4';
 

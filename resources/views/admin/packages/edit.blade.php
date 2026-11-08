@@ -46,6 +46,8 @@
 
             @include('admin.packages.partials.limits')
 
+            @include('admin.packages.partials.pricing')
+
             <label class="flex items-center gap-3 cursor-pointer">
                 <input type="checkbox" name="is_active" value="1" class="toggle-switch" @checked(old('is_active', $package->is_active))>
                 <span class="form-label mb-0">{{ __('Offered') }}</span>

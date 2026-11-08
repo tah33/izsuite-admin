@@ -12,6 +12,7 @@ use App\Services\Shared\AllowedActions;
 use App\Services\Sales\SalesDocumentRules;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Arr;
 
 /**
  * A sales document whole - for its page and its edit form: the header, the
@@ -59,7 +60,8 @@ class SalesDocumentResource extends JsonResource
             'actions'              => app(AllowedActions::class)->sales($this->type, $rules->actions($this->resource, $this->today)),
             'contact_id'           => $this->contact_id,
             'customer'             => $this->party($this->customer_snapshot ?? ($this->contact ? app(SalesSnapshots::class)->customer($this->contact) : null)),
-            'business'             => $this->business_snapshot ? $this->hideWithout('taxes.view', $this->business_snapshot, ['tax_numbers' => []]) : null,
+            // What the page's sheet shows of the business as it was at issue - its tax numbers with Tax Information.
+            'business'             => $this->business_snapshot ? $this->hideWithout('taxes.view', Arr::only($this->business_snapshot, ['name', 'address', 'phone', 'tax_numbers']), ['tax_numbers' => []]) : null,
             'location_id'          => $this->location_id,
             'location'             => $this->location?->name,
             'document_date'        => $this->document_date,

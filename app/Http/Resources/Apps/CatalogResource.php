@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Apps;
 
+use App\Http\Resources\Billing\PackageOfferResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -30,17 +31,7 @@ class CatalogResource extends JsonResource
                     'editions'    => $app['editions'],
                 ], $category['apps']),
             ], $this->resource['categories']),
-            'packages'   => array_map(fn (array $package) => [
-                'key'              => $package['key'],
-                'name'             => $package['name'],
-                'description'      => $package['description'],
-                'storage_limit_mb' => $package['storage_limit_mb'],
-                'business_limit'   => $package['business_limit'],
-                'user_limit'       => $package['user_limit'],
-                'location_limit'   => $package['location_limit'],
-                'apps'             => $package['apps'],
-                'coming_soon'      => $package['coming_soon'],
-            ], $this->resource['packages']),
+            'packages'   => PackageOfferResource::collection($this->resource['packages']),
         ];
     }
 }

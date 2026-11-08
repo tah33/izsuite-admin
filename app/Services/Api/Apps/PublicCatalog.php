@@ -46,22 +46,40 @@ class PublicCatalog
                 ->filter(fn (array $category) => $category['apps'] !== [])
                 ->values()
                 ->all(),
-            'packages'   => $this->packages->activeWithApps()
-                ->map(fn (Package $package) => [
-                    'key'              => $package->key,
-                    'name'             => $package->name,
-                    'description'      => $package->description,
-                    'storage_limit_mb' => $package->storage_limit_mb,
-                    'business_limit'   => $package->business_limit,
-                    'user_limit'       => $package->user_limit,
-                    'location_limit'   => $package->location_limit,
-                    // Each app once, by the highest edition the plan has: Sales, not Sales and Sales Lite.
-                    'apps'             => $package->apps->where('status', 'available')->groupBy('family_key')->map(fn (Collection $editions) => Application::primaryOf($editions)->name)->values()->all(),
-                    'coming_soon'      => $package->apps->where('status', 'coming_soon')->count(),
-                ])
-                ->values()
-                ->all(),
+            'packages'   => $this->packages(),
         ];
+    }
+
+    /**
+     * The plans on offer, lowest first: what each costs - prices not yet
+     * announced are null - its trial, limits, and the apps it includes. The
+     * Pricing page and a business's Subscription compare them alike.
+     *
+     * @return list<array>
+     */
+    public function packages(): array
+    {
+        return $this->packages->activeWithApps()
+            ->map(fn (Package $package) => [
+                'key'              => $package->key,
+                'name'             => $package->name,
+                'description'      => $package->description,
+                'free'             => $package->isFree(),
+                'price_currency'   => $package->price_currency,
+                'price_monthly'    => $package->price_monthly,
+                'price_yearly'     => $package->price_yearly,
+                'trial_days'       => $package->trial_days,
+                'removes_branding' => $package->removes_branding,
+                'storage_limit_mb' => $package->storage_limit_mb,
+                'business_limit'   => $package->business_limit,
+                'user_limit'       => $package->user_limit,
+                'location_limit'   => $package->location_limit,
+                // Each app once, by the highest edition the plan has: Sales, not Sales and Sales Lite.
+                'apps'             => $package->apps->where('status', 'available')->groupBy('family_key')->map(fn (Collection $editions) => Application::primaryOf($editions)->name)->values()->all(),
+                'coming_soon'      => $package->apps->where('status', 'coming_soon')->count(),
+            ])
+            ->values()
+            ->all();
     }
 
     /** @param array<int, string> $lowest app id => the lowest plan that includes it */

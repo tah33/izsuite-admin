@@ -196,6 +196,12 @@ class Workspace extends Model
         return $this->belongsTo(Package::class);
     }
 
+    /** Where its izSuite invoices go (Doc 13 section 11). */
+    public function billing(): HasOne
+    {
+        return $this->hasOne(WorkspaceBilling::class);
+    }
+
     /** One row per app family the business has turned on, now or before. */
     public function workspaceApps(): HasMany
     {

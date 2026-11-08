@@ -82,7 +82,7 @@ class DocumentRenderer
 
         return new RenderedDocument(
             view('documents.sales', $data)->render(),
-            view('documents.footer', ['template' => $template])->render(),
+            $this->footer($template, $business),
             $template['paper_size'],
             $this->filename($label, $document->number, $document->id),
         );
@@ -116,7 +116,7 @@ class DocumentRenderer
 
         return new RenderedDocument(
             view('documents.receipt', $data)->render(),
-            view('documents.footer', ['template' => $template])->render(),
+            $this->footer($template, $business),
             $template['paper_size'],
             $this->filename('Receipt', $payment->number, $payment->id),
         );
@@ -155,7 +155,7 @@ class DocumentRenderer
 
         return new RenderedDocument(
             view('documents.record', $data)->render(),
-            view('documents.footer', ['template' => $template])->render(),
+            $this->footer($template, $business),
             $template['paper_size'],
             $this->filename('Purchase', $purchase->number, $purchase->id),
         );
@@ -197,7 +197,7 @@ class DocumentRenderer
 
         return new RenderedDocument(
             view('documents.record', $data)->render(),
-            view('documents.footer', ['template' => $template])->render(),
+            $this->footer($template, $business),
             $template['paper_size'],
             $this->filename('Expense', $expense->number, $expense->id),
         );
@@ -231,7 +231,7 @@ class DocumentRenderer
 
         return new RenderedDocument(
             view('documents.receipt', $data)->render(),
-            view('documents.footer', ['template' => $template])->render(),
+            $this->footer($template, $business),
             $template['paper_size'],
             $this->filename('Voucher', $payment->number, $payment->id),
         );
@@ -266,7 +266,7 @@ class DocumentRenderer
 
         return new RenderedDocument(
             view('documents.receipt', $data)->render(),
-            view('documents.footer', ['template' => $template])->render(),
+            $this->footer($template, $business),
             $template['paper_size'],
             $this->filename('Voucher', $payment->number, $payment->id),
         );
@@ -283,6 +283,17 @@ class DocumentRenderer
                 && Decimal::isZero((string) $document->balance_due) => 'Paid',
             default                                               => null,
         };
+    }
+
+    /**
+     * The foot of each page, "Powered by izSuite" included as the document
+     * was issued with it (Doc 13 section 18): its business snapshot says so.
+     * One issued before plans could take it off has no word, so it keeps it;
+     * a draft follows the plan the business is on now.
+     */
+    private function footer(array $template, array $business): string
+    {
+        return view('documents.footer', ['template' => $template, 'poweredBy' => $business['powered_by'] ?? true])->render();
     }
 
     /** A business file - the logo, a signature - as a data: address, or null when it is not there. */
