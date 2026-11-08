@@ -6,6 +6,11 @@ use App\Services\Support\ImageService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * The signed-in user, as the screens use them: their name, sign-in e-mail
+ * and phone, their profile image, and the language and time zone they chose
+ * (Doc 12 section 22) - null for each business's own.
+ */
 class UserResource extends JsonResource
 {
     public function toArray(Request $request): array
@@ -15,34 +20,13 @@ class UserResource extends JsonResource
         $avatarPath = app(ImageService::class)->publicUrl($this->avatar);
 
         return [
-            'id'                => $this->id,
-            'prefix'            => $this->prefix,
-            'first_name'        => $this->first_name,
-            'last_name'         => $this->last_name,
-            'username'          => $this->username,
-            'email'             => $this->email,
-            'phone'             => $this->phone,
-            'headline'          => $this->headline,
-            'bio'               => $this->bio,
-            'avatar_url'        => $avatarPath ? url($avatarPath) : null,
-
-            // role_id is nullable, so a loaded relation can still be null.
-            'role'              => $this->relationLoaded('role') && $this->role
-                ? [
-                    'id'   => $this->role->id,
-                    'name' => $this->role->name,
-                    'slug' => $this->role->slug,
-                ]
-                : null,
-
-            'status'            => $this->status,
-            'timezone'          => $this->timezone,
-            'currency'          => $this->currency,
-
-            'is_email_verified' => ! is_null($this->email_verified_at),
-            'email_verified_at' => to_display_timezone_iso($this->email_verified_at),
-            'last_login_at'     => to_display_timezone_iso($this->last_login_at),
-            'created_at'        => to_display_timezone_iso($this->created_at),
+            'first_name' => $this->first_name,
+            'last_name'  => $this->last_name,
+            'email'      => $this->email,
+            'phone'      => $this->phone,
+            'avatar_url' => $avatarPath ? url($avatarPath) : null,
+            'language'   => $this->language,
+            'timezone'   => $this->timezone,
         ];
     }
 }

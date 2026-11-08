@@ -62,12 +62,12 @@ class ClientLoginAsTest extends TestCase
 
         $token  = $this->redeem($code)
             ->assertOk()
-            ->assertJsonPath('user.id', $client->id)
+            ->assertJsonPath('user.email', $client->email)
             ->assertJsonPath('token_type', 'Bearer')
             ->json('token');
 
         // An ordinary session as the client...
-        $this->withToken($token)->getJson('/api/v1/auth/me')->assertOk()->assertJsonPath('user.id', $client->id);
+        $this->withToken($token)->getJson('/api/v1/auth/me')->assertOk()->assertJsonPath('user.email', $client->email);
 
         // ...which the same link cannot start a second time.
         $this->redeem($code)->assertUnauthorized();

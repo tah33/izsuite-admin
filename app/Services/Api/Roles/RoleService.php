@@ -2,12 +2,14 @@
 
 namespace App\Services\Api\Roles;
 
+use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceRole;
 use App\Repositories\User\WorkspaceRepository;
 use App\Repositories\User\WorkspaceRoleRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Shared\ActivityLogService;
+use App\Services\Shared\WorkspaceAccess;
 use App\Services\User\Apps\WorkspaceApps;
 use App\Support\Permissions;
 use App\Support\SettingChanges;
@@ -27,8 +29,9 @@ use Illuminate\Support\Str;
  *
  * Business Owner is protected: it cannot be changed, copied, switched off or
  * deleted. A role someone holds cannot be switched off or deleted until they
- * are given another; a template can be switched off, but only a role the
- * business added can be deleted.
+ * are given another, and nobody changes the role they hold themselves; a
+ * template can be switched off, but only a role the business added can be
+ * deleted.
  */
 class RoleService
 {
@@ -37,6 +40,7 @@ class RoleService
     public function __construct(
         protected WorkspaceRoleRepository $roleRepository,
         protected WorkspaceRepository $workspaceRepository,
+        protected WorkspaceAccess $access,
     ) {}
 
     public function list(Workspace $workspace): Collection
@@ -70,9 +74,14 @@ class RoleService
         return $this->find($workspace, $role->id);
     }
 
-    public function update(Workspace $workspace, int $id, array $data): WorkspaceRole
+    public function update(Workspace $workspace, int $id, array $data, User $actor): WorkspaceRole
     {
         $role = $this->changeable($workspace, $id, 'changed');
+
+        // Nobody changes their own role, or what it allows (Doc 12 section 22).
+        if ($this->access->roleOf($actor, $workspace) === $role->id) {
+            abort(403, 'You cannot change the role you hold. Someone with another role can.');
+        }
 
         $before    = $this->state($role);
         $available = $this->available($workspace);

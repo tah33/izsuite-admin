@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pipeline\Pipeline;
 use Laravel\Sanctum\NewAccessToken;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class UserRepository
 {
@@ -167,10 +168,44 @@ class UserRepository
             ->delete();
     }
 
-    /** A new API session for $user: its token, and the plain text the client keeps. */
-    public function createToken(User $user, string $name, array $abilities, ?DateTimeInterface $expiresAt): NewAccessToken
+    /**
+     * A new API session for $user: its token, and the plain text the client
+     * keeps - with the IP address and browser it was made from, when known,
+     * so the user can tell their devices apart.
+     */
+    public function createToken(User $user, string $name, array $abilities, ?DateTimeInterface $expiresAt, ?string $ip = null, ?string $agent = null): NewAccessToken
     {
-        return $user->createToken($name, $abilities, $expiresAt);
+        $token = $user->createToken($name, $abilities, $expiresAt);
+
+        if ($ip !== null || $agent !== null) {
+            $token->accessToken->forceFill(['ip_address' => $ip, 'user_agent' => $agent === null ? null : mb_substr($agent, 0, 512)])->save();
+        }
+
+        return $token;
+    }
+
+    /** $user's sessions that have not expired, the most recently used first. */
+    public function liveTokens(User $user): Collection
+    {
+        return $user->tokens()
+            ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->orderByRaw('coalesce(last_used_at, created_at) desc')
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    /** One of $user's sessions that has not expired - null for another's. */
+    public function findLiveToken(User $user, int $id): ?PersonalAccessToken
+    {
+        return $user->tokens()
+            ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->whereKey($id)
+            ->first();
+    }
+
+    public function deleteToken(PersonalAccessToken $token): void
+    {
+        $token->delete();
     }
 
     /** Ends the session the request came with. */

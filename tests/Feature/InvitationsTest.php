@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Mail\WorkspaceInvitation;
+use App\Models\Admin\Language;
 use App\Models\Billing\Package;
 use App\Models\User\User;
 use App\Models\User\Workspace;
@@ -136,7 +137,8 @@ class InvitationsTest extends TestCase
 
     public function test_someone_new_makes_an_account_from_the_link(): void
     {
-        $secret = $this->invite('karim@example.com', ['timezone' => 'Asia/Dhaka']);
+        Language::create(['name' => 'Bangla', 'code' => 'bn']);
+        $secret = $this->invite('karim@example.com', ['timezone' => 'Asia/Dhaka', 'phone' => '+880 1711 000000', 'language' => 'bn']);
 
         $this->getJson("/api/v1/invitations/{$secret}")->assertJsonPath('data.account_exists', false);
 
@@ -152,7 +154,7 @@ class InvitationsTest extends TestCase
 
         $karim = User::where('email', 'karim@example.com')->sole();
         $this->assertNotNull($karim->email_verified_at);
-        $this->assertSame(['karim', 'Asia/Dhaka'], [$karim->username, $karim->timezone]);
+        $this->assertSame(['karim', 'Asia/Dhaka', '+880 1711 000000', 'bn'], [$karim->username, $karim->timezone, $karim->phone, $karim->language]);
         $this->assertSame(0, $karim->workspaces()->count());
         $this->assertSame(WorkspaceMember::ACTIVE, WorkspaceMember::where('user_id', $karim->id)->sole()->status);
 
@@ -160,11 +162,12 @@ class InvitationsTest extends TestCase
         $this->postJson("/api/v1/invitations/{$secret}/register", ['first_name' => 'X', 'password' => 'Secret!234', 'password_confirmation' => 'Secret!234', 'accept_terms' => true])
             ->assertNotFound();
 
-        // Invited without a time zone, the account takes the default.
+        // Invited without them, the account has none of its own: each business's time zone and language.
         $other = $this->invite('salma@example.com');
         $this->postJson("/api/v1/invitations/{$other}/register", ['first_name' => 'Salma', 'password' => 'Secret!234', 'password_confirmation' => 'Secret!234', 'accept_terms' => true])
             ->assertCreated();
-        $this->assertSame('UTC', User::where('email', 'salma@example.com')->sole()->timezone);
+        $salma = User::where('email', 'salma@example.com')->sole();
+        $this->assertSame([null, null, null], [$salma->timezone, $salma->language, $salma->phone]);
     }
 
     public function test_an_expired_link_is_refused_and_sending_again_makes_a_new_one(): void

@@ -9,6 +9,7 @@ use App\Repositories\Admin\RoleRepository;
 use App\Repositories\User\UserRepository;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -118,13 +119,14 @@ class AuthService
             'email_verified_at' => now(),
             'terms_accepted_at' => now(),
 
-            // The invitation's time zone, when it gave one; else the column's own default.
-            ...(empty($data['timezone']) ? [] : ['timezone' => $data['timezone']]),
+            // The invitation's phone, language and time zone, where it gave them
+            // (Doc 12 section 6) - the user's own from then on (section 22).
+            ...array_filter(Arr::only($data, ['phone', 'language', 'timezone']), fn ($value) => $value !== null && $value !== ''),
         ]);
 
         ActivityLogService::record('created', 'Registered an izSuite account from an invitation', $user, ['source' => 'api']);
 
-        $token = $this->userRepository->createToken($user, self::DEFAULT_DEVICE_NAME, ['*'], $this->tokenExpiry(false));
+        $token = $this->userRepository->createToken($user, self::DEFAULT_DEVICE_NAME, ['*'], $this->tokenExpiry(false), request()->ip(), request()->userAgent());
 
         return ['user' => $this->userRepository->loadRole($this->userRepository->updateLoginMeta($user)), 'token' => $token];
     }
@@ -162,11 +164,14 @@ class AuthService
             $this->rejectUnverifiedEmail();
         }
 
+        // Where it signs in from, so the user can tell their devices apart (Doc 12 section 22).
         $token = $this->userRepository->createToken(
             $user,
             $data['device_name'] ?? self::DEFAULT_DEVICE_NAME,
             ['*'],
             $this->tokenExpiry((bool) ($data['remember'] ?? false)),
+            request()->ip(),
+            request()->userAgent(),
         );
 
         $user  = $this->userRepository->updateLoginMeta($user);

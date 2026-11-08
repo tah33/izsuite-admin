@@ -80,7 +80,7 @@ class RoleController extends Controller
     public function update(SaveRoleRequest $request, int $id): JsonResponse
     {
         try {
-            $role = $this->roleService->update($this->currentWorkspace($request), $id, $request->validated());
+            $role = $this->roleService->update($this->currentWorkspace($request), $id, $request->validated(), $request->user());
 
             return response()->json([
                 'message' => "Role \"{$role->name}\" saved.",

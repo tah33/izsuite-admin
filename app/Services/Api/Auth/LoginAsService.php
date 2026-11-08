@@ -95,7 +95,7 @@ class LoginAsService
         }
 
         $expiresAt = now()->addHours(self::SESSION_HOURS);
-        $token     = $this->userRepository->createToken($client, self::TOKEN_NAME, ['*'], $expiresAt);
+        $token     = $this->userRepository->createToken($client, self::TOKEN_NAME, ['*'], $expiresAt, request()->ip(), request()->userAgent());
         $backUrl   = $grant['back_url'] ?? route('admin.overview');
 
         // Kept for as long as the session, for backUrl() to answer /auth/me with.

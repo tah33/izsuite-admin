@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-08
-- **Code:** Doc 12 Phase D2 is committed: frontend `7039f47` on `nuxt`, and on `main` the admin commit right after `8135b5b`.
-- **Tests:** 617 backend tests pass (last full run 2026-11-08, on this code).
-- **Next step:** Doc 12 Phase E.
+- **Code:** Doc 12 Phase E1 is committed: frontend `73cf6ca` on `nuxt`, and on `main` the admin commit right after `812e7b1`.
+- **Tests:** 622 backend tests pass (last full run 2026-11-08, on this code).
+- **Next step:** Doc 12 Phase E2.
 
 Update this file at the end of every phase and commit it with that phase.
 
@@ -14,7 +14,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 12 Phase E.
+   > Read PROJECT_STATUS.md, then start Doc 12 Phase E2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -36,7 +36,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 09 | Purchases Lite | Done |
 | 10 | Expenses Lite | Done |
 | 11 | Business Setup and Settings | Done, except notification preferences (waits for Doc 14) |
-| **12** | **Users, Roles, Permissions and Locations** | **In progress: A, B, C1, C2, D1, D2 done. E left** |
+| **12** | **Users, Roles, Permissions and Locations** | **In progress: A, B, C1, C2, D1, D2, E1 done. E2 left** |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Not started as a doc, parts exist |
 | 14 | Shared Platform Services | Not started as a doc, parts exist |
 | 15 | izSuite System Administration Portal | Not started as a doc, parts exist |
@@ -47,13 +47,20 @@ Stock, full Sales, OCR and full Accounting features are left out of the Lite app
 
 ## What is next
 
-### 1. Doc 12 Phase E: personal settings and security (next)
+### 1. Doc 12 Phase E2: multi-factor authentication (next)
 
-Doc 12 sections 22 and 23.
+Doc 12 section 22. Phase E was split in two. E1 (personal settings and active sessions) is done; see [Decisions worth knowing](#decisions-worth-knowing).
 
-- **Already there:** `/profile` (first and last name only), change password (`/auth/password/change`), and signing another user out (`/members/{id}/sign-out`).
-- **To build:** profile image, phone, preferred language, personal time zone, multi-factor authentication, and a user's own active sessions (see and revoke).
-- **Waits:** notification preferences (Doc 14). Section 25, package change rules (Doc 13).
+**Suggested defaults. These are not agreed yet, so confirm or change them when starting:**
+
+- An authenticator app: six-digit codes that change every 30 seconds (TOTP). It is set up on My Profile by scanning a QR code or typing the key, then confirmed with a code.
+- Ten recovery codes, each usable once, shown once at setup and made anew on request.
+- Signing in asks for a code, or a recovery code, after the password. Login as from the admin panel does not ask.
+- Turning it off, or making new recovery codes, needs the password.
+- The codes are worked out in our own code, with no package. The QR code needs one small library; the suggestion is `qrcode` from npm, drawn in the browser. Confirm before it is added.
+- Not in E2: a business requiring it of its users (Doc 12 does not say), and support resetting it for someone who lost their phone (Doc 15).
+
+**Waits:** notification preferences (Doc 14). Section 25, package change rules (Doc 13).
 
 Doc 12 is finished after this.
 
@@ -210,7 +217,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 12: Phase C1, the role in the screens | `4295998` | `c1c5f81` | |
 | Doc 12: Phase C2, location access | `58945f6` | `b6d733b` | |
 | Doc 12: Phase D1, sales, purchase and expense values | `8135b5b` | `5e62e3a` | 000106 |
-| Doc 12: Phase D2, costs, balances, account details, tax | the commit after `8135b5b` | `7039f47` | 000107 |
+| Doc 12: Phase D2, costs, balances, account details, tax | `812e7b1` | `7039f47` | 000107 |
+| Doc 12: Phase E1, personal settings and sessions | the commit after `812e7b1` | `73cf6ca` | 000108 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -272,6 +280,12 @@ These are easy to undo by mistake.
 - Tax information covers a contact's tax ID, country, treatment and exemption number, the business's tax registration (Settings > Taxes, and on documents), the tax reports, and the contact export's tax columns. Line taxes follow the app's values. PDFs and emails stay whole, because they are what the customer receives.
 - The Dashboard's accounts card and the Payment Account Transactions report need balances. The Sales User template has no balances; the Finance User holds balances, details and tax information; the Purchase User holds purchase prices.
 - The Activity Log writes down amounts, prices, balances, numbers and tax details as they were. So View Activity Log needs all seven: the three apps' values and the four above.
+- A user's name, phone, preferred language, personal time zone and profile image are theirs in every business (section 22). Saving copies only the fields they changed onto their record in each business (`workspace_members`), so each Users list shows them. A business's own edit stays until the user changes that field again, and the job title is always the business's.
+- An empty personal language or time zone means each business's own. Times of day follow the personal time zone in the browser (`plugins/regional.client.ts`); document dates never move. The screens are English only, so the language is kept for later.
+- A new account from an invitation takes the invitation's phone, language and time zone.
+- Each sign-in keeps its IP address and browser (`ip_address` and `user_agent` on `personal_access_tokens`), named by `App\Support\DeviceName`. Sign-ins from before E1 show as "Unknown device". Login as sessions are listed too, marked "izSuite support".
+- Nobody changes the role they hold, not even its permissions (`RoleService::update`), and the role page shows it read-only. Changing one's own role or locations was already refused.
+- `/profile` answers in the usual envelopes, and the signed-in user (`UserResource`) carries only their name, e-mail, phone, image, language and time zone.
 
 ## Small things left
 

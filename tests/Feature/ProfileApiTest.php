@@ -38,15 +38,13 @@ class ProfileApiTest extends TestCase
 
         $this->getJson('/api/v1/profile')
             ->assertOk()
-            ->assertJsonStructure([
-                'user' => ['id', 'first_name', 'last_name', 'email', 'role', 'status', 'last_login_at', 'created_at'],
+            ->assertExactJsonStructure([
+                'data' => ['first_name', 'last_name', 'email', 'phone', 'avatar_url', 'language', 'timezone'],
             ])
-            ->assertJsonPath('user.id', $user->id)
-            ->assertJsonPath('user.first_name', 'Ayesha')
-            ->assertJsonPath('user.last_name', 'Rahman')
-            ->assertJsonPath('user.email', $user->email)
-            ->assertJsonPath('user.role.slug', 'user')
-            ->assertJsonMissingPath('user.password');
+            ->assertJsonPath('data.first_name', 'Ayesha')
+            ->assertJsonPath('data.last_name', 'Rahman')
+            ->assertJsonPath('data.email', $user->email)
+            ->assertJsonPath('data.timezone', null);
     }
 
     /* ---------------------------------------------------------- update */
@@ -59,8 +57,8 @@ class ProfileApiTest extends TestCase
         $this->putJson('/api/v1/profile', ['first_name' => 'Nadia', 'last_name' => 'Islam'])
             ->assertOk()
             ->assertJsonPath('message', 'Profile updated successfully.')
-            ->assertJsonPath('user.first_name', 'Nadia')
-            ->assertJsonPath('user.last_name', 'Islam');
+            ->assertJsonPath('data.first_name', 'Nadia')
+            ->assertJsonPath('data.last_name', 'Islam');
 
         $this->assertDatabaseHas('users', ['id' => $user->id, 'first_name' => 'Nadia', 'last_name' => 'Islam']);
     }
@@ -72,7 +70,7 @@ class ProfileApiTest extends TestCase
 
         $this->putJson('/api/v1/profile', ['first_name' => $user->first_name, 'last_name' => ''])
             ->assertOk()
-            ->assertJsonPath('user.last_name', null);
+            ->assertJsonPath('data.last_name', null);
     }
 
     public function test_first_name_is_required(): void

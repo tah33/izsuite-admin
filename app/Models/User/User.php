@@ -39,6 +39,7 @@ class User extends Authenticatable
         'bio',
         'email',
         'phone',
+        'language',
         'password',
         'terms_accepted_at',
         'role_id',

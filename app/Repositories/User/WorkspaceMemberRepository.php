@@ -111,6 +111,16 @@ class WorkspaceMemberRepository
         $member->delete();
     }
 
+    /**
+     * Writes $details - name, phone, language, time zone - onto $user's
+     * record in every business they belong to; a removed one keeps what it
+     * had. How many records changed.
+     */
+    public function updateDetailsOf(User $user, array $details): int
+    {
+        return WorkspaceMember::where('user_id', $user->id)->where('status', '!=', WorkspaceMember::REMOVED)->update($details);
+    }
+
     /** Those who count toward the package's user limit: pending and active. */
     public function countCounted(Workspace $workspace): int
     {

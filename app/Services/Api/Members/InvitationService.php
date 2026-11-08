@@ -68,7 +68,7 @@ class InvitationService
         }
 
         return DB::transaction(function () use ($member, $data) {
-            $session = $this->authService->registerInvited($member->email, [...$data, 'timezone' => $member->timezone]);
+            $session = $this->authService->registerInvited($member->email, [...$data, 'phone' => $member->phone, 'language' => $member->language, 'timezone' => $member->timezone]);
 
             return [...$session, 'member' => $this->join($member, $session['user'])];
         });

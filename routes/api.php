@@ -57,6 +57,7 @@ use App\Http\Controllers\Api\PaymentAccountTransactionController;
 use App\Http\Controllers\Api\PaymentTermController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\ProfileSessionController;
 use App\Http\Controllers\Api\PurchaseAttachmentController;
 use App\Http\Controllers\Api\PurchaseController;
 use App\Http\Controllers\Api\PurchaseFlowController;
@@ -161,11 +162,19 @@ Route::prefix('v1')->group(function () {
     });
 
     /* ----------------------------------------------------------
-     | Signed-in user's profile
+     | Signed-in user's profile (Doc 12 section 22): their own details and
+     | image, the same in every business, and their signed-in devices. The
+     | image is sent as a file, so it is saved with POST.
      | -------------------------------------------------------- */
     Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
         Route::get('/', [ProfileController::class, 'show'])->name('api.profile.show');
         Route::put('/', [ProfileController::class, 'update'])->name('api.profile.update');
+        Route::post('/image', [ProfileController::class, 'changeImage'])->name('api.profile.image.update');
+        Route::delete('/image', [ProfileController::class, 'removeImage'])->name('api.profile.image.destroy');
+
+        Route::get('/sessions', [ProfileSessionController::class, 'index'])->name('api.profile.sessions.index');
+        Route::post('/sessions/sign-out-others', [ProfileSessionController::class, 'signOutOthers'])->name('api.profile.sessions.sign-out-others');
+        Route::post('/sessions/{id}/sign-out', [ProfileSessionController::class, 'signOut'])->whereNumber('id')->name('api.profile.sessions.sign-out');
     });
 
     /* ----------------------------------------------------------
