@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-09
-- **Code:** Doc 13 Phase C2b is committed: frontend `e7d6f59` on `nuxt`, and on `main` the admin commit right after `000444f`.
-- **Tests:** 664 backend tests pass (last full run 2026-11-09, on this code).
-- **Next step:** Doc 13 Phase D, once its decisions are made (see [What is next](#what-is-next)).
+- **Code:** Doc 13 Phase D1 is committed: frontend `0810b65` on `nuxt`, and on `main` the admin commit right after `8e261db`.
+- **Tests:** 669 backend tests pass (last full run 2026-11-09, on this code).
+- **Next step:** Doc 13 Phase D2, paying by card through Stripe (see [What is next](#what-is-next)).
 
 Update this file at the end of every phase and commit it with that phase.
 
@@ -14,7 +14,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then help me settle the decisions for Doc 13 Phase D.
+   > Read PROJECT_STATUS.md, then start Doc 13 Phase D2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -37,7 +37,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 10 | Expenses Lite | Done |
 | 11 | Business Setup and Settings | Done, except notification preferences (waits for Doc 14) |
 | 12 | Users, Roles, Permissions and Locations | Done, except notification preferences (Doc 14) and package change rules (Doc 13) |
-| **13** | **Apps Center, Packages, Subscriptions and Billing** | **In progress: A, B and C done. D (online payments) left** |
+| **13** | **Apps Center, Packages, Subscriptions and Billing** | **In progress: A, B, C and D1 done. D2 and D3 (card payments) left** |
 | 14 | Shared Platform Services | Not started as a doc, parts exist |
 | 15 | izSuite System Administration Portal | Not started as a doc, parts exist |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
@@ -47,9 +47,9 @@ Stock, full Sales, OCR and full Accounting features are left out of the Lite app
 
 ## What is next
 
-### 1. Doc 13: Apps Center, Packages, Subscriptions and Billing (next: Phase D)
+### 1. Doc 13: Apps Center, Packages, Subscriptions and Billing (next: Phase D2)
 
-The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D, with B in two parts and C in three (C1, C2a, C2b). Phases A to C are built (see [Decisions worth knowing](#decisions-worth-knowing)); D waits for your decisions.
+The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D: B in two parts, C in three (C1, C2a, C2b) and D in three (D1 to D3). Phases A to C and D1 are built (see [Decisions worth knowing](#decisions-worth-knowing)). D2 comes next.
 
 **Already built:**
 
@@ -105,13 +105,53 @@ The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D, with B
 
 **Still missing**, by phase:
 
-**Phase D: online payments.** Your chosen provider, with secure tokens, payment status by webhook, retries and the grace period, and payment methods managed through the provider. Billing currency and subscription tax follow the provider and the billing address.
+**Phase D: card payments through Stripe.** Your decisions (2026-11-09):
+
+- Stripe takes the card payments. izSuite stays the seller, so its own invoices, renewals, upgrades and grace keep running as built. Stripe needs izSuite's company to be registered in a country Stripe supports.
+- The other five follow the suggested defaults:
+  - The card is saved at the first payment and charged automatically, with retries during the grace.
+  - Trials still start without a card.
+  - Subscription tax comes from izSuite's own table.
+  - Bank transfer stays beside the card.
+  - Refunds, discounts and promotions wait for Doc 15.
+- Whatever the phase, card details are entered only on Stripe's own page, never in izSuite. The code reaches Stripe through a provider layer, so more providers can be added by country later (Doc 15 section 15).
+
+Phase D is split into D1 to D3, with these suggested defaults.
+
+**Phase D1: subscription tax** (Doc 13 section 16, Doc 15 section 16) is built, with your defaults:
+
+- Admin > Subscription Taxes, under App System, holds one rule per country and start date:
+  - the tax's name (VAT, GST, sales tax);
+  - its rate and the date it applies from;
+  - whether a buyer's tax ID removes it (reverse charge), with the note the invoice then prints.
+- The list marks each rule In force, Upcoming or Replaced. A later rule for a country takes over from its own day.
+- Prices are before tax. The tax is worked out when an invoice is issued, from the billing details' country and tax ID, on the amount after any upgrade credit, rounded to the cent. The invoice keeps it as issued. A country without a rule pays no tax.
+- The subscribe dialog, the upgrade preview and the invoice to pay show the price, any credit, the tax and the total. The invoice PDF and the admin list show the tax too, and a reverse charge prints its note.
+- Compare Plans and the public Pricing page say prices are before tax.
+
+**Phase D2: paying by card:**
+
+- Admin > Payment Methods > Stripe:
+  - takes test and live keys (publishable, secret and webhook signing secret) and a Test or Live switch;
+  - stores the keys encrypted and shows them masked after saving;
+  - gives the webhook address to enter in Stripe.
+  The old PayPal, Paddle, Paystack and Razorpay entries are hidden.
+- The invoice to pay offers Pay by Card beside the bank transfer details. It opens Stripe's own payment page in the invoice's currency, which saves the card for later payments.
+- Stripe reports the payment by webhook, which is verified; a repeated event or payment is recorded once. The invoice is then paid as when the admin confirms a transfer: the receipt and its e-mail go out, and the plan starts or renews. The receipt names the card and Stripe's reference.
+- The Subscription page's Payment Methods section shows the saved card (brand, last four digits, expiry), with Replace and Remove. Each change goes in the Activity Log.
+- Checking it needs a Stripe account in test mode, with its test keys entered in Admin > Payment Methods on dev and the Stripe CLI forwarding webhooks to localhost.
+
+**Phase D3: automatic renewals and retries:**
+
+- With a saved card, the hourly job charges a renewal on its due date and a trial's invoice on the trial's last day. An upgrade can be paid with the saved card from its preview.
+- A failed charge shows Past Due on the Subscription page, the Dashboard and the admin, and an e-mail gives the reason with a link to pay. It is tried again on grace days 1, 3 and the last, set in Admin > Settings > Billing. The daily grace e-mails stay. Once paid, the receipt e-mail goes out and the plan runs on as when paid during grace.
+- If the bank asks the cardholder to confirm the charge (3-D Secure), an e-mail asks them to pay on the Subscription page.
+- Removing the card stops automatic charges; invoices then wait to be paid by card or transfer, as now.
+- The admin's invoice list shows each attempt, with its date, result and reason.
 
 **Waits:** notifications (section 19) for Doc 14. Usage charges such as SMS, AI, extra storage and API (section 17) wait until those services exist. Translated app names wait for Doc 14, and admin-side configuration beyond packages and the catalog waits for Doc 15.
 
-**Needs your decisions before Phase D:** the payment provider and whether it handles subscription tax (Paddle does, as merchant of record; Stripe does not).
-
-**Careful:** the old `plans`, `subscriptions`, `invoices` and `payment_methods` tables and admin screens come from an earlier recruitment product. They work per user account, not per business, and do not fit Doc 13. Phase C replaces them rather than reusing them, except the Bank Transfer payment method.
+**Careful:** the old `plans`, `subscriptions`, `invoices` and `payment_methods` tables and admin screens come from an earlier recruitment product. They work per user account, not per business, and do not fit Doc 13. Phase C replaces them rather than reusing them, except `payment_methods`, which holds Bank Transfer and, from Phase D2, Stripe's keys. Its `credentials` column is not encrypted yet, and `config/payment_gateways.php` names gateway classes that do not exist.
 
 ### 2. Doc 14 and Doc 15
 
@@ -266,6 +306,7 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 13: Phase C1, subscribing, invoices, bank transfer | `beaf887` | `1324945` | 000113 |
 | Doc 13: Phase C2a, renewals, grace, trials, cancelling | `000444f` | `15d9d58` | 000114 |
 | Doc 13: Phase C2b, upgrades and downgrades | the commit after `000444f` | `e7d6f59` | 000115 |
+| Doc 13: Phase D1, subscription tax | the commit after `8e261db` | `0810b65` | 000116 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -360,10 +401,13 @@ These are easy to undo by mistake.
 - `period_ends_on` is the last paid day. Grace starts the day after and lasts the plan's grace days: `grace_ends_on` is its last day, and the business moves to Billing Starter the day after. A renewal paid ahead waits for the period's end; one paid in grace starts at once, from where the period ended (`SubscriptionBilling::confirm`).
 - Ending a subscription (`SubscriptionCycle::end`) cancels its open invoice and moves the business to Billing Starter through `SyncAppsWithPackage`, so Phase B2's over-limit choice follows. It is logged as the system's, and the business gets an e-mail saying why: trial, grace, cancelled or ended.
 - Cancelling an active subscription sets `cancels_at_period_end` and cancels a renewal already issued; Keep My Plan issues it again if it is due. The notices are `SubscriptionNoticeMail` (trial ending, each grace day, ended); renewal invoices reuse `SubscriptionBillingMail`.
-- Plan changes are `SubscriptionChanges`. An upgrade's credit is what the current period was paid (its paid invoice) times the days left, today counted, over the period's days, rounded down to the cent. It is never more than the new price, and nothing is credited across currencies. From a yearly plan an upgrade must stay yearly, so no months are lost. The invoice's kind is `upgrade`, and paying it starts a full period that day, cancelling any open renewal, scheduled downgrade or cancellation.
+- Plan changes are `SubscriptionChanges`. An upgrade's credit is what the current period was paid before tax (its paid invoice) times the days left, today counted, over the period's days, rounded down to the cent. It is never more than the new price, and nothing is credited across currencies. From a yearly plan an upgrade must stay yearly, so no months are lost. The invoice's kind is `upgrade`, and paying it starts a full period that day, cancelling any open renewal, scheduled downgrade or cancellation.
 - While an upgrade waits for payment no renewal is issued. At the period's end an unpaid upgrade is cancelled and the usual renewal and grace follow.
 - A downgrade is `scheduled_package_id` and `scheduled_cycle` on the subscription. The renewal is issued for that plan, and the business moves to it as the period ends, paid or not, so a grace runs on the lower plan.
 - izSuite's details on invoices are the `billing_*` settings (Admin > Settings > Billing): company name, address, e-mail, tax ID and the days to pay (7). `SettingService` adds them on first visit.
+- Subscription tax rules are `subscription_taxes`, one per country and `starts_on`. `SubscriptionTaxes` picks the country's latest rule that has started and adds its rate to the price less any credit, half up to the cent. With `reverse_charge` and a tax ID in the billing details, the tax is 0% and the rule's note (or a standard one) prints instead. The invoice keeps `tax_name`, `tax_rate`, `tax` and `tax_note`, so later rule changes never touch it.
+- `SubscriptionBilling::quote` is the one price breakdown (price, credit, tax, total). Issuing an invoice, the upgrade preview and `GET /subscription/quote` (the subscribe dialog) all use it.
+- An upgrade's credit is worked out from what the period was paid before tax (`SubscriptionInvoice::net`), since the new invoice's tax is on its price less that credit.
 - `/profile` answers in the usual envelopes, and the signed-in user (`UserResource`) carries only their name, e-mail, phone, image, language and time zone.
 
 ## Small things left

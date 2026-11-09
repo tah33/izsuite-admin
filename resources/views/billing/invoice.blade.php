@@ -39,6 +39,7 @@
         .totals td { padding: 4px 10px; }
         .totals td:last-child { text-align: right; white-space: nowrap; }
         .totals .grand td { padding-top: 8px; border-top: 2px solid #111827; font-size: 14px; font-weight: 700; }
+        .tax-note { width: 280px; margin: 6px 0 0 auto; padding: 0 10px; font-size: 11px; color: #4b5563; }
         .note { margin-top: 26px; padding: 12px 14px; border-radius: 6px; background: #f3f4f6; }
         .note h2 { margin: 0 0 6px; font-size: 12px; }
         .note.paid { background: #ecfdf5; color: #065f46; }
@@ -96,13 +97,22 @@
         </tbody>
     </table>
 
+    {{-- The tax as worked out when issued (Phase D1); a reverse charge adds none and prints its note. --}}
     <table class="totals">
-        @if ((float) $invoice->credit > 0)
+        @if ((float) $invoice->credit > 0 || $invoice->tax_name)
             <tr><td>Subtotal</td><td>{{ $money($invoice->amount) }}</td></tr>
+        @endif
+        @if ((float) $invoice->credit > 0)
             <tr><td>Credit for the unused plan</td><td>-{{ $money($invoice->credit) }}</td></tr>
+        @endif
+        @if ($invoice->tax_name)
+            <tr><td>{{ $invoice->tax_name }} ({{ $invoice->taxPercent() }}%)</td><td>{{ $money($invoice->tax) }}</td></tr>
         @endif
         <tr class="grand"><td>{{ $receipt ? 'Amount paid' : 'Total due' }}</td><td>{{ $money($invoice->total) }}</td></tr>
     </table>
+    @if ($invoice->tax_note)
+        <p class="tax-note">{{ $invoice->tax_note }}</p>
+    @endif
 
     @if ($receipt)
         <div class="note paid">

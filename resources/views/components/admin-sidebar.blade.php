@@ -60,6 +60,11 @@
             <span>{{ __('Subscription Invoices') }}</span>
         </a>
 
+        <a href="{{ route('admin.subscription-taxes.index') }}" class="sidebar-link {{ request()->routeIs('admin.subscription-taxes.*') ? 'active' : '' }}">
+            <i data-lucide="percent" class="icon"></i>
+            <span>{{ __('Subscription Taxes') }}</span>
+        </a>
+
         <a href="{{ route('admin.menu-items.index') }}" class="sidebar-link {{ request()->routeIs('admin.menu-items.*') ? 'active' : '' }}">
             <i data-lucide="panel-left" class="icon"></i>
             <span>{{ __('Menu Builder') }}</span>

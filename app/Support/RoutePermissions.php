@@ -41,6 +41,7 @@ final class RoutePermissions
             // The subscription, its invoices and its billing details (Doc 13 sections 11 and 21); over its limits, only the owner chooses (OverLimitService)
             'api.subscription.show'               => 'settings.subscription',
             'api.subscription.subscribe'          => 'settings.subscription',
+            'api.subscription.quote'              => 'settings.subscription',
             'api.subscription.withdraw'           => 'settings.subscription',
             'api.subscription.cancel'             => 'settings.subscription',
             'api.subscription.resume'             => 'settings.subscription',

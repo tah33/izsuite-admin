@@ -19,7 +19,12 @@
         {{ $invoice->package_name }}
         <span class="block text-xs text-[var(--text-muted)]">{{ $invoice->cycle === 'yearly' ? __('Yearly') : __('Monthly') }}{{ ['renewal' => ' · '.__('Renewal'), 'upgrade' => ' · '.__('Upgrade')][$invoice->kind] ?? '' }}</span>
     </td>
-    <td class="text-sm whitespace-nowrap font-semibold">{{ $invoice->currency }} {{ number_format((float) $invoice->total, 2) }}</td>
+    <td class="text-sm whitespace-nowrap font-semibold">
+        {{ $invoice->currency }} {{ number_format((float) $invoice->total, 2) }}
+        @if($invoice->tax_name)
+            <span class="block text-xs font-normal text-[var(--text-muted)]">{{ $invoice->tax_note ? __(':tax by reverse charge', ['tax' => $invoice->tax_name]) : __('incl. :tax :rate%: :amount', ['tax' => $invoice->tax_name, 'rate' => $invoice->taxPercent(), 'amount' => number_format((float) $invoice->tax, 2)]) }}</span>
+        @endif
+    </td>
     <td class="text-sm whitespace-nowrap">
         {{ __('Issued') }} {{ $invoice->issued_on->format('M d, Y') }}
         <span class="block text-xs text-[var(--text-muted)]">

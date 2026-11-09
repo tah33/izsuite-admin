@@ -46,9 +46,10 @@ class SubscriptionChanges
     ) {}
 
     /**
-     * What moving to $to, $cycle, would cost and when it would happen.
+     * What moving to $to, $cycle, would cost and when it would happen - the
+     * tax on it as it would be today (Phase D1).
      *
-     * @return array{kind: string, package: Package, cycle: string, currency: string, amount: string, credit: string, total: string, effective_on: ?string}
+     * @return array{kind: string, package: Package, cycle: string, currency: string, amount: string, credit: string, tax: array{name: ?string, rate: ?string, amount: string, note: ?string}, total: string, effective_on: ?string}
      */
     public function preview(Workspace $workspace, Package $to, string $cycle): array
     {
@@ -65,10 +66,7 @@ class SubscriptionChanges
             'kind'         => $kind,
             'package'      => $to,
             'cycle'        => $cycle,
-            'currency'     => $to->price_currency,
-            'amount'       => $amount,
-            'credit'       => $credit,
-            'total'        => bcsub($amount, $credit, 2),
+            ...$this->billing->quote($workspace, $to, $cycle, $credit),
             'effective_on' => $kind === self::DOWN ? $subscription->period_ends_on->copy()->addDay()->toDateString() : null,
         ];
     }
@@ -184,8 +182,9 @@ class SubscriptionChanges
 
     /**
      * What the unused part of the paid period is worth, counted by the day
-     * from today: what the period was paid, times the days left over the
-     * days it has - rounded down to the cent. Nothing across currencies.
+     * from today: what the period was paid before tax, times the days left
+     * over the days it has - rounded down to the cent. Nothing across
+     * currencies. The new invoice's tax is on its price less this.
      */
     private function credit(Workspace $workspace, WorkspaceSubscription $subscription, Package $to): string
     {
@@ -200,7 +199,7 @@ class SubscriptionChanges
         $today  = CarbonImmutable::parse($this->calendar->today($workspace)->toDateString());
         $days   = (int) round($start->diffInDays($end)) + 1;
         $unused = max(0, min($days, (int) round($today->diffInDays($end, false)) + 1));
-        $cents  = intdiv((int) round((float) $paid->total * 100) * $unused, $days);
+        $cents  = intdiv((int) round((float) $paid->net() * 100) * $unused, $days);
 
         return number_format($cents / 100, 2, '.', '');
     }

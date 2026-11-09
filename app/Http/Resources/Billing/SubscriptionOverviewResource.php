@@ -45,7 +45,7 @@ class SubscriptionOverviewResource extends JsonResource
                     'on'      => $subscription->period_ends_on?->copy()->addDay()->toDateString(),
                 ] : null,
             ] : null,
-            'open_invoice'    => $this->resource['open_invoice'] ? new SubscriptionInvoiceResource($this->resource['open_invoice'], withInstructions: true) : null,
+            'open_invoice'    => $this->resource['open_invoice'] ? new SubscriptionInvoiceResource($this->resource['open_invoice'], toPay: true) : null,
             'trial_available' => $this->resource['trial_available'],
             'packages'        => PackageOfferResource::collection($this->resource['packages']),
             'details'         => $this->resource['details'] ? new BillingDetailsResource($this->resource['details']) : null,

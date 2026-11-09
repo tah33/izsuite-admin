@@ -334,6 +334,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('subscription')->group(function () {
         Route::get('/', [SubscriptionController::class, 'show'])->name('api.subscription.show');
         Route::post('/', [SubscriptionController::class, 'subscribe'])->middleware('throttle:10,1')->name('api.subscription.subscribe');
+        Route::get('/quote', [SubscriptionController::class, 'quote'])->name('api.subscription.quote');
         Route::post('/withdraw', [SubscriptionController::class, 'withdraw'])->name('api.subscription.withdraw');
         Route::post('/cancel', [SubscriptionController::class, 'cancel'])->name('api.subscription.cancel');
         Route::post('/resume', [SubscriptionController::class, 'resume'])->name('api.subscription.resume');

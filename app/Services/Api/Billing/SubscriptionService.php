@@ -83,6 +83,33 @@ class SubscriptionService
         return $this->packages->findOfferedByKey($key) ?? throw ValidationException::withMessages(['package' => 'Choose one of the plans on offer.']);
     }
 
+    /**
+     * What subscribing to plan $packageKey, $cycle, would come to (Phase D1):
+     * its price and the tax on it, shown before it is chosen.
+     *
+     * @return array{currency: string, amount: string, credit: string, tax: array, total: string}
+     */
+    public function quote(Workspace $workspace, string $packageKey, string $cycle): array
+    {
+        return $this->billing->quote($workspace, $this->payable($packageKey, $cycle), $cycle);
+    }
+
+    /** A paid plan on offer, by its key, with its price for $cycle announced. */
+    private function payable(string $packageKey, string $cycle): Package
+    {
+        $package = $this->packages->findOfferedByKey($packageKey);
+
+        if (! $package || $package->isFree()) {
+            throw ValidationException::withMessages(['package' => 'Choose one of the paid plans on offer.']);
+        }
+
+        if ($this->billing->price($package, $cycle) === null) {
+            throw ValidationException::withMessages(['cycle' => "{$package->name}'s ".($cycle === WorkspaceSubscription::YEARLY ? 'yearly' : 'monthly').' price has not been announced yet.']);
+        }
+
+        return $package;
+    }
+
     /** @return array{message: string, overview: array} */
     public function cancel(Workspace $workspace, User $user): array
     {
@@ -147,15 +174,7 @@ class SubscriptionService
             $this->refuse('Your business already has a subscription. Changing it comes soon.');
         }
 
-        $package      = $this->packages->findOfferedByKey($packageKey);
-
-        if (! $package || $package->isFree()) {
-            throw ValidationException::withMessages(['package' => 'Choose one of the paid plans on offer.']);
-        }
-
-        if ($this->billing->price($package, $cycle) === null) {
-            throw ValidationException::withMessages(['cycle' => "{$package->name}'s ".($cycle === WorkspaceSubscription::YEARLY ? 'yearly' : 'monthly').' price has not been announced yet.']);
-        }
+        $package      = $this->payable($packageKey, $cycle);
 
         if (! $this->billingDetails->for($workspace)) {
             throw ValidationException::withMessages(['billing' => 'Add your billing details first: the invoice is made out to them.']);

@@ -28,8 +28,9 @@ use Illuminate\Validation\ValidationException;
  * 13 and 15), as the business's Subscription page and the admin both use
  * them: issued with izSuite's own number, paid by bank transfer, and - once
  * izSuite confirms the money arrived - given a receipt number, which starts
- * the paid period on the plan. An invoice keeps who it was billed to,
- * izSuite's details and the transfer instructions as they were when issued.
+ * the paid period on the plan. An invoice keeps who it was billed to, its
+ * tax (Phase D1, SubscriptionTaxes), izSuite's details and the transfer
+ * instructions as they were when issued.
  *
  * Each invoice and receipt goes by e-mail, PDF attached, to the billing
  * e-mail and the Business Owner.
@@ -52,6 +53,7 @@ class SubscriptionBilling
         private PaymentMethodRepository $paymentMethods,
         private BusinessCalendar $calendar,
         private SyncAppsWithPackage $sync,
+        private SubscriptionTaxes $taxes,
     ) {}
 
     /** $package's price for $cycle - null while izSuite has not announced it. */
@@ -61,15 +63,32 @@ class SubscriptionBilling
     }
 
     /**
+     * What $package's $cycle comes to for $workspace if invoiced today: its
+     * price, less an upgrade's $credit, plus the tax on what is left (Phase
+     * D1) - shown before a plan is chosen or changed, and what is invoiced.
+     *
+     * @return array{currency: string, amount: string, credit: string, tax: array{name: ?string, rate: ?string, amount: string, note: ?string}, total: string}
+     */
+    public function quote(Workspace $workspace, Package $package, string $cycle, string $credit = '0.00'): array
+    {
+        $amount = (string) $this->price($package, $cycle);
+        $net    = bcsub($amount, $credit, 2);
+        $tax    = $this->taxes->for($workspace, $net, $this->calendar->today($workspace));
+
+        return ['currency' => $package->price_currency, 'amount' => $amount, 'credit' => $credit, 'tax' => $tax, 'total' => bcadd($net, $tax['amount'], 2)];
+    }
+
+    /**
      * Issues the invoice for $package's $cycle, due by $dueOn - or after the
      * days the admin gives to pay. A period already known (one that starts
      * after a trial, or a renewal's) is printed on it; otherwise the period
-     * starts when the payment is confirmed.
+     * starts when the payment is confirmed. Its tax is the one in force
+     * today, and it keeps it.
      */
     public function issue(Workspace $workspace, Package $package, string $cycle, ?CarbonInterface $periodStart = null, ?CarbonInterface $dueOn = null, string $kind = SubscriptionInvoice::NEW, string $credit = '0.00'): SubscriptionInvoice
     {
         $today   = $this->calendar->today($workspace);
-        $price   = $this->price($package, $cycle);
+        $quote   = $this->quote($workspace, $package, $cycle, $credit);
 
         $invoice = DB::transaction(fn () => $this->invoices->create($workspace, [
             'number'               => self::INVOICE_PREFIX.str_pad((string) $this->sequences->next('invoice'), 5, '0', STR_PAD_LEFT),
@@ -79,11 +98,15 @@ class SubscriptionBilling
             'cycle'                => $cycle,
             'period_starts_on'     => $periodStart?->toDateString(),
             'period_ends_on'       => $periodStart ? $this->periodEnd($periodStart, $cycle)->toDateString() : null,
-            'currency'             => $package->price_currency,
-            'amount'               => $price,
+            'currency'             => $quote['currency'],
+            'amount'               => $quote['amount'],
             // An upgrade's credit for the unused part of the paid period (Phase C2b).
             'credit'               => $credit,
-            'total'                => bcsub((string) $price, $credit, 2),
+            'tax_name'             => $quote['tax']['name'],
+            'tax_rate'             => $quote['tax']['rate'],
+            'tax'                  => $quote['tax']['amount'],
+            'tax_note'             => $quote['tax']['note'],
+            'total'                => $quote['total'],
             'status'               => SubscriptionInvoice::OPEN,
             'issued_on'            => $today->toDateString(),
             'due_on'               => ($dueOn ?? $today->addDays($this->dueDays()))->toDateString(),

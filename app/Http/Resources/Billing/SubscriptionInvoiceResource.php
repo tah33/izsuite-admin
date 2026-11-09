@@ -10,13 +10,13 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * One of izSuite's invoices to the business (Doc 13 section 11's Billing
  * History): its number, plan and period, what it comes to, when it is due or
  * was paid, its receipt, and the business's transfer reference. The invoice
- * still to be paid comes with how to pay it.
+ * still to be paid comes with its price and tax (Phase D1) and how to pay it.
  *
  * @property SubscriptionInvoice $resource
  */
 class SubscriptionInvoiceResource extends JsonResource
 {
-    public function __construct($resource, private bool $withInstructions = false)
+    public function __construct($resource, private bool $toPay = false)
     {
         parent::__construct($resource);
     }
@@ -42,7 +42,11 @@ class SubscriptionInvoiceResource extends JsonResource
             'paid_on'            => $this->paid_at?->toDateString(),
             'receipt_number'     => $this->receipt_number,
             'transfer_reference' => $this->transfer_reference,
-            ...($this->withInstructions ? ['payment_instructions' => $this->payment_instructions] : []),
+            ...($this->toPay ? [
+                'amount'               => $this->amount,
+                'tax'                  => SubscriptionTaxLineResource::of(['name' => $this->tax_name, 'rate' => $this->tax_rate, 'amount' => $this->tax, 'note' => $this->tax_note]),
+                'payment_instructions' => $this->payment_instructions,
+            ] : []),
         ];
     }
 }

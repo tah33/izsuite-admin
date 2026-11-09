@@ -11,6 +11,7 @@ use App\Http\Resources\Billing\BillingDetailsResource;
 use App\Http\Resources\Billing\OverLimitChoicesResource;
 use App\Http\Resources\Billing\PlanChangePreviewResource;
 use App\Http\Resources\Billing\SubscriptionOverviewResource;
+use App\Http\Resources\Billing\SubscriptionQuoteResource;
 use App\Http\Resources\BusinessSetup\BusinessUsageResource;
 use App\Services\Api\Billing\BillingService;
 use App\Services\Api\Billing\OverLimitService;
@@ -43,6 +44,20 @@ class SubscriptionController extends Controller
                 'message' => $result['message'],
                 'data'    => new SubscriptionOverviewResource($result['overview']),
             ], 201);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** What a paid plan would come to, its tax included, before subscribing. */
+    public function quote(SubscribeRequest $request): JsonResponse
+    {
+        try {
+            return response()->json([
+                'data' => new SubscriptionQuoteResource($this->subscriptionService->quote($this->currentWorkspace($request), $request->validated('package'), $request->validated('cycle'))),
+            ]);
 
         } catch (\Throwable $e) {
             report($e);

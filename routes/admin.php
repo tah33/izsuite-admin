@@ -22,6 +22,7 @@ use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\SubscriptionController;
 use App\Http\Controllers\Admin\SubscriptionInvoiceController;
+use App\Http\Controllers\Admin\SubscriptionTaxController;
 use App\Http\Controllers\Admin\TicketController;
 use App\Http\Controllers\Admin\WorkspaceController;
 use Illuminate\Support\Facades\Route;
@@ -62,6 +63,8 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     Route::post('/subscription-invoices/{id}/confirm', [SubscriptionInvoiceController::class, 'confirm'])->whereNumber('id')->name('subscription-invoices.confirm');
     Route::post('/subscription-invoices/{id}/void', [SubscriptionInvoiceController::class, 'void'])->whereNumber('id')->name('subscription-invoices.void');
     Route::get('/subscription-invoices/{id}/pdf', [SubscriptionInvoiceController::class, 'pdf'])->whereNumber('id')->name('subscription-invoices.pdf');
+    // The tax on those invoices, by country (Doc 15 section 16 - Doc 13 Phase D1).
+    Route::resource('subscription-taxes', SubscriptionTaxController::class)->except(['show'])->parameters(['subscription-taxes' => 'id']);
     Route::patch('/workspaces/{id}/package', [WorkspaceController::class, 'updatePackage'])->name('workspaces.package');
     Route::resource('app-categories', AppCategoryController::class)->except(['show'])->parameters(['app-categories' => 'id']);
     Route::patch('/app-categories/{id}/toggle-status', [AppCategoryController::class, 'toggleActive'])->name('app-categories.toggle-status');

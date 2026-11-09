@@ -84,7 +84,7 @@ class SubscriptionChangeTest extends TestCase
         $this->travelTo(Carbon::parse('2026-11-24 10:00:00', 'UTC'));
 
         $this->preview('premium', 'monthly')->assertOk()->assertJsonPath('data', [
-            'kind' => 'upgrade', 'package' => 'Premium', 'cycle' => 'monthly', 'currency' => 'USD', 'amount' => '49.00', 'credit' => '9.75', 'total' => '39.25', 'effective_on' => null,
+            'kind' => 'upgrade', 'package' => 'Premium', 'cycle' => 'monthly', 'currency' => 'USD', 'amount' => '49.00', 'credit' => '9.75', 'tax' => null, 'total' => '39.25', 'effective_on' => null,
         ]);
 
         $page = $this->postJson('/api/v1/subscription/change', ['package' => 'premium', 'cycle' => 'monthly'])->assertOk()
@@ -143,7 +143,7 @@ class SubscriptionChangeTest extends TestCase
         $this->active('premium');
 
         $this->preview('standard', 'monthly')->assertJsonPath('data', [
-            'kind' => 'downgrade', 'package' => 'Standard', 'cycle' => 'monthly', 'currency' => 'USD', 'amount' => '19.50', 'credit' => '0.00', 'total' => '19.50', 'effective_on' => '2026-12-09',
+            'kind' => 'downgrade', 'package' => 'Standard', 'cycle' => 'monthly', 'currency' => 'USD', 'amount' => '19.50', 'credit' => '0.00', 'tax' => null, 'total' => '19.50', 'effective_on' => '2026-12-09',
         ]);
         $this->postJson('/api/v1/subscription/change', ['package' => 'standard', 'cycle' => 'monthly'])->assertOk()
             ->assertJsonPath('message', 'Your plan moves to Standard, monthly, on 9 Dec 2026, when this paid period ends. Until then you keep Premium.')

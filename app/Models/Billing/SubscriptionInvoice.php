@@ -41,6 +41,11 @@ class SubscriptionInvoice extends Model
         'currency',
         'amount',
         'credit',
+        // Its tax (Phase D1), as worked out when issued: the rule's name and rate, the amount, a reverse charge's note.
+        'tax_name',
+        'tax_rate',
+        'tax',
+        'tax_note',
         'total',
         'status',
         'issued_on',
@@ -60,6 +65,8 @@ class SubscriptionInvoice extends Model
         'period_ends_on'   => 'date',
         'amount'           => 'decimal:2',
         'credit'           => 'decimal:2',
+        'tax_rate'         => 'decimal:3',
+        'tax'              => 'decimal:2',
         'total'            => 'decimal:2',
         'issued_on'        => 'date',
         'due_on'           => 'date',
@@ -93,5 +100,17 @@ class SubscriptionInvoice extends Model
     public function isPaid(): bool
     {
         return $this->status === self::PAID;
+    }
+
+    /** What it charges before tax: the price less any upgrade credit - what the tax is worked out on. */
+    public function net(): string
+    {
+        return bcsub((string) $this->amount, (string) $this->credit, 2);
+    }
+
+    /** Its tax rate as people read it, "15" or "7.5" - null without a tax. */
+    public function taxPercent(): ?string
+    {
+        return $this->tax_name === null ? null : SubscriptionTax::readable((string) $this->tax_rate);
     }
 }
