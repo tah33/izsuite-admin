@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-09
-- **Code:** Doc 13 Phase C1 is committed: frontend `1324945` on `nuxt`, and on `main` the admin commit right after `d7ec7c8`.
-- **Tests:** 651 backend tests pass (last full run 2026-11-09, on this code).
-- **Next step:** Doc 13 Phase C2. Its suggested defaults are under [What is next](#what-is-next).
+- **Code:** Doc 13 Phase C2a is committed: frontend `15d9d58` on `nuxt`, and on `main` the admin commit right after `beaf887`.
+- **Tests:** 658 backend tests pass (last full run 2026-11-09, on this code).
+- **Next step:** Doc 13 Phase C2b. Its suggested defaults are under [What is next](#what-is-next).
 
 Update this file at the end of every phase and commit it with that phase.
 
@@ -14,7 +14,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 13 Phase C2.
+   > Read PROJECT_STATUS.md, then start Doc 13 Phase C2b.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -37,7 +37,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 10 | Expenses Lite | Done |
 | 11 | Business Setup and Settings | Done, except notification preferences (waits for Doc 14) |
 | 12 | Users, Roles, Permissions and Locations | Done, except notification preferences (Doc 14) and package change rules (Doc 13) |
-| **13** | **Apps Center, Packages, Subscriptions and Billing** | **In progress: A, B and C1 done. C2, D left** |
+| **13** | **Apps Center, Packages, Subscriptions and Billing** | **In progress: A, B, C1 and C2a done. C2b, D left** |
 | 14 | Shared Platform Services | Not started as a doc, parts exist |
 | 15 | izSuite System Administration Portal | Not started as a doc, parts exist |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
@@ -47,9 +47,9 @@ Stock, full Sales, OCR and full Accounting features are left out of the Lite app
 
 ## What is next
 
-### 1. Doc 13: Apps Center, Packages, Subscriptions and Billing (next: Phase C2)
+### 1. Doc 13: Apps Center, Packages, Subscriptions and Billing (next: Phase C2b)
 
-The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D, with B and C in two parts each. Phases A, B1, B2 and C1 are built (see [Decisions worth knowing](#decisions-worth-knowing)).
+The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D, with B in two parts and C in three (C1, C2a, C2b). Phases A, B1, B2, C1 and C2a are built (see [Decisions worth knowing](#decisions-worth-knowing)).
 
 **Already built:**
 
@@ -89,14 +89,21 @@ The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D, with B
 - The Subscription page shows the status (Trial, Awaiting payment, Active and paid until a date), the invoice to pay with how to pay it, and the billing history with each invoice's and receipt's PDF. E-mails with the PDF go to the billing e-mail and the owner when an invoice is issued and when a payment is confirmed.
 - Each plan's currency is picked from the admin's active currencies.
 
+**Phase C2a: renewals, grace, trial endings and cancelling** is built, with your defaults:
+
+- An hourly job (`subscriptions:advance`) moves each subscription on by its business's own day. Seven days before a paid period ends, the renewal invoice is issued, due on the period's last day. Paid by then, the next period starts as the old one ends.
+- Unpaid, the plan's grace starts the next day, with an e-mail every day saying how many days are left: 4 on the first of 5 grace days, down to the last day. Then the plan is cancelled and the business is on Billing Starter. Paying during grace keeps the plan, from where the period ended. A plan without grace days ends with its period.
+- A trial reminds 3 days and 1 day before it ends, and unpaid goes back to Billing Starter the day after.
+- Cancelling an active subscription keeps it to the end of the paid period, and Keep My Plan undoes it until then. A trial, or a subscription in grace, ends at once.
+- The Subscription page and the Dashboard show the grace with its days left, and an ending plan.
+
 **Still missing**, by phase:
 
-**C2: renewals, grace and plan changes** (suggested defaults, not agreed yet)
+**C2b: plan changes** (suggested defaults, not agreed yet)
 
-- A daily scheduled job: a renewal invoice 7 days before a period ends; the grace period with its daily e-mails; back to Billing Starter when grace runs out. A trial that ends unpaid goes back to Billing Starter without grace, after reminders 3 days and 1 day before.
-- Paying during grace keeps the plan, and the new period starts where the old one ended.
-- Upgrade at once, with the prorated amount shown first. It takes effect when its invoice is paid.
-- Downgrade and cancellation take effect at the end of the paid period, and can be undone until then.
+- Upgrade at once, with the prorated amount shown first: the unused part of the current period counts against the new plan's price. It takes effect when its invoice is paid.
+- Downgrade at the end of the paid period, undone until then: the renewal invoice is then for the lower plan, and at the period's end the business moves to it (Phase B2's move down).
+- Switching between monthly and yearly counts as an upgrade from monthly to yearly, and as a downgrade the other way.
 
 **Phase D: online payments.** Your chosen provider, with secure tokens, payment status by webhook, retries and the grace period, and payment methods managed through the provider. Billing currency and subscription tax follow the provider and the billing address.
 
@@ -256,7 +263,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 13: Phase A, Apps Center and app pages | `e0d062c` | `cdcdf12` | 000111 |
 | Doc 13: Phase B1, prices, subscription page, branding | `1dc0642` | `1ca411f` | 000112 |
 | Doc 13: Phase B2, lower plans, keeping within limits, warnings | `d7ec7c8` | `5156025` | |
-| Doc 13: Phase C1, subscribing, invoices, bank transfer | the commit after `d7ec7c8` | `1324945` | 000113 |
+| Doc 13: Phase C1, subscribing, invoices, bank transfer | `beaf887` | `1324945` | 000113 |
+| Doc 13: Phase C2a, renewals, grace, trials, cancelling | the commit after `beaf887` | `15d9d58` | 000114 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -347,6 +355,10 @@ These are easy to undo by mistake.
 - Without a trial, the paid period starts on the day izSuite confirms the payment. After a trial, the invoice is due on the trial's last day and its period starts the next day. Confirming moves the business to the plan through `SyncAppsWithPackage`.
 - Admin actions stay out of a business's Activity Log, as before, so a confirmed payment shows in its billing history (`paid_at`, `confirmed_by`) rather than in its log. The business's own steps (subscribing, withdrawing, the transfer reference) are logged.
 - Billing e-mails (`SubscriptionBillingMail`) are queued after the transaction commits, and draw their PDF when sent, so a server needs the queue worker running.
+- The hourly `subscriptions:advance` (`SubscriptionCycle`) takes each subscription by its business's own calendar day, so a business is seen soon after its midnight. Each step happens once: a renewal is issued once a period (found by its `period_starts_on`), and the daily e-mails go once a day (`last_notice_on`).
+- `period_ends_on` is the last paid day. Grace starts the day after and lasts the plan's grace days: `grace_ends_on` is its last day, and the business moves to Billing Starter the day after. A renewal paid ahead waits for the period's end; one paid in grace starts at once, from where the period ended (`SubscriptionBilling::confirm`).
+- Ending a subscription (`SubscriptionCycle::end`) cancels its open invoice and moves the business to Billing Starter through `SyncAppsWithPackage`, so Phase B2's over-limit choice follows. It is logged as the system's, and the business gets an e-mail saying why: trial, grace, cancelled or ended.
+- Cancelling an active subscription sets `cancels_at_period_end` and cancels a renewal already issued; Keep My Plan issues it again if it is due. The notices are `SubscriptionNoticeMail` (trial ending, each grace day, ended); renewal invoices reuse `SubscriptionBillingMail`.
 - izSuite's details on invoices are the `billing_*` settings (Admin > Settings > Billing): company name, address, e-mail, tax ID and the days to pay (7). `SettingService` adds them on first visit.
 - `/profile` answers in the usual envelopes, and the signed-in user (`UserResource`) carries only their name, e-mail, phone, image, language and time zone.
 
@@ -378,4 +390,4 @@ Each of these is yours to settle.
 - Run `php artisan migrate`, then `php artisan db:seed --class=AppCatalogSeeder`. **Never run the full `DatabaseSeeder` on a server:** it adds demo users.
 - The host nginx needs `client_max_body_size` of at least 120M, and the image must be rebuilt for the upload limits.
 - A database that still has `workspaces.staff_id` links and has not yet run migration 000060 would lose them. Check this on any older server.
-- Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing.
+- Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

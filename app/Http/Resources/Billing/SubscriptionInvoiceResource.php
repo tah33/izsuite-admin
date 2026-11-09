@@ -26,6 +26,8 @@ class SubscriptionInvoiceResource extends JsonResource
         return [
             'id'                 => $this->id,
             'number'             => $this->number,
+            // new, or renewal
+            'kind'               => $this->kind,
             'package'            => $this->package_name,
             'cycle'              => $this->cycle,
             'period_starts_on'   => $this->period_starts_on?->toDateString(),

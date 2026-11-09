@@ -32,6 +32,17 @@ class SubscriptionInvoiceRepository
         return $workspace->subscriptionInvoices()->where('status', SubscriptionInvoice::OPEN)->latest('id')->first();
     }
 
+    /** The renewal for the period starting on $startsOn - open or paid, never a cancelled one. */
+    public function renewalFor(Workspace $workspace, string $startsOn): ?SubscriptionInvoice
+    {
+        return $workspace->subscriptionInvoices()
+            ->where('kind', SubscriptionInvoice::RENEWAL)
+            ->whereDate('period_starts_on', $startsOn)
+            ->where('status', '!=', SubscriptionInvoice::VOID)
+            ->latest('id')
+            ->first();
+    }
+
     /** The business's billing history, newest first. */
     public function pageFor(Workspace $workspace, int $perPage): LengthAwarePaginator
     {

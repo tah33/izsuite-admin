@@ -11,3 +11,6 @@ Artisan::command('inspire', function () {
 
 // Imports left a week ago - finished or not - with their uploaded files.
 Schedule::command('model:prune', ['--model' => [Import::class]])->daily();
+
+// Subscriptions' renewals, grace and trials, each business by its own day (Doc 13 Phase C2a).
+Schedule::command('subscriptions:advance')->hourly()->withoutOverlapping();

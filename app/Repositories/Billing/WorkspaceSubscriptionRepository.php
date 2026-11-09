@@ -4,6 +4,7 @@ namespace App\Repositories\Billing;
 
 use App\Models\Billing\WorkspaceSubscription;
 use App\Models\User\Workspace;
+use Illuminate\Database\Eloquent\Collection;
 
 class WorkspaceSubscriptionRepository
 {
@@ -17,5 +18,11 @@ class WorkspaceSubscriptionRepository
     public function save(Workspace $workspace, array $data): WorkspaceSubscription
     {
         return $workspace->subscription()->updateOrCreate([], $data)->load('package');
+    }
+
+    /** Every subscription the daily cycle moves on - on a trial, active or in grace - with its business, owner and plan. */
+    public function running(): Collection
+    {
+        return WorkspaceSubscription::with(['workspace.user', 'package'])->whereIn('status', WorkspaceSubscription::RUNNING)->orderBy('id')->get();
     }
 }

@@ -42,6 +42,8 @@ final class RoutePermissions
             'api.subscription.show'               => 'settings.subscription',
             'api.subscription.subscribe'          => 'settings.subscription',
             'api.subscription.withdraw'           => 'settings.subscription',
+            'api.subscription.cancel'             => 'settings.subscription',
+            'api.subscription.resume'             => 'settings.subscription',
             'api.subscription.billing-details'    => 'settings.subscription',
             'api.subscription.over-limit'         => 'settings.subscription',
             'api.subscription.keep'               => 'settings.subscription',

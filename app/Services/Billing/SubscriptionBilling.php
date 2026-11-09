@@ -3,6 +3,7 @@
 namespace App\Services\Billing;
 
 use App\Mail\SubscriptionBillingMail;
+use App\Mail\SubscriptionNoticeMail;
 use App\Models\Billing\Package;
 use App\Models\Billing\SubscriptionInvoice;
 use App\Models\Billing\WorkspaceSubscription;
@@ -62,16 +63,17 @@ class SubscriptionBilling
     /**
      * Issues the invoice for $package's $cycle, due by $dueOn - or after the
      * days the admin gives to pay. A period already known (one that starts
-     * after a trial) is printed on it; otherwise the period starts when the
-     * payment is confirmed.
+     * after a trial, or a renewal's) is printed on it; otherwise the period
+     * starts when the payment is confirmed.
      */
-    public function issue(Workspace $workspace, Package $package, string $cycle, ?CarbonInterface $periodStart = null, ?CarbonInterface $dueOn = null): SubscriptionInvoice
+    public function issue(Workspace $workspace, Package $package, string $cycle, ?CarbonInterface $periodStart = null, ?CarbonInterface $dueOn = null, string $kind = SubscriptionInvoice::NEW): SubscriptionInvoice
     {
         $today   = $this->calendar->today($workspace);
         $price   = $this->price($package, $cycle);
 
         $invoice = DB::transaction(fn () => $this->invoices->create($workspace, [
             'number'               => self::INVOICE_PREFIX.str_pad((string) $this->sequences->next('invoice'), 5, '0', STR_PAD_LEFT),
+            'kind'                 => $kind,
             'package_id'           => $package->id,
             'package_name'         => $package->name,
             'cycle'                => $cycle,
@@ -98,6 +100,10 @@ class SubscriptionBilling
      * The payment arrived (izSuite confirms it): the invoice is paid, with a
      * receipt number, and the subscription it pays for is active for its
      * period - the one after a trial, else from today - on its plan.
+     *
+     * A renewal's period follows the one before: paid in grace, the plan
+     * carries on from where that one ended; paid before it ends, the daily
+     * cycle (SubscriptionCycle) starts it then.
      */
     public function confirm(SubscriptionInvoice $invoice, User $admin): SubscriptionInvoice
     {
@@ -120,6 +126,16 @@ class SubscriptionBilling
             ]);
 
             $subscription = $this->subscriptions->for($workspace);
+
+            if ($invoice->kind === SubscriptionInvoice::RENEWAL) {
+                if ($subscription?->status === WorkspaceSubscription::GRACE) {
+                    $this->subscriptions->save($workspace, [
+                        'status' => WorkspaceSubscription::ACTIVE, 'period_starts_on' => $start->toDateString(), 'period_ends_on' => $end->toDateString(), 'grace_ends_on' => null, 'last_notice_on' => null,
+                    ]);
+                }
+
+                return;
+            }
 
             if ($subscription?->isCurrent() && $subscription->package_id === $invoice->package_id) {
                 $this->subscriptions->save($workspace, ['status' => WorkspaceSubscription::ACTIVE, 'period_starts_on' => $start->toDateString(), 'period_ends_on' => $end->toDateString()]);
@@ -209,14 +225,34 @@ class SubscriptionBilling
         return preg_replace("/\n{3,}/", "\n\n", $text) ?: null;
     }
 
+    /**
+     * A notice about the subscription (Doc 13 section 19) - its trial ending,
+     * a day of its grace, its end - by e-mail to the billing e-mail and the
+     * owner. $details is what SubscriptionNoticeMail says.
+     */
+    public function notice(Workspace $workspace, string $kind, array $details): void
+    {
+        $to = $this->recipients($workspace, $this->billingDetails->for($workspace)?->email);
+
+        if ($to) {
+            Mail::to($to)->queue(new SubscriptionNoticeMail($kind, [...$details, 'business' => $workspace->name]));
+        }
+    }
+
     /** The invoice - or its receipt - by e-mail, to the billing e-mail and the owner. */
     private function send(SubscriptionInvoice $invoice, bool $receipt = false): void
     {
-        $to = collect([$invoice->billed_to['email'] ?? null, $invoice->workspace->user?->email])->filter()->unique()->values();
+        $to = $this->recipients($invoice->workspace, $invoice->billed_to['email'] ?? null);
 
-        if ($to->isNotEmpty()) {
-            Mail::to($to->all())->queue(new SubscriptionBillingMail($invoice, $receipt));
+        if ($to) {
+            Mail::to($to)->queue(new SubscriptionBillingMail($invoice, $receipt));
         }
+    }
+
+    /** @return list<string> the billing e-mail and the owner's, once each */
+    private function recipients(Workspace $workspace, ?string $billingEmail): array
+    {
+        return collect([$billingEmail, $workspace->user?->email])->filter()->unique()->values()->all();
     }
 
     /** A 422 for the API, and back to the admin's page with the message there. */

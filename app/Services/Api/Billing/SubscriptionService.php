@@ -12,6 +12,7 @@ use App\Repositories\Billing\WorkspaceSubscriptionRepository;
 use App\Repositories\User\WorkspaceBillingRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Billing\SubscriptionBilling;
+use App\Services\Billing\SubscriptionCycle;
 use App\Services\Billing\SubscriptionPdf;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\BusinessCalendar;
@@ -26,7 +27,11 @@ use Illuminate\Validation\ValidationException;
  * due as the trial ends; without one, izSuite issues the invoice and the
  * plan starts when izSuite confirms the payment. An invoice not yet paid
  * can be withdrawn, and takes the business's transfer reference. One trial
- * per business. Changing an active subscription comes with Phase C2.
+ * per business.
+ *
+ * Cancelling (Phase C2a): an active subscription runs to the end of its paid
+ * period, then the business is on Billing Starter - undone until then; a
+ * trial, or one in grace, ends at once. Changing plan comes with Phase C2b.
  */
 class SubscriptionService
 {
@@ -34,6 +39,7 @@ class SubscriptionService
 
     public function __construct(
         protected SubscriptionBilling $billing,
+        protected SubscriptionCycle $cycle,
         protected BillingService $billingService,
         protected SubscriptionPdf $pdf,
         protected WorkspaceSubscriptionRepository $subscriptions,
@@ -43,6 +49,60 @@ class SubscriptionService
         protected BusinessCalendar $calendar,
         protected SyncAppsWithPackage $sync,
     ) {}
+
+    /** @return array{message: string, overview: array} */
+    public function cancel(Workspace $workspace, User $user): array
+    {
+        $subscription = $this->subscriptions->for($workspace);
+        $plan         = $subscription?->package?->name;
+
+        if ($subscription?->status === WorkspaceSubscription::ACTIVE && ! $subscription->cancels_at_period_end) {
+            $end     = $subscription->period_ends_on;
+
+            DB::transaction(function () use ($workspace) {
+                $this->subscriptions->save($workspace, ['cancels_at_period_end' => true]);
+
+                // Its renewal, if issued, is not to be paid now.
+                if (($open = $this->invoices->openFor($workspace)) && $open->kind === SubscriptionInvoice::RENEWAL) {
+                    $this->billing->void($open);
+                }
+            });
+
+            ActivityLogService::record('cancelled', "Cancelled the {$plan} subscription; it ends after {$end->format('j M Y')}", $workspace, ['source' => 'api']);
+
+            $message = "{$plan} stays until {$end->format('j M Y')}. Then your business moves to Billing Starter, the free plan.";
+        } elseif (in_array($subscription?->status, [WorkspaceSubscription::TRIALING, WorkspaceSubscription::GRACE], true)) {
+            $this->cycle->end($subscription, 'cancelled');
+
+            $message = "{$plan} is cancelled. Your business is on Billing Starter, the free plan.";
+        } else {
+            $this->refuse($subscription?->status === WorkspaceSubscription::AWAITING_PAYMENT
+                ? 'Your plan has not started yet: withdraw its invoice instead.'
+                : 'There is no paid subscription to cancel.');
+        }
+
+        return ['message' => $message, 'overview' => $this->billingService->overview($workspace->fresh(), $user)];
+    }
+
+    /** @return array{message: string, overview: array} the cancellation undone, before the period ends - its renewal issued if it is due */
+    public function resume(Workspace $workspace, User $user): array
+    {
+        $subscription = $this->subscriptions->for($workspace);
+
+        if ($subscription?->status !== WorkspaceSubscription::ACTIVE || ! $subscription->cancels_at_period_end) {
+            $this->refuse('There is no cancellation to undo.');
+        }
+
+        $this->subscriptions->save($workspace, ['cancels_at_period_end' => false]);
+        $this->cycle->renewIfDue($subscription->refresh());
+
+        ActivityLogService::record('updated', "Kept the {$subscription->package->name} subscription", $workspace, ['source' => 'api']);
+
+        return [
+            'message'  => "{$subscription->package->name} carries on. Its renewal invoice comes ".SubscriptionCycle::RENEWAL_DAYS.' days before the period ends.',
+            'overview' => $this->billingService->overview($workspace->fresh(), $user),
+        ];
+    }
 
     /** @return array{message: string, overview: array} */
     public function subscribe(Workspace $workspace, User $user, string $packageKey, string $cycle): array

@@ -48,6 +48,40 @@ class SubscriptionController extends Controller
         }
     }
 
+    /** Cancels the subscription: at the end of its paid period - or at once, on a trial or in grace. */
+    public function cancel(Request $request): JsonResponse
+    {
+        try {
+            $result = $this->subscriptionService->cancel($this->currentWorkspace($request), $request->user());
+
+            return response()->json([
+                'message' => $result['message'],
+                'data'    => new SubscriptionOverviewResource($result['overview']),
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** Undoes a cancellation before the period ends. */
+    public function resume(Request $request): JsonResponse
+    {
+        try {
+            $result = $this->subscriptionService->resume($this->currentWorkspace($request), $request->user());
+
+            return response()->json([
+                'message' => $result['message'],
+                'data'    => new SubscriptionOverviewResource($result['overview']),
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
     /** The invoice waiting for the first payment withdrawn, and the subscription with it. */
     public function withdraw(Request $request): JsonResponse
     {

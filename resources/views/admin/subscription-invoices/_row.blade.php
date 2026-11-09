@@ -17,7 +17,7 @@
     </td>
     <td class="text-sm">
         {{ $invoice->package_name }}
-        <span class="block text-xs text-[var(--text-muted)]">{{ $invoice->cycle === 'yearly' ? __('Yearly') : __('Monthly') }}</span>
+        <span class="block text-xs text-[var(--text-muted)]">{{ $invoice->cycle === 'yearly' ? __('Yearly') : __('Monthly') }}{{ $invoice->kind === 'renewal' ? ' · '.__('Renewal') : '' }}</span>
     </td>
     <td class="text-sm whitespace-nowrap font-semibold">{{ $invoice->currency }} {{ number_format((float) $invoice->total, 2) }}</td>
     <td class="text-sm whitespace-nowrap">

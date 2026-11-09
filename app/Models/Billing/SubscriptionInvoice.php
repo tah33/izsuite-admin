@@ -16,15 +16,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class SubscriptionInvoice extends Model
 {
-    public const OPEN   = 'open';
+    public const OPEN    = 'open';
 
-    public const PAID   = 'paid';
+    public const PAID    = 'paid';
 
-    public const VOID   = 'void';
+    public const VOID    = 'void';
 
-    protected $fillable = [
+    /** What it is for: a subscription's first payment, a renewal, or (Phase C2b) an upgrade. */
+    public const NEW     = 'new';
+
+    public const RENEWAL = 'renewal';
+
+    protected $fillable  = [
         'workspace_id',
         'number',
+        'kind',
         'package_id',
         'package_name',
         'cycle',
@@ -47,7 +53,7 @@ class SubscriptionInvoice extends Model
         'voided_at',
     ];
 
-    protected $casts    = [
+    protected $casts     = [
         'period_starts_on' => 'date',
         'period_ends_on'   => 'date',
         'amount'           => 'decimal:2',

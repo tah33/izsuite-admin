@@ -29,10 +29,16 @@ class WorkspaceSubscription extends Model
 
     public const ACTIVE           = 'active';
 
+    /** Its paid period ended unpaid: the plan stays until grace_ends_on (Doc 13 Phase C2). */
+    public const GRACE            = 'grace';
+
     public const CANCELLED        = 'cancelled';
 
     /** The statuses of a subscription the business is in - another cannot be started. */
-    public const CURRENT          = [self::TRIALING, self::AWAITING_PAYMENT, self::ACTIVE];
+    public const CURRENT          = [self::TRIALING, self::AWAITING_PAYMENT, self::ACTIVE, self::GRACE];
+
+    /** The statuses the daily cycle moves on (SubscriptionCycle). */
+    public const RUNNING          = [self::TRIALING, self::ACTIVE, self::GRACE];
 
     protected $fillable           = [
         'package_id',
@@ -42,13 +48,19 @@ class WorkspaceSubscription extends Model
         'trial_ends_on',
         'period_starts_on',
         'period_ends_on',
+        'grace_ends_on',
+        'cancels_at_period_end',
+        'last_notice_on',
     ];
 
     protected $casts              = [
-        'trial_starts_on'  => 'date',
-        'trial_ends_on'    => 'date',
-        'period_starts_on' => 'date',
-        'period_ends_on'   => 'date',
+        'trial_starts_on'       => 'date',
+        'trial_ends_on'         => 'date',
+        'period_starts_on'      => 'date',
+        'period_ends_on'        => 'date',
+        'grace_ends_on'         => 'date',
+        'cancels_at_period_end' => 'boolean',
+        'last_notice_on'        => 'date',
     ];
 
     public function workspace(): BelongsTo

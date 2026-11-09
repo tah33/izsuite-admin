@@ -42,7 +42,7 @@ class BillingService
     ) {}
 
     /**
-     * @return array{package: array|null, status: string, subscription: ?WorkspaceSubscription, open_invoice: ?SubscriptionInvoice,
+     * @return array{package: array|null, status: string, subscription: ?WorkspaceSubscription, renewed_until: mixed, open_invoice: ?SubscriptionInvoice,
      *               trial_available: bool, packages: list<array>, details: ?WorkspaceBilling, excess: ?array}
      */
     public function overview(Workspace $workspace, User $user): array
@@ -50,11 +50,18 @@ class BillingService
         $current      = $workspace->package;
         $subscription = $this->subscriptions->for($workspace);
         $subscribed   = $subscription?->isCurrent() ? $subscription : null;
+        $status       = $subscribed?->status ?? ($current === null || $current->isFree() ? 'free' : 'active');
+
+        // A renewal paid before the period ends: the plan is paid up to its end.
+        $renewal      = $subscribed?->status === WorkspaceSubscription::ACTIVE && $subscribed->period_ends_on
+            ? $this->invoices->renewalFor($workspace, $subscribed->period_ends_on->copy()->addDay()->toDateString())
+            : null;
 
         return [
             'package'         => $current ? ['key' => $current->key, 'name' => $current->name, 'removes_branding' => $current->removes_branding] : null,
-            'status'          => $subscribed?->status ?? ($current === null || $current->isFree() ? 'free' : 'active'),
+            'status'          => $status === WorkspaceSubscription::ACTIVE && $subscribed?->cancels_at_period_end ? 'cancellation_scheduled' : $status,
             'subscription'    => $subscribed,
+            'renewed_until'   => $renewal?->isPaid() ? $renewal->period_ends_on : null,
             'open_invoice'    => $this->invoices->openFor($workspace),
             'trial_available' => ! $subscription?->trial_starts_on,
             'packages'        => array_map(fn (array $package) => [...$package, 'current' => $package['key'] === $current?->key], $this->catalog->packages()),
