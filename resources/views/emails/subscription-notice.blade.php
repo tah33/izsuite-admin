@@ -1,4 +1,4 @@
-{{-- The daily subscription cycle's notices (SubscriptionNoticeMail): a trial ending, a day of grace, a plan ended. --}}
+{{-- The daily subscription cycle's notices (SubscriptionNoticeMail): a trial ending, a day of grace, a plan ended - and the saved card not charged (Phase D3). --}}
 @php
     $plan = $details['plan'];
     $days = $details['days_left'] ?? null;
@@ -30,15 +30,41 @@
                                 <h2 style="margin:0 0 16px; color:#1a1a2e; font-size:20px; font-weight:600;">Your {{ $plan }} trial ends {{ $days === 1 ? 'tomorrow' : 'in '.$days.' days' }}</h2>
                                 <p style="margin:0 0 28px; color:#51545e; font-size:15px; line-height:1.6;">
                                     The trial for {{ $details['business'] }} runs until {{ $details['trial_ends_on'] }}. To keep {{ $plan }}, pay invoice
-                                    {{ $details['invoice'] }} ({{ $details['total'] }}) by bank transfer before then. Otherwise the business goes back to
+                                    {{ $details['invoice'] }} ({{ $details['total'] }}) from your Subscription page by then. Otherwise the business goes back to
                                     Billing Starter, the free plan, the day after - everything you recorded is kept.
+                                </p>
+                            @elseif ($kind === 'payment_failed')
+                                <h2 style="margin:0 0 16px; color:#1a1a2e; font-size:20px; font-weight:600;">{{ $details['confirm'] ? 'Please confirm your payment' : 'We could not charge your card' }}</h2>
+                                <p style="margin:0 0 16px; color:#51545e; font-size:15px; line-height:1.6;">
+                                    @if ($details['confirm'])
+                                        Your bank asks you to confirm the payment of invoice {{ $details['invoice'] }} ({{ $details['total'] }}) with {{ $details['card'] }}.
+                                        Pay it with Pay by Card on your Subscription page, where your bank can check it is you.
+                                    @else
+                                        We tried to charge {{ $details['card'] }} for invoice {{ $details['invoice'] }} ({{ $details['total'] }}), but it did not go through: {{ $details['declined'] }}
+                                    @endif
+                                </p>
+                                <p style="margin:0 0 28px; color:#51545e; font-size:15px; line-height:1.6;">
+                                    @if ($details['for'] === 'trial')
+                                        The {{ $plan }} trial for {{ $details['business'] }} ends today. Pay the invoice on your Subscription page today to keep
+                                        {{ $plan }}; otherwise the business goes back to Billing Starter, the free plan, tomorrow. Everything you recorded is kept.
+                                    @elseif ($details['grace_days'] > 0)
+                                        The paid period for {{ $details['business'] }} ends today. {{ $details['grace_days'] }} days of grace follow, and we will try
+                                        your card again - or pay on your Subscription page, by card or bank transfer.
+                                    @else
+                                        The paid period for {{ $details['business'] }} ends today. Pay the invoice on your Subscription page today to keep {{ $plan }}.
+                                    @endif
                                 </p>
                             @elseif ($kind === 'grace')
                                 <h2 style="margin:0 0 16px; color:#1a1a2e; font-size:20px; font-weight:600;">Your {{ $plan }} subscription has ended</h2>
                                 <p style="margin:0 0 16px; color:#51545e; font-size:15px; line-height:1.6;">
                                     The paid period for {{ $details['business'] }} is over, and <strong>{{ $left }}</strong> to renew it.
-                                    Pay invoice {{ $details['invoice'] }} ({{ $details['total'] }}) by bank transfer by {{ $details['last_day'] }}.
+                                    Pay invoice {{ $details['invoice'] }} ({{ $details['total'] }}) from your Subscription page by {{ $details['last_day'] }}.
                                 </p>
+                                @if (! empty($details['card']))
+                                    <p style="margin:0 0 16px; color:#51545e; font-size:15px; line-height:1.6;">
+                                        {{ $details['confirm'] ? "Your bank asks you to confirm the payment with {$details['card']}: pay with Pay by Card on your Subscription page." : "We tried {$details['card']} again today, but it did not go through: {$details['declined']}" }}
+                                    </p>
+                                @endif
                                 <p style="margin:0 0 28px; color:#51545e; font-size:15px; line-height:1.6;">
                                     Otherwise your plan will be cancelled on {{ $details['cancels_on'] }}, and the business goes back to Billing Starter,
                                     the free plan. Everything you recorded is kept.

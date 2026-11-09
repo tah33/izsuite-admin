@@ -355,6 +355,7 @@ Route::prefix('v1')->group(function () {
         // Paying by card on Stripe's page, and the saved card (Doc 13 Phase D2).
         Route::post('/invoices/{id}/card-checkout', [SubscriptionCardController::class, 'checkout'])->whereNumber('id')->middleware('throttle:10,1')->name('api.subscription.card.checkout');
         Route::post('/card-checkout', [SubscriptionCardController::class, 'complete'])->middleware('throttle:20,1')->name('api.subscription.card.complete');
+        Route::post('/invoices/{id}/charge', [SubscriptionCardController::class, 'charge'])->whereNumber('id')->middleware('throttle:10,1')->name('api.subscription.card.charge');
         Route::post('/card', [SubscriptionCardController::class, 'setup'])->middleware('throttle:10,1')->name('api.subscription.card.setup');
         Route::delete('/card', [SubscriptionCardController::class, 'remove'])->name('api.subscription.card.remove');
     });

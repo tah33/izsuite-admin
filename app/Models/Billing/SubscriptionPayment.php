@@ -15,7 +15,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class SubscriptionPayment extends Model
 {
-    public const SUCCEEDED = 'succeeded';
+    public const SUCCEEDED       = 'succeeded';
+
+    /** A saved card charged without the business there (Phase D3), refused by the bank: `note` says why. */
+    public const FAILED          = 'failed';
+
+    /** The bank asked the cardholder to confirm it (3-D Secure): paid on Stripe's page instead. */
+    public const ACTION_REQUIRED = 'action_required';
+
+    /** Not settled yet: Stripe's notification settles it. */
+    public const PROCESSING      = 'processing';
 
     protected $fillable = [
         'workspace_id',
@@ -25,13 +34,20 @@ class SubscriptionPayment extends Model
         'currency',
         'amount',
         'status',
+        'attempted_on',
         'card',
         'note',
     ];
 
     protected $casts    = [
-        'amount' => 'decimal:2',
+        'amount'       => 'decimal:2',
+        'attempted_on' => 'date',
     ];
+
+    public function succeeded(): bool
+    {
+        return $this->status === self::SUCCEEDED;
+    }
 
     public function workspace(): BelongsTo
     {

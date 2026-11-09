@@ -43,12 +43,14 @@
             'billing_company_email'    => __('Billing e-mail'),
             'billing_company_tax_id'   => __('Tax ID'),
             'billing_invoice_due_days' => __('Days to pay an invoice'),
+            'billing_retry_days'       => __('Card retries in grace'),
         ];
 
         $helpTexts = [
             'billing_company_name'     => __('Who izSuite\'s subscription invoices and receipts come from.'),
             'billing_company_email'    => __('Printed on invoices, for questions about a bill.'),
             'billing_invoice_due_days' => __('An invoice without a trial is due this many days after it is issued. An invoice already issued keeps its own date.'),
+            'billing_retry_days'       => __('Grace days, by number and separated by commas, on which a declined saved card is charged again. It is always tried on the last day of grace too.'),
             'smtp_enabled'      => __('When off, the app falls back to the mailer configured in .env. Your credentials below are kept either way.'),
             'smtp_host'         => __('e.g. smtp.gmail.com, smtp.mailgun.org, smtp-relay.brevo.com'),
             'smtp_port'         => __('587 for TLS, 465 for SSL, 25 for unencrypted.'),

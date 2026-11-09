@@ -29,6 +29,9 @@ class SubscriptionNoticeMail extends Mailable implements ShouldQueue
 
     public const ENDED        = 'ended';
 
+    /** The saved card was not charged on the due day (Phase D3): declined, or the cardholder to confirm it. */
+    public const PAYMENT_FAILED = 'payment_failed';
+
     public function __construct(
         public string $kind,
         public array $details,
@@ -46,6 +49,7 @@ class SubscriptionNoticeMail extends Mailable implements ShouldQueue
             self::GRACE        => $days === 0
                 ? "Last day to renew your {$plan} subscription"
                 : "Your {$plan} subscription has ended: {$days} ".($days === 1 ? 'day' : 'days').' left to renew',
+            self::PAYMENT_FAILED => ($this->details['confirm'] ?? false) ? "Please confirm your payment for {$plan}" : "We could not charge your card for {$plan}",
             default            => "Your {$plan} plan has ended",
         });
     }

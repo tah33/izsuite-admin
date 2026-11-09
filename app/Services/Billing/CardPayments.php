@@ -13,11 +13,13 @@ use App\Repositories\User\WorkspaceBillingRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\Billing\Payments\CardGateway;
 use App\Services\Billing\Payments\CardPaymentError;
+use App\Services\Billing\Payments\ChargeResult;
 use App\Services\Billing\Payments\CheckoutOutcome;
 use App\Services\Shared\ActivityLogService;
 use App\Support\MinorUnits;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Paying izSuite's invoices by card (Doc 13 section 15 - Phase D2), through
@@ -30,6 +32,9 @@ use Illuminate\Support\Facades\DB;
  * (SubscriptionBilling::confirm): the receipt, and the plan starting or
  * renewing. One that cannot - its invoice cancelled meanwhile, or not its
  * total - is kept with why, for the admin to refund.
+ *
+ * Phase D3: the saved card is charged without the business there - by the
+ * daily cycle, or when the business asks - each try kept, refused or not.
  */
 class CardPayments
 {
@@ -74,18 +79,81 @@ class CardPayments
         return $this->call(fn () => $this->gateway->finished($sessionId));
     }
 
-    /** The provider's notification: the checkout it reports finished, settled. Throws InvalidNotification. */
+    /** The provider's notification: the checkout or payment it reports, settled. Throws InvalidNotification. */
     public function notified(string $payload, ?string $signature): void
     {
-        $sessionId = $this->gateway->notified($payload, $signature);
-
-        if ($sessionId && ($outcome = $this->gateway->finished($sessionId))) {
+        if ($outcome = $this->gateway->notified($payload, $signature)) {
             $this->settle($outcome);
         }
     }
 
-    /** What a finished checkout did, done once: the payment kept and its invoice paid, the card saved. Answers as a sentence. */
-    public function settle(CheckoutOutcome $outcome): string
+    /**
+     * Charges the business's saved card for $invoice without it there (Phase
+     * D3), on business day $day - once a day, unless $now: the business asks
+     * itself. Taken, the invoice is paid as settle() does; refused, the
+     * attempt is kept with why. Null when there is nothing to try: no card,
+     * card payments off, tried today, one still processing, or - unless
+     * $now, which answers 502 - the provider not answering.
+     */
+    public function charge(SubscriptionInvoice $invoice, string $day, bool $now = false): ?SubscriptionPayment
+    {
+        $workspace = $invoice->workspace;
+        $card      = $this->card($workspace);
+
+        if (! $card || ! $invoice->isOpen() || ! $this->gateway->available()
+            || (! $now && $this->payments->attemptedOn($invoice, $day)) || $this->payments->pendingFor($invoice)) {
+            return null;
+        }
+
+        $key       = "izsuite-charge-{$invoice->id}-".($now ? Str::uuid() : $day);
+
+        try {
+            $result = $this->gateway->charge($invoice, $card, $key);
+        } catch (CardPaymentError $e) {
+            if ($now) {
+                $this->call(fn () => throw $e);
+            }
+
+            report($e);
+
+            return null;
+        }
+
+        if ($result->status === ChargeResult::SUCCEEDED) {
+            $this->settle(new CheckoutOutcome($workspace->id, $invoice->id, $card->customer_id, $card->livemode, [
+                'id' => $card->card_id, 'brand' => $card->brand, 'last4' => $card->last4, 'exp_month' => $card->exp_month, 'exp_year' => $card->exp_year,
+            ], $result->paymentRef, $result->amountMinor, $result->currency), $day);
+
+            return $this->payments->find($this->gateway->name(), $result->paymentRef);
+        }
+
+        $attempt   = $this->payments->create([
+            'workspace_id' => $workspace->id, 'subscription_invoice_id' => $invoice->id, 'provider' => $this->gateway->name(),
+            'reference'    => $result->paymentRef ?? $key, 'currency' => $invoice->currency, 'amount' => $invoice->total,
+            'status'       => $result->status, 'attempted_on' => $day, 'card' => $card->label(), 'note' => $result->message,
+        ]);
+
+        if ($result->status !== ChargeResult::PROCESSING) {
+            ActivityLogService::record('updated', "Charging {$card->label()} for invoice {$invoice->number} did not go through: {$result->message}", $workspace, ['source' => 'system']);
+        }
+
+        return $attempt;
+    }
+
+    /** The saved card's last try for $invoice when it did not go through - null when it did, or there was none. */
+    public function lastFailure(SubscriptionInvoice $invoice): ?SubscriptionPayment
+    {
+        $last = $this->payments->latestFor($invoice);
+
+        return $last && ! $last->succeeded() ? $last : null;
+    }
+
+    /**
+     * What a finished checkout did, done once: the payment kept - made on
+     * business day $attemptedOn when the saved card was charged - and its
+     * invoice paid, the card saved. Answers as a sentence.
+     */
+    public function settle(CheckoutOutcome $outcome, ?string $attemptedOn = null): string
     {
         $workspace = $this->workspaces->find($outcome->workspaceId)
             ?? throw new CardPaymentError("There is no business {$outcome->workspaceId} for this checkout.");
@@ -100,10 +168,12 @@ class CardPayments
             throw new CardPaymentError('The finished checkout names no payment.');
         }
 
-        return DB::transaction(function () use ($workspace, $outcome) {
+        return DB::transaction(function () use ($workspace, $outcome, $attemptedOn) {
             $invoice = $this->invoices->lock($outcome->invoiceId);
+            $known   = $this->payments->find($this->gateway->name(), $outcome->paymentRef);
 
-            if ($this->payments->exists($this->gateway->name(), $outcome->paymentRef)) {
+            // Reported before - unless it was still processing then.
+            if ($known && ! in_array($known->status, [SubscriptionPayment::PROCESSING, SubscriptionPayment::ACTION_REQUIRED], true)) {
                 return $invoice?->isPaid() ? "Invoice {$invoice->number} is paid. Thank you." : 'This payment is recorded already.';
             }
 
@@ -117,7 +187,7 @@ class CardPayments
                 default                                                  => null,
             };
 
-            $this->payments->create([
+            $payment = [
                 'workspace_id'            => $workspace->id,
                 'subscription_invoice_id' => $invoice?->workspace_id === $workspace->id ? $invoice->id : null,
                 'provider'                => $this->gateway->name(),
@@ -127,7 +197,9 @@ class CardPayments
                 'status'                  => SubscriptionPayment::SUCCEEDED,
                 'card'                    => $label,
                 'note'                    => $why ? "Not applied: {$why} Refund it in Stripe." : null,
-            ]);
+            ];
+
+            $known ? $this->payments->update($known, $payment) : $this->payments->create([...$payment, 'attempted_on' => $attemptedOn]);
 
             if ($outcome->card) {
                 $this->keepCard($workspace, $outcome);

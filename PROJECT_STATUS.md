@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-09
-- **Code:** Doc 13 Phase D2 is committed: frontend `faf1211` on `nuxt`, and on `main` the admin commit right after `aec6aa5`.
-- **Tests:** 675 backend tests pass (last full run 2026-11-09, on this code).
-- **Next step:** Doc 13 Phase D3, automatic renewals and retries (see [What is next](#what-is-next)). Trying D2 with a Stripe test account first is worth it.
+- **Code:** Doc 13 Phase D3 is committed: frontend `b41141a` on `nuxt`, and on `main` the admin commit right after `cca298d`.
+- **Tests:** 681 backend tests pass (last full run 2026-11-09, on this code).
+- **Next step:** Doc 13 is done. Try card payments with a Stripe test account (see Phase D2), then the Doc 14 gap check (see [What is next](#what-is-next)).
 
 Update this file at the end of every phase and commit it with that phase.
 
@@ -14,7 +14,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 13 Phase D3.
+   > Read PROJECT_STATUS.md, then start Doc 14.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -37,7 +37,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 10 | Expenses Lite | Done |
 | 11 | Business Setup and Settings | Done, except notification preferences (waits for Doc 14) |
 | 12 | Users, Roles, Permissions and Locations | Done, except notification preferences (Doc 14) and package change rules (Doc 13) |
-| **13** | **Apps Center, Packages, Subscriptions and Billing** | **In progress: A, B, C, D1 and D2 done. D3 (automatic renewals) left** |
+| 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17) and notifications (section 19), which wait for their services and Doc 14 |
 | 14 | Shared Platform Services | Not started as a doc, parts exist |
 | 15 | izSuite System Administration Portal | Not started as a doc, parts exist |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
@@ -47,9 +47,9 @@ Stock, full Sales, OCR and full Accounting features are left out of the Lite app
 
 ## What is next
 
-### 1. Doc 13: Apps Center, Packages, Subscriptions and Billing (next: Phase D3)
+### 1. Doc 13: Apps Center, Packages, Subscriptions and Billing (done 2026-11-09)
 
-The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D: B in two parts, C in three (C1, C2a, C2b) and D in three (D1 to D3). Phases A to C, D1 and D2 are built (see [Decisions worth knowing](#decisions-worth-knowing)). D3 comes next.
+The gap check was done on 2026-11-08. Doc 13 was split into Phases A to D: B in two parts, C in three (C1, C2a, C2b) and D in three (D1 to D3). All are built (see [Decisions worth knowing](#decisions-worth-knowing)). Card payments have only been checked against a faked Stripe so far: try them with a Stripe test account (Phase D2 below).
 
 **Already built:**
 
@@ -149,14 +149,20 @@ Phase D is split into D1 to D3, with these suggested defaults.
 2. In Admin > Payment Methods > Stripe, paste the test keys, choose Test, and tick Take card payments.
 3. Run `stripe listen --forward-to localhost:8000/api/v1/webhooks/stripe` and paste the signing secret it prints. Without it, coming back from Stripe's page still settles a payment.
 4. Pay an invoice with Stripe's test card 4242 4242 4242 4242, any future expiry date and any CVC.
+5. For D3, save a card, then run `php artisan subscriptions:advance` on the renewal's due day. Stripe's test card 4000 0000 0000 0341 is declined later, after it is saved, and 4000 0027 6000 3184 asks to be confirmed.
 
-**Phase D3: automatic renewals and retries:**
+On a server, the Stripe webhook needs two events: `checkout.session.completed` and `payment_intent.succeeded`.
 
-- With a saved card, the hourly job charges a renewal on its due date and a trial's invoice on the trial's last day. An upgrade can be paid with the saved card from its preview.
-- A failed charge shows Past Due on the Subscription page, the Dashboard and the admin, and an e-mail gives the reason with a link to pay. It is tried again on grace days 1, 3 and the last, set in Admin > Settings > Billing. The daily grace e-mails stay. Once paid, the receipt e-mail goes out and the plan runs on as when paid during grace.
-- If the bank asks the cardholder to confirm the charge (3-D Secure), an e-mail asks them to pay on the Subscription page.
-- Removing the card stops automatic charges; invoices then wait to be paid by card or transfer, as now.
-- The admin's invoice list shows each attempt, with its date, result and reason.
+**Phase D3: automatic renewals and retries** is built, with your defaults:
+
+- With a saved card, the hourly job charges it, without the business there, on the renewal's due day (the paid period's last) and on a trial's last day. Paid, the invoice is settled as any card payment is. Each invoice is tried at most once a business day, and Stripe gets the same key for a repeat, so it never charges twice.
+- A refusal shows Past Due on the Subscription page and the Dashboard, and an e-mail gives the bank's reason. In the grace that follows the card is tried again on the days set in Admin > Settings > Billing ("Card retries in grace", 1 and 3) and on the last grace day. That day's grace e-mail says how the try went. Paid in grace, the plan carries on from where its period ended.
+- When the bank asks the cardholder to confirm (3-D Secure), the e-mail and the page ask them to pay with Use Another Card, on Stripe's page, where the bank can check.
+- The invoice to pay offers Pay with Visa ending 4242, charged at once, beside Use Another Card. This is also how an upgrade is paid with the saved card, right after its preview, rather than from the preview itself.
+- Removing the card stops the charges; invoices then wait to be paid by card or transfer.
+- The admin invoice list shows each try, with its date, card, result and reason.
+- A charge still processing is settled by Stripe's `payment_intent.succeeded` webhook, and no other is tried meanwhile.
+- Checked with a faked Stripe in the tests, and on dev with a stand-in Past Due state (made-up keys, no Stripe calls) that was removed afterwards.
 
 **Waits:** notifications (section 19) for Doc 14. Usage charges such as SMS, AI, extra storage and API (section 17) wait until those services exist. Translated app names wait for Doc 14, and admin-side configuration beyond packages and the catalog waits for Doc 15.
 
@@ -317,6 +323,7 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 13: Phase C2b, upgrades and downgrades | the commit after `000444f` | `e7d6f59` | 000115 |
 | Doc 13: Phase D1, subscription tax | the commit after `8e261db` | `0810b65` | 000116 |
 | Doc 13: Phase D2, paying by card | the commit after `aec6aa5` | `faf1211` | 000117 |
+| Doc 13: Phase D3, automatic card charges | the commit after `cca298d` | `b41141a` | 000118 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -423,6 +430,8 @@ These are easy to undo by mistake.
 - Checkout uses payment mode with `setup_future_usage=off_session`, so the card is kept for D3. Its metadata names the business and invoice, and it expires after an hour. Stripe sends the business back to `/settings?tab=subscription&card_checkout={id}`, and the page settles it through `POST /subscription/card-checkout`.
 - Settling locks the invoice row and records `subscription_payments`, unique per provider and reference, so the webhook and the return can't both pay it. A card-paid invoice has no `confirmed_by`; `paid_with` and `payment_reference` say how it was paid.
 - One card per business (`workspace_cards`). Its Stripe customer is kept per mode, even after the card is removed. A new card replaces the old one, which is taken off Stripe once the change is saved.
+- Automatic charges (`CardPayments::charge`) are Stripe PaymentIntents with `off_session` and `confirm`, keyed `izsuite-charge-{invoice}-{business day}`. A try the business asks for gets a fresh key. Every try is a `subscription_payments` row with `attempted_on`. A decline is `failed`, a bank wanting confirmation is `action_required`, and a charge not yet settled is `processing`, which `payment_intent.succeeded` later turns into `succeeded`.
+- Stripe being unreachable is not counted as a try: it is reported, and the hourly job tries again. The status is `past_due` while the paid period still runs after a refused renewal, and `grace` once it has ended.
 - `/profile` answers in the usual envelopes, and the signed-in user (`UserResource`) carries only their name, e-mail, phone, image, language and time zone.
 
 ## Small things left

@@ -56,6 +56,7 @@ final class RoutePermissions
             'api.subscription.invoices.pdf'       => 'settings.subscription',
             'api.subscription.card.checkout'      => 'settings.subscription',
             'api.subscription.card.complete'      => 'settings.subscription',
+            'api.subscription.card.charge'        => 'settings.subscription',
             'api.subscription.card.setup'         => 'settings.subscription',
             'api.subscription.card.remove'        => 'settings.subscription',
 

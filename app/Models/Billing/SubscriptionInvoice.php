@@ -96,10 +96,10 @@ class SubscriptionInvoice extends Model
         return $this->belongsTo(User::class, 'confirmed_by');
     }
 
-    /** Card payments for it that could not pay it (Phase D2) - for the admin to refund. */
-    public function unappliedPayments(): HasMany
+    /** Its card payments and the saved card's attempts (Phases D2 and D3), oldest first. */
+    public function payments(): HasMany
     {
-        return $this->hasMany(SubscriptionPayment::class, 'subscription_invoice_id')->whereNotNull('note');
+        return $this->hasMany(SubscriptionPayment::class, 'subscription_invoice_id')->orderBy('id');
     }
 
     public function isOpen(): bool

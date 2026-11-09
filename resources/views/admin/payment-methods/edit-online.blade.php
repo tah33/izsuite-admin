@@ -85,7 +85,7 @@
                     <h2 class="text-lg font-semibold mb-2 text-[var(--text-primary)]">
                         <i data-lucide="webhook" class="w-5 h-5 inline-block me-1"></i> {{ __('Webhook') }}
                     </h2>
-                    <p class="text-xs mb-3 text-[var(--text-muted)]">{{ __('In :name, add this endpoint for the event checkout.session.completed, in each mode, and save its signing secret above.', ['name' => $method->name]) }}</p>
+                    <p class="text-xs mb-3 text-[var(--text-muted)]">{{ __('In :name, add this endpoint for the events checkout.session.completed and payment_intent.succeeded, in each mode, and save its signing secret above.', ['name' => $method->name]) }}</p>
                     <input type="text" class="form-input font-mono text-xs" value="{{ route('api.webhooks.stripe') }}" readonly onclick="this.select()" aria-label="{{ __('Webhook address') }}">
                 </div>
 

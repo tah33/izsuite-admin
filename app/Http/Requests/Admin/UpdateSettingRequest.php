@@ -42,6 +42,8 @@ class UpdateSettingRequest extends FormRequest
             'settings.billing_company_email'    => ['nullable', 'email', 'max:255'],
             'settings.billing_company_tax_id'   => ['nullable', 'string', 'max:50'],
             'settings.billing_invoice_due_days' => ['required', 'integer', 'min:1', 'max:90'],
+            // Grace days a declined saved card is charged again on: "1,3" (Doc 13 Phase D3).
+            'settings.billing_retry_days'       => ['nullable', 'string', 'max:50', 'regex:/^\s*\d{1,2}(\s*,\s*\d{1,2})*\s*$/'],
         ];
 
         return array_filter($rules, function ($key) {

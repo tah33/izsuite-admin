@@ -52,6 +52,23 @@ class SubscriptionCardController extends Controller
         }
     }
 
+    /** Invoice {id} paid with the saved card, now (Phase D3). */
+    public function charge(Request $request, int $id): JsonResponse
+    {
+        try {
+            $result = $this->cardService->chargeNow($this->currentWorkspace($request), $request->user(), $id);
+
+            return response()->json([
+                'message' => $result['message'],
+                'data'    => new SubscriptionOverviewResource($result['overview']),
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
     /** Stripe's page to save a card, or another in its place. */
     public function setup(Request $request): JsonResponse
     {

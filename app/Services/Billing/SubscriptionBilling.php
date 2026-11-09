@@ -44,6 +44,9 @@ class SubscriptionBilling
     /** Days to pay an invoice when the admin has set none (Settings > Billing). */
     public const DUE_DAYS       = 7;
 
+    /** Grace days a declined saved card is tried again on, besides the last, when the admin has set none (Phase D3). */
+    public const RETRY_DAYS     = '1,3';
+
     public function __construct(
         private SubscriptionInvoiceRepository $invoices,
         private WorkspaceSubscriptionRepository $subscriptions,
@@ -243,6 +246,20 @@ class SubscriptionBilling
     private function dueDays(): int
     {
         return max(1, (int) ($this->settings->valuesOf('billing')['billing_invoice_due_days'] ?? self::DUE_DAYS));
+    }
+
+    /**
+     * The grace days a declined saved card is charged again on (Phase D3),
+     * as the admin sets them (Settings > Billing: "1,3") - and the last day
+     * of grace, always.
+     *
+     * @return list<int>
+     */
+    public function retryDays(): array
+    {
+        $days = $this->settings->valuesOf('billing')['billing_retry_days'] ?? self::RETRY_DAYS;
+
+        return array_values(array_unique(array_filter(array_map('intval', explode(',', (string) $days)), fn (int $day) => $day > 0)));
     }
 
     /** The business's billing details as they are now, its country by name. */

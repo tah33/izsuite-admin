@@ -4,11 +4,13 @@ namespace App\Services\Billing\Payments;
 
 use App\Models\Billing\PaymentMethod;
 use App\Models\Billing\SubscriptionInvoice;
+use App\Models\Billing\WorkspaceCard;
 use App\Models\User\Workspace;
 use App\Repositories\Admin\PaymentMethodRepository;
 use App\Support\MinorUnits;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -117,7 +119,39 @@ class StripeGateway implements CardGateway
         );
     }
 
-    public function notified(string $payload, ?string $signature): ?string
+    public function charge(SubscriptionInvoice $invoice, WorkspaceCard $card, string $key): ChargeResult
+    {
+        $response = $this->request(fn (PendingRequest $http) => $http->asForm()->withHeaders(['Idempotency-Key' => $key])->post(self::API.'payment_intents', [
+            'amount'         => MinorUnits::of((string) $invoice->total, $invoice->currency),
+            'currency'       => strtolower($invoice->currency),
+            'customer'       => $card->customer_id,
+            'payment_method' => $card->card_id,
+            'off_session'    => 'true',
+            'confirm'        => 'true',
+            'description'    => "izSuite {$invoice->package_name} plan, {$invoice->cycle} ({$invoice->number})",
+            'metadata'       => ['workspace_id' => $invoice->workspace_id, 'invoice_id' => $invoice->id],
+        ]));
+
+        // The bank refusing - a decline, or the cardholder to confirm it - is Stripe's card error.
+        if ($response->status() === 402) {
+            $error  = $response->json('error') ?? [];
+            $intent = $error['payment_intent'] ?? [];
+            $action = ($error['code'] ?? null) === 'authentication_required' || ($intent['status'] ?? null) === 'requires_action';
+
+            return new ChargeResult($action ? ChargeResult::ACTION_REQUIRED : ChargeResult::FAILED, $intent['id'] ?? null, $error['message'] ?? 'The card was declined.');
+        }
+
+        $intent   = $this->ensure($response);
+
+        return match ($intent['status'] ?? null) {
+            'succeeded'       => new ChargeResult(ChargeResult::SUCCEEDED, $intent['id'], null, (int) ($intent['amount_received'] ?? 0), strtoupper((string) ($intent['currency'] ?? ''))),
+            'processing'      => new ChargeResult(ChargeResult::PROCESSING, $intent['id']),
+            'requires_action' => new ChargeResult(ChargeResult::ACTION_REQUIRED, $intent['id'], 'The bank asks the cardholder to confirm this payment.'),
+            default           => new ChargeResult(ChargeResult::FAILED, $intent['id'] ?? null, 'The card was not charged.'),
+        };
+    }
+
+    public function notified(string $payload, ?string $signature): ?CheckoutOutcome
     {
         $secret = $this->keys()['webhook_secret'] ?? null;
 
@@ -126,8 +160,36 @@ class StripeGateway implements CardGateway
         }
 
         $event  = json_decode($payload, true);
+        $id     = $event['data']['object']['id'] ?? null;
 
-        return in_array($event['type'] ?? null, self::FINISHED, true) ? ($event['data']['object']['id'] ?? null) : null;
+        return match (true) {
+            ! $id                                                => null,
+            in_array($event['type'] ?? null, self::FINISHED, true) => $this->finished($id),
+            ($event['type'] ?? null) === 'payment_intent.succeeded' => $this->paid($id),
+            default                                              => null,
+        };
+    }
+
+    /** A payment for an invoice that succeeded - charged without the business there, or on Stripe's page - as a finished checkout. */
+    private function paid(string $intentId): ?CheckoutOutcome
+    {
+        $intent  = $this->get('payment_intents/'.rawurlencode($intentId), ['expand' => ['payment_method']]);
+        $invoice = (int) ($intent['metadata']['invoice_id'] ?? 0);
+
+        if (($intent['status'] ?? null) !== 'succeeded' || ! $invoice || empty($intent['metadata']['workspace_id'])) {
+            return null;
+        }
+
+        return new CheckoutOutcome(
+            workspaceId: (int) $intent['metadata']['workspace_id'],
+            invoiceId: $invoice,
+            customerId: (string) ($intent['customer'] ?? ''),
+            livemode: (bool) ($intent['livemode'] ?? false),
+            card: is_array($intent['payment_method'] ?? null) ? self::card($intent['payment_method']) : null,
+            paymentRef: $intent['id'],
+            amountMinor: (int) ($intent['amount_received'] ?? 0),
+            currency: strtoupper((string) ($intent['currency'] ?? '')),
+        );
     }
 
     public function removeCard(string $cardId): void
@@ -203,12 +265,21 @@ class StripeGateway implements CardGateway
 
     private function send(callable $call): array
     {
+        return $this->ensure($this->request($call));
+    }
+
+    private function request(callable $call): Response
+    {
         try {
-            $response = $call(Http::withToken((string) ($this->keys()['secret_key'] ?? ''))->acceptJson()->timeout(20));
+            return $call(Http::withToken((string) ($this->keys()['secret_key'] ?? ''))->acceptJson()->timeout(20));
         } catch (ConnectionException $e) {
             throw new CardPaymentError('Stripe could not be reached: '.$e->getMessage(), 0, $e);
         }
+    }
 
+    /** Stripe's answer, refused as CardPaymentError when it failed. */
+    private function ensure(Response $response): array
+    {
         if ($response->failed()) {
             throw new CardPaymentError('Stripe refused: '.($response->json('error.message') ?? 'status '.$response->status()), $response->status());
         }

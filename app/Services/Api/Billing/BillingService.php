@@ -3,6 +3,7 @@
 namespace App\Services\Api\Billing;
 
 use App\Models\Billing\SubscriptionInvoice;
+use App\Models\Billing\SubscriptionPayment;
 use App\Models\Billing\WorkspaceCard;
 use App\Models\Billing\WorkspaceSubscription;
 use App\Models\User\User;
@@ -63,12 +64,20 @@ class BillingService
             ? $this->invoices->renewalFor($workspace, $subscribed->period_ends_on->copy()->addDay()->toDateString())
             : null;
 
+        $open         = $this->invoices->openFor($workspace);
+        // The saved card's last try for it, when it did not go through (Phase D3).
+        $failure      = $open ? $this->cardPayments->lastFailure($open) : null;
+        $shown        = $status === WorkspaceSubscription::ACTIVE && $subscribed?->cancels_at_period_end ? 'cancellation_scheduled' : $status;
+
         return [
             'package'         => $current ? ['key' => $current->key, 'name' => $current->name, 'removes_branding' => $current->removes_branding] : null,
-            'status'          => $status === WorkspaceSubscription::ACTIVE && $subscribed?->cancels_at_period_end ? 'cancellation_scheduled' : $status,
+            // Past due: the renewal's card refused while the paid period still runs.
+            'status'          => $shown === WorkspaceSubscription::ACTIVE && $failure && $failure->status !== SubscriptionPayment::PROCESSING
+                && $open->kind === SubscriptionInvoice::RENEWAL ? 'past_due' : $shown,
             'subscription'    => $subscribed,
             'renewed_until'   => $renewal?->isPaid() ? $renewal->period_ends_on : null,
-            'open_invoice'    => $this->invoices->openFor($workspace),
+            'open_invoice'    => $open,
+            'last_charge'     => $failure,
             'trial_available' => ! $subscription?->trial_starts_on,
             'packages'        => array_map(fn (array $package) => [...$package, 'current' => $package['key'] === $current?->key], $this->catalog->packages()),
             'details'         => $this->billingRepository->for($workspace),

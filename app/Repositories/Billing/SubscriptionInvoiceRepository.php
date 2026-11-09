@@ -77,7 +77,7 @@ class SubscriptionInvoiceRepository
      */
     public function adminPage(?string $status, ?string $search, int $perPage): LengthAwarePaginator
     {
-        return SubscriptionInvoice::with(['workspace:id,name,user_id', 'workspace.user:id,first_name,last_name,email', 'confirmer:id,first_name,last_name', 'unappliedPayments'])
+        return SubscriptionInvoice::with(['workspace:id,name,user_id', 'workspace.user:id,first_name,last_name,email', 'confirmer:id,first_name,last_name', 'payments'])
             ->when($status, fn ($query) => $query->where('status', $status))
             ->when($search, fn ($query) => $query->where(fn ($query) => $query
                 ->where('number', 'like', "%{$search}%")

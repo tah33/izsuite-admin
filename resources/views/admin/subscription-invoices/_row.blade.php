@@ -37,9 +37,13 @@
     </td>
     <td class="text-sm">
         {{ $invoice->payment_reference ?: ($invoice->transfer_reference ?: '—') }}
-        {{-- A card payment that could not pay it (Phase D2): to refund in Stripe. --}}
-        @foreach($invoice->unappliedPayments as $payment)
-            <span class="block text-xs text-[var(--danger)]">{{ $payment->currency }} {{ number_format((float) $payment->amount, 2) }} {{ $payment->card }} ({{ $payment->reference }}). {{ $payment->note }}</span>
+        {{-- The saved card's attempts (Phase D3), and a card payment that could not pay it (Phase D2): to refund in Stripe. --}}
+        @foreach($invoice->payments as $payment)
+            @continue($payment->succeeded() && ! $payment->note)
+            <span class="block text-xs {{ $payment->succeeded() ? 'text-[var(--danger)]' : 'text-[var(--text-muted)]' }}">
+                {{ ($payment->attempted_on ?? $payment->created_at)->format('M d') }} · {{ $payment->card }}:
+                {{ ['failed' => __('declined'), 'action_required' => __('the cardholder must confirm'), 'processing' => __('processing')][$payment->status] ?? $payment->currency.' '.number_format((float) $payment->amount, 2).' ('.$payment->reference.')' }}{{ $payment->note ? '. '.$payment->note : '' }}
+            </span>
         @endforeach
     </td>
     <td class="whitespace-nowrap"><span class="badge {{ $badge[0] }}">{{ $badge[1] }}</span></td>

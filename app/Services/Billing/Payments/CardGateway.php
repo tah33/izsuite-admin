@@ -3,6 +3,7 @@
 namespace App\Services\Billing\Payments;
 
 use App\Models\Billing\SubscriptionInvoice;
+use App\Models\Billing\WorkspaceCard;
 use App\Models\User\Workspace;
 
 /**
@@ -40,10 +41,18 @@ interface CardGateway
     public function finished(string $sessionId): ?CheckoutOutcome;
 
     /**
-     * The checkout a notification reports finished - null for one to ignore.
-     * Throws InvalidNotification when it is not the provider's.
+     * Charges $card, saved on its customer, for $invoice without the business
+     * there (Phase D3). $key makes a repeat of the same attempt the same
+     * charge. The bank refusing is an answer, not an error.
      */
-    public function notified(string $payload, ?string $signature): ?string;
+    public function charge(SubscriptionInvoice $invoice, WorkspaceCard $card, string $key): ChargeResult;
+
+    /**
+     * What a notification reports: a finished checkout, or a payment for an
+     * invoice that succeeded - null for one to ignore. Throws
+     * InvalidNotification when it is not the provider's.
+     */
+    public function notified(string $payload, ?string $signature): ?CheckoutOutcome;
 
     /** Takes a saved card off its customer at the provider. */
     public function removeCard(string $cardId): void;

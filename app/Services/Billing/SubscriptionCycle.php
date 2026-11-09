@@ -4,6 +4,7 @@ namespace App\Services\Billing;
 
 use App\Mail\SubscriptionNoticeMail;
 use App\Models\Billing\SubscriptionInvoice;
+use App\Models\Billing\SubscriptionPayment;
 use App\Models\Billing\WorkspaceSubscription;
 use App\Repositories\Billing\PackageRepository;
 use App\Repositories\Billing\SubscriptionInvoiceRepository;
@@ -28,7 +29,10 @@ use Illuminate\Support\Facades\DB;
  *   Billing Starter (Phase B2's move down). Without grace days, that
  *   happens as the period ends; a cancellation waits for it too;
  * - a trial reminds three days and one day before it ends and, its
- *   invoice unpaid, goes back to Billing Starter the day after.
+ *   invoice unpaid, goes back to Billing Starter the day after;
+ * - with a saved card (Phase D3), it is charged on the renewal's due day
+ *   and the trial's last day, and again on the grace's retry days and its
+ *   last - a refusal e-mailed, the attempts kept (CardPayments).
  *
  * Each step happens once: a renewal is issued once a period, and the daily
  * e-mails once a day (last_notice_on).
@@ -48,6 +52,7 @@ class SubscriptionCycle
         private SubscriptionBilling $billing,
         private BusinessCalendar $calendar,
         private SyncAppsWithPackage $sync,
+        private CardPayments $cards,
     ) {}
 
     /** Moves every running subscription on to its business's today; answers with how many there were. */
@@ -146,6 +151,13 @@ class SubscriptionCycle
         $left    = $this->daysFrom($today, $last);
         $invoice = $this->invoices->openFor($subscription->workspace);
 
+        // Its last day, the saved card is charged (Phase D3): taken, the plan carries on.
+        if ($invoice && $left === 0 && ($attempt = $this->cards->charge($invoice, $today->toDateString()))) {
+            $this->chargeFailed($subscription, $today, $invoice, $attempt, 'trial');
+
+            return;
+        }
+
         if ($invoice && in_array($left, self::TRIAL_REMINDERS, true)) {
             $this->notify($subscription, $today, SubscriptionNoticeMail::TRIAL_ENDING, [
                 'days_left' => $left, 'trial_ends_on' => $last->format('j M Y'), ...$this->invoiceDetails($invoice),
@@ -168,6 +180,31 @@ class SubscriptionCycle
         }
 
         $this->renewIfDue($subscription);
+
+        // The renewal's due day - the period's last - the saved card is charged (Phase D3).
+        $renewal = $today->equalTo($end) ? $this->invoices->openFor($subscription->workspace) : null;
+
+        if ($renewal?->kind === SubscriptionInvoice::RENEWAL && ($attempt = $this->cards->charge($renewal, $today->toDateString()))) {
+            $this->chargeFailed($subscription, $today, $renewal, $attempt, 'renewal');
+        }
+    }
+
+    /** The saved card's try that did not go through - declined, or the cardholder to confirm it - told by e-mail. */
+    private function chargeFailed(WorkspaceSubscription $subscription, CarbonImmutable $today, SubscriptionInvoice $invoice, SubscriptionPayment $attempt, string $for): void
+    {
+        if ($attempt->succeeded() || $attempt->status === SubscriptionPayment::PROCESSING) {
+            return;
+        }
+
+        $this->notify($subscription, $today, SubscriptionNoticeMail::PAYMENT_FAILED, [
+            'for' => $for, 'grace_days' => (int) $subscription->package->grace_days, ...$this->invoiceDetails($invoice), ...$this->attemptDetails($attempt),
+        ]);
+    }
+
+    /** @return array{card: ?string, declined: ?string, confirm: bool} the card tried, the bank's reason, and whether the cardholder is to confirm it */
+    private function attemptDetails(SubscriptionPayment $attempt): array
+    {
+        return ['card' => $attempt->card, 'declined' => $attempt->note, 'confirm' => $attempt->status === SubscriptionPayment::ACTION_REQUIRED];
     }
 
     /**
@@ -233,10 +270,15 @@ class SubscriptionCycle
         $this->grace($subscription->refresh(), $today);
     }
 
-    /** An e-mail each day of grace, with the days left; when it has run out, the end. */
+    /**
+     * An e-mail each day of grace, with the days left; when it has run out,
+     * the end. On the retry days - and the last - the saved card is charged
+     * again (Phase D3): taken, the plan carries on; refused, the day's e-mail
+     * says so.
+     */
     private function grace(WorkspaceSubscription $subscription, CarbonImmutable $today): void
     {
-        $last = $subscription->grace_ends_on->toImmutable();
+        $last    = $subscription->grace_ends_on->toImmutable();
 
         if ($today->gt($last)) {
             $this->end($subscription, 'grace');
@@ -244,9 +286,19 @@ class SubscriptionCycle
             return;
         }
 
+        $renewal = $this->renewal($subscription);
+        $day     = $this->daysFrom($subscription->period_ends_on->toImmutable(), $today);
+        $attempt = $today->equalTo($last) || in_array($day, $this->billing->retryDays(), true)
+            ? $this->cards->charge($renewal, $today->toDateString())
+            : null;
+
+        if ($attempt?->succeeded()) {
+            return;
+        }
+
         $this->notify($subscription, $today, SubscriptionNoticeMail::GRACE, [
             'days_left' => $this->daysFrom($today, $last), 'last_day' => $last->format('j M Y'), 'cancels_on' => $last->addDay()->format('j M Y'),
-            ...$this->invoiceDetails($this->renewal($subscription)),
+            ...$this->invoiceDetails($renewal), ...($attempt && $attempt->status !== SubscriptionPayment::PROCESSING ? $this->attemptDetails($attempt) : []),
         ]);
     }
 

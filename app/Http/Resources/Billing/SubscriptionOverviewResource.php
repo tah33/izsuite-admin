@@ -7,8 +7,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * The business's subscription as Settings shows it (Doc 13 section 11): its
- * plan and status - free, trialing, awaiting_payment, active, grace or
- * cancellation_scheduled - the subscription it is paying for - its cycle,
+ * plan and status - free, trialing, awaiting_payment, active, past_due,
+ * grace or cancellation_scheduled - the subscription it is paying for - its cycle,
  * trial, paid period, grace and a renewal paid ahead - and the invoice it
  * has still to pay, whether its one trial is still to be had, the plans to
  * compare it with - its own marked - its billing details, null until first
@@ -47,6 +47,13 @@ class SubscriptionOverviewResource extends JsonResource
                 ] : null,
             ] : null,
             'open_invoice'    => $this->resource['open_invoice'] ? new SubscriptionInvoiceResource($this->resource['open_invoice'], toPay: true) : null,
+            // The saved card's last try for it that did not go through (Phase D3): declined, to confirm, or processing.
+            'last_charge'     => $this->resource['last_charge'] ? [
+                'status' => $this->resource['last_charge']->status,
+                'card'   => $this->resource['last_charge']->card,
+                'reason' => $this->resource['last_charge']->note,
+                'on'     => $this->resource['last_charge']->attempted_on?->toDateString(),
+            ] : null,
             'trial_available' => $this->resource['trial_available'],
             'packages'        => PackageOfferResource::collection($this->resource['packages']),
             'details'         => $this->resource['details'] ? new BillingDetailsResource($this->resource['details']) : null,

@@ -57,6 +57,8 @@ class SettingService
         'billing_company_email'    => ['value' => '', 'group' => 'billing'],
         'billing_company_tax_id'   => ['value' => '', 'group' => 'billing'],
         'billing_invoice_due_days' => ['value' => '7', 'group' => 'billing'],
+        // Grace days a declined saved card is charged again on, besides the last (Doc 13 Phase D3)
+        'billing_retry_days'       => ['value' => '1,3', 'group' => 'billing'],
     ];
 
     public function __construct(
