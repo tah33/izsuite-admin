@@ -143,6 +143,12 @@ class WorkspaceRepository
         return Workspace::with('package')->findOrFail($id);
     }
 
+    /** Any business, with its plan and its owner's account - for the admin's review of a plan move. */
+    public function findWithOwnerOrFail(int $id): Workspace
+    {
+        return Workspace::with(['package', 'user'])->findOrFail($id);
+    }
+
     /** The business's plan, read afresh rather than from the loaded relation. */
     public function packageOf(Workspace $workspace): ?Package
     {

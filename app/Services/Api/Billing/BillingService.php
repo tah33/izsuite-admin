@@ -2,11 +2,13 @@
 
 namespace App\Services\Api\Billing;
 
+use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceBilling;
 use App\Repositories\User\WorkspaceBillingRepository;
 use App\Services\Api\Apps\PublicCatalog;
 use App\Services\Shared\ActivityLogService;
+use App\Services\User\Workspaces\PlanLimits;
 use App\Support\SettingChanges;
 
 /**
@@ -17,16 +19,21 @@ use App\Support\SettingChanges;
  *
  * Until subscriptions are paid for (Phase C), a plan is set by izSuite: the
  * status is Free on Billing Starter and Active on another.
+ *
+ * A business over its plan's user or location limit - moved to a lower plan
+ * - says so, and whether $user is the owner who chooses what stays active
+ * (Doc 13 section 14, OverLimitService).
  */
 class BillingService
 {
     public function __construct(
         protected WorkspaceBillingRepository $billingRepository,
         protected PublicCatalog $catalog,
+        protected PlanLimits $planLimits,
     ) {}
 
-    /** @return array{package: array|null, status: string, packages: list<array>, details: ?WorkspaceBilling} */
-    public function overview(Workspace $workspace): array
+    /** @return array{package: array|null, status: string, packages: list<array>, details: ?WorkspaceBilling, excess: ?array} */
+    public function overview(Workspace $workspace, User $user): array
     {
         $current = $workspace->package;
 
@@ -35,7 +42,18 @@ class BillingService
             'status'   => $current === null || $current->isFree() ? 'free' : 'active',
             'packages' => array_map(fn (array $package) => [...$package, 'current' => $package['key'] === $current?->key], $this->catalog->packages()),
             'details'  => $this->billingRepository->for($workspace),
+            'excess'   => $this->excess($workspace, $user),
         ];
+    }
+
+    /** @return array{users: ?array, locations: ?array, can_choose: bool}|null the limits passed, each used of its limit - null within all */
+    private function excess(Workspace $workspace, User $user): ?array
+    {
+        $usage     = $this->planLimits->usage($workspace);
+        $users     = $usage['users']['state'] === 'over' ? $usage['users'] : null;
+        $locations = $usage['locations']['state'] === 'over' ? $usage['locations'] : null;
+
+        return $users || $locations ? ['users' => $users, 'locations' => $locations, 'can_choose' => $workspace->isOwnedBy($user)] : null;
     }
 
     /** Saves the billing details (Doc 13 sections 11 and 21), recording what changed. */

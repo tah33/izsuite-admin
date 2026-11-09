@@ -324,13 +324,16 @@ Route::prefix('v1')->group(function () {
      | permissions lists what a role can hold among the apps on now
      | -------------------------------------------------------- */
     /* ----------------------------------------------------------
-     | The business's subscription (Doc 13 section 11): its plan and status,
-     | the plans to compare, and its billing details - for the owner and
-     | roles with Manage Subscription
+     | The business's subscription (Doc 13 sections 11 and 14): its plan and
+     | status, the plans to compare, and its billing details - for the owner
+     | and roles with Manage Subscription - and, over the plan's limits, the
+     | owner's choice of what stays active
      | -------------------------------------------------------- */
     Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('subscription')->group(function () {
         Route::get('/', [SubscriptionController::class, 'show'])->name('api.subscription.show');
         Route::put('/billing-details', [SubscriptionController::class, 'updateBillingDetails'])->name('api.subscription.billing-details');
+        Route::get('/over-limit', [SubscriptionController::class, 'overLimit'])->name('api.subscription.over-limit');
+        Route::post('/over-limit', [SubscriptionController::class, 'keepWithinLimits'])->name('api.subscription.keep');
     });
 
     Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('roles')->group(function () {

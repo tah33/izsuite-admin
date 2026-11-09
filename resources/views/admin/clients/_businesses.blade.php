@@ -38,9 +38,8 @@
                             </div>
                         </td>
                         <td>
-                            <form action="{{ route('admin.workspaces.package', $workspace->id) }}" method="POST" class="flex items-center gap-2">
-                                @csrf
-                                @method('PATCH')
+                            {{-- Moving shows what changes first (admin.workspaces.package.review). --}}
+                            <form action="{{ route('admin.workspaces.package.review', $workspace->id) }}" method="GET" class="flex items-center gap-2">
                                 <div class="w-40">
                                     <select name="package_id" class="form-select" aria-label="{{ __('Plan for') }} {{ $workspace->name }}">
                                         @foreach($packages as $package)
@@ -48,7 +47,7 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <button type="submit" class="btn btn-xs btn-secondary" data-loading-label="{{ __('Moving...') }}">{{ __('Move') }}</button>
+                                <button type="submit" class="btn btn-xs btn-secondary">{{ __('Move') }}</button>
                             </form>
                         </td>
                     </tr>

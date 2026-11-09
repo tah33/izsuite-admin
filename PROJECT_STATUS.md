@@ -2,10 +2,10 @@
 
 What is done, what comes next, and how to carry on from another PC.
 
-- **Last updated:** 2026-11-08
-- **Code:** Doc 13 Phase B1 is committed: frontend `1ca411f` on `nuxt`, and on `main` the admin commit right after `e0d062c`.
-- **Tests:** 640 backend tests pass (last full run 2026-11-08, on this code).
-- **Next step:** Doc 13 Phase B2. Its suggested defaults are under [What is next](#what-is-next).
+- **Last updated:** 2026-11-09
+- **Code:** Doc 13 Phase B2 is committed: frontend `5156025` on `nuxt`, and on `main` the admin commit right after `1dc0642`.
+- **Tests:** 644 backend tests pass (last full run 2026-11-09, on this code).
+- **Next step:** Doc 13 Phase C, once its decisions are made (see [What is next](#what-is-next)).
 
 Update this file at the end of every phase and commit it with that phase.
 
@@ -14,7 +14,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 13 Phase B2.
+   > Read PROJECT_STATUS.md, then help me settle the decisions for Doc 13 Phase C.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -37,7 +37,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 10 | Expenses Lite | Done |
 | 11 | Business Setup and Settings | Done, except notification preferences (waits for Doc 14) |
 | 12 | Users, Roles, Permissions and Locations | Done, except notification preferences (Doc 14) and package change rules (Doc 13) |
-| **13** | **Apps Center, Packages, Subscriptions and Billing** | **In progress: A and B1 done. B2, C, D left** |
+| **13** | **Apps Center, Packages, Subscriptions and Billing** | **In progress: A and B done. C, D left** |
 | 14 | Shared Platform Services | Not started as a doc, parts exist |
 | 15 | izSuite System Administration Portal | Not started as a doc, parts exist |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
@@ -47,9 +47,9 @@ Stock, full Sales, OCR and full Accounting features are left out of the Lite app
 
 ## What is next
 
-### 1. Doc 13: Apps Center, Packages, Subscriptions and Billing (next: Phase B2)
+### 1. Doc 13: Apps Center, Packages, Subscriptions and Billing (next: Phase C)
 
-The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D, with B in two parts. Phases A and B1 are built (see [Decisions worth knowing](#decisions-worth-knowing)).
+The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D, with B in two parts. Phases A, B1 and B2 are built (see [Decisions worth knowing](#decisions-worth-knowing)).
 
 **Already built:**
 
@@ -68,14 +68,14 @@ The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D, with B
 - Settings > Apps & Subscription is the Subscription and Billing page: the plan and its status, its branding and apps, the plans compared side by side, usage and limits, and billing details (name, e-mail, address, country, tax ID), whose changes go in the Activity Log. A role without Manage Subscription sees only the plan, its apps and the usage.
 - "Powered by izSuite" follows the plan, and an issued document keeps what it was issued with (section 18).
 
+**Phase B2: moving to a lower plan, and limit warnings** is built:
+
+- Until Phase C only the admin moves a business between plans (Admin > Clients). The Move button opens a review first: the apps that go to Lite or off, and the users, locations and storage against the new plan's limits.
+- Apps outside the new plan turn off at once, their records kept, and their Lite editions come back (section 13). This was already so; the review shows it before the move.
+- Over a user or location limit, nothing is switched off by the move. The Business Owner chooses who and what stays active in Settings > Apps & Subscription; the other users are suspended, their invitations withdrawn, and the other locations made inactive (section 14). Until then, adding more is refused.
+- Usage and Limits flags each limit as nearly reached (80%), reached or over, and the Dashboard warns the roles with Manage Subscription.
+
 **Still missing**, by phase:
-
-**Phase B2: moving to a lower plan, and limit warnings** (no payments yet). Suggested defaults, not agreed yet:
-
-- Until Phase C only the admin moves a business between plans (Admin > Clients). Moving it to a lower plan shows the impact first: the apps that turn off, and the users, locations and storage over the new limits.
-- Apps outside the new plan turn off at once, their records kept, and their Lite editions come back (section 13).
-- Over a limit, the owner picks the users and locations that stay active, in Settings > Apps & Subscription. The rest are suspended or made inactive, and their history stays readable (section 14). Until the owner picks, nothing is switched off, and adding more stays refused.
-- Warnings in Settings and on the Dashboard as a limit nears (80%) and once it is reached, as storage already has.
 
 **Phase C: subscriptions, paid by bank transfer:**
 
@@ -240,7 +240,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 12: Phase E1, personal settings and sessions | `1a3e195` | `73cf6ca` | 000108 |
 | Doc 12: Phase E2, multi-factor authentication | `e727463` | `7de8bd9` | 000109, 000110 |
 | Doc 13: Phase A, Apps Center and app pages | `e0d062c` | `cdcdf12` | 000111 |
-| Doc 13: Phase B1, prices, subscription page, branding | the commit after `e0d062c` | `1ca411f` | 000112 |
+| Doc 13: Phase B1, prices, subscription page, branding | `1dc0642` | `1ca411f` | 000112 |
+| Doc 13: Phase B2, lower plans, keeping within limits, warnings | the commit after `1dc0642` | `5156025` | |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -322,6 +323,10 @@ These are easy to undo by mistake.
 - A plan's prices are on `packages` (`price_currency`, `price_monthly`, `price_yearly`), with `trial_days`, `grace_days` and `removes_branding`. An empty price means not announced, and the plan then says "Price to be announced". Billing Starter is free (0). Migration 000112 set Standard and Premium to remove the branding. Trial and grace days are kept for Phase C and do nothing yet.
 - "Powered by izSuite" follows the business's plan. A document saves `powered_by` in its business snapshot when it gets its number, and its PDF, print and secure link read that, so a later plan change never alters it; documents numbered before B1 have no such key and keep the branding. Drafts and report PDFs follow the plan as it is.
 - `GET /subscription` and `PUT /subscription/billing-details` need Manage Subscription (`settings.subscription`). Until Phase C the status is Free on Billing Starter and Active on any other plan. Billing details are one `workspace_billing` row per business, and each save goes in the Activity Log.
+- A plan's user limit counts active and invited users, the owner among them. Its location limit counts active locations only (changed in B2): an inactive one is outside it, so turning one back on needs room, as reactivating a suspended user already did.
+- The admin's Move button opens a review (`GET /admin/workspaces/{id}/package?package_id=`, `PackageChangeImpact`) before the move. The review and the move share `SyncAppsWithPackage::changes`, so the review shows exactly what the move does to the apps.
+- Over a user or location limit, only the Business Owner chooses what stays active (`GET` and `POST /subscription/over-limit`, `OverLimitService`). The owner and the Primary Location always stay. The others go through the usual services, so each suspension, withdrawn invitation and inactive location is logged as if done by hand, then one entry sums it up. `GET /subscription` says which limits are passed (`excess`) and whether this user chooses.
+- Usage counts carry a state: `ok`, `warning` (from 80%), `full` or `over`. The Dashboard warns the roles with Manage Subscription, but not about a reached limit of one: every Billing Starter business is at its one user and one location from its first day.
 - `/profile` answers in the usual envelopes, and the signed-in user (`UserResource`) carries only their name, e-mail, phone, image, language and time zone.
 
 ## Small things left
@@ -345,6 +350,7 @@ Each of these is yours to settle.
 - May a business require two-factor authentication of its users? Doc 12 does not say, so nothing makes anyone turn it on.
 - Who turns off someone's two-factor authentication when they lose both their phone and their recovery codes? Today nobody can; Doc 15's support tools would be the place.
 - Should View Activity Log keep needing every values and details permission (built in D2)? The other way is to mask them in the log, but masking cannot reach amounts written into an entry's text, such as "Recorded payment PAY-0001 of USD 100.00".
+- Should a business over its plan's limits have a deadline to choose what stays active, after which izSuite chooses (the newest users and locations first)? Doc 13 does not say, so today it stays over, with nothing more added, until the owner chooses.
 
 ## Deploying to a server
 

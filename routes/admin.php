@@ -55,6 +55,7 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     Route::get('/clients', [ClientController::class, 'index'])->name('clients.index');
     Route::get('/clients/{id}', [ClientController::class, 'show'])->whereNumber('id')->name('clients.show');
     Route::post('/clients/{id}/login-as', [ClientController::class, 'loginAs'])->whereNumber('id')->name('clients.login-as');
+    Route::get('/workspaces/{id}/package', [WorkspaceController::class, 'reviewPackage'])->whereNumber('id')->name('workspaces.package.review');
     Route::patch('/workspaces/{id}/package', [WorkspaceController::class, 'updatePackage'])->name('workspaces.package');
     Route::resource('app-categories', AppCategoryController::class)->except(['show'])->parameters(['app-categories' => 'id']);
     Route::patch('/app-categories/{id}/toggle-status', [AppCategoryController::class, 'toggleActive'])->name('app-categories.toggle-status');

@@ -38,9 +38,11 @@ final class RoutePermissions
             'api.files.link'               => self::MEMBER,
             'api.business-settings.usage'  => self::MEMBER,
 
-            // The subscription and its billing details (Doc 13 sections 11 and 21)
+            // The subscription and its billing details (Doc 13 sections 11 and 21); over its limits, only the owner chooses (OverLimitService)
             'api.subscription.show'            => 'settings.subscription',
             'api.subscription.billing-details' => 'settings.subscription',
+            'api.subscription.over-limit'      => 'settings.subscription',
+            'api.subscription.keep'            => 'settings.subscription',
 
             // Contacts and items (Doc 03, Doc 04)
             'api.contacts.index'               => 'contacts.view',

@@ -49,6 +49,18 @@ class WorkspaceMemberRepository
         return $workspace->members()->with(self::RELATIONS)->find($id);
     }
 
+    /** Those a plan's user limit counts - active and invited - the owner first, then the active, by name (Doc 13 section 14). */
+    public function countedFor(Workspace $workspace): Collection
+    {
+        return $workspace->members()->with('role:id,name')->whereIn('status', WorkspaceMember::COUNTED)->get()
+            ->sortBy(fn (WorkspaceMember $member) => [
+                $member->isOwnerOf($workspace) ? 0 : 1,
+                $member->status === WorkspaceMember::ACTIVE ? 0 : 1,
+                mb_strtolower((string) $member->name),
+            ])
+            ->values();
+    }
+
     /** The business's member invited as $email - whatever their status. */
     public function findByEmail(Workspace $workspace, string $email): ?WorkspaceMember
     {

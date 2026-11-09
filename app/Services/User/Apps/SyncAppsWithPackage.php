@@ -5,6 +5,7 @@ namespace App\Services\User\Apps;
 use App\Enums\Edition;
 use App\Events\AppDeactivated;
 use App\Models\Billing\Package;
+use App\Models\Frontend\Application;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceApp;
@@ -39,23 +40,14 @@ class SyncAppsWithPackage
 
     public function handle(Workspace $workspace, ?User $by = null): void
     {
-        $package = $this->workspaces->packageOf($workspace);
+        $changes = $this->changes($workspace, $this->workspaces->packageOf($workspace));
         $moved   = [];
 
-        DB::transaction(function () use ($workspace, $package, $by, &$moved) {
-            foreach (WorkspaceApps::for($workspace)->active() as $row) {
-                $from = $row->app;
-
-                if ($package?->allows($from)) {
-                    continue;
-                }
-
-                $lite = $from->edition === Edition::Full ? $from->liteEdition() : null;
-
-                if ($lite && $lite->isAvailable() && $package?->allows($lite)) {
+        DB::transaction(function () use ($workspace, $changes, $by, &$moved) {
+            foreach ($changes as ['row' => $row, 'from' => $from, 'to' => $lite]) {
+                if ($lite) {
                     $this->workspaceApps->update($row, ['app_id' => $lite->id]);                                                    // Sales → Sales Lite
                 } else {
-                    $lite = null;
                     $this->workspaceApps->update($row, ['status' => WorkspaceApp::STATUS_INACTIVE, 'deactivated_at' => now()]);      // read-only
                 }
 
@@ -75,5 +67,32 @@ class SyncAppsWithPackage
         foreach ($moved as $app) {
             AppDeactivated::dispatch($workspace, $app);
         }
+    }
+
+    /**
+     * What $package does to the business's apps (Doc 13 section 13): each app
+     * on that it does not include, and its Lite edition where the plan has
+     * that - "to" null: turned off, its records kept. Changes nothing, so the
+     * admin can see it before the move.
+     *
+     * @return list<array{row: WorkspaceApp, from: Application, to: ?Application}>
+     */
+    public function changes(Workspace $workspace, ?Package $package): array
+    {
+        $changes = [];
+
+        foreach (WorkspaceApps::for($workspace)->active() as $row) {
+            $from = $row->app;
+
+            if ($package?->allows($from)) {
+                continue;
+            }
+
+            $lite = $from->edition === Edition::Full ? $from->liteEdition() : null;
+
+            $changes[] = ['row' => $row, 'from' => $from, 'to' => $lite && $lite->isAvailable() && $package?->allows($lite) ? $lite : null];
+        }
+
+        return $changes;
     }
 }

@@ -19,11 +19,15 @@ use Illuminate\Http\Exceptions\HttpResponseException;
  *
  * Adding past a limit is refused with a 403 that says so. A business already
  * over one - after a downgrade, or a limit lowered - keeps everything; it only
- * cannot add more. A business's users are its members who are active or
- * invited (Doc 12 section 3) - its owner among them.
+ * cannot add more, until its owner chooses what stays active (OverLimitService).
+ * A business's users are its members who are active or invited (Doc 12
+ * section 3) - its owner among them; its locations, the active ones.
  */
 class PlanLimits
 {
+    /** The share of a limit at which it warns that it is nearly reached (Doc 13 section 14). */
+    public const WARNING_PERCENT = 80;
+
     public function __construct(
         protected PackageRepository $packageRepository,
         protected WorkspaceRepository $workspaceRepository,
@@ -67,11 +71,12 @@ class PlanLimits
         }
     }
 
+    /** A location added - or an inactive one turned on again - needs room under the plan. */
     public function ensureCanAddLocation(Workspace $workspace): void
     {
         $package = $this->workspaceRepository->packageOf($workspace);
 
-        if ($package?->location_limit !== null && $this->locationRepository->countFor($workspace) >= $package->location_limit) {
+        if ($package?->location_limit !== null && $this->locations($workspace) >= $package->location_limit) {
             $this->refuse($this->reached($package, $package->location_limit, 'location', 'locations').' Upgrade the plan to add another.');
         }
     }
@@ -80,9 +85,9 @@ class PlanLimits
      * Settings > Subscription's Usage and Limits (Doc 13 sections 13.11 and
      * 13.14): the business's storage as StorageUsage measures it, and how
      * many users and locations it has of how many its plan gives it (null for
-     * no limit).
+     * no limit), each with its state (see count()).
      *
-     * @return array{storage: array, users: array{used: int, limit: ?int}, locations: array{used: int, limit: ?int}}
+     * @return array{storage: array, users: array{used: int, limit: ?int, state: string}, locations: array{used: int, limit: ?int, state: string}}
      */
     public function usage(Workspace $workspace): array
     {
@@ -90,15 +95,39 @@ class PlanLimits
 
         return [
             'storage'   => $this->storageUsage->summary($workspace),
-            'users'     => ['used' => $this->users($workspace), 'limit' => $package?->user_limit],
-            'locations' => ['used' => $this->locationRepository->countFor($workspace), 'limit' => $package?->location_limit],
+            'users'     => self::count($this->users($workspace), $package?->user_limit),
+            'locations' => self::count($this->locations($workspace), $package?->location_limit),
         ];
     }
 
+    /**
+     * $used of $limit, with its state: "ok"; "warning" from WARNING_PERCENT of
+     * the limit; "full" at it; "over" past it - after a move to a lower plan,
+     * until the owner chooses what stays active.
+     *
+     * @return array{used: int, limit: ?int, state: string}
+     */
+    public static function count(int $used, ?int $limit): array
+    {
+        return ['used' => $used, 'limit' => $limit, 'state' => match (true) {
+            $limit === null                               => 'ok',
+            $used > $limit                                => 'over',
+            $used === $limit                              => 'full',
+            $used * 100 >= $limit * self::WARNING_PERCENT => 'warning',
+            default                                       => 'ok',
+        }];
+    }
+
     /** Its active and invited users - the owner counted even where no member row says so yet. */
-    private function users(Workspace $workspace): int
+    public function users(Workspace $workspace): int
     {
         return max(1, $this->memberRepository->countCounted($workspace));
+    }
+
+    /** Its active locations: an inactive one takes no new transactions, so it is outside the limit. */
+    public function locations(Workspace $workspace): int
+    {
+        return $this->locationRepository->countActiveFor($workspace);
     }
 
     /** "Billing Starter includes one user." */

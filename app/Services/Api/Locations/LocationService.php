@@ -77,10 +77,14 @@ class LocationService
         return $this->listed($workspace, $location);
     }
 
-    /** Turned on again: it takes new transactions. */
+    /** Turned on again: it takes new transactions - and counts toward the plan again, so it needs the room. */
     public function activate(Workspace $workspace, int $id): Location
     {
         $location = $this->findOwned($workspace, $id);
+
+        if (! $location->is_active) {
+            $this->planLimits->ensureCanAddLocation($workspace);
+        }
 
         $this->locationRepository->update($location, ['is_active' => true]);
 
