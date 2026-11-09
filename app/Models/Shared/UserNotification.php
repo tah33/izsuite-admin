@@ -23,6 +23,8 @@ class UserNotification extends Model
         'title',
         'body',
         'link',
+        // Whether it is in the bell: false when it went by e-mail only (Phase B2).
+        'shown',
         'subject_type',
         'subject_id',
         'event_key',
@@ -30,6 +32,7 @@ class UserNotification extends Model
     ];
 
     protected $casts    = [
+        'shown'   => 'boolean',
         'read_at' => 'datetime',
     ];
 

@@ -142,6 +142,8 @@ final class RoutePermissions
             'api.business-settings.items.update'               => 'settings.business',
             'api.business-settings.email.show'                 => 'settings.view',
             'api.business-settings.email.update'               => 'settings.business',
+            'api.business-settings.notifications.show'         => 'settings.view',
+            'api.business-settings.notifications.update'       => 'settings.business',
             'api.business-settings.templates.index'            => 'settings.view',
             'api.business-settings.templates.update'           => 'settings.business',
             'api.business-settings.templates.preview'          => 'settings.business',

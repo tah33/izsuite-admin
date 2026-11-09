@@ -53,12 +53,14 @@ use App\Http\Controllers\Api\LocationUserController;
 use App\Http\Controllers\Api\LoginAsController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\NavigationController;
+use App\Http\Controllers\Api\NotificationSettingController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PaymentAccountController;
 use App\Http\Controllers\Api\PaymentAccountTransactionController;
 use App\Http\Controllers\Api\PaymentTermController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\ProfileNotificationController;
 use App\Http\Controllers\Api\ProfileSessionController;
 use App\Http\Controllers\Api\ProfileTwoFactorController;
 use App\Http\Controllers\Api\PurchaseAttachmentController;
@@ -201,6 +203,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/sessions', [ProfileSessionController::class, 'index'])->name('api.profile.sessions.index');
         Route::post('/sessions/sign-out-others', [ProfileSessionController::class, 'signOutOthers'])->name('api.profile.sessions.sign-out-others');
         Route::post('/sessions/{id}/sign-out', [ProfileSessionController::class, 'signOut'])->whereNumber('id')->name('api.profile.sessions.sign-out');
+
+        // Which notifications the user receives, in every business (Doc 14 Phase B2).
+        Route::get('/notifications', [ProfileNotificationController::class, 'show'])->name('api.profile.notifications.show');
+        Route::put('/notifications', [ProfileNotificationController::class, 'update'])->name('api.profile.notifications.update');
     });
 
     /* ----------------------------------------------------------
@@ -289,6 +295,11 @@ Route::prefix('v1')->group(function () {
         // replies go, and what each document's email starts with.
         Route::get('/email', [EmailSettingController::class, 'show'])->name('api.business-settings.email.show');
         Route::put('/email', [EmailSettingController::class, 'update'])->name('api.business-settings.email.update');
+
+        // Settings > Notifications & Email (Doc 11 section 22 - Doc 14 Phase B2):
+        // which notifications the business sends, in the app and by e-mail.
+        Route::get('/notifications', [NotificationSettingController::class, 'show'])->name('api.business-settings.notifications.show');
+        Route::put('/notifications', [NotificationSettingController::class, 'update'])->name('api.business-settings.notifications.update');
 
         // Usage and Limits (Doc 13 section 13.14): the package and the storage used.
         Route::get('/usage', BusinessUsageController::class)->name('api.business-settings.usage');

@@ -41,6 +41,7 @@ class UserNotificationRepository
     {
         return UserNotification::where('user_id', $user->id)
             ->where('workspace_id', $workspace->id)
+            ->where('shown', true)
             ->when($unread, fn ($query) => $query->whereNull('read_at'))
             ->latest('id')
             ->paginate($perPage);
@@ -48,12 +49,12 @@ class UserNotificationRepository
 
     public function unreadCount(User $user, Workspace $workspace): int
     {
-        return UserNotification::where('user_id', $user->id)->where('workspace_id', $workspace->id)->whereNull('read_at')->count();
+        return UserNotification::where('user_id', $user->id)->where('workspace_id', $workspace->id)->where('shown', true)->whereNull('read_at')->count();
     }
 
     public function findFor(User $user, Workspace $workspace, int $id): ?UserNotification
     {
-        return UserNotification::where('user_id', $user->id)->where('workspace_id', $workspace->id)->find($id);
+        return UserNotification::where('user_id', $user->id)->where('workspace_id', $workspace->id)->where('shown', true)->find($id);
     }
 
     public function markRead(UserNotification $notification): UserNotification
@@ -68,6 +69,6 @@ class UserNotificationRepository
     /** Every unread notification of $user's in $workspace read now; how many there were. */
     public function markAllRead(User $user, Workspace $workspace): int
     {
-        return UserNotification::where('user_id', $user->id)->where('workspace_id', $workspace->id)->whereNull('read_at')->update(['read_at' => now()]);
+        return UserNotification::where('user_id', $user->id)->where('workspace_id', $workspace->id)->where('shown', true)->whereNull('read_at')->update(['read_at' => now()]);
     }
 }

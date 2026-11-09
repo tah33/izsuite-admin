@@ -15,3 +15,6 @@ Schedule::command('model:prune', ['--model' => [Import::class, IdempotencyKey::c
 
 // Subscriptions' renewals, grace and trials, each business by its own day (Doc 13 Phase C2a).
 Schedule::command('subscriptions:advance')->hourly()->withoutOverlapping();
+
+// The plan's limits nearly reached, reached or passed, each state once (Doc 14 Phase B2).
+Schedule::command('notifications:usage')->hourly()->withoutOverlapping();

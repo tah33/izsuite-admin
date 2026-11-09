@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-09
-- **Code:** Doc 14 Phase B1 is committed: frontend `44dfae2` on `nuxt`, and on `main` the admin commit right after `405f77b`.
-- **Tests:** 689 backend tests pass (last full run 2026-11-09, on this code).
-- **Next step:** Doc 14 Phase B2, notification preferences and usage limits (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
+- **Code:** Doc 14 Phase B2 is committed: frontend `bbc981d` on `nuxt`, and on `main` the admin commit right after `b1b7656`.
+- **Tests:** 693 backend tests pass (last full run 2026-11-09, on this code).
+- **Next step:** Doc 14 Phase C, global search and the header (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
 
 Update this file at the end of every phase and commit it with that phase.
 
@@ -14,7 +14,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 14 Phase B2.
+   > Read PROJECT_STATUS.md, then start Doc 14 Phase C.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -35,10 +35,10 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 08 | Sales Lite | Done |
 | 09 | Purchases Lite | Done |
 | 10 | Expenses Lite | Done |
-| 11 | Business Setup and Settings | Done, except notification preferences (waits for Doc 14) |
-| 12 | Users, Roles, Permissions and Locations | Done, except notification preferences (Doc 14) and package change rules (Doc 13) |
-| 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17) and notifications (section 19), which wait for their services and Doc 14 |
-| **14** | **Shared Platform Services** | **In progress: A and B1 done. B2 to E left** |
+| 11 | Business Setup and Settings | Done |
+| 12 | Users, Roles, Permissions and Locations | Done, except package change rules (Doc 13) |
+| 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
+| **14** | **Shared Platform Services** | **In progress: A and B done. C to E left** |
 | 15 | izSuite System Administration Portal | Not started as a doc, parts exist |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
@@ -164,11 +164,11 @@ On a server, the Stripe webhook needs two events: `checkout.session.completed` a
 - A charge still processing is settled by Stripe's `payment_intent.succeeded` webhook, and no other is tried meanwhile.
 - Checked with a faked Stripe in the tests, and on dev with a stand-in Past Due state (made-up keys, no Stripe calls) that was removed afterwards.
 
-**Waits:** notifications (section 19) for Doc 14. Usage charges such as SMS, AI, extra storage and API (section 17) wait until those services exist. Translated app names wait for Doc 14, and admin-side configuration beyond packages and the catalog waits for Doc 15.
+**Waits:** usage charges such as SMS, AI, extra storage and API (section 17) wait until those services exist. Section 19's notifications came with Doc 14 Phase B. Translated app names wait for Doc 14, and admin-side configuration beyond packages and the catalog waits for Doc 15.
 
 **Careful:** the old `plans`, `subscriptions`, `invoices` and `payment_methods` tables and admin screens come from an earlier recruitment product. They work per user account, not per business, and do not fit Doc 13. Phase C replaces them rather than reusing them, except `payment_methods`, which holds Bank Transfer and, from Phase D2, Stripe's keys (encrypted).
 
-### 2. Doc 14: Shared Platform Services (next: Phase B2)
+### 2. Doc 14: Shared Platform Services (next: Phase C)
 
 The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 
@@ -207,11 +207,15 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
   - Apps turned on or off, in-app for those with Manage Apps.
   - An invitation accepted, in-app and by e-mail to whoever sent it.
 
-**Phase B2: preferences, and usage limits**
+**Phase B2: preferences, and usage limits** is built, with your defaults (checked in the browser: both screens show the kinds and save, and the business's change is logged):
 
-- Settings > Notifications & Email sets what the business sends, by kind and channel (Doc 11); My Profile sets what each user receives (Doc 12). Security, ownership and subscription notices can't be turned off.
-- Usage limits approaching and reached (Doc 13 section 19): checked hourly, sent once per limit and state.
-- E-mails in the recipient's language where a translation exists (English for now).
+- Settings > Notifications & Email has a Notifications card: what the business sends, in the app and by e-mail, for each kind: Subscription and billing, Usage limits, Apps and Users (Doc 11). Without Sales the tab is just Notifications, since document e-mail needs Sales.
+- My Profile has the same card for what the user receives, in every business (Doc 12).
+- A notification goes where both the business and the user allow it. A business starts with each kind's defaults (app notices by e-mail off), and a user receives whatever the business sends until they turn it off.
+- Subscription and billing is always on, in the app. Its e-mails go to the billing e-mail and the owner, as before. Security and ownership notices will join it, always on, when they are sent.
+- Sent by e-mail only, a notification stays out of the bell; by neither, it isn't made.
+- Usage limits (Doc 13 section 19), checked hourly for those with Manage Subscription, in the app and by e-mail: storage nearly full or full; users or active locations near their limit, at it, or past it after a move to a lower plan. Each state is told once while the limit stays the same. A limit of one that is simply reached isn't told, as on the Dashboard, since every Billing Starter business is at it.
+- E-mails go in the recipient's language where a translation exists (English for now).
 - Mentions come with comments in Phase D.
 
 **Phase C: global search and the header** (sections 3 and 16):
@@ -399,7 +403,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 13: Phase D2, paying by card | the commit after `aec6aa5` | `faf1211` | 000117 |
 | Doc 13: Phase D3, automatic card charges | the commit after `cca298d` | `b41141a` | 000118 |
 | Doc 14: Phase A, safe saving | the commit after `28761a3` | `17afdd5` | 000119 |
-| Doc 14: Phase B1, notifications and the bell | the commit after `405f77b` | `44dfae2` | 000120 |
+| Doc 14: Phase B1, notifications and the bell | `b1b7656` | `44dfae2` | 000120 |
+| Doc 14: Phase B2, notification preferences and usage limits | the commit after `b1b7656` | `bbc981d` | 000121 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -518,8 +523,15 @@ These are easy to undo by mistake.
   - `NotificationAudience::withPermission` chooses who hears: active members holding the permission, and with access to the record's location when it has one. The user who did the thing is left out.
 - Triggers so far:
   - `SubscriptionBilling::notice()` and the invoice and receipt e-mails, in-app to `settings.subscription`, keyed per day or per invoice.
-  - `NotifyAppChange` on `AppActivated` and `AppDeactivated`, in-app to `settings.apps`.
+  - `NotifyAppChange` on `AppActivated` and `AppDeactivated`, to `settings.apps`: in-app, and by e-mail where the business turns that on.
   - `members.joined` when an invitation is accepted, in-app and by e-mail to whoever invited, else the owner.
+  - `UsageAlerts`, run hourly by `notifications:usage`, to `settings.subscription`, keyed `usage.{limit}.{state}:{business}:{limit value}`. So each state reaches a user once per business and limit, and a new limit is told afresh.
+- Preferences (Doc 14 Phase B2): `workspaces.notification_preferences` and `users.notification_preferences` hold JSON by kind and channel, unset meaning the default. The kinds live in `NotificationKinds`, and a trigger's kind is the part before its dot (`apps.activated` is `apps`).
+  - `Notifier::send` checks both for each user. In the app needs both to allow it; by e-mail needs the notice's e-mail flag as well. Sent by e-mail only, the row has `shown = false`, and the bell's queries leave it out. Allowed neither way, no row is made.
+  - A locked kind (subscription) is always on in the app and never by e-mail here, whatever is saved. Saving it as off changes nothing and logs nothing.
+  - `NotificationKinds::resolve($chosen, user: true)` gives a user's defaults: everything on. The business's are each kind's own.
+  - The APIs: `GET`/`PUT /business-settings/notifications` (`settings.view` and `settings.business`) and `GET`/`PUT /profile/notifications`, each answering `{ kinds: [{ key, label, description, locked, in_app, email }] }`. A save sends every kind and both channels.
+- Notification e-mails are sent with `Mail::locale()` in the user's language, English for now.
 - The bell: `GET /notifications`, `GET /notifications/unread` (counted every minute and when the window comes back), `POST /notifications/{id}/read` and `POST /notifications/read`. They are open to every member, and each user sees only their own.
 - `/profile` answers in the usual envelopes, and the signed-in user (`UserResource`) carries only their name, e-mail, phone, image, language and time zone.
 

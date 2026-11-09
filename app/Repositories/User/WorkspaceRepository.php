@@ -9,6 +9,7 @@ use App\Models\User\WorkspaceMember;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\LazyCollection;
 
 class WorkspaceRepository
 {
@@ -153,6 +154,12 @@ class WorkspaceRepository
     public function findWithOwnerOrFail(int $id): Workspace
     {
         return Workspace::with(['package', 'user'])->findOrFail($id);
+    }
+
+    /** Every business with its plan - its whole row: its limits are read from it - a hundred at a time, for a check run over them all. */
+    public function lazyWithPackage(): LazyCollection
+    {
+        return Workspace::with('package')->lazyById(100);
     }
 
     /** The business's plan, read afresh rather than from the loaded relation. */

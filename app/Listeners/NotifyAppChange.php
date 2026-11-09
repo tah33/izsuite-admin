@@ -10,8 +10,8 @@ use App\Services\Shared\Notifications\Notifier;
 
 /**
  * An app turned on or off (Doc 13 section 19, Doc 14 section 15 - Phase
- * B1): in the app, for the business's users with Manage Apps - not the one
- * who did it. Turned off by a move to a lower plan, it says so too.
+ * B1): in the app - and by e-mail where the business turns that on (Phase
+ * B2) - for the business's users with Manage Apps, not the one who did it.
  */
 class NotifyAppChange
 {
@@ -29,6 +29,8 @@ class NotifyAppChange
             body: 'It is in the sidebar for everyone whose role allows it.',
             link: '/apps-center',
             subject: $event->app,
+            // By e-mail too, where the business and the user turn that on (Phase B2).
+            email: true,
         ), auth()->user());
     }
 
@@ -41,6 +43,8 @@ class NotifyAppChange
             body: 'Everything recorded with it is kept, and comes back when it is turned on again.',
             link: '/apps-center',
             subject: $event->app,
+            // By e-mail too, where the business and the user turn that on (Phase B2).
+            email: true,
         ), auth()->user());
     }
 }
