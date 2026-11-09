@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-09
-- **Code:** Doc 14 Phase A is committed: frontend `17afdd5` on `nuxt`, and on `main` the admin commit right after `28761a3`.
-- **Tests:** 685 backend tests pass (last full run 2026-11-09, on this code).
-- **Next step:** Doc 14 Phase B, notifications, split B1 and B2 when started (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
+- **Code:** Doc 14 Phase B1 is committed: frontend `44dfae2` on `nuxt`, and on `main` the admin commit right after `405f77b`.
+- **Tests:** 689 backend tests pass (last full run 2026-11-09, on this code).
+- **Next step:** Doc 14 Phase B2, notification preferences and usage limits (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
 
 Update this file at the end of every phase and commit it with that phase.
 
@@ -14,7 +14,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 14 Phase B.
+   > Read PROJECT_STATUS.md, then start Doc 14 Phase B2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -38,7 +38,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 11 | Business Setup and Settings | Done, except notification preferences (waits for Doc 14) |
 | 12 | Users, Roles, Permissions and Locations | Done, except notification preferences (Doc 14) and package change rules (Doc 13) |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17) and notifications (section 19), which wait for their services and Doc 14 |
-| **14** | **Shared Platform Services** | **In progress: A done. B to E left** |
+| **14** | **Shared Platform Services** | **In progress: A and B1 done. B2 to E left** |
 | 15 | izSuite System Administration Portal | Not started as a doc, parts exist |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
@@ -168,7 +168,7 @@ On a server, the Stripe webhook needs two events: `checkout.session.completed` a
 
 **Careful:** the old `plans`, `subscriptions`, `invoices` and `payment_methods` tables and admin screens come from an earlier recruitment product. They work per user account, not per business, and do not fit Doc 13. Phase C replaces them rather than reusing them, except `payment_methods`, which holds Bank Transfer and, from Phase D2, Stripe's keys (encrypted).
 
-### 2. Doc 14: Shared Platform Services (next: Phase B)
+### 2. Doc 14: Shared Platform Services (next: Phase B2)
 
 The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 
@@ -194,13 +194,25 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 - Saving a contact, item, payment account, location, draft sales document, credit note, purchase or expense checks that nobody changed it since it was opened. If someone did, the form says "Someone else changed this contact after you opened it. Reload it to see their changes, then make yours again."
 - Checked in the browser: a contact made from its form carried its key, and saving over a change made meanwhile was refused with that message.
 
-**Phase B: notifications** (section 15), split B1 and B2 when started:
+**Phase B: notifications** (section 15), split on starting it (2026-11-09), with suggested defaults:
 
-- A notification service, in-app and by e-mail. Each delivery is recorded with its trigger, recipient, channel, related record, status and any failure. A repeat of the same event is sent once, and failed deliveries are retried.
-- A bell in the header with the unread notifications; each one opens its record.
-- First triggers: Doc 13 section 19's (trial ending, renewal, payment failed or received, grace, plan changes, cancellation, apps turned on or off, usage limits), an invitation accepted, and mentions (Phase D).
-- Preferences in Settings > Notifications & Email for the business (Doc 11) and in My Profile for each user (Doc 12). Security, ownership and subscription notices can't be turned off.
-- A notification reaches only users allowed to see its record, by role and location.
+**Phase B1: the notification service and the bell** is built, with these defaults (checked in the browser: the bell's count, its list, opening a notification, Mark all as read):
+
+- Each notification belongs to one user and records its deliveries: its trigger, channel (in-app or e-mail), related record, status and any failure. The same event reaches a user once.
+- E-mails go through the queue and are tried 3 times. One still failing is kept as failed, with the reason.
+- A bell in the header shows the unread count and the latest notifications, with Mark all as read. Each notification opens its record.
+- A notification reaches only users allowed to see its record, by permission and location.
+- First triggers:
+  - Doc 13 section 19's subscription notices, in-app for those with Manage Subscription. Their e-mails to the billing e-mail and the owner stay as they are.
+  - Apps turned on or off, in-app for those with Manage Apps.
+  - An invitation accepted, in-app and by e-mail to whoever sent it.
+
+**Phase B2: preferences, and usage limits**
+
+- Settings > Notifications & Email sets what the business sends, by kind and channel (Doc 11); My Profile sets what each user receives (Doc 12). Security, ownership and subscription notices can't be turned off.
+- Usage limits approaching and reached (Doc 13 section 19): checked hourly, sent once per limit and state.
+- E-mails in the recipient's language where a translation exists (English for now).
+- Mentions come with comments in Phase D.
 
 **Phase C: global search and the header** (sections 3 and 16):
 
@@ -387,6 +399,7 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 13: Phase D2, paying by card | the commit after `aec6aa5` | `faf1211` | 000117 |
 | Doc 13: Phase D3, automatic card charges | the commit after `cca298d` | `b41141a` | 000118 |
 | Doc 14: Phase A, safe saving | the commit after `28761a3` | `17afdd5` | 000119 |
+| Doc 14: Phase B1, notifications and the bell | the commit after `405f77b` | `44dfae2` | 000120 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -499,6 +512,15 @@ These are easy to undo by mistake.
 - The frontend's `useApi` sends a fresh key with every POST, in the browser only. It reuses a key only while the identical request has no answer: the connection dropped, the server failed, or it is still being saved.
 - Edit conflicts: contacts, items, payment accounts, locations, sales documents (and credit notes), purchases and expenses carry a `version`, their `updated_at` in UTC to the second. `useApi` remembers versions from what it reads, list rows included, and from saves, keyed by the address after `/api/v1`, and sends If-Match on PUT. `EditConflicts::ensureUnchanged` refuses a stale save with 409; a save without If-Match isn't checked. Replacing a document's lines touches it, so a change to lines alone counts.
 - Payments re-read their invoice, purchase or expense with `RowLockRepository::lock` (SELECT … FOR UPDATE) inside the transaction and check what is still due there. Reversals lock the payment and check it is still completed.
+- Notifications (Doc 14 Phase B1) all go through `Notifier::send($workspace, $users, Notice, $except)`. A `Notice` has a trigger, a key, a title, a body, a link, a subject and an e-mail flag.
+  - Each user gets one `user_notifications` row per key (unique per user and key). Its `notification_deliveries` hold the in-app delivery, marked sent at once, and an e-mail delivery when asked for.
+  - The e-mail goes through the queued `DeliverNotificationEmail`, tried 3 times with backoff. It reads the address when it runs and marks the delivery sent, or failed with the reason.
+  - `NotificationAudience::withPermission` chooses who hears: active members holding the permission, and with access to the record's location when it has one. The user who did the thing is left out.
+- Triggers so far:
+  - `SubscriptionBilling::notice()` and the invoice and receipt e-mails, in-app to `settings.subscription`, keyed per day or per invoice.
+  - `NotifyAppChange` on `AppActivated` and `AppDeactivated`, in-app to `settings.apps`.
+  - `members.joined` when an invitation is accepted, in-app and by e-mail to whoever invited, else the owner.
+- The bell: `GET /notifications`, `GET /notifications/unread` (counted every minute and when the window comes back), `POST /notifications/{id}/read` and `POST /notifications/read`. They are open to every member, and each user sees only their own.
 - `/profile` answers in the usual envelopes, and the signed-in user (`UserResource`) carries only their name, e-mail, phone, image, language and time zone.
 
 ## Small things left

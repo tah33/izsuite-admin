@@ -37,6 +37,11 @@ final class RoutePermissions
             'api.dashboard'                => 'dashboard.view',
             'api.files.link'               => self::MEMBER,
             'api.business-settings.usage'  => self::MEMBER,
+            // Each user's own notifications (Doc 14 section 15).
+            'api.notifications.index'      => self::MEMBER,
+            'api.notifications.unread'     => self::MEMBER,
+            'api.notifications.read'       => self::MEMBER,
+            'api.notifications.read-all'   => self::MEMBER,
 
             // The subscription, its invoices and its billing details (Doc 13 sections 11 and 21); over its limits, only the owner chooses (OverLimitService)
             'api.subscription.show'               => 'settings.subscription',

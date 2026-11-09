@@ -16,6 +16,9 @@ use App\Repositories\Billing\SubscriptionInvoiceRepository;
 use App\Repositories\Billing\WorkspaceSubscriptionRepository;
 use App\Repositories\User\WorkspaceBillingRepository;
 use App\Services\Shared\BusinessCalendar;
+use App\Services\Shared\Notifications\Notice;
+use App\Services\Shared\Notifications\NotificationAudience;
+use App\Services\Shared\Notifications\Notifier;
 use App\Services\User\Apps\SyncAppsWithPackage;
 use App\Support\Countries;
 use Carbon\CarbonInterface;
@@ -57,6 +60,8 @@ class SubscriptionBilling
         private BusinessCalendar $calendar,
         private SyncAppsWithPackage $sync,
         private SubscriptionTaxes $taxes,
+        private Notifier $notifier,
+        private NotificationAudience $audience,
     ) {}
 
     /** $package's price for $cycle - null while izSuite has not announced it. */
@@ -296,21 +301,49 @@ class SubscriptionBilling
      */
     public function notice(Workspace $workspace, string $kind, array $details): void
     {
-        $to = $this->recipients($workspace, $this->billingDetails->for($workspace)?->email);
+        $to   = $this->recipients($workspace, $this->billingDetails->for($workspace)?->email);
+        $mail = new SubscriptionNoticeMail($kind, [...$details, 'business' => $workspace->name]);
 
         if ($to) {
-            Mail::to($to)->queue(new SubscriptionNoticeMail($kind, [...$details, 'business' => $workspace->name]));
+            Mail::to($to)->queue($mail);
         }
+
+        // In the app too, for those who manage the subscription (Doc 14 section 15) - once a day each.
+        $this->tell($workspace, new Notice(
+            trigger: "subscription.{$kind}",
+            key: "subscription.{$kind}:{$workspace->id}:".$this->calendar->today($workspace)->toDateString(),
+            title: $mail->envelope()->subject,
+            body: isset($details['invoice']) ? "Invoice {$details['invoice']}, {$details['total']}.".(! empty($details['declined']) ? " {$details['declined']}" : '') : null,
+            link: '/settings?tab=subscription',
+        ));
     }
 
-    /** The invoice - or its receipt - by e-mail, to the billing e-mail and the owner. */
+    /** The invoice - or its receipt - by e-mail, to the billing e-mail and the owner; in the app, to those who manage the subscription. */
     private function send(SubscriptionInvoice $invoice, bool $receipt = false): void
     {
-        $to = $this->recipients($invoice->workspace, $invoice->billed_to['email'] ?? null);
+        $to   = $this->recipients($invoice->workspace, $invoice->billed_to['email'] ?? null);
+        $mail = new SubscriptionBillingMail($invoice, $receipt);
 
         if ($to) {
-            Mail::to($to)->queue(new SubscriptionBillingMail($invoice, $receipt));
+            Mail::to($to)->queue($mail);
         }
+
+        $total = $invoice->currency.' '.number_format((float) $invoice->total, 2);
+
+        $this->tell($invoice->workspace, new Notice(
+            trigger: $receipt ? 'subscription.paid' : 'subscription.invoice',
+            key: ($receipt ? 'subscription.paid:' : 'subscription.invoice:').$invoice->id,
+            title: $mail->envelope()->subject,
+            body: $receipt ? "{$total} received for invoice {$invoice->number}." : "{$total}, due by {$invoice->due_on->format('j M Y')}.",
+            link: '/settings?tab=subscription',
+            subject: $invoice,
+        ));
+    }
+
+    /** $notice in the app for the business's users with Manage Subscription - not the one who did it. */
+    private function tell(Workspace $workspace, Notice $notice): void
+    {
+        $this->notifier->send($workspace, $this->audience->withPermission($workspace, 'settings.subscription'), $notice, auth()->user());
     }
 
     /** @return list<string> the billing e-mail and the owner's, once each */

@@ -9,6 +9,8 @@ use App\Repositories\User\WorkspaceMemberRepository;
 use App\Services\Api\Auth\AuthService;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Shared\ActivityLogService;
+use App\Services\Shared\Notifications\Notice;
+use App\Services\Shared\Notifications\Notifier;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\NewAccessToken;
 
@@ -28,6 +30,7 @@ class InvitationService
         protected WorkspaceMemberRepository $memberRepository,
         protected UserRepository $userRepository,
         protected AuthService $authService,
+        protected Notifier $notifier,
     ) {}
 
     /**
@@ -91,6 +94,20 @@ class InvitationService
         ]);
 
         ActivityLogService::record('accepted', "Accepted the invitation to \"{$member->workspace->name}\"", $member, ['source' => 'api'], $user);
+
+        // Whoever sent it - else the owner - hears of it, in the app and by e-mail (Doc 14 section 15).
+        $workspace = $member->workspace;
+        $role      = $member->role?->name;
+
+        $this->notifier->send($workspace, array_filter([$member->inviter ?? $workspace->user]), new Notice(
+            trigger: 'members.joined',
+            key: "members.joined:{$member->id}",
+            title: "{$user->name} joined {$workspace->name}",
+            body: 'They accepted your invitation'.($role ? " as {$role}" : '').'.',
+            link: '/settings?tab=users',
+            subject: $member,
+            email: true,
+        ), $user);
 
         return $member;
     }

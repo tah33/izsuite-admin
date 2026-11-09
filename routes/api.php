@@ -84,6 +84,7 @@ use App\Http\Controllers\Api\SalesPdfController;
 use App\Http\Controllers\Api\SalesRefundController;
 use App\Http\Controllers\Api\SalesSettingController;
 use App\Http\Controllers\Api\SetupController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\StripeWebhookController;
 use App\Http\Controllers\Api\SubscriptionCardController;
 use App\Http\Controllers\Api\SubscriptionController;
@@ -336,6 +337,14 @@ Route::prefix('v1')->group(function () {
      | Manage Subscription - and, over the plan's limits, the owner's choice of
      | what stays active
      | -------------------------------------------------------- */
+    // The bell: the signed-in user's own notifications in the business (Doc 14 section 15).
+    Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('notifications')->group(function () {
+        Route::get('/', [NotificationController::class, 'index'])->name('api.notifications.index');
+        Route::get('/unread', [NotificationController::class, 'unread'])->name('api.notifications.unread');
+        Route::post('/read', [NotificationController::class, 'readAll'])->name('api.notifications.read-all');
+        Route::post('/{id}/read', [NotificationController::class, 'read'])->whereNumber('id')->name('api.notifications.read');
+    });
+
     Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('subscription')->group(function () {
         Route::get('/', [SubscriptionController::class, 'show'])->name('api.subscription.show');
         Route::post('/', [SubscriptionController::class, 'subscribe'])->middleware('throttle:10,1')->name('api.subscription.subscribe');
