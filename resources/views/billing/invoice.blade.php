@@ -116,7 +116,11 @@
 
     @if ($receipt)
         <div class="note paid">
-            Paid in full on {{ $day($invoice->paid_at) }} by bank transfer{{ $invoice->transfer_reference ? ', reference '.$invoice->transfer_reference : '' }}. Thank you.
+            @if ($invoice->paid_with)
+                Paid in full on {{ $day($invoice->paid_at) }} by card, {{ $invoice->paid_with }}{{ $invoice->payment_reference ? ', reference '.$invoice->payment_reference : '' }}. Thank you.
+            @else
+                Paid in full on {{ $day($invoice->paid_at) }} by bank transfer{{ $invoice->transfer_reference ? ', reference '.$invoice->transfer_reference : '' }}. Thank you.
+            @endif
         </div>
     @elseif ($invoice->status === 'void')
         <div class="note void">This invoice was cancelled. Nothing is due on it.</div>

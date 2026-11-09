@@ -12,7 +12,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * trial, paid period, grace and a renewal paid ahead - and the invoice it
  * has still to pay, whether its one trial is still to be had, the plans to
  * compare it with - its own marked - its billing details, null until first
- * saved, and the limits it is over.
+ * saved, the limits it is over, and whether it can pay by card, with its
+ * saved card.
  *
  * @property array{package: array|null, status: string, subscription: mixed, renewed_until: mixed, open_invoice: mixed, trial_available: bool, packages: list<array>, details: mixed, excess: ?array} $resource
  */
@@ -54,6 +55,14 @@ class SubscriptionOverviewResource extends JsonResource
                 'users'      => $this->usedOf($this->resource['excess']['users']),
                 'locations'  => $this->usedOf($this->resource['excess']['locations']),
                 'can_choose' => $this->resource['excess']['can_choose'],
+            ] : null,
+            // Paying by card on Stripe's page (Phase D2): whether it is on, and the card saved for it.
+            'card_payments'   => $this->resource['card_payments'],
+            'card'            => $this->resource['card'] ? [
+                'brand'     => $this->resource['card']->brandName(),
+                'last4'     => $this->resource['card']->last4,
+                'exp_month' => $this->resource['card']->exp_month,
+                'exp_year'  => $this->resource['card']->exp_year,
             ] : null,
         ];
     }

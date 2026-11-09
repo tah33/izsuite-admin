@@ -72,7 +72,7 @@ class PaymentMethodController extends Controller
     public function edit(int $id)
     {
         try {
-            $method = $this->methodService->find($id);
+            $method = $this->methodService->findEditable($id);
             abort_unless($method, 404);
 
             if ($method->type === 'online') {
@@ -93,7 +93,7 @@ class PaymentMethodController extends Controller
     public function update(UpdatePaymentMethodRequest $request, int $id)
     {
         try {
-            $method = $this->methodService->find($id);
+            $method = $this->methodService->findEditable($id);
             abort_unless($method, 404);
 
             $validated              = $request->validated();

@@ -3,6 +3,7 @@
 namespace App\Services\Api\Billing;
 
 use App\Models\Billing\SubscriptionInvoice;
+use App\Models\Billing\WorkspaceCard;
 use App\Models\Billing\WorkspaceSubscription;
 use App\Models\User\User;
 use App\Models\User\Workspace;
@@ -11,6 +12,7 @@ use App\Repositories\Billing\SubscriptionInvoiceRepository;
 use App\Repositories\Billing\WorkspaceSubscriptionRepository;
 use App\Repositories\User\WorkspaceBillingRepository;
 use App\Services\Api\Apps\PublicCatalog;
+use App\Services\Billing\CardPayments;
 use App\Services\Shared\ActivityLogService;
 use App\Services\User\Workspaces\PlanLimits;
 use App\Support\SettingChanges;
@@ -30,6 +32,9 @@ use App\Support\SettingChanges;
  * A business over its plan's user or location limit - moved to a lower plan
  * - says so, and whether $user is the owner who chooses what stays active
  * (Doc 13 section 14, OverLimitService).
+ *
+ * Whether invoices can be paid by card, and the business's saved card
+ * (Phase D2, CardPayments).
  */
 class BillingService
 {
@@ -39,11 +44,12 @@ class BillingService
         protected SubscriptionInvoiceRepository $invoices,
         protected PublicCatalog $catalog,
         protected PlanLimits $planLimits,
+        protected CardPayments $cardPayments,
     ) {}
 
     /**
      * @return array{package: array|null, status: string, subscription: ?WorkspaceSubscription, renewed_until: mixed, open_invoice: ?SubscriptionInvoice,
-     *               trial_available: bool, packages: list<array>, details: ?WorkspaceBilling, excess: ?array}
+     *               trial_available: bool, packages: list<array>, details: ?WorkspaceBilling, excess: ?array, card_payments: bool, card: ?WorkspaceCard}
      */
     public function overview(Workspace $workspace, User $user): array
     {
@@ -67,6 +73,8 @@ class BillingService
             'packages'        => array_map(fn (array $package) => [...$package, 'current' => $package['key'] === $current?->key], $this->catalog->packages()),
             'details'         => $this->billingRepository->for($workspace),
             'excess'          => $this->excess($workspace, $user),
+            'card_payments'   => $this->cardPayments->available(),
+            'card'            => $this->cardPayments->card($workspace),
         ];
     }
 

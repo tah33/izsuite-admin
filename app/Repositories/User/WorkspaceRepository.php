@@ -49,6 +49,12 @@ class WorkspaceRepository
         $workspace->user_id = $owner->id;
     }
 
+    /** Any business, by its id - for a payment provider's notification, which names the business it is for. */
+    public function find(int $id): ?Workspace
+    {
+        return Workspace::find($id);
+    }
+
     /**
      * Scoped to the owner: another account's id finds nothing, so callers
      * cannot tell "not yours" from "does not exist".

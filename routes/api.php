@@ -84,6 +84,8 @@ use App\Http\Controllers\Api\SalesPdfController;
 use App\Http\Controllers\Api\SalesRefundController;
 use App\Http\Controllers\Api\SalesSettingController;
 use App\Http\Controllers\Api\SetupController;
+use App\Http\Controllers\Api\StripeWebhookController;
+use App\Http\Controllers\Api\SubscriptionCardController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\SubscriptionInvoiceController;
 use App\Http\Controllers\Api\SupplierPaymentAttachmentController;
@@ -109,6 +111,9 @@ Route::prefix('v1')->group(function () {
     Route::get('/currencies', [CurrencyController::class, 'index'])->name('api.currencies.index');
     Route::get('/languages', [LanguageController::class, 'index'])->name('api.languages.index');
     Route::get('/countries', [CountryController::class, 'index'])->name('api.countries.index');
+
+    // Stripe's notifications of finished checkouts, taken only with its signature (Doc 13 Phase D2).
+    Route::post('/webhooks/stripe', [StripeWebhookController::class, 'handle'])->name('api.webhooks.stripe');
 
     // A business's private file on this server, through a link GET
     // /files/{id}/link signed a few minutes ago: no token, so a plain browser
@@ -347,6 +352,11 @@ Route::prefix('v1')->group(function () {
         Route::get('/invoices', [SubscriptionInvoiceController::class, 'index'])->name('api.subscription.invoices');
         Route::put('/invoices/{id}/reference', [SubscriptionInvoiceController::class, 'reference'])->whereNumber('id')->name('api.subscription.invoices.reference');
         Route::get('/invoices/{id}/pdf', [SubscriptionInvoiceController::class, 'pdf'])->whereNumber('id')->name('api.subscription.invoices.pdf');
+        // Paying by card on Stripe's page, and the saved card (Doc 13 Phase D2).
+        Route::post('/invoices/{id}/card-checkout', [SubscriptionCardController::class, 'checkout'])->whereNumber('id')->middleware('throttle:10,1')->name('api.subscription.card.checkout');
+        Route::post('/card-checkout', [SubscriptionCardController::class, 'complete'])->middleware('throttle:20,1')->name('api.subscription.card.complete');
+        Route::post('/card', [SubscriptionCardController::class, 'setup'])->middleware('throttle:10,1')->name('api.subscription.card.setup');
+        Route::delete('/card', [SubscriptionCardController::class, 'remove'])->name('api.subscription.card.remove');
     });
 
     Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('roles')->group(function () {

@@ -21,6 +21,12 @@ class SubscriptionInvoiceRepository
     }
 
     /** One of the business's invoices - another business's is not found. */
+    /** The invoice, its row locked until the transaction ends - for a payment to settle it once. */
+    public function lock(int $id): ?SubscriptionInvoice
+    {
+        return SubscriptionInvoice::whereKey($id)->lockForUpdate()->first();
+    }
+
     public function findFor(Workspace $workspace, int $id): ?SubscriptionInvoice
     {
         return $workspace->subscriptionInvoices()->find($id);
@@ -71,12 +77,13 @@ class SubscriptionInvoiceRepository
      */
     public function adminPage(?string $status, ?string $search, int $perPage): LengthAwarePaginator
     {
-        return SubscriptionInvoice::with(['workspace:id,name,user_id', 'workspace.user:id,first_name,last_name,email', 'confirmer:id,first_name,last_name'])
+        return SubscriptionInvoice::with(['workspace:id,name,user_id', 'workspace.user:id,first_name,last_name,email', 'confirmer:id,first_name,last_name', 'unappliedPayments'])
             ->when($status, fn ($query) => $query->where('status', $status))
             ->when($search, fn ($query) => $query->where(fn ($query) => $query
                 ->where('number', 'like', "%{$search}%")
                 ->orWhere('receipt_number', 'like', "%{$search}%")
                 ->orWhere('transfer_reference', 'like', "%{$search}%")
+                ->orWhere('payment_reference', 'like', "%{$search}%")
                 ->orWhereHas('workspace', fn ($query) => $query->where('name', 'like', "%{$search}%"))))
             ->orderByRaw('status = ? desc', [SubscriptionInvoice::OPEN])
             ->latest('issued_on')

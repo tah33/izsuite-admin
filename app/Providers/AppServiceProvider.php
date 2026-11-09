@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Events\RecruiterNotificationRequested;
 use App\Listeners\QueueRecruiterNotification;
+use App\Services\Billing\Payments\CardGateway;
+use App\Services\Billing\Payments\StripeGateway;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
@@ -15,7 +17,8 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // Card payments go through Stripe (Doc 13 Phase D2); another provider would be bound here.
+        $this->app->bind(CardGateway::class, StripeGateway::class);
     }
 
     public function boot(): void

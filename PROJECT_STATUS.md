@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-09
-- **Code:** Doc 13 Phase D1 is committed: frontend `0810b65` on `nuxt`, and on `main` the admin commit right after `8e261db`.
-- **Tests:** 669 backend tests pass (last full run 2026-11-09, on this code).
-- **Next step:** Doc 13 Phase D2, paying by card through Stripe (see [What is next](#what-is-next)).
+- **Code:** Doc 13 Phase D2 is committed: frontend `faf1211` on `nuxt`, and on `main` the admin commit right after `aec6aa5`.
+- **Tests:** 675 backend tests pass (last full run 2026-11-09, on this code).
+- **Next step:** Doc 13 Phase D3, automatic renewals and retries (see [What is next](#what-is-next)). Trying D2 with a Stripe test account first is worth it.
 
 Update this file at the end of every phase and commit it with that phase.
 
@@ -14,7 +14,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 13 Phase D2.
+   > Read PROJECT_STATUS.md, then start Doc 13 Phase D3.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -37,7 +37,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 10 | Expenses Lite | Done |
 | 11 | Business Setup and Settings | Done, except notification preferences (waits for Doc 14) |
 | 12 | Users, Roles, Permissions and Locations | Done, except notification preferences (Doc 14) and package change rules (Doc 13) |
-| **13** | **Apps Center, Packages, Subscriptions and Billing** | **In progress: A, B, C and D1 done. D2 and D3 (card payments) left** |
+| **13** | **Apps Center, Packages, Subscriptions and Billing** | **In progress: A, B, C, D1 and D2 done. D3 (automatic renewals) left** |
 | 14 | Shared Platform Services | Not started as a doc, parts exist |
 | 15 | izSuite System Administration Portal | Not started as a doc, parts exist |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
@@ -47,9 +47,9 @@ Stock, full Sales, OCR and full Accounting features are left out of the Lite app
 
 ## What is next
 
-### 1. Doc 13: Apps Center, Packages, Subscriptions and Billing (next: Phase D2)
+### 1. Doc 13: Apps Center, Packages, Subscriptions and Billing (next: Phase D3)
 
-The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D: B in two parts, C in three (C1, C2a, C2b) and D in three (D1 to D3). Phases A to C and D1 are built (see [Decisions worth knowing](#decisions-worth-knowing)). D2 comes next.
+The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D: B in two parts, C in three (C1, C2a, C2b) and D in three (D1 to D3). Phases A to C, D1 and D2 are built (see [Decisions worth knowing](#decisions-worth-knowing)). D3 comes next.
 
 **Already built:**
 
@@ -129,17 +129,26 @@ Phase D is split into D1 to D3, with these suggested defaults.
 - The subscribe dialog, the upgrade preview and the invoice to pay show the price, any credit, the tax and the total. The invoice PDF and the admin list show the tax too, and a reverse charge prints its note.
 - Compare Plans and the public Pricing page say prices are before tax.
 
-**Phase D2: paying by card:**
+**Phase D2: paying by card** is built, with your defaults:
 
 - Admin > Payment Methods > Stripe:
   - takes test and live keys (publishable, secret and webhook signing secret) and a Test or Live switch;
-  - stores the keys encrypted and shows them masked after saving;
+  - stores the keys encrypted and shows them only masked ("sk_test_…4242"); a key left blank keeps the saved one;
+  - won't switch on without the chosen mode's secret key and signing secret;
   - gives the webhook address to enter in Stripe.
   The old PayPal, Paddle, Paystack and Razorpay entries are hidden.
 - The invoice to pay offers Pay by Card beside the bank transfer details. It opens Stripe's own payment page in the invoice's currency, which saves the card for later payments.
-- Stripe reports the payment by webhook, which is verified; a repeated event or payment is recorded once. The invoice is then paid as when the admin confirms a transfer: the receipt and its e-mail go out, and the plan starts or renews. The receipt names the card and Stripe's reference.
-- The Subscription page's Payment Methods section shows the saved card (brand, last four digits, expiry), with Replace and Remove. Each change goes in the Activity Log.
-- Checking it needs a Stripe account in test mode, with its test keys entered in Admin > Payment Methods on dev and the Stripe CLI forwarding webhooks to localhost.
+- A finished payment is settled once, however it arrives: by Stripe's webhook (taken only with Stripe's signature) or by the business coming back from Stripe's page. The invoice is then paid as when the admin confirms a transfer: the receipt and its e-mail go out, and the plan starts or renews. The receipt names the card and Stripe's reference.
+- A card payment that can't pay its invoice (cancelled meanwhile, paid already, or a different amount) is kept with the reason. The admin invoice list shows it, to refund in Stripe.
+- The Subscription page's Payment Method section shows the saved card (brand, last four digits, expiry), with Replace Card and Remove. Each change goes in the Activity Log.
+- Checked without Stripe: the tests fake Stripe's API. On dev the admin page, the masked keys, the webhook refusing unsigned calls, and the new parts of the Subscription page were checked; nothing was sent to Stripe.
+
+**To try D2 with Stripe** (test mode, on dev):
+
+1. In Stripe's test mode, copy the publishable and secret keys.
+2. In Admin > Payment Methods > Stripe, paste the test keys, choose Test, and tick Take card payments.
+3. Run `stripe listen --forward-to localhost:8000/api/v1/webhooks/stripe` and paste the signing secret it prints. Without it, coming back from Stripe's page still settles a payment.
+4. Pay an invoice with Stripe's test card 4242 4242 4242 4242, any future expiry date and any CVC.
 
 **Phase D3: automatic renewals and retries:**
 
@@ -151,7 +160,7 @@ Phase D is split into D1 to D3, with these suggested defaults.
 
 **Waits:** notifications (section 19) for Doc 14. Usage charges such as SMS, AI, extra storage and API (section 17) wait until those services exist. Translated app names wait for Doc 14, and admin-side configuration beyond packages and the catalog waits for Doc 15.
 
-**Careful:** the old `plans`, `subscriptions`, `invoices` and `payment_methods` tables and admin screens come from an earlier recruitment product. They work per user account, not per business, and do not fit Doc 13. Phase C replaces them rather than reusing them, except `payment_methods`, which holds Bank Transfer and, from Phase D2, Stripe's keys. Its `credentials` column is not encrypted yet, and `config/payment_gateways.php` names gateway classes that do not exist.
+**Careful:** the old `plans`, `subscriptions`, `invoices` and `payment_methods` tables and admin screens come from an earlier recruitment product. They work per user account, not per business, and do not fit Doc 13. Phase C replaces them rather than reusing them, except `payment_methods`, which holds Bank Transfer and, from Phase D2, Stripe's keys (encrypted).
 
 ### 2. Doc 14 and Doc 15
 
@@ -307,6 +316,7 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 13: Phase C2a, renewals, grace, trials, cancelling | `000444f` | `15d9d58` | 000114 |
 | Doc 13: Phase C2b, upgrades and downgrades | the commit after `000444f` | `e7d6f59` | 000115 |
 | Doc 13: Phase D1, subscription tax | the commit after `8e261db` | `0810b65` | 000116 |
+| Doc 13: Phase D2, paying by card | the commit after `aec6aa5` | `faf1211` | 000117 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -408,6 +418,11 @@ These are easy to undo by mistake.
 - Subscription tax rules are `subscription_taxes`, one per country and `starts_on`. `SubscriptionTaxes` picks the country's latest rule that has started and adds its rate to the price less any credit, half up to the cent. With `reverse_charge` and a tax ID in the billing details, the tax is 0% and the rule's note (or a standard one) prints instead. The invoice keeps `tax_name`, `tax_rate`, `tax` and `tax_note`, so later rule changes never touch it.
 - `SubscriptionBilling::quote` is the one price breakdown (price, credit, tax, total). Issuing an invoice, the upgrade preview and `GET /subscription/quote` (the subscribe dialog) all use it.
 - An upgrade's credit is worked out from what the period was paid before tax (`SubscriptionInvoice::net`), since the new invoice's tax is on its price less that credit.
+- Card payments go through `CardGateway`, bound to `StripeGateway` in `AppServiceProvider`. It calls Stripe's REST API with Laravel's HTTP client, so there's no Stripe package and the tests fake it with `Http::fake`. `CardPayments` holds the logic and `SubscriptionCardService` the API side.
+- Stripe's keys live in `payment_methods.credentials` as `encrypted:array`, shaped `{test: {...}, live: {...}}`; `is_sandbox` picks the mode. The gateway reads them on every call, so a change in the admin is never missed. A webhook counts only with the current mode's signing secret, signed within the last 5 minutes.
+- Checkout uses payment mode with `setup_future_usage=off_session`, so the card is kept for D3. Its metadata names the business and invoice, and it expires after an hour. Stripe sends the business back to `/settings?tab=subscription&card_checkout={id}`, and the page settles it through `POST /subscription/card-checkout`.
+- Settling locks the invoice row and records `subscription_payments`, unique per provider and reference, so the webhook and the return can't both pay it. A card-paid invoice has no `confirmed_by`; `paid_with` and `payment_reference` say how it was paid.
+- One card per business (`workspace_cards`). Its Stripe customer is kept per mode, even after the card is removed. A new card replaces the old one, which is taken off Stripe once the change is saved.
 - `/profile` answers in the usual envelopes, and the signed-in user (`UserResource`) carries only their name, e-mail, phone, image, language and time zone.
 
 ## Small things left

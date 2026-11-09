@@ -10,6 +10,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class PaymentMethodService
 {
@@ -23,14 +24,25 @@ class PaymentMethodService
         return $this->methodRepo->getPaginated($type, $search, $perPage);
     }
 
+    /** The methods of $type; of the online gateways, only those built (Doc 13 Phase D2). */
     public function getByType(string $type): Collection
     {
-        return $this->methodRepo->getByType($type);
+        $methods = $this->methodRepo->getByType($type);
+
+        return $type === 'online' ? $methods->whereIn('slug', PaymentMethod::BUILT)->values() : $methods;
     }
 
     public function find(int $id): ?PaymentMethod
     {
         return $this->methodRepo->find($id);
+    }
+
+    /** A method the admin may open: an offline one, or an online gateway that is built. */
+    public function findEditable(int $id): ?PaymentMethod
+    {
+        $method = $this->find($id);
+
+        return $method && ($method->type !== 'online' || in_array($method->slug, PaymentMethod::BUILT, true)) ? $method : null;
     }
 
     public function create(array $data): PaymentMethod
@@ -75,13 +87,35 @@ class PaymentMethodService
         return $updated;
     }
 
-    /** An online gateway's switches and credentials - all that changes on one. */
+    /**
+     * An online gateway's switches and keys (Doc 15 section 15): test and live
+     * apart, a key left blank keeping the one kept. Switched on, the mode it
+     * is in needs its secret key and webhook signing secret.
+     */
     public function updateOnline(PaymentMethod $method, array $data): PaymentMethod
     {
-        $updated = $this->update($method, [
+        $kept        = $method->credentials ?? [];
+        $credentials = [];
+
+        foreach (PaymentMethod::MODES as $mode) {
+            foreach (array_keys(PaymentMethod::GATEWAY_FIELDS[$method->slug] ?? []) as $key) {
+                $typed                    = trim((string) ($data['credentials'][$mode][$key] ?? ''));
+                $credentials[$mode][$key] = $typed !== '' ? $typed : ($kept[$mode][$key] ?? null);
+            }
+        }
+
+        $mode        = $data['is_sandbox'] ? 'test' : 'live';
+
+        if ($data['is_active'] && (empty($credentials[$mode]['secret_key']) || empty($credentials[$mode]['webhook_secret']))) {
+            throw ValidationException::withMessages([
+                'credentials' => "Add the {$mode} secret key and webhook signing secret before switching {$method->name} on in {$mode} mode.",
+            ]);
+        }
+
+        $updated     = $this->update($method, [
             'is_active'   => $data['is_active'],
             'is_sandbox'  => $data['is_sandbox'],
-            'credentials' => $data['credentials'] ?? [],
+            'credentials' => $credentials,
         ]);
 
         ActivityLogService::record('updated', "Updated online gateway \"{$method->name}\"", $method);

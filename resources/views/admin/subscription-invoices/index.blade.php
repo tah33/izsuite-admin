@@ -39,7 +39,7 @@
                         <th>{{ __('Plan') }}</th>
                         <th>{{ __('Total') }}</th>
                         <th>{{ __('Dates') }}</th>
-                        <th>{{ __('Transfer reference') }}</th>
+                        <th>{{ __('Reference') }}</th>
                         <th>{{ __('Status') }}</th>
                         <th class="text-end">{{ __('Actions') }}</th>
                     </tr>

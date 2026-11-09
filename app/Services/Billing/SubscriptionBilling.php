@@ -121,9 +121,11 @@ class SubscriptionBilling
     }
 
     /**
-     * The payment arrived (izSuite confirms it): the invoice is paid, with a
-     * receipt number, and the subscription it pays for is active for its
-     * period - the one after a trial, else from today - on its plan.
+     * The payment arrived - izSuite's $admin confirms a transfer, or the card
+     * provider reports $payment (Phase D2: paid_with, reference): the invoice
+     * is paid, with a receipt number, and the subscription it pays for is
+     * active for its period - the one after a trial, else from today - on its
+     * plan.
      *
      * A renewal's period follows the one before: paid in grace, the plan
      * carries on from where that one ended; paid before it ends, the daily
@@ -131,7 +133,7 @@ class SubscriptionBilling
      * its plan and cycle, and anything else waiting - a renewal, a move down,
      * a cancellation - gives way to it.
      */
-    public function confirm(SubscriptionInvoice $invoice, User $admin): SubscriptionInvoice
+    public function confirm(SubscriptionInvoice $invoice, ?User $admin = null, ?array $payment = null): SubscriptionInvoice
     {
         if (! $invoice->isOpen()) {
             $this->refuse('Only an open invoice can be marked paid.');
@@ -141,12 +143,15 @@ class SubscriptionBilling
         $start     = $invoice->period_starts_on ?? $this->calendar->today($workspace);
         $end       = $invoice->period_ends_on ?? $this->periodEnd($start, $invoice->cycle);
 
-        DB::transaction(function () use ($invoice, $admin, $workspace, $start, $end) {
+        DB::transaction(function () use ($invoice, $admin, $payment, $workspace, $start, $end) {
             $this->invoices->update($invoice, [
-                'status'           => SubscriptionInvoice::PAID,
-                'receipt_number'   => self::RECEIPT_PREFIX.str_pad((string) $this->sequences->next('receipt'), 5, '0', STR_PAD_LEFT),
-                'paid_at'          => now(),
-                'confirmed_by'     => $admin->id,
+                'status'            => SubscriptionInvoice::PAID,
+                'receipt_number'    => self::RECEIPT_PREFIX.str_pad((string) $this->sequences->next('receipt'), 5, '0', STR_PAD_LEFT),
+                'paid_at'           => now(),
+                'confirmed_by'      => $admin?->id,
+                // Paid by card (Phase D2): the card and the provider's reference, for the receipt.
+                'paid_with'         => $payment['paid_with'] ?? null,
+                'payment_reference' => $payment['reference'] ?? null,
                 'period_starts_on' => $start->toDateString(),
                 'period_ends_on'   => $end->toDateString(),
             ]);

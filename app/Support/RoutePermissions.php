@@ -54,6 +54,10 @@ final class RoutePermissions
             'api.subscription.invoices'           => 'settings.subscription',
             'api.subscription.invoices.reference' => 'settings.subscription',
             'api.subscription.invoices.pdf'       => 'settings.subscription',
+            'api.subscription.card.checkout'      => 'settings.subscription',
+            'api.subscription.card.complete'      => 'settings.subscription',
+            'api.subscription.card.setup'         => 'settings.subscription',
+            'api.subscription.card.remove'        => 'settings.subscription',
 
             // Contacts and items (Doc 03, Doc 04)
             'api.contacts.index'               => 'contacts.view',

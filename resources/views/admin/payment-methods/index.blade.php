@@ -109,9 +109,9 @@
                         </div>
                     @endif
 
-                    @php $creds = $gateway->credentials ?? []; @endphp
+                    {{-- Configured: the mode it is in has its secret key (Doc 13 Phase D2). --}}
                     <div class="text-xs mb-3 text-[var(--text-muted)]">
-                        @if(count($creds) > 0 && collect($creds)->filter()->count() > 0)
+                        @if(filled($gateway->keys()['secret_key'] ?? null))
                             <span class="inline-flex items-center gap-1">
                                 <i data-lucide="key" class="w-3 h-3"></i> {{ __('Keys configured') }}
                             </span>

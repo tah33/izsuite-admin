@@ -6,6 +6,7 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * izSuite's invoice to a business for its subscription (Doc 13 sections 11
@@ -54,6 +55,9 @@ class SubscriptionInvoice extends Model
         'seller',
         'payment_instructions',
         'transfer_reference',
+        // Paid by card (Phase D2): "Visa ending 4242", and the provider's reference.
+        'paid_with',
+        'payment_reference',
         'receipt_number',
         'paid_at',
         'confirmed_by',
@@ -90,6 +94,12 @@ class SubscriptionInvoice extends Model
     public function confirmer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'confirmed_by');
+    }
+
+    /** Card payments for it that could not pay it (Phase D2) - for the admin to refund. */
+    public function unappliedPayments(): HasMany
+    {
+        return $this->hasMany(SubscriptionPayment::class, 'subscription_invoice_id')->whereNotNull('note');
     }
 
     public function isOpen(): bool

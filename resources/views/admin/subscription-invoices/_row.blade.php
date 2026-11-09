@@ -29,13 +29,19 @@
         {{ __('Issued') }} {{ $invoice->issued_on->format('M d, Y') }}
         <span class="block text-xs text-[var(--text-muted)]">
             @if($invoice->paid_at)
-                {{ __('Paid') }} {{ $invoice->paid_at->format('M d, Y') }}{{ $invoice->confirmer ? ' · '.$invoice->confirmer->name : '' }}
+                {{ __('Paid') }} {{ $invoice->paid_at->format('M d, Y') }}{{ $invoice->paid_with ? ' · '.$invoice->paid_with : '' }}{{ $invoice->confirmer ? ' · '.$invoice->confirmer->name : '' }}
             @else
                 {{ __('Due') }} {{ $invoice->due_on->format('M d, Y') }}
             @endif
         </span>
     </td>
-    <td class="text-sm">{{ $invoice->transfer_reference ?: '—' }}</td>
+    <td class="text-sm">
+        {{ $invoice->payment_reference ?: ($invoice->transfer_reference ?: '—') }}
+        {{-- A card payment that could not pay it (Phase D2): to refund in Stripe. --}}
+        @foreach($invoice->unappliedPayments as $payment)
+            <span class="block text-xs text-[var(--danger)]">{{ $payment->currency }} {{ number_format((float) $payment->amount, 2) }} {{ $payment->card }} ({{ $payment->reference }}). {{ $payment->note }}</span>
+        @endforeach
+    </td>
     <td class="whitespace-nowrap"><span class="badge {{ $badge[0] }}">{{ $badge[1] }}</span></td>
     <td class="text-end">
         @if($invoice->isOpen())

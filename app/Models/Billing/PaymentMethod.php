@@ -19,38 +19,27 @@ class PaymentMethod extends Model
         'sort_order',
     ];
 
+    // An online gateway's keys, kept encrypted (Doc 15 section 15): ['test' => [...], 'live' => [...]].
     protected $casts            = [
-        'credentials' => 'array',
+        'credentials' => 'encrypted:array',
         'is_active'   => 'boolean',
         'is_sandbox'  => 'boolean',
     ];
 
-    /**
-     * Each online gateway defines which credential fields it needs.
-     */
+    protected $hidden           = ['credentials'];
+
+    /** The online gateways izSuite takes payments through (Doc 13 Phase D2). The others stay hidden until they are built. */
+    public const BUILT          = ['stripe'];
+
+    /** Each gateway's test and live modes keep their own keys; is_sandbox picks test. */
+    public const MODES          = ['test', 'live'];
+
+    /** The keys each built gateway takes, in each mode, and what the admin calls them. */
     public const GATEWAY_FIELDS = [
-        'stripe'   => [
-            'publishable_key' => 'Publishable Key',
-            'secret_key'      => 'Secret Key',
-            'webhook_secret'  => 'Webhook Secret',
-        ],
-        'paypal'   => [
-            'client_id'     => 'Client ID',
-            'client_secret' => 'Client Secret',
-            'webhook_id'    => 'Webhook ID',
-        ],
-        'paddle'   => [
-            'vendor_id'   => 'Vendor ID',
-            'vendor_auth' => 'Auth Code',
-            'public_key'  => 'Public Key',
-        ],
-        'paystack' => [
-            'public_key' => 'Public Key',
-            'secret_key' => 'Secret Key',
-        ],
-        'razorpay' => [
-            'key_id'     => 'Key ID',
-            'key_secret' => 'Key Secret',
+        'stripe' => [
+            'publishable_key' => 'Publishable key',
+            'secret_key'      => 'Secret key',
+            'webhook_secret'  => 'Webhook signing secret',
         ],
     ];
 
@@ -81,11 +70,23 @@ class PaymentMethod extends Model
         return self::GATEWAY_FIELDS[$this->slug] ?? [];
     }
 
-    /**
-     * Get a specific credential value.
-     */
-    public function credential(string $key): ?string
+    /** The keys of the mode it is in: test while in sandbox, else live. */
+    public function keys(): array
     {
-        return $this->credentials[$key] ?? null;
+        return $this->credentials[$this->is_sandbox ? 'test' : 'live'] ?? [];
+    }
+
+    /** A kept key as the admin sees it again - its prefix and last four, "sk_test_…4242" - never whole. */
+    public function masked(string $mode, string $key): ?string
+    {
+        $value  = $this->credentials[$mode][$key] ?? null;
+
+        if (! $value) {
+            return null;
+        }
+
+        $prefix = preg_match('/^[a-z]+_(test_|live_)?/', $value, $match) ? $match[0] : '';
+
+        return $prefix.'…'.substr($value, -4);
     }
 }
