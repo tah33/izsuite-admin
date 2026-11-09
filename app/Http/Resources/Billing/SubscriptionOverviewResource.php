@@ -38,6 +38,12 @@ class SubscriptionOverviewResource extends JsonResource
                 'grace_ends_on'    => $subscription->grace_ends_on?->toDateString(),
                 // A renewal paid ahead: the plan is paid up to this day.
                 'renewed_until'    => $this->resource['renewed_until']?->toDateString(),
+                // A move down (Phase C2b), as the paid period ends.
+                'scheduled_change' => $subscription->scheduledPackage ? [
+                    'package' => $subscription->scheduledPackage->name,
+                    'cycle'   => $subscription->scheduled_cycle,
+                    'on'      => $subscription->period_ends_on?->copy()->addDay()->toDateString(),
+                ] : null,
             ] : null,
             'open_invoice'    => $this->resource['open_invoice'] ? new SubscriptionInvoiceResource($this->resource['open_invoice'], withInstructions: true) : null,
             'trial_available' => $this->resource['trial_available'],

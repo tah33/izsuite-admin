@@ -66,7 +66,7 @@ class SubscriptionBilling
      * after a trial, or a renewal's) is printed on it; otherwise the period
      * starts when the payment is confirmed.
      */
-    public function issue(Workspace $workspace, Package $package, string $cycle, ?CarbonInterface $periodStart = null, ?CarbonInterface $dueOn = null, string $kind = SubscriptionInvoice::NEW): SubscriptionInvoice
+    public function issue(Workspace $workspace, Package $package, string $cycle, ?CarbonInterface $periodStart = null, ?CarbonInterface $dueOn = null, string $kind = SubscriptionInvoice::NEW, string $credit = '0.00'): SubscriptionInvoice
     {
         $today   = $this->calendar->today($workspace);
         $price   = $this->price($package, $cycle);
@@ -81,8 +81,9 @@ class SubscriptionBilling
             'period_ends_on'       => $periodStart ? $this->periodEnd($periodStart, $cycle)->toDateString() : null,
             'currency'             => $package->price_currency,
             'amount'               => $price,
-            'credit'               => 0,
-            'total'                => $price,
+            // An upgrade's credit for the unused part of the paid period (Phase C2b).
+            'credit'               => $credit,
+            'total'                => bcsub((string) $price, $credit, 2),
             'status'               => SubscriptionInvoice::OPEN,
             'issued_on'            => $today->toDateString(),
             'due_on'               => ($dueOn ?? $today->addDays($this->dueDays()))->toDateString(),
@@ -103,7 +104,9 @@ class SubscriptionBilling
      *
      * A renewal's period follows the one before: paid in grace, the plan
      * carries on from where that one ended; paid before it ends, the daily
-     * cycle (SubscriptionCycle) starts it then.
+     * cycle (SubscriptionCycle) starts it then. An upgrade's starts today, on
+     * its plan and cycle, and anything else waiting - a renewal, a move down,
+     * a cancellation - gives way to it.
      */
     public function confirm(SubscriptionInvoice $invoice, User $admin): SubscriptionInvoice
     {
@@ -126,6 +129,22 @@ class SubscriptionBilling
             ]);
 
             $subscription = $this->subscriptions->for($workspace);
+
+            if ($invoice->kind === SubscriptionInvoice::UPGRADE) {
+                if ($subscription?->status === WorkspaceSubscription::ACTIVE) {
+                    if (($renewal = $this->invoices->openFor($workspace)) && $renewal->kind === SubscriptionInvoice::RENEWAL) {
+                        $this->invoices->update($renewal, ['status' => SubscriptionInvoice::VOID, 'voided_at' => now()]);
+                    }
+
+                    $this->subscriptions->save($workspace, [
+                        'package_id'            => $invoice->package_id, 'cycle' => $invoice->cycle, 'period_starts_on' => $start->toDateString(), 'period_ends_on' => $end->toDateString(),
+                        'cancels_at_period_end' => false, 'scheduled_package_id' => null, 'scheduled_cycle' => null, 'last_notice_on' => null,
+                    ]);
+                    $this->sync->changePackage($workspace, $invoice->package, $admin);
+                }
+
+                return;
+            }
 
             if ($invoice->kind === SubscriptionInvoice::RENEWAL) {
                 if ($subscription?->status === WorkspaceSubscription::GRACE) {

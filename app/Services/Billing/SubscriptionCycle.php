@@ -88,6 +88,11 @@ class SubscriptionCycle
             return null;
         }
 
+        // An upgrade waiting for payment starts a period of its own; unpaid, it lapses as this one ends.
+        if ($this->invoices->openFor($subscription->workspace)?->kind === SubscriptionInvoice::UPGRADE) {
+            return null;
+        }
+
         return $this->renewal($subscription);
     }
 
@@ -106,7 +111,9 @@ class SubscriptionCycle
                 $this->invoices->update($open, ['status' => SubscriptionInvoice::VOID, 'voided_at' => now()]);
             }
 
-            $this->subscriptions->save($workspace, ['status' => WorkspaceSubscription::CANCELLED, 'grace_ends_on' => null, 'cancels_at_period_end' => false, 'last_notice_on' => null]);
+            $this->subscriptions->save($workspace, [
+                'status' => WorkspaceSubscription::CANCELLED, 'grace_ends_on' => null, 'cancels_at_period_end' => false, 'scheduled_package_id' => null, 'scheduled_cycle' => null, 'last_notice_on' => null,
+            ]);
 
             $starter = $this->packages->starter();
 
@@ -163,7 +170,11 @@ class SubscriptionCycle
         $this->renewIfDue($subscription);
     }
 
-    /** Paid: the next period. Cancelled, or no grace: the end. Otherwise grace, from the day after. */
+    /**
+     * Paid: the next period. Cancelled, or no grace: the end. Otherwise
+     * grace, from the day after. A move down waiting for this day happens
+     * first, paid or not; an upgrade not paid by now lapses.
+     */
     private function periodEnded(WorkspaceSubscription $subscription, CarbonImmutable $end, CarbonImmutable $today): void
     {
         $workspace = $subscription->workspace;
@@ -172,6 +183,24 @@ class SubscriptionCycle
             $this->end($subscription, 'cancelled');
 
             return;
+        }
+
+        // Its credit was for days now gone.
+        if (($upgrade = $this->invoices->openFor($workspace)) && $upgrade->kind === SubscriptionInvoice::UPGRADE) {
+            $this->invoices->update($upgrade, ['status' => SubscriptionInvoice::VOID, 'voided_at' => now()]);
+        }
+
+        if ($to = $subscription->scheduledPackage) {
+            $from         = $subscription->package->name;
+
+            DB::transaction(function () use ($subscription, $workspace, $to) {
+                $this->subscriptions->save($workspace, ['package_id' => $to->id, 'cycle' => $subscription->scheduled_cycle, 'scheduled_package_id' => null, 'scheduled_cycle' => null]);
+                $this->sync->changePackage($workspace, $to);
+            });
+
+            ActivityLogService::record('updated', "Moved from {$from} to {$to->name}, {$subscription->scheduled_cycle}, as its paid period ended", $workspace, ['source' => 'system']);
+
+            $subscription = $subscription->refresh();
         }
 
         $renewal   = $this->invoices->renewalFor($workspace, $end->addDay()->toDateString());
@@ -221,14 +250,25 @@ class SubscriptionCycle
         ]);
     }
 
-    /** The renewal for the period after the current one - issued now if it has not been, due on the period's last day. */
+    /**
+     * The renewal for the period after the current one - issued now if it
+     * has not been, due on the period's last day - on the plan and cycle it
+     * moves to then, if a move down waits for it.
+     */
     private function renewal(WorkspaceSubscription $subscription): SubscriptionInvoice
     {
         $workspace = $subscription->workspace;
         $end       = $subscription->period_ends_on->toImmutable();
 
         return $this->invoices->renewalFor($workspace, $end->addDay()->toDateString())
-            ?? $this->billing->issue($workspace, $subscription->package, $subscription->cycle, $end->addDay(), $end, SubscriptionInvoice::RENEWAL);
+            ?? $this->billing->issue(
+                $workspace,
+                $subscription->scheduledPackage ?? $subscription->package,
+                $subscription->scheduled_cycle ?? $subscription->cycle,
+                $end->addDay(),
+                $end,
+                SubscriptionInvoice::RENEWAL,
+            );
     }
 
     /** A notice, once a day. */

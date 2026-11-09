@@ -337,6 +337,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/withdraw', [SubscriptionController::class, 'withdraw'])->name('api.subscription.withdraw');
         Route::post('/cancel', [SubscriptionController::class, 'cancel'])->name('api.subscription.cancel');
         Route::post('/resume', [SubscriptionController::class, 'resume'])->name('api.subscription.resume');
+        Route::get('/change', [SubscriptionController::class, 'previewChange'])->name('api.subscription.change.preview');
+        Route::post('/change', [SubscriptionController::class, 'change'])->middleware('throttle:10,1')->name('api.subscription.change');
+        Route::delete('/change', [SubscriptionController::class, 'undoChange'])->name('api.subscription.change.undo');
         Route::put('/billing-details', [SubscriptionController::class, 'updateBillingDetails'])->name('api.subscription.billing-details');
         Route::get('/over-limit', [SubscriptionController::class, 'overLimit'])->name('api.subscription.over-limit');
         Route::post('/over-limit', [SubscriptionController::class, 'keepWithinLimits'])->name('api.subscription.keep');

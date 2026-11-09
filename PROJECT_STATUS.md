@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-09
-- **Code:** Doc 13 Phase C2a is committed: frontend `15d9d58` on `nuxt`, and on `main` the admin commit right after `beaf887`.
-- **Tests:** 658 backend tests pass (last full run 2026-11-09, on this code).
-- **Next step:** Doc 13 Phase C2b. Its suggested defaults are under [What is next](#what-is-next).
+- **Code:** Doc 13 Phase C2b is committed: frontend `e7d6f59` on `nuxt`, and on `main` the admin commit right after `000444f`.
+- **Tests:** 664 backend tests pass (last full run 2026-11-09, on this code).
+- **Next step:** Doc 13 Phase D, once its decisions are made (see [What is next](#what-is-next)).
 
 Update this file at the end of every phase and commit it with that phase.
 
@@ -14,7 +14,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 13 Phase C2b.
+   > Read PROJECT_STATUS.md, then help me settle the decisions for Doc 13 Phase D.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -37,7 +37,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 10 | Expenses Lite | Done |
 | 11 | Business Setup and Settings | Done, except notification preferences (waits for Doc 14) |
 | 12 | Users, Roles, Permissions and Locations | Done, except notification preferences (Doc 14) and package change rules (Doc 13) |
-| **13** | **Apps Center, Packages, Subscriptions and Billing** | **In progress: A, B, C1 and C2a done. C2b, D left** |
+| **13** | **Apps Center, Packages, Subscriptions and Billing** | **In progress: A, B and C done. D (online payments) left** |
 | 14 | Shared Platform Services | Not started as a doc, parts exist |
 | 15 | izSuite System Administration Portal | Not started as a doc, parts exist |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
@@ -47,9 +47,9 @@ Stock, full Sales, OCR and full Accounting features are left out of the Lite app
 
 ## What is next
 
-### 1. Doc 13: Apps Center, Packages, Subscriptions and Billing (next: Phase C2b)
+### 1. Doc 13: Apps Center, Packages, Subscriptions and Billing (next: Phase D)
 
-The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D, with B in two parts and C in three (C1, C2a, C2b). Phases A, B1, B2, C1 and C2a are built (see [Decisions worth knowing](#decisions-worth-knowing)).
+The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D, with B in two parts and C in three (C1, C2a, C2b). Phases A to C are built (see [Decisions worth knowing](#decisions-worth-knowing)); D waits for your decisions.
 
 **Already built:**
 
@@ -97,13 +97,13 @@ The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D, with B
 - Cancelling an active subscription keeps it to the end of the paid period, and Keep My Plan undoes it until then. A trial, or a subscription in grace, ends at once.
 - The Subscription page and the Dashboard show the grace with its days left, and an ending plan.
 
+**Phase C2b: plan changes** is built, with your defaults:
+
+- An upgrade (a higher plan, or monthly to yearly) shows its price first: the new plan's price less a credit for the unused days of the paid period. Its invoice is issued, and the new plan starts when izSuite confirms the payment, for a full period from that day. It can be withdrawn; left unpaid, it lapses as the period ends.
+- A downgrade (a lower paid plan, or yearly to monthly) waits for the end of the paid period, and Keep undoes it until then. The renewal invoice is for the lower plan, and at the period's end the business moves to it (Phase B2's move down).
+- Billing Starter is reached by cancelling. A cancellation and a downgrade replace each other.
+
 **Still missing**, by phase:
-
-**C2b: plan changes** (suggested defaults, not agreed yet)
-
-- Upgrade at once, with the prorated amount shown first: the unused part of the current period counts against the new plan's price. It takes effect when its invoice is paid.
-- Downgrade at the end of the paid period, undone until then: the renewal invoice is then for the lower plan, and at the period's end the business moves to it (Phase B2's move down).
-- Switching between monthly and yearly counts as an upgrade from monthly to yearly, and as a downgrade the other way.
 
 **Phase D: online payments.** Your chosen provider, with secure tokens, payment status by webhook, retries and the grace period, and payment methods managed through the provider. Billing currency and subscription tax follow the provider and the billing address.
 
@@ -264,7 +264,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 13: Phase B1, prices, subscription page, branding | `1dc0642` | `1ca411f` | 000112 |
 | Doc 13: Phase B2, lower plans, keeping within limits, warnings | `d7ec7c8` | `5156025` | |
 | Doc 13: Phase C1, subscribing, invoices, bank transfer | `beaf887` | `1324945` | 000113 |
-| Doc 13: Phase C2a, renewals, grace, trials, cancelling | the commit after `beaf887` | `15d9d58` | 000114 |
+| Doc 13: Phase C2a, renewals, grace, trials, cancelling | `000444f` | `15d9d58` | 000114 |
+| Doc 13: Phase C2b, upgrades and downgrades | the commit after `000444f` | `e7d6f59` | 000115 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -359,6 +360,9 @@ These are easy to undo by mistake.
 - `period_ends_on` is the last paid day. Grace starts the day after and lasts the plan's grace days: `grace_ends_on` is its last day, and the business moves to Billing Starter the day after. A renewal paid ahead waits for the period's end; one paid in grace starts at once, from where the period ended (`SubscriptionBilling::confirm`).
 - Ending a subscription (`SubscriptionCycle::end`) cancels its open invoice and moves the business to Billing Starter through `SyncAppsWithPackage`, so Phase B2's over-limit choice follows. It is logged as the system's, and the business gets an e-mail saying why: trial, grace, cancelled or ended.
 - Cancelling an active subscription sets `cancels_at_period_end` and cancels a renewal already issued; Keep My Plan issues it again if it is due. The notices are `SubscriptionNoticeMail` (trial ending, each grace day, ended); renewal invoices reuse `SubscriptionBillingMail`.
+- Plan changes are `SubscriptionChanges`. An upgrade's credit is what the current period was paid (its paid invoice) times the days left, today counted, over the period's days, rounded down to the cent. It is never more than the new price, and nothing is credited across currencies. From a yearly plan an upgrade must stay yearly, so no months are lost. The invoice's kind is `upgrade`, and paying it starts a full period that day, cancelling any open renewal, scheduled downgrade or cancellation.
+- While an upgrade waits for payment no renewal is issued. At the period's end an unpaid upgrade is cancelled and the usual renewal and grace follow.
+- A downgrade is `scheduled_package_id` and `scheduled_cycle` on the subscription. The renewal is issued for that plan, and the business moves to it as the period ends, paid or not, so a grace runs on the lower plan.
 - izSuite's details on invoices are the `billing_*` settings (Admin > Settings > Billing): company name, address, e-mail, tax ID and the days to pay (7). `SettingService` adds them on first visit.
 - `/profile` answers in the usual envelopes, and the signed-in user (`UserResource`) carries only their name, e-mail, phone, image, language and time zone.
 

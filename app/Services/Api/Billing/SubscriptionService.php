@@ -2,6 +2,7 @@
 
 namespace App\Services\Api\Billing;
 
+use App\Models\Billing\Package;
 use App\Models\Billing\SubscriptionInvoice;
 use App\Models\Billing\WorkspaceSubscription;
 use App\Models\User\User;
@@ -12,6 +13,7 @@ use App\Repositories\Billing\WorkspaceSubscriptionRepository;
 use App\Repositories\User\WorkspaceBillingRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Billing\SubscriptionBilling;
+use App\Services\Billing\SubscriptionChanges;
 use App\Services\Billing\SubscriptionCycle;
 use App\Services\Billing\SubscriptionPdf;
 use App\Services\Shared\ActivityLogService;
@@ -31,7 +33,9 @@ use Illuminate\Validation\ValidationException;
  *
  * Cancelling (Phase C2a): an active subscription runs to the end of its paid
  * period, then the business is on Billing Starter - undone until then; a
- * trial, or one in grace, ends at once. Changing plan comes with Phase C2b.
+ * trial, or one in grace, ends at once. Changing plan (Phase C2b): up at
+ * once, prorated and invoiced; down when the paid period ends
+ * (SubscriptionChanges). An upgrade waiting for payment can be withdrawn.
  */
 class SubscriptionService
 {
@@ -40,6 +44,7 @@ class SubscriptionService
     public function __construct(
         protected SubscriptionBilling $billing,
         protected SubscriptionCycle $cycle,
+        protected SubscriptionChanges $changes,
         protected BillingService $billingService,
         protected SubscriptionPdf $pdf,
         protected WorkspaceSubscriptionRepository $subscriptions,
@@ -49,6 +54,34 @@ class SubscriptionService
         protected BusinessCalendar $calendar,
         protected SyncAppsWithPackage $sync,
     ) {}
+
+    /** What moving to plan $packageKey, $cycle, would cost and when (Phase C2b, SubscriptionChanges). */
+    public function previewChange(Workspace $workspace, string $packageKey, string $cycle): array
+    {
+        return $this->changes->preview($workspace, $this->offered($packageKey), $cycle);
+    }
+
+    /** @return array{message: string, overview: array} up at once, its invoice issued; down when the paid period ends */
+    public function change(Workspace $workspace, User $user, string $packageKey, string $cycle): array
+    {
+        $message = $this->changes->apply($workspace, $this->offered($packageKey), $cycle);
+
+        return ['message' => $message, 'overview' => $this->billingService->overview($workspace->fresh(), $user)];
+    }
+
+    /** @return array{message: string, overview: array} the move down waiting for the period's end undone */
+    public function undoChange(Workspace $workspace, User $user): array
+    {
+        $message = $this->changes->undo($workspace);
+
+        return ['message' => $message, 'overview' => $this->billingService->overview($workspace->fresh(), $user)];
+    }
+
+    /** A plan still on offer, by its key. */
+    private function offered(string $key): Package
+    {
+        return $this->packages->findOfferedByKey($key) ?? throw ValidationException::withMessages(['package' => 'Choose one of the plans on offer.']);
+    }
 
     /** @return array{message: string, overview: array} */
     public function cancel(Workspace $workspace, User $user): array
@@ -60,7 +93,8 @@ class SubscriptionService
             $end     = $subscription->period_ends_on;
 
             DB::transaction(function () use ($workspace) {
-                $this->subscriptions->save($workspace, ['cancels_at_period_end' => true]);
+                // A move down waiting for the same day gives way to it.
+                $this->subscriptions->save($workspace, ['cancels_at_period_end' => true, 'scheduled_package_id' => null, 'scheduled_cycle' => null]);
 
                 // Its renewal, if issued, is not to be paid now.
                 if (($open = $this->invoices->openFor($workspace)) && $open->kind === SubscriptionInvoice::RENEWAL) {
@@ -164,17 +198,24 @@ class SubscriptionService
     /** @return array{message: string, overview: array} the invoice waiting for the first payment withdrawn - and the subscription with it */
     public function withdraw(Workspace $workspace, User $user): array
     {
-        $invoice = $this->invoices->openFor($workspace);
+        $invoice      = $this->invoices->openFor($workspace);
+        $subscription = $this->subscriptions->for($workspace);
+        $upgrade      = $invoice?->kind === SubscriptionInvoice::UPGRADE;
 
-        if ($this->subscriptions->for($workspace)?->status !== WorkspaceSubscription::AWAITING_PAYMENT || ! $invoice) {
-            $this->refuse('There is no invoice waiting for a first payment to withdraw.');
+        if (! $invoice || (! $upgrade && $subscription?->status !== WorkspaceSubscription::AWAITING_PAYMENT)) {
+            $this->refuse('There is no invoice waiting for a first payment, or an upgrade, to withdraw.');
         }
 
         $this->billing->void($invoice);
 
         ActivityLogService::record('cancelled', "Withdrew invoice {$invoice->number} for {$invoice->package_name}", $workspace, ['source' => 'api']);
 
-        return ['message' => "Invoice {$invoice->number} is withdrawn. Choose a plan again whenever you are ready.", 'overview' => $this->billingService->overview($workspace->fresh(), $user)];
+        return [
+            'message'  => $upgrade
+                ? "Invoice {$invoice->number} is withdrawn. You stay on {$subscription->package->name}."
+                : "Invoice {$invoice->number} is withdrawn. Choose a plan again whenever you are ready.",
+            'overview' => $this->billingService->overview($workspace->fresh(), $user),
+        ];
     }
 
     /** The reference the business gave its bank transfer, so izSuite can match the payment - on an open invoice. */

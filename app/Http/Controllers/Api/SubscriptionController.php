@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Billing\ChangePlanRequest;
 use App\Http\Requests\Api\Billing\KeepWithinLimitsRequest;
 use App\Http\Requests\Api\Billing\SubscribeRequest;
 use App\Http\Requests\Api\Billing\UpdateBillingDetailsRequest;
 use App\Http\Resources\Billing\BillingDetailsResource;
 use App\Http\Resources\Billing\OverLimitChoicesResource;
+use App\Http\Resources\Billing\PlanChangePreviewResource;
 use App\Http\Resources\Billing\SubscriptionOverviewResource;
 use App\Http\Resources\BusinessSetup\BusinessUsageResource;
 use App\Services\Api\Billing\BillingService;
@@ -41,6 +43,54 @@ class SubscriptionController extends Controller
                 'message' => $result['message'],
                 'data'    => new SubscriptionOverviewResource($result['overview']),
             ], 201);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** What moving to another plan or cycle would cost, and when. */
+    public function previewChange(ChangePlanRequest $request): JsonResponse
+    {
+        try {
+            return response()->json([
+                'data' => new PlanChangePreviewResource($this->subscriptionService->previewChange($this->currentWorkspace($request), $request->validated('package'), $request->validated('cycle'))),
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** Moves up at once - its invoice issued - or down when the paid period ends. */
+    public function change(ChangePlanRequest $request): JsonResponse
+    {
+        try {
+            $result = $this->subscriptionService->change($this->currentWorkspace($request), $request->user(), $request->validated('package'), $request->validated('cycle'));
+
+            return response()->json([
+                'message' => $result['message'],
+                'data'    => new SubscriptionOverviewResource($result['overview']),
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** Undoes a move down before the period ends. */
+    public function undoChange(Request $request): JsonResponse
+    {
+        try {
+            $result = $this->subscriptionService->undoChange($this->currentWorkspace($request), $request->user());
+
+            return response()->json([
+                'message' => $result['message'],
+                'data'    => new SubscriptionOverviewResource($result['overview']),
+            ]);
 
         } catch (\Throwable $e) {
             report($e);

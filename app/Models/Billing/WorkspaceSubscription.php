@@ -50,6 +50,8 @@ class WorkspaceSubscription extends Model
         'period_ends_on',
         'grace_ends_on',
         'cancels_at_period_end',
+        'scheduled_package_id',
+        'scheduled_cycle',
         'last_notice_on',
     ];
 
@@ -71,6 +73,12 @@ class WorkspaceSubscription extends Model
     public function package(): BelongsTo
     {
         return $this->belongsTo(Package::class);
+    }
+
+    /** The lower plan - or the same one, monthly - it moves to as its paid period ends (Phase C2b). */
+    public function scheduledPackage(): BelongsTo
+    {
+        return $this->belongsTo(Package::class, 'scheduled_package_id');
     }
 
     public function isCurrent(): bool

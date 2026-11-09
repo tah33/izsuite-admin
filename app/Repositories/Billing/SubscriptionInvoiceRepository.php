@@ -32,6 +32,16 @@ class SubscriptionInvoiceRepository
         return $workspace->subscriptionInvoices()->where('status', SubscriptionInvoice::OPEN)->latest('id')->first();
     }
 
+    /** The paid invoice whose period starts on $startsOn - what the current period was paid with. */
+    public function paidFor(Workspace $workspace, string $startsOn): ?SubscriptionInvoice
+    {
+        return $workspace->subscriptionInvoices()
+            ->where('status', SubscriptionInvoice::PAID)
+            ->whereDate('period_starts_on', $startsOn)
+            ->latest('id')
+            ->first();
+    }
+
     /** The renewal for the period starting on $startsOn - open or paid, never a cancelled one. */
     public function renewalFor(Workspace $workspace, string $startsOn): ?SubscriptionInvoice
     {

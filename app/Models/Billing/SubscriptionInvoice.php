@@ -27,6 +27,8 @@ class SubscriptionInvoice extends Model
 
     public const RENEWAL = 'renewal';
 
+    public const UPGRADE = 'upgrade';
+
     protected $fillable  = [
         'workspace_id',
         'number',
