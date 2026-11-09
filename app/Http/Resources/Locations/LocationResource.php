@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Locations;
 
+use App\Services\Shared\EditConflicts;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -17,6 +18,8 @@ class LocationResource extends JsonResource
     {
         return [
             'id'              => $this->id,
+            // When it was last changed: sent back as If-Match when it is saved (Doc 14 section 22).
+            'version' => EditConflicts::version($this->resource),
             'name'            => $this->name,
             'code'            => $this->code,
             'is_primary'      => $this->is_primary,

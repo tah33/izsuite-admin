@@ -9,6 +9,7 @@ use App\Models\User\SalesPayment;
 use App\Models\User\User;
 use App\Models\User\WithholdingTax;
 use App\Models\User\Workspace;
+use App\Repositories\Shared\RowLockRepository;
 use App\Repositories\User\PaymentAccountRepository;
 use App\Repositories\User\SalesPaymentRepository;
 use App\Repositories\User\WithholdingTaxRepository;
@@ -55,6 +56,7 @@ class SalesPaymentService
         protected DocumentNumbers $documentNumbers,
         protected DocumentTemplates $documentTemplates,
         protected WorkspaceAccess $access,
+        protected RowLockRepository $rows,
     ) {}
 
     public function list(Workspace $workspace, array $filters, int $perPage): LengthAwarePaginator
@@ -90,13 +92,16 @@ class SalesPaymentService
         $applied     = $this->applied($account, $invoice, $amount, $data);
         $withholding = $this->withholding($workspace, $data);
 
-        if (bccomp(bcadd($applied, $withholding['withholding_amount'], 2), (string) $invoice->balance_due, 2) > 0) {
-            throw ValidationException::withMessages([
-                $account->currency === $invoice->currency ? 'amount' : 'applied_amount' => "That comes to more than the {$invoice->currency} {$invoice->balance_due} still due. Overpayments are not taken in Sales Lite.",
-            ]);
-        }
-
         $payment = DB::transaction(function () use ($workspace, $user, $data, $invoice, $account, $amount, $applied, $withholding) {
+            // What is still due, read again with the invoice locked: a payment made meanwhile counts (Doc 14 section 22).
+            $invoice = $this->rows->lock($invoice);
+
+            if (bccomp(bcadd($applied, $withholding['withholding_amount'], 2), (string) $invoice->balance_due, 2) > 0) {
+                throw ValidationException::withMessages([
+                    $account->currency === $invoice->currency ? 'amount' : 'applied_amount' => "That comes to more than the {$invoice->currency} {$invoice->balance_due} still due. Overpayments are not taken in Sales Lite.",
+                ]);
+            }
+
             $payment = $this->salesPaymentRepository->create($workspace, [
                 'kind'               => SalesPayment::PAYMENT,
                 'number'             => $this->documentNumbers->next(
@@ -152,7 +157,12 @@ class SalesPaymentService
 
         $invoice = $this->salesDocumentService->find($workspace, DocumentType::Invoice, (int) ($payment->isRefund() ? $payment->document->source_id : $payment->sales_document_id));
 
-        DB::transaction(function () use ($payment, $user, $reason, $invoice) {
+        DB::transaction(function () use ($payment, $user, $reason, $invoice, $noun) {
+            // Reversed once, however often it is asked at the same moment.
+            if (! $this->rows->lock($payment)->isCompleted()) {
+                $this->refuse("This {$noun} was reversed already.");
+            }
+
             $this->salesPaymentRepository->update($payment, [
                 'status'          => SalesPayment::REVERSED,
                 'reversed_at'     => now(),

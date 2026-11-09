@@ -301,7 +301,7 @@ Route::prefix('v1')->group(function () {
      | -------------------------------------------------------- */
     Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('locations')->group(function () {
         Route::get('/', [LocationController::class, 'index'])->name('api.locations.index');
-        Route::post('/', [LocationController::class, 'store'])->name('api.locations.store');
+        Route::post('/', [LocationController::class, 'store'])->middleware('idempotent')->name('api.locations.store');
         Route::put('/{id}', [LocationController::class, 'update'])->whereNumber('id')->name('api.locations.update');
         Route::post('/{id}/activate', [LocationController::class, 'activate'])->whereNumber('id')->name('api.locations.activate');
         Route::post('/{id}/deactivate', [LocationController::class, 'deactivate'])->whereNumber('id')->name('api.locations.deactivate');
@@ -423,7 +423,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->group(function () {
         Route::get('/contacts', [ContactController::class, 'index'])->name('api.contacts.index');
         Route::get('/contacts/export', [ExportController::class, 'contacts'])->name('api.contacts.export');
-        Route::post('/contacts', [ContactController::class, 'store'])->name('api.contacts.store');
+        Route::post('/contacts', [ContactController::class, 'store'])->middleware('idempotent')->name('api.contacts.store');
         Route::get('/contacts/{id}', [ContactController::class, 'show'])->whereNumber('id')->name('api.contacts.show');
         Route::put('/contacts/{id}', [ContactController::class, 'update'])->whereNumber('id')->name('api.contacts.update');
         Route::delete('/contacts/{id}', [ContactController::class, 'destroy'])->whereNumber('id')->name('api.contacts.destroy');
@@ -435,7 +435,7 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/items', [ItemController::class, 'index'])->name('api.items.index');
         Route::get('/items/export', [ExportController::class, 'items'])->name('api.items.export');
-        Route::post('/items', [ItemController::class, 'store'])->name('api.items.store');
+        Route::post('/items', [ItemController::class, 'store'])->middleware('idempotent')->name('api.items.store');
         Route::get('/items/{id}', [ItemController::class, 'show'])->whereNumber('id')->name('api.items.show');
         Route::put('/items/{id}', [ItemController::class, 'update'])->whereNumber('id')->name('api.items.update');
         Route::delete('/items/{id}', [ItemController::class, 'destroy'])->whereNumber('id')->name('api.items.destroy');
@@ -468,7 +468,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('/item-{label}/{id}', [ItemLabelController::class, 'destroy'])->whereIn('label', ['categories', 'brands'])->whereNumber('id')->name('api.item-labels.destroy');
 
         Route::get('/payment-accounts', [PaymentAccountController::class, 'index'])->name('api.payment-accounts.index');
-        Route::post('/payment-accounts', [PaymentAccountController::class, 'store'])->name('api.payment-accounts.store');
+        Route::post('/payment-accounts', [PaymentAccountController::class, 'store'])->middleware('idempotent')->name('api.payment-accounts.store');
         Route::get('/payment-accounts/{id}', [PaymentAccountController::class, 'show'])->whereNumber('id')->name('api.payment-accounts.show');
         Route::put('/payment-accounts/{id}', [PaymentAccountController::class, 'update'])->whereNumber('id')->name('api.payment-accounts.update');
         Route::delete('/payment-accounts/{id}', [PaymentAccountController::class, 'destroy'])->whereNumber('id')->name('api.payment-accounts.destroy');
@@ -479,7 +479,7 @@ Route::prefix('v1')->group(function () {
         // An account's history, and transfers between accounts (Doc 05 sections 11 and 13).
         Route::get('/payment-accounts/{id}/transactions', [PaymentAccountTransactionController::class, 'index'])->whereNumber('id')->name('api.payment-accounts.transactions.index');
         Route::get('/payment-accounts/{id}/transactions/export', [PaymentAccountTransactionController::class, 'export'])->whereNumber('id')->name('api.payment-accounts.transactions.export');
-        Route::post('/account-transfers', [AccountTransferController::class, 'store'])->name('api.account-transfers.store');
+        Route::post('/account-transfers', [AccountTransferController::class, 'store'])->middleware('idempotent')->name('api.account-transfers.store');
         Route::get('/account-transfers/{id}', [AccountTransferController::class, 'show'])->whereNumber('id')->name('api.account-transfers.show');
         Route::put('/account-transfers/{id}', [AccountTransferController::class, 'update'])->whereNumber('id')->name('api.account-transfers.update');
         Route::delete('/account-transfers/{id}', [AccountTransferController::class, 'destroy'])->whereNumber('id')->name('api.account-transfers.destroy');
@@ -546,12 +546,12 @@ Route::prefix('v1')->group(function () {
         Route::post('/payments/{id}/attachments', [SalesPaymentAttachmentController::class, 'store'])->whereNumber('id')->name('api.sales.payments.attachments.store');
         Route::delete('/payments/{id}/attachments/{fileId}', [SalesPaymentAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.sales.payments.attachments.destroy');
 
-        Route::post('/invoices/{id}/payments', [SalesPaymentController::class, 'store'])->whereNumber('id')->name('api.sales.invoices.payments.store');
+        Route::post('/invoices/{id}/payments', [SalesPaymentController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.sales.invoices.payments.store');
         Route::get('/invoices/{id}/credit-note-defaults', [CreditNoteController::class, 'defaults'])->whereNumber('id')->name('api.sales.credit-notes.defaults');
         Route::post('/invoices/{id}/credit-notes/calculate', [CreditNoteController::class, 'calculate'])->whereNumber('id')->name('api.sales.credit-notes.calculate');
-        Route::post('/invoices/{id}/credit-notes', [CreditNoteController::class, 'store'])->whereNumber('id')->name('api.sales.credit-notes.store');
+        Route::post('/invoices/{id}/credit-notes', [CreditNoteController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.sales.credit-notes.store');
         Route::put('/credit-notes/{id}', [CreditNoteController::class, 'update'])->whereNumber('id')->name('api.sales.credit-notes.update');
-        Route::post('/credit-notes/{id}/refunds', [SalesRefundController::class, 'store'])->whereNumber('id')->name('api.sales.credit-notes.refunds.store');
+        Route::post('/credit-notes/{id}/refunds', [SalesRefundController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.sales.credit-notes.refunds.store');
 
         // Every kind.
         Route::prefix('{kind}')->where(['kind' => implode('|', array_keys(DocumentType::KINDS))])->group(function () {
@@ -575,10 +575,10 @@ Route::prefix('v1')->group(function () {
 
         // The kinds the sales document form makes and changes - a credit note is made from its invoice.
         Route::prefix('{kind}')->where(['kind' => implode('|', DocumentType::FORM_KINDS)])->group(function () {
-            Route::post('/', [SalesDocumentController::class, 'store'])->name('api.sales.store');
+            Route::post('/', [SalesDocumentController::class, 'store'])->middleware('idempotent')->name('api.sales.store');
             Route::get('/defaults', [SalesFormController::class, 'defaults'])->name('api.sales.defaults');
             Route::put('/{id}', [SalesDocumentController::class, 'update'])->whereNumber('id')->name('api.sales.update');
-            Route::post('/{id}/convert', [SalesConversionController::class, 'store'])->whereNumber('id')->name('api.sales.convert');
+            Route::post('/{id}/convert', [SalesConversionController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.sales.convert');
             Route::get('/{id}/revisions', [SalesDocumentRevisionController::class, 'index'])->whereNumber('id')->name('api.sales.revisions.index');
             Route::get('/{id}/revisions/{revision}', [SalesDocumentRevisionController::class, 'show'])->whereNumber(['id', 'revision'])->name('api.sales.revisions.show');
         });
@@ -603,7 +603,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('/payments/{id}/attachments/{fileId}', [SupplierPaymentAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.purchases.payments.attachments.destroy');
 
         Route::get('/', [PurchaseController::class, 'index'])->name('api.purchases.index');
-        Route::post('/', [PurchaseController::class, 'store'])->name('api.purchases.store');
+        Route::post('/', [PurchaseController::class, 'store'])->middleware('idempotent')->name('api.purchases.store');
         Route::get('/defaults', [PurchaseFormController::class, 'defaults'])->name('api.purchases.defaults');
         Route::post('/calculate', [PurchaseFormController::class, 'calculate'])->name('api.purchases.calculate');
         Route::get('/export', [PurchaseController::class, 'export'])->name('api.purchases.export');
@@ -612,7 +612,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('/{id}', [PurchaseController::class, 'destroy'])->whereNumber('id')->name('api.purchases.destroy');
         Route::post('/{id}/record', [PurchaseFlowController::class, 'record'])->whereNumber('id')->name('api.purchases.record');
         Route::post('/{id}/void', [PurchaseFlowController::class, 'void'])->whereNumber('id')->name('api.purchases.void');
-        Route::post('/{id}/payments', [SupplierPaymentController::class, 'store'])->whereNumber('id')->name('api.purchases.payments.store');
+        Route::post('/{id}/payments', [SupplierPaymentController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.purchases.payments.store');
         Route::get('/{id}/pdf', [PurchasePdfController::class, 'purchase'])->whereNumber('id')->name('api.purchases.pdf');
         Route::get('/{id}/attachments', [PurchaseAttachmentController::class, 'index'])->whereNumber('id')->name('api.purchases.attachments.index');
         Route::post('/{id}/attachments', [PurchaseAttachmentController::class, 'store'])->whereNumber('id')->name('api.purchases.attachments.store');
@@ -645,7 +645,7 @@ Route::prefix('v1')->group(function () {
             Route::delete('/payments/{id}/attachments/{fileId}', [ExpensePaymentAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.expenses.payments.attachments.destroy');
 
             Route::get('/', [ExpenseController::class, 'index'])->name('api.expenses.index');
-            Route::post('/', [ExpenseController::class, 'store'])->name('api.expenses.store');
+            Route::post('/', [ExpenseController::class, 'store'])->middleware('idempotent')->name('api.expenses.store');
             Route::get('/defaults', [ExpenseFormController::class, 'defaults'])->name('api.expenses.defaults');
             Route::post('/calculate', [ExpenseFormController::class, 'calculate'])->name('api.expenses.calculate');
             Route::get('/export', [ExpenseController::class, 'export'])->name('api.expenses.export');
@@ -654,7 +654,7 @@ Route::prefix('v1')->group(function () {
             Route::delete('/{id}', [ExpenseController::class, 'destroy'])->whereNumber('id')->name('api.expenses.destroy');
             Route::post('/{id}/record', [ExpenseFlowController::class, 'record'])->whereNumber('id')->name('api.expenses.record');
             Route::post('/{id}/void', [ExpenseFlowController::class, 'void'])->whereNumber('id')->name('api.expenses.void');
-            Route::post('/{id}/payments', [ExpensePaymentController::class, 'store'])->whereNumber('id')->name('api.expenses.payments.store');
+            Route::post('/{id}/payments', [ExpensePaymentController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.expenses.payments.store');
             Route::get('/{id}/pdf', [ExpensePdfController::class, 'expense'])->whereNumber('id')->name('api.expenses.pdf');
             Route::get('/{id}/attachments', [ExpenseAttachmentController::class, 'index'])->whereNumber('id')->name('api.expenses.attachments.index');
             Route::post('/{id}/attachments', [ExpenseAttachmentController::class, 'store'])->whereNumber('id')->name('api.expenses.attachments.store');

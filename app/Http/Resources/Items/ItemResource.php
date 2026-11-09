@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Items;
 
+use App\Services\Shared\EditConflicts;
 use App\Http\Resources\Concerns\HidesValues;
 use App\Models\User\ItemComponent;
 use App\Models\User\TaxRate;
@@ -37,6 +38,8 @@ class ItemResource extends JsonResource
 
         return $this->hideWithout('items.costs', [
             'id'                    => $this->id,
+            // When it was last changed: sent back as If-Match when it is saved (Doc 14 section 22).
+            'version' => EditConflicts::version($this->resource),
             'item_number'           => $this->item_number,
             'type'                  => $this->type,
             'usage'                 => $this->usage,

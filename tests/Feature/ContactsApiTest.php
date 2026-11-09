@@ -122,7 +122,7 @@ class ContactsApiTest extends TestCase
             ->assertJsonPath('data.is_active', true);
 
         $this->assertSame([
-            'id', 'contact_number', 'contact_type', 'role', 'name', 'trading_name', 'contact_person', 'job_title',
+            'id', 'version', 'contact_number', 'contact_type', 'role', 'name', 'trading_name', 'contact_person', 'job_title',
             'phone', 'alt_phone', 'email', 'website', 'preferred_language', 'tags',
             'billing_line1', 'billing_line2', 'billing_city', 'billing_state', 'billing_postal_code', 'billing_country',
             'shipping_same_as_billing', 'shipping_line1', 'shipping_line2', 'shipping_city', 'shipping_state', 'shipping_postal_code', 'shipping_country',

@@ -2,6 +2,7 @@
 
 namespace App\Services\Api\Contacts;
 
+use App\Services\Shared\EditConflicts;
 use App\Models\User\Contact;
 use App\Models\User\Workspace;
 use App\Repositories\User\ContactRepository;
@@ -76,6 +77,9 @@ class ContactService
     public function update(Workspace $workspace, int $id, array $data): Contact
     {
         $contact         = $this->findOwned($workspace, $id);
+
+        // Changed by someone else since it was opened: refused (Doc 14 section 22).
+        EditConflicts::ensureUnchanged($contact, 'this contact');
         $allowDuplicates = (bool) Arr::pull($data, 'allow_duplicates', false);
 
         if (! $allowDuplicates && $this->changesWhatMatches($contact, $data)) {

@@ -90,12 +90,13 @@ class PurchaseRepository
         return $purchase;
     }
 
-    /** Its lines become $rows, in their order. */
+    /** Its lines become $rows, in their order - and it counts as changed, for anyone saving over it (Doc 14 section 22). */
     public function replaceLines(Purchase $purchase, array $rows): void
     {
         $purchase->lines()->delete();
         $purchase->lines()->createMany($rows);
         $purchase->unsetRelation('lines');
+        $purchase->touch();
     }
 
     public function delete(Purchase $purchase): void

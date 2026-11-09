@@ -2,6 +2,7 @@
 
 namespace App\Services\Api\Expenses;
 
+use App\Services\Shared\EditConflicts;
 use App\Enums\ExpenseStatus;
 use App\Models\User\Expense;
 use App\Models\User\ExpenseLine;
@@ -103,6 +104,9 @@ class ExpenseService
     public function update(Workspace $workspace, int $id, User $user, array $data): Expense
     {
         $expense = $this->find($workspace, $id);
+
+        // Changed by someone else since it was opened: refused (Doc 14 section 22).
+        EditConflicts::ensureUnchanged($expense, 'this expense');
 
         if (! $this->expenseRules->allows($expense, 'edit')) {
             $this->refuse('A recorded expense cannot be changed. Void it and record it again if it is wrong.');

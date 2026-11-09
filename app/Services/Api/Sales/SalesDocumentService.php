@@ -2,6 +2,7 @@
 
 namespace App\Services\Api\Sales;
 
+use App\Services\Shared\EditConflicts;
 use App\Enums\DocumentType;
 use App\Enums\SalesDocumentStatus;
 use App\Models\User\SalesDocument;
@@ -106,6 +107,9 @@ class SalesDocumentService
     public function update(Workspace $workspace, DocumentType $type, int $id, User $user, array $data): SalesDocument
     {
         $document = $this->find($workspace, $type, $id);
+
+        // Changed by someone else since it was opened: refused (Doc 14 section 22).
+        EditConflicts::ensureUnchanged($document, 'this document');
         $today    = $this->today($workspace);
 
         if (! $this->salesDocumentRules->allows($document, 'edit', $today)) {

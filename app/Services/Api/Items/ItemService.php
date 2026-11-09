@@ -2,6 +2,7 @@
 
 namespace App\Services\Api\Items;
 
+use App\Services\Shared\EditConflicts;
 use App\Models\User\Item;
 use App\Models\User\Workspace;
 use App\Repositories\User\ItemRepository;
@@ -97,6 +98,9 @@ class ItemService
     public function update(Workspace $workspace, int $id, array $data): Item
     {
         $item       = $this->findOwned($workspace, $id);
+
+        // Changed by someone else since it was opened: refused (Doc 14 section 22).
+        EditConflicts::ensureUnchanged($item, 'this item');
         $components = Arr::pull($data, 'components');
         $before     = $this->itemRepository->componentQuantities($item);
 

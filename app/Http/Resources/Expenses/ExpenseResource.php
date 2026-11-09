@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Expenses;
 
+use App\Services\Shared\EditConflicts;
 use App\Http\Resources\Concerns\HidesValues;
 use App\Services\Api\Sales\SalesSnapshots;
 use App\Services\Expenses\ExpenseRules;
@@ -42,6 +43,8 @@ class ExpenseResource extends JsonResource
 
         return $this->hideValues('expenses', [
             'id'                 => $this->id,
+            // When it was last changed: sent back as If-Match when it is saved (Doc 14 section 22).
+            'version' => EditConflicts::version($this->resource),
             'number'             => $this->number,
             'status'             => $this->status->value,
             'payment_status'     => $this->payment_status,

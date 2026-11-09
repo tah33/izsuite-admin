@@ -146,12 +146,13 @@ class SalesDocumentRepository
         return $document;
     }
 
-    /** Its lines become $rows, in their order. */
+    /** Its lines become $rows, in their order - and it counts as changed, for anyone saving over it (Doc 14 section 22). */
     public function replaceLines(SalesDocument $document, array $rows): void
     {
         $document->lines()->delete();
         $document->lines()->createMany($rows);
         $document->unsetRelation('lines');
+        $document->touch();
     }
 
     public function delete(SalesDocument $document): void

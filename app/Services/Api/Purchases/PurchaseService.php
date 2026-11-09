@@ -2,6 +2,7 @@
 
 namespace App\Services\Api\Purchases;
 
+use App\Services\Shared\EditConflicts;
 use App\Enums\PurchaseStatus;
 use App\Models\User\Purchase;
 use App\Models\User\User;
@@ -102,6 +103,9 @@ class PurchaseService
     public function update(Workspace $workspace, int $id, User $user, array $data): Purchase
     {
         $purchase = $this->find($workspace, $id);
+
+        // Changed by someone else since it was opened: refused (Doc 14 section 22).
+        EditConflicts::ensureUnchanged($purchase, 'this purchase');
 
         if (! $this->purchaseRules->allows($purchase, 'edit')) {
             $this->refuse('A recorded purchase cannot be changed. Void it and record it again if it is wrong.');

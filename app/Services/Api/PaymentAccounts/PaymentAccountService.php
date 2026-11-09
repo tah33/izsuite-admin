@@ -2,6 +2,7 @@
 
 namespace App\Services\Api\PaymentAccounts;
 
+use App\Services\Shared\EditConflicts;
 use App\Models\User\PaymentAccount;
 use App\Models\User\Workspace;
 use App\Repositories\User\AccountTransactionRepository;
@@ -77,6 +78,9 @@ class PaymentAccountService
     public function update(Workspace $workspace, int $id, array $data): PaymentAccount
     {
         $account     = $this->findOwned($workspace, $id);
+
+        // Changed by someone else since it was opened: refused (Doc 14 section 22).
+        EditConflicts::ensureUnchanged($account, 'this account');
         $replacement = Arr::only($data, self::REPLACEMENTS);
         $data        = $this->withOpeningBalance(Arr::except($data, self::REPLACEMENTS));
 

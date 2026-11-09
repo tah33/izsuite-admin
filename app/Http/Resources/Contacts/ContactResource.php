@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Contacts;
 
+use App\Services\Shared\EditConflicts;
 use App\Http\Resources\Concerns\HidesValues;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -26,6 +27,8 @@ class ContactResource extends JsonResource
     {
         return $this->hideWithout('taxes.view', [
             'id'                       => $this->id,
+            // When it was last changed: sent back as If-Match when it is saved (Doc 14 section 22).
+            'version' => EditConflicts::version($this->resource),
             'contact_number'           => $this->contact_number,
             'contact_type'             => $this->contact_type,
             'role'                     => $this->role,

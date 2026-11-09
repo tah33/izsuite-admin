@@ -2,6 +2,7 @@
 
 namespace App\Services\Api\Sales;
 
+use App\Services\Shared\EditConflicts;
 use App\Enums\DocumentType;
 use App\Enums\SalesDocumentStatus;
 use App\Models\User\SalesDocument;
@@ -107,6 +108,9 @@ class CreditNoteService
     public function update(Workspace $workspace, int $id, User $user, array $data): SalesDocument
     {
         $note = $this->salesDocumentService->find($workspace, DocumentType::CreditNote, $id);
+
+        // Changed by someone else since it was opened: refused (Doc 14 section 22).
+        EditConflicts::ensureUnchanged($note, 'this credit note');
 
         if (! $this->salesDocumentRules->allows($note, 'edit', $this->salesDocumentService->today($workspace))) {
             $this->refuse('An issued credit note cannot be changed. Void it and make a new one instead.');

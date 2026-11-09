@@ -2,6 +2,7 @@
 
 namespace App\Services\Api\Locations;
 
+use App\Services\Shared\EditConflicts;
 use App\Models\User\Location;
 use App\Models\User\Workspace;
 use App\Repositories\User\LocationRepository;
@@ -66,6 +67,9 @@ class LocationService
     public function update(Workspace $workspace, int $id, array $data): Location
     {
         $location = $this->findOwned($workspace, $id);
+
+        // Changed by someone else since it was opened: refused (Doc 14 section 22).
+        EditConflicts::ensureUnchanged($location, 'this location');
 
         $this->locationRepository->update($location, $data);
 

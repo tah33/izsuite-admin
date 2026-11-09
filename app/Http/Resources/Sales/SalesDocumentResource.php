@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Sales;
 
+use App\Services\Shared\EditConflicts;
 use App\Enums\DocumentType;
 use App\Http\Resources\Concerns\HidesValues;
 use App\Http\Resources\Contacts\ContactResource;
@@ -51,6 +52,8 @@ class SalesDocumentResource extends JsonResource
 
         return $this->hideValues('sales', [
             'id'                   => $this->id,
+            // When it was last changed: sent back as If-Match when it is saved (Doc 14 section 22).
+            'version' => EditConflicts::version($this->resource),
             'type'                 => $this->type->value,
             'number'               => $this->number,
             'revision'             => $this->revision,

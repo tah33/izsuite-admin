@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\PaymentAccounts;
 
+use App\Services\Shared\EditConflicts;
 use App\Http\Resources\Concerns\HidesValues;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -28,6 +29,8 @@ class PaymentAccountResource extends JsonResource
     {
         return $this->maskWithout('payment_accounts.details', $this->hideWithout('payment_accounts.balances', [
             'id'                      => $this->id,
+            // When it was last changed: sent back as If-Match when it is saved (Doc 14 section 22).
+            'version' => EditConflicts::version($this->resource),
             'type'                    => $this->type,
             'name'                    => $this->name,
             'currency'                => $this->currency,

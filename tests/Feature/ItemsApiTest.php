@@ -118,7 +118,7 @@ class ItemsApiTest extends TestCase
             ->assertJsonPath('data.is_active', true);
 
         $this->assertSame([
-            'id', 'item_number', 'type', 'usage', 'name', 'sku', 'barcode', 'unit', 'category_id', 'category',
+            'id', 'version', 'item_number', 'type', 'usage', 'name', 'sku', 'barcode', 'unit', 'category_id', 'category',
             'brand_id', 'brand', 'image', 'description', 'sale_price', 'sales_tax_id', 'sales_tax', 'sales_description',
             'purchase_price', 'purchase_tax_id', 'purchase_tax', 'purchase_description', 'delivery_method', 'delivery_instructions', 'warranty_available',
             'warranty_period', 'warranty_unit', 'warranty_start_rule', 'warranty_terms', 'combo_pricing',

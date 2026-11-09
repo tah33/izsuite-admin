@@ -9,6 +9,7 @@ use App\Models\User\SupplierPayment;
 use App\Models\User\User;
 use App\Models\User\WithholdingTax;
 use App\Models\User\Workspace;
+use App\Repositories\Shared\RowLockRepository;
 use App\Repositories\User\PaymentAccountRepository;
 use App\Repositories\User\SupplierPaymentRepository;
 use App\Repositories\User\WithholdingTaxRepository;
@@ -57,6 +58,7 @@ class SupplierPaymentService
         protected DocumentNumbers $documentNumbers,
         protected DocumentTemplates $documentTemplates,
         protected WorkspaceAccess $access,
+        protected RowLockRepository $rows,
     ) {}
 
     public function list(Workspace $workspace, array $filters, int $perPage): LengthAwarePaginator
@@ -92,13 +94,16 @@ class SupplierPaymentService
         $applied     = $this->applied($account, $purchase, $amount, $data);
         $withholding = $this->withholding($workspace, $data);
 
-        if (bccomp(bcadd($applied, $withholding['withholding_amount'], 2), (string) $purchase->balance_due, 2) > 0) {
-            throw ValidationException::withMessages([
-                $account->currency === $purchase->currency ? 'amount' : 'applied_amount' => "That comes to more than the {$purchase->currency} {$purchase->balance_due} still owed. Purchases Lite takes no supplier advances.",
-            ]);
-        }
-
         $payment = DB::transaction(function () use ($workspace, $user, $data, $purchase, $account, $amount, $applied, $withholding) {
+            // What is still owed, read again with the purchase locked: a payment made meanwhile counts (Doc 14 section 22).
+            $purchase = $this->rows->lock($purchase);
+
+            if (bccomp(bcadd($applied, $withholding['withholding_amount'], 2), (string) $purchase->balance_due, 2) > 0) {
+                throw ValidationException::withMessages([
+                    $account->currency === $purchase->currency ? 'amount' : 'applied_amount' => "That comes to more than the {$purchase->currency} {$purchase->balance_due} still owed. Purchases Lite takes no supplier advances.",
+                ]);
+            }
+
             $payment = $this->supplierPaymentRepository->create($workspace, [
                 'number'             => $this->documentNumbers->next(
                     $workspace,
@@ -150,6 +155,11 @@ class SupplierPaymentService
         $purchase = $this->purchaseService->find($workspace, $payment->purchase_id);
 
         DB::transaction(function () use ($payment, $user, $reason, $purchase) {
+            // Reversed once, however often it is asked at the same moment.
+            if (! $this->rows->lock($payment)->isCompleted()) {
+                $this->refuse('This payment was reversed already.');
+            }
+
             $this->supplierPaymentRepository->update($payment, [
                 'status'          => SupplierPayment::REVERSED,
                 'reversed_at'     => now(),
