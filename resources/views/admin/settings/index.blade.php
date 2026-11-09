@@ -38,9 +38,17 @@
             'smtp_password'     => __('SMTP password'),
             'smtp_from_address' => __('From address'),
             'smtp_from_name'    => __('From name'),
+            'billing_company_name'     => __('Company name'),
+            'billing_company_address'  => __('Company address'),
+            'billing_company_email'    => __('Billing e-mail'),
+            'billing_company_tax_id'   => __('Tax ID'),
+            'billing_invoice_due_days' => __('Days to pay an invoice'),
         ];
 
         $helpTexts = [
+            'billing_company_name'     => __('Who izSuite\'s subscription invoices and receipts come from.'),
+            'billing_company_email'    => __('Printed on invoices, for questions about a bill.'),
+            'billing_invoice_due_days' => __('An invoice without a trial is due this many days after it is issued. An invoice already issued keeps its own date.'),
             'smtp_enabled'      => __('When off, the app falls back to the mailer configured in .env. Your credentials below are kept either way.'),
             'smtp_host'         => __('e.g. smtp.gmail.com, smtp.mailgun.org, smtp-relay.brevo.com'),
             'smtp_port'         => __('587 for TLS, 465 for SSL, 25 for unencrypted.'),
@@ -50,7 +58,7 @@
             'smtp_from_name'    => __('The name recipients will see, e.g. your site name.'),
         ];
 
-        $requiredKeys = ['ai_active_provider', 'ai_temperature', 'ai_max_tokens', 'smtp_host', 'smtp_port', 'smtp_from_address'];
+        $requiredKeys = ['ai_active_provider', 'ai_temperature', 'ai_max_tokens', 'smtp_host', 'smtp_port', 'smtp_from_address', 'billing_company_name', 'billing_invoice_due_days'];
     @endphp
 
     <div class="flex items-center gap-1 mb-4 border-b border-[var(--card-border)] overflow-x-auto">

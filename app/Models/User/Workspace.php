@@ -5,6 +5,8 @@ namespace App\Models\User;
 use App\Enums\FileCollection;
 use App\Models\Admin\Currency;
 use App\Models\Billing\Package;
+use App\Models\Billing\SubscriptionInvoice;
+use App\Models\Billing\WorkspaceSubscription;
 use App\Models\Concerns\HasFiles;
 use App\Services\User\Apps\ProvisionWorkspaceApps;
 use App\Support\RegionalDefaults;
@@ -200,6 +202,18 @@ class Workspace extends Model
     public function billing(): HasOne
     {
         return $this->hasOne(WorkspaceBilling::class);
+    }
+
+    /** Its subscription to a paid plan (Doc 13 Phase C), if it ever had one. */
+    public function subscription(): HasOne
+    {
+        return $this->hasOne(WorkspaceSubscription::class);
+    }
+
+    /** izSuite's invoices to it for its subscription. */
+    public function subscriptionInvoices(): HasMany
+    {
+        return $this->hasMany(SubscriptionInvoice::class);
     }
 
     /** One row per app family the business has turned on, now or before. */

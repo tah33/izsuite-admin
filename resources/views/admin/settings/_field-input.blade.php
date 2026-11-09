@@ -47,6 +47,16 @@
         class="form-input {{ $fieldError ? 'form-input-error' : '' }}"
         value="{{ $fieldValue }}"
     >
+@elseif($setting['key'] === 'billing_invoice_due_days')
+    <input
+        type="number"
+        min="1"
+        max="90"
+        name="settings[{{ $setting['key'] }}]"
+        id="setting_{{ $setting['key'] }}"
+        class="form-input {{ $fieldError ? 'form-input-error' : '' }}"
+        value="{{ $fieldValue }}"
+    >
 @elseif($setting['key'] === 'smtp_from_address')
     <input
         type="email"

@@ -38,6 +38,19 @@ class ImageService
         }
     }
 
+    /** A public image as a data URI - for a PDF, which cannot fetch it - or null when it is not there. */
+    public function dataUri(?string $path): ?string
+    {
+        $normalizedPath = $this->normalizePublicPath($path);
+        $disk           = Storage::disk('public');
+
+        if (! $normalizedPath || ! $disk->exists($normalizedPath)) {
+            return null;
+        }
+
+        return 'data:'.($disk->mimeType($normalizedPath) ?: 'image/png').';base64,'.base64_encode((string) $disk->get($normalizedPath));
+    }
+
     public function publicUrl(?string $path): ?string
     {
         $normalizedPath = $this->normalizePublicPath($path);

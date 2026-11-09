@@ -3,6 +3,7 @@
 namespace App\Services\Admin;
 
 use App\Models\Billing\Package;
+use App\Repositories\Admin\CurrencyRepository;
 use App\Repositories\Billing\PackageRepository;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Database\Eloquent\Collection;
@@ -16,7 +17,19 @@ class PackageService
 {
     public function __construct(
         protected PackageRepository $packageRepository,
+        protected CurrencyRepository $currencyRepository,
     ) {}
+
+    /**
+     * The plan form: the plan, and the currencies its prices may be in - those
+     * the admin keeps active (Doc 13 section 16).
+     *
+     * @return array{package: Package, currencies: Collection}
+     */
+    public function editPage(int $id): array
+    {
+        return ['package' => $this->packageRepository->findOrFail($id), 'currencies' => $this->currencyRepository->activeByName()];
+    }
 
     /** Every plan, lowest first, with how many apps and businesses it has. */
     public function listWithCounts(): Collection

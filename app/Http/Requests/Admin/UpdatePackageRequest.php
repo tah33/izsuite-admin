@@ -2,22 +2,26 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Repositories\Billing\PackageRepository;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdatePackageRequest extends FormRequest
 {
+    private ?string $currentCurrency = null;
+
     public function authorize(): bool
     {
         return true;
     }
 
-    /** An unticked box sends nothing, so it is read as false; the currency is kept in capitals. */
+    /** An unticked box sends nothing, so it is read as false; the currency is kept in capitals - the plan's own when none is sent. */
     protected function prepareForValidation(): void
     {
         $this->merge([
             'is_active'        => $this->boolean('is_active'),
             'removes_branding' => $this->boolean('removes_branding'),
-            'price_currency'   => strtoupper(trim((string) $this->input('price_currency', 'USD'))) ?: 'USD',
+            'price_currency'   => strtoupper(trim((string) $this->input('price_currency', $this->currentCurrency()))) ?: $this->currentCurrency(),
         ]);
     }
 
@@ -41,7 +45,8 @@ class UpdatePackageRequest extends FormRequest
             'business_limit'   => $count,
             'user_limit'       => $count,
             'location_limit'   => $count,
-            'price_currency'   => ['required', 'string', 'size:3', 'alpha'],
+            // The plan keeps its own currency whatever the list holds; another must be one of the admin's (Admin > Currencies).
+            'price_currency'   => ['required', 'string', 'size:3', 'alpha', Rule::when($this->input('price_currency') !== $this->currentCurrency(), [Rule::exists('currencies', 'code')])],
             'price_monthly'    => $price,
             'price_yearly'     => $price,
             'trial_days'       => ['nullable', 'integer', 'min:1', 'max:365'],
@@ -49,6 +54,12 @@ class UpdatePackageRequest extends FormRequest
             'removes_branding' => ['boolean'],
             'is_active'        => ['boolean'],
         ];
+    }
+
+    /** The plan's currency now. */
+    private function currentCurrency(): string
+    {
+        return $this->currentCurrency ??= app(PackageRepository::class)->findOrFail((int) $this->route('id'))->price_currency;
     }
 
     public function messages(): array

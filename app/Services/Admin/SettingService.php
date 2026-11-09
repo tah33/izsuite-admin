@@ -50,6 +50,13 @@ class SettingService
         'site_favicon'           => ['value' => '', 'group' => 'branding'],
         'primary_color'          => ['value' => '#1769E8', 'group' => 'branding'],
         'footer_text'            => ['value' => '', 'group' => 'branding'],
+
+        // Billing: izSuite's details on its subscription invoices and receipts (Doc 13 Phase C)
+        'billing_company_name'     => ['value' => 'izSuite', 'group' => 'billing'],
+        'billing_company_address'  => ['value' => '', 'group' => 'billing'],
+        'billing_company_email'    => ['value' => '', 'group' => 'billing'],
+        'billing_company_tax_id'   => ['value' => '', 'group' => 'billing'],
+        'billing_invoice_due_days' => ['value' => '7', 'group' => 'billing'],
     ];
 
     public function __construct(

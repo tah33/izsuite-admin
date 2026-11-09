@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Admin\Currency;
 use App\Models\Admin\Role;
 use App\Models\Billing\Package;
 use App\Models\Shared\ActivityLog;
@@ -65,7 +66,12 @@ class SubscriptionBillingTest extends TestCase
         $standard = Package::where('key', 'standard')->sole();
         $this->actingAs(User::factory()->create(['role_id' => Role::SUPER_ADMIN_ID]));
 
-        $this->get(route('admin.packages.edit', $standard->id))->assertOk()->assertSee('Price a month')->assertSee('Takes "Powered by izSuite" off documents');
+        // The admin's currencies (Admin > Currencies): the form lists the active ones.
+        Currency::create(['name' => 'US Dollar', 'code' => 'USD', 'symbol' => '$', 'exchange_rate' => 1, 'is_active' => true]);
+        Currency::create(['name' => 'Bangladeshi Taka', 'code' => 'BDT', 'symbol' => '৳', 'exchange_rate' => 110, 'is_active' => true]);
+
+        $this->get(route('admin.packages.edit', $standard->id))->assertOk()->assertSee('Price a month')->assertSee('Takes "Powered by izSuite" off documents')->assertSee('Bangladeshi Taka (BDT)');
+        $this->putJson(route('admin.packages.update', $standard->id), ['name' => 'Standard', 'price_currency' => 'XYZ'])->assertJsonValidationErrors('price_currency');
         $this->get(route('admin.packages.index'))->assertOk()->assertSee('Not announced');
 
         $this->putJson(route('admin.packages.update', $standard->id), [

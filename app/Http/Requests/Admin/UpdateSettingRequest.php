@@ -36,6 +36,12 @@ class UpdateSettingRequest extends FormRequest
             'settings.site_favicon'           => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,svg,ico', 'max:1024'],
             'settings.primary_color'          => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/'],
             'settings.footer_text'            => ['nullable', 'string', 'max:1000'],
+            // izSuite's details on its subscription invoices (Doc 13 Phase C)
+            'settings.billing_company_name'     => ['required', 'string', 'max:150'],
+            'settings.billing_company_address'  => ['nullable', 'string', 'max:500'],
+            'settings.billing_company_email'    => ['nullable', 'email', 'max:255'],
+            'settings.billing_company_tax_id'   => ['nullable', 'string', 'max:50'],
+            'settings.billing_invoice_due_days' => ['required', 'integer', 'min:1', 'max:90'],
         ];
 
         return array_filter($rules, function ($key) {
@@ -87,6 +93,9 @@ class UpdateSettingRequest extends FormRequest
             'settings.smtp_password'     => 'SMTP password',
             'settings.smtp_from_address' => 'from address',
             'settings.smtp_from_name'    => 'from name',
+            'settings.billing_company_name'     => 'company name',
+            'settings.billing_company_email'    => 'billing e-mail',
+            'settings.billing_invoice_due_days' => 'days to pay',
         ];
     }
 }

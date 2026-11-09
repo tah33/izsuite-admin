@@ -37,6 +37,12 @@ class PackageRepository
         return Package::where('key', Package::STARTER)->first();
     }
 
+    /** A plan still offered, by its key - one a business may subscribe to. */
+    public function findOfferedByKey(string $key): ?Package
+    {
+        return Package::where('key', $key)->where('is_active', true)->first();
+    }
+
     public function update(Package $package, array $data): Package
     {
         $package->update($data);

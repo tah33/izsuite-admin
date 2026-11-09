@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Billing\KeepWithinLimitsRequest;
+use App\Http\Requests\Api\Billing\SubscribeRequest;
 use App\Http\Requests\Api\Billing\UpdateBillingDetailsRequest;
 use App\Http\Resources\Billing\BillingDetailsResource;
 use App\Http\Resources\Billing\OverLimitChoicesResource;
@@ -11,20 +12,58 @@ use App\Http\Resources\Billing\SubscriptionOverviewResource;
 use App\Http\Resources\BusinessSetup\BusinessUsageResource;
 use App\Services\Api\Billing\BillingService;
 use App\Services\Api\Billing\OverLimitService;
+use App\Services\Api\Billing\SubscriptionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
  * Settings > Apps & Subscription's billing side (Doc 13 sections 11 and 14),
- * for roles with Manage Subscription - and, over a plan's limits, for the
- * Business Owner to choose what stays active.
+ * for roles with Manage Subscription: the subscription, subscribing to a paid
+ * plan and withdrawing an invoice not yet paid, and the billing details -
+ * and, over a plan's limits, for the Business Owner to choose what stays
+ * active.
  */
 class SubscriptionController extends Controller
 {
     public function __construct(
         protected BillingService $billingService,
         protected OverLimitService $overLimitService,
+        protected SubscriptionService $subscriptionService,
     ) {}
+
+    /** A paid plan, monthly or yearly: its trial starts, or its invoice is issued. */
+    public function subscribe(SubscribeRequest $request): JsonResponse
+    {
+        try {
+            $result = $this->subscriptionService->subscribe($this->currentWorkspace($request), $request->user(), $request->validated('package'), $request->validated('cycle'));
+
+            return response()->json([
+                'message' => $result['message'],
+                'data'    => new SubscriptionOverviewResource($result['overview']),
+            ], 201);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** The invoice waiting for the first payment withdrawn, and the subscription with it. */
+    public function withdraw(Request $request): JsonResponse
+    {
+        try {
+            $result = $this->subscriptionService->withdraw($this->currentWorkspace($request), $request->user());
+
+            return response()->json([
+                'message' => $result['message'],
+                'data'    => new SubscriptionOverviewResource($result['overview']),
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
 
     public function show(Request $request): JsonResponse
     {

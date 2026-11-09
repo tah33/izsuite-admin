@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\SubscriptionController;
+use App\Http\Controllers\Admin\SubscriptionInvoiceController;
 use App\Http\Controllers\Admin\TicketController;
 use App\Http\Controllers\Admin\WorkspaceController;
 use Illuminate\Support\Facades\Route;
@@ -56,6 +57,11 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     Route::get('/clients/{id}', [ClientController::class, 'show'])->whereNumber('id')->name('clients.show');
     Route::post('/clients/{id}/login-as', [ClientController::class, 'loginAs'])->whereNumber('id')->name('clients.login-as');
     Route::get('/workspaces/{id}/package', [WorkspaceController::class, 'reviewPackage'])->whereNumber('id')->name('workspaces.package.review');
+    // izSuite's subscription invoices: confirming a bank transfer issues the receipt and starts the plan (Doc 13 Phase C1).
+    Route::get('/subscription-invoices', [SubscriptionInvoiceController::class, 'index'])->name('subscription-invoices.index');
+    Route::post('/subscription-invoices/{id}/confirm', [SubscriptionInvoiceController::class, 'confirm'])->whereNumber('id')->name('subscription-invoices.confirm');
+    Route::post('/subscription-invoices/{id}/void', [SubscriptionInvoiceController::class, 'void'])->whereNumber('id')->name('subscription-invoices.void');
+    Route::get('/subscription-invoices/{id}/pdf', [SubscriptionInvoiceController::class, 'pdf'])->whereNumber('id')->name('subscription-invoices.pdf');
     Route::patch('/workspaces/{id}/package', [WorkspaceController::class, 'updatePackage'])->name('workspaces.package');
     Route::resource('app-categories', AppCategoryController::class)->except(['show'])->parameters(['app-categories' => 'id']);
     Route::patch('/app-categories/{id}/toggle-status', [AppCategoryController::class, 'toggleActive'])->name('app-categories.toggle-status');

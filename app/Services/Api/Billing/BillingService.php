@@ -2,9 +2,13 @@
 
 namespace App\Services\Api\Billing;
 
+use App\Models\Billing\SubscriptionInvoice;
+use App\Models\Billing\WorkspaceSubscription;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceBilling;
+use App\Repositories\Billing\SubscriptionInvoiceRepository;
+use App\Repositories\Billing\WorkspaceSubscriptionRepository;
 use App\Repositories\User\WorkspaceBillingRepository;
 use App\Services\Api\Apps\PublicCatalog;
 use App\Services\Shared\ActivityLogService;
@@ -17,8 +21,11 @@ use App\Support\SettingChanges;
  * status, the plans to compare it with, and the billing details its izSuite
  * invoices go to.
  *
- * Until subscriptions are paid for (Phase C), a plan is set by izSuite: the
- * status is Free on Billing Starter and Active on another.
+ * The status is its subscription's - on a trial, awaiting its first
+ * payment, or active for a paid period (Phase C1, SubscriptionService) -
+ * else Free on Billing Starter, or Active on a plan izSuite set it up with
+ * in the admin. An invoice still to be paid comes with it, and whether the
+ * business's one trial is still to be had.
  *
  * A business over its plan's user or location limit - moved to a lower plan
  * - says so, and whether $user is the owner who chooses what stays active
@@ -28,21 +35,31 @@ class BillingService
 {
     public function __construct(
         protected WorkspaceBillingRepository $billingRepository,
+        protected WorkspaceSubscriptionRepository $subscriptions,
+        protected SubscriptionInvoiceRepository $invoices,
         protected PublicCatalog $catalog,
         protected PlanLimits $planLimits,
     ) {}
 
-    /** @return array{package: array|null, status: string, packages: list<array>, details: ?WorkspaceBilling, excess: ?array} */
+    /**
+     * @return array{package: array|null, status: string, subscription: ?WorkspaceSubscription, open_invoice: ?SubscriptionInvoice,
+     *               trial_available: bool, packages: list<array>, details: ?WorkspaceBilling, excess: ?array}
+     */
     public function overview(Workspace $workspace, User $user): array
     {
-        $current = $workspace->package;
+        $current      = $workspace->package;
+        $subscription = $this->subscriptions->for($workspace);
+        $subscribed   = $subscription?->isCurrent() ? $subscription : null;
 
         return [
-            'package'  => $current ? ['key' => $current->key, 'name' => $current->name, 'removes_branding' => $current->removes_branding] : null,
-            'status'   => $current === null || $current->isFree() ? 'free' : 'active',
-            'packages' => array_map(fn (array $package) => [...$package, 'current' => $package['key'] === $current?->key], $this->catalog->packages()),
-            'details'  => $this->billingRepository->for($workspace),
-            'excess'   => $this->excess($workspace, $user),
+            'package'         => $current ? ['key' => $current->key, 'name' => $current->name, 'removes_branding' => $current->removes_branding] : null,
+            'status'          => $subscribed?->status ?? ($current === null || $current->isFree() ? 'free' : 'active'),
+            'subscription'    => $subscribed,
+            'open_invoice'    => $this->invoices->openFor($workspace),
+            'trial_available' => ! $subscription?->trial_starts_on,
+            'packages'        => array_map(fn (array $package) => [...$package, 'current' => $package['key'] === $current?->key], $this->catalog->packages()),
+            'details'         => $this->billingRepository->for($workspace),
+            'excess'          => $this->excess($workspace, $user),
         ];
     }
 

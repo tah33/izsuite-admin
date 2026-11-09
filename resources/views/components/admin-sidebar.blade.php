@@ -55,6 +55,11 @@
             <span>{{ __('Package Access') }}</span>
         </a>
 
+        <a href="{{ route('admin.subscription-invoices.index') }}" class="sidebar-link {{ request()->routeIs('admin.subscription-invoices.*') ? 'active' : '' }}">
+            <i data-lucide="receipt" class="icon"></i>
+            <span>{{ __('Subscription Invoices') }}</span>
+        </a>
+
         <a href="{{ route('admin.menu-items.index') }}" class="sidebar-link {{ request()->routeIs('admin.menu-items.*') ? 'active' : '' }}">
             <i data-lucide="panel-left" class="icon"></i>
             <span>{{ __('Menu Builder') }}</span>

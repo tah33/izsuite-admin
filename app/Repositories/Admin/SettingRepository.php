@@ -20,7 +20,7 @@ class SettingRepository
      */
     public function getGrouped(): array
     {
-        return Setting::whereIn('group', ['general', 'branding', 'currency', 'notifications', 'ai', 'social', 'mail'])
+        return Setting::whereIn('group', ['general', 'branding', 'currency', 'notifications', 'ai', 'social', 'mail', 'billing'])
             ->orderBy('key')
             ->get()
             ->groupBy('group')

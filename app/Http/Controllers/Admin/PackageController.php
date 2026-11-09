@@ -33,9 +33,7 @@ class PackageController extends Controller
     public function edit(int $id)
     {
         try {
-            $package = $this->packageService->findOrFail($id);
-
-            return view('admin.packages.edit', compact('package'));
+            return view('admin.packages.edit', $this->packageService->editPage($id));
 
         } catch (\Throwable $e) {
             report($e);

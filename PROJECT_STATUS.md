@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-09
-- **Code:** Doc 13 Phase B2 is committed: frontend `5156025` on `nuxt`, and on `main` the admin commit right after `1dc0642`.
-- **Tests:** 644 backend tests pass (last full run 2026-11-09, on this code).
-- **Next step:** Doc 13 Phase C, once its decisions are made (see [What is next](#what-is-next)).
+- **Code:** Doc 13 Phase C1 is committed: frontend `1324945` on `nuxt`, and on `main` the admin commit right after `d7ec7c8`.
+- **Tests:** 651 backend tests pass (last full run 2026-11-09, on this code).
+- **Next step:** Doc 13 Phase C2. Its suggested defaults are under [What is next](#what-is-next).
 
 Update this file at the end of every phase and commit it with that phase.
 
@@ -14,7 +14,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then help me settle the decisions for Doc 13 Phase C.
+   > Read PROJECT_STATUS.md, then start Doc 13 Phase C2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -37,7 +37,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 10 | Expenses Lite | Done |
 | 11 | Business Setup and Settings | Done, except notification preferences (waits for Doc 14) |
 | 12 | Users, Roles, Permissions and Locations | Done, except notification preferences (Doc 14) and package change rules (Doc 13) |
-| **13** | **Apps Center, Packages, Subscriptions and Billing** | **In progress: A and B done. C, D left** |
+| **13** | **Apps Center, Packages, Subscriptions and Billing** | **In progress: A, B and C1 done. C2, D left** |
 | 14 | Shared Platform Services | Not started as a doc, parts exist |
 | 15 | izSuite System Administration Portal | Not started as a doc, parts exist |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
@@ -47,9 +47,9 @@ Stock, full Sales, OCR and full Accounting features are left out of the Lite app
 
 ## What is next
 
-### 1. Doc 13: Apps Center, Packages, Subscriptions and Billing (next: Phase C)
+### 1. Doc 13: Apps Center, Packages, Subscriptions and Billing (next: Phase C2)
 
-The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D, with B in two parts. Phases A, B1 and B2 are built (see [Decisions worth knowing](#decisions-worth-knowing)).
+The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D, with B and C in two parts each. Phases A, B1, B2 and C1 are built (see [Decisions worth knowing](#decisions-worth-knowing)).
 
 **Already built:**
 
@@ -75,20 +75,34 @@ The gap check was done on 2026-11-08. Doc 13 is split into Phases A to D, with B
 - Over a user or location limit, nothing is switched off by the move. The Business Owner chooses who and what stays active in Settings > Apps & Subscription; the other users are suspended, their invitations withdrawn, and the other locations made inactive (section 14). Until then, adding more is refused.
 - Usage and Limits flags each limit as nearly reached (80%), reached or over, and the Dashboard warns the roles with Manage Subscription.
 
+**Phase C: subscriptions, paid by bank transfer.** Your decisions (2026-11-09):
+
+- Each plan's prices, billing currency, trial days and grace days are set in the admin panel. The currency is picked from the currencies the admin keeps active.
+- When a paid period ends unpaid, the grace period starts, as long as the plan's grace days. Each day of it an e-mail says the subscription has ended, how many days are left, and that the business then goes back to the free plan. Example: 5 grace days and a subscription ending on 30 November. The e-mails say 4 days left on 30 November, then 3, 2, 1, and the last day on 4 December. On 5 December the plan is cancelled and the business is on Billing Starter, through Phase B2's move down.
+- Upgrades are prorated: the unused part of the current period counts against the new plan.
+
+**Phase C1: subscribing and paying by bank transfer** is built:
+
+- The Subscription page lets the owner or a role with Manage Subscription pick a paid plan, monthly or yearly. A plan with a trial starts at once (one trial per business), and its invoice is due on the trial's last day. Without a trial, izSuite issues the invoice, and the plan starts when izSuite confirms the payment. An invoice waiting for the first payment can be withdrawn.
+- Invoices and receipts have izSuite's own numbers (`IZS-INV-00001`, `IZS-RCT-00001`). Their PDFs carry izSuite's logo and its details (Admin > Settings > Billing) and the Bank Transfer method's instructions. The business adds its transfer reference to the invoice.
+- The admin confirms payments in Admin > Subscription Invoices, which issues the receipt and starts the paid period on the plan. An invoice can be cancelled there too.
+- The Subscription page shows the status (Trial, Awaiting payment, Active and paid until a date), the invoice to pay with how to pay it, and the billing history with each invoice's and receipt's PDF. E-mails with the PDF go to the billing e-mail and the owner when an invoice is issued and when a payment is confirmed.
+- Each plan's currency is picked from the admin's active currencies.
+
 **Still missing**, by phase:
 
-**Phase C: subscriptions, paid by bank transfer:**
+**C2: renewals, grace and plan changes** (suggested defaults, not agreed yet)
 
-- A subscription per business: statuses Free, Trialing, Active, Past Due, Grace Period, Cancellation Scheduled, Suspended, Downgraded and Cancelled; billing cycle; current period; next renewal.
-- Upgrade at once, with the prorated amount shown first. Downgrade and cancellation at the end of the period, with cancellation going back to Billing Starter. A scheduled job applies changes due at period end, the grace period and suspension.
-- Subscription invoices and receipts (numbered, with PDFs) and billing history. They belong to izSuite's billing, not the business's documents.
-- Paid first by the existing offline Bank Transfer method: the admin confirms the payment. This works without a payment provider.
+- A daily scheduled job: a renewal invoice 7 days before a period ends; the grace period with its daily e-mails; back to Billing Starter when grace runs out. A trial that ends unpaid goes back to Billing Starter without grace, after reminders 3 days and 1 day before.
+- Paying during grace keeps the plan, and the new period starts where the old one ended.
+- Upgrade at once, with the prorated amount shown first. It takes effect when its invoice is paid.
+- Downgrade and cancellation take effect at the end of the paid period, and can be undone until then.
 
 **Phase D: online payments.** Your chosen provider, with secure tokens, payment status by webhook, retries and the grace period, and payment methods managed through the provider. Billing currency and subscription tax follow the provider and the billing address.
 
 **Waits:** notifications (section 19) for Doc 14. Usage charges such as SMS, AI, extra storage and API (section 17) wait until those services exist. Translated app names wait for Doc 14, and admin-side configuration beyond packages and the catalog waits for Doc 15.
 
-**Needs your decisions before Phase C:** prices for Standard and Premium (the admin's plan form takes them now), billing currencies, trial and grace lengths, and whether upgrades are prorated. **Before Phase D:** the payment provider and whether it handles subscription tax (Paddle does, as merchant of record; Stripe does not).
+**Needs your decisions before Phase D:** the payment provider and whether it handles subscription tax (Paddle does, as merchant of record; Stripe does not).
 
 **Careful:** the old `plans`, `subscriptions`, `invoices` and `payment_methods` tables and admin screens come from an earlier recruitment product. They work per user account, not per business, and do not fit Doc 13. Phase C replaces them rather than reusing them, except the Bank Transfer payment method.
 
@@ -241,7 +255,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 12: Phase E2, multi-factor authentication | `e727463` | `7de8bd9` | 000109, 000110 |
 | Doc 13: Phase A, Apps Center and app pages | `e0d062c` | `cdcdf12` | 000111 |
 | Doc 13: Phase B1, prices, subscription page, branding | `1dc0642` | `1ca411f` | 000112 |
-| Doc 13: Phase B2, lower plans, keeping within limits, warnings | the commit after `1dc0642` | `5156025` | |
+| Doc 13: Phase B2, lower plans, keeping within limits, warnings | `d7ec7c8` | `5156025` | |
+| Doc 13: Phase C1, subscribing, invoices, bank transfer | the commit after `d7ec7c8` | `1324945` | 000113 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -327,6 +342,12 @@ These are easy to undo by mistake.
 - The admin's Move button opens a review (`GET /admin/workspaces/{id}/package?package_id=`, `PackageChangeImpact`) before the move. The review and the move share `SyncAppsWithPackage::changes`, so the review shows exactly what the move does to the apps.
 - Over a user or location limit, only the Business Owner chooses what stays active (`GET` and `POST /subscription/over-limit`, `OverLimitService`). The owner and the Primary Location always stay. The others go through the usual services, so each suspension, withdrawn invitation and inactive location is logged as if done by hand, then one entry sums it up. `GET /subscription` says which limits are passed (`excess`) and whether this user chooses.
 - Usage counts carry a state: `ok`, `warning` (from 80%), `full` or `over`. The Dashboard warns the roles with Manage Subscription, but not about a reached limit of one: every Billing Starter business is at its one user and one location from its first day.
+- A business's subscription is one `workspace_subscriptions` row: plan, cycle and status (`trialing`, `awaiting_payment`, `active`, `cancelled`), with its trial and paid period as dates, both days included. The row is reused when it subscribes again, so `trial_starts_on` stays and a business gets one trial. While it has a current subscription it cannot start another; changing plans comes with C2.
+- izSuite's invoices are `subscription_invoices`, never the business's own documents. They keep who they were billed to, izSuite's details and the payment instructions as issued (`SubscriptionBilling`), numbered from `billing_sequences`. The PDF draws izSuite's logo as it is now: the one uploaded in Admin > Settings > Branding, else `public/images/brand/izsuite-logo.svg`.
+- Without a trial, the paid period starts on the day izSuite confirms the payment. After a trial, the invoice is due on the trial's last day and its period starts the next day. Confirming moves the business to the plan through `SyncAppsWithPackage`.
+- Admin actions stay out of a business's Activity Log, as before, so a confirmed payment shows in its billing history (`paid_at`, `confirmed_by`) rather than in its log. The business's own steps (subscribing, withdrawing, the transfer reference) are logged.
+- Billing e-mails (`SubscriptionBillingMail`) are queued after the transaction commits, and draw their PDF when sent, so a server needs the queue worker running.
+- izSuite's details on invoices are the `billing_*` settings (Admin > Settings > Billing): company name, address, e-mail, tax ID and the days to pay (7). `SettingService` adds them on first visit.
 - `/profile` answers in the usual envelopes, and the signed-in user (`UserResource`) carries only their name, e-mail, phone, image, language and time zone.
 
 ## Small things left
@@ -357,3 +378,4 @@ Each of these is yours to settle.
 - Run `php artisan migrate`, then `php artisan db:seed --class=AppCatalogSeeder`. **Never run the full `DatabaseSeeder` on a server:** it adds demo users.
 - The host nginx needs `client_max_body_size` of at least 120M, and the image must be rebuilt for the upload limits.
 - A database that still has `workspaces.staff_id` links and has not yet run migration 000060 would lose them. Check this on any older server.
+- Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing.
