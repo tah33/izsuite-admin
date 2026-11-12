@@ -50,7 +50,7 @@ final class Permissions
             'view' => self::VIEW, 'create' => 'Create', 'edit' => 'Edit', 'delete' => 'Delete', 'transfer' => 'Transfer Money', 'export' => 'Export',
             'balances' => 'View Balances', 'details' => 'View Full Account Details',
         ]],
-        'documents'        => ['Documents', null, ['view' => self::VIEW, 'export' => 'Export']],
+        'documents'        => ['Documents', null, ['view' => self::VIEW, 'export' => 'Export', 'number' => 'Enter Numbers by Hand']],
         'reports'          => ['Reports', null, ['view' => 'View Reports', 'export' => 'Export']],
         'taxes'            => ['Tax Information', null, ['view' => 'View Tax Information']],
         'settings'         => ['Settings', null, [

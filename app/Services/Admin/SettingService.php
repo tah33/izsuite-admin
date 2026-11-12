@@ -59,6 +59,10 @@ class SettingService
         'billing_invoice_due_days' => ['value' => '7', 'group' => 'billing'],
         // Grace days a declined saved card is charged again on, besides the last (Doc 13 Phase D3)
         'billing_retry_days'       => ['value' => '1,3', 'group' => 'billing'],
+
+        // Files: what a business may attach to its records, within what izSuite takes (Doc 14 Phase E2)
+        'files_attachment_types'   => ['value' => 'pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,ppt,pptx,odt,ods,csv,txt,zip', 'group' => 'files'],
+        'files_attachment_max_mb'  => ['value' => '10', 'group' => 'files'],
     ];
 
     public function __construct(

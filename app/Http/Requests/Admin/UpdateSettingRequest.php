@@ -2,6 +2,9 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Enums\FileCollection;
+use App\Services\Files\FileLimits;
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateSettingRequest extends FormRequest
@@ -44,6 +47,18 @@ class UpdateSettingRequest extends FormRequest
             'settings.billing_invoice_due_days' => ['required', 'integer', 'min:1', 'max:90'],
             // Grace days a declined saved card is charged again on: "1,3" (Doc 13 Phase D3).
             'settings.billing_retry_days'       => ['nullable', 'string', 'max:50', 'regex:/^\s*\d{1,2}(\s*,\s*\d{1,2})*\s*$/'],
+            // What a business may attach (Doc 14 Phase E2): only types izSuite takes, and up to 50 MB a file.
+            'settings.files_attachment_types'   => ['required', 'string', 'max:500', function (string $attribute, mixed $value, Closure $fail) {
+                $chosen  = FileLimits::listed((string) $value);
+                $unknown = array_diff($chosen, FileCollection::Attachments->extensions());
+
+                if (! $chosen) {
+                    $fail('Choose at least one file type.');
+                } elseif ($unknown) {
+                    $fail('izSuite does not take '.implode(', ', $unknown).' files. Choose from '.implode(', ', FileCollection::Attachments->extensions()).'.');
+                }
+            }],
+            'settings.files_attachment_max_mb'  => ['required', 'integer', 'min:1', 'max:'.FileLimits::MAX_ATTACHMENT_MB],
         ];
 
         return array_filter($rules, function ($key) {
@@ -98,6 +113,8 @@ class UpdateSettingRequest extends FormRequest
             'settings.billing_company_name'     => 'company name',
             'settings.billing_company_email'    => 'billing e-mail',
             'settings.billing_invoice_due_days' => 'days to pay',
+            'settings.files_attachment_types'   => 'attachment types',
+            'settings.files_attachment_max_mb'  => 'largest attachment',
         ];
     }
 }

@@ -415,16 +415,16 @@ class ItemsApiTest extends TestCase
 
         $this->postJson("/api/v1/items/{$item->id}/deactivate")
             ->assertOk()
-            ->assertJsonPath('message', 'Item deactivated.')
+            ->assertJsonPath('message', 'Item archived.')
             ->assertJsonPath('data.is_active', false);
 
         $this->postJson("/api/v1/items/{$item->id}/activate")
             ->assertOk()
-            ->assertJsonPath('message', 'Item activated.')
+            ->assertJsonPath('message', 'Item restored.')
             ->assertJsonPath('data.is_active', true);
 
         $this->assertSame(
-            ['Deactivated item "Office Chair"', 'Activated item "Office Chair"'],
+            ['Archived item "Office Chair"', 'Restored item "Office Chair"'],
             ActivityLog::where('user_id', $user->id)->orderBy('id')->pluck('description')->all(),
         );
     }

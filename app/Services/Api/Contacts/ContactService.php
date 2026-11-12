@@ -106,7 +106,7 @@ class ContactService
 
         $this->contactRepository->update($contact, ['is_active' => $active]);
 
-        ActivityLogService::record('updated', ($active ? 'Activated' : 'Deactivated')." contact {$this->quoted($contact)}", $contact, [
+        ActivityLogService::record('updated', ($active ? 'Restored' : 'Archived')." contact {$this->quoted($contact)}", $contact, [
             'source' => 'api',
             'fields' => $contact->wasChanged('is_active') ? ['is_active'] : [],
         ]);

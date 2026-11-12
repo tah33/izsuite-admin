@@ -28,7 +28,7 @@ class SalesDocumentFlowController extends Controller
     public function issue(IssueSalesDocumentRequest $request, string $kind, int $id): JsonResponse
     {
         try {
-            $document = $this->salesDocumentFlow->issue($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user(), $request->validated('exchange_rate'));
+            $document = $this->salesDocumentFlow->issue($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user(), $request->validated('exchange_rate'), $request->validated('number'));
 
             return $this->answer($request, $document, "{$document->type->label()} {$document->number} issued.");
 

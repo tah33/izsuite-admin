@@ -476,6 +476,7 @@ Route::prefix('v1')->group(function () {
 
         // A link that downloads one of the business's files (see FileController).
         Route::get('/files/{id}/link', [FileController::class, 'link'])->whereNumber('id')->name('api.files.link');
+        Route::get('/files/limits', [FileController::class, 'limits'])->name('api.files.limits');
 
         // Importing contacts or items from CSV, step by step (see ImportService).
         Route::get('/imports/{kind}/template', [ImportController::class, 'template'])->whereIn('kind', ['contacts', 'items'])->name('api.imports.template');

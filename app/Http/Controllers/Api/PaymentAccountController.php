@@ -101,7 +101,7 @@ class PaymentAccountController extends Controller
             $account = $this->paymentAccountService->activate($this->currentWorkspace($request), $id);
 
             return response()->json([
-                'message' => 'Payment account activated successfully.',
+                'message' => 'Payment account restored successfully.',
                 'data'    => new PaymentAccountResource($account),
             ]);
 
@@ -118,7 +118,7 @@ class PaymentAccountController extends Controller
             $account = $this->paymentAccountService->deactivate($this->currentWorkspace($request), $id, $request->validated());
 
             return response()->json([
-                'message' => 'Payment account deactivated successfully.',
+                'message' => 'Payment account archived successfully.',
                 'data'    => new PaymentAccountResource($account),
             ]);
 

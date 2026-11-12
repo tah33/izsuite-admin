@@ -133,9 +133,10 @@ class CreditNoteService
     /**
      * A draft becomes issued: checked once more against what was credited
      * since it was saved, numbered, its customer kept as they are, and set
-     * against its invoice.
+     * against its invoice. $number is one typed as it is issued (Doc 14
+     * section 14.6); without it the note gets the next number.
      */
-    public function issue(Workspace $workspace, int $id, User $user): SalesDocument
+    public function issue(Workspace $workspace, int $id, User $user, ?string $number = null): SalesDocument
     {
         $note = $this->salesDocumentService->find($workspace, DocumentType::CreditNote, $id);
 
@@ -147,9 +148,11 @@ class CreditNoteService
 
         $this->creditNoteLines->check($invoice, $note->lines->map(fn (SalesDocumentLine $line) => $line->only(['source_line_id', 'quantity', 'unit_price', 'amount']))->all(), (string) $note->grand_total);
 
-        DB::transaction(function () use ($workspace, $user, $note, $invoice) {
+        $typed = $this->documentNumbers->typed(DocumentType::CreditNote, $number, fn (string $taken) => $this->salesDocumentRepository->numberTaken($workspace, DocumentType::CreditNote, $taken));
+
+        DB::transaction(function () use ($workspace, $user, $note, $invoice, $typed) {
             $this->salesDocumentRepository->update($note, [
-                'number'            => $this->documentNumbers->next(
+                'number'            => $typed ?? $this->documentNumbers->next(
                     $workspace,
                     DocumentType::CreditNote,
                     CarbonImmutable::parse($note->document_date),

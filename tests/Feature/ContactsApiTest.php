@@ -389,16 +389,16 @@ class ContactsApiTest extends TestCase
 
         $this->postJson("/api/v1/contacts/{$contact->id}/deactivate")
             ->assertOk()
-            ->assertJsonPath('message', 'Contact deactivated.')
+            ->assertJsonPath('message', 'Contact archived.')
             ->assertJsonPath('data.is_active', false);
 
         $this->postJson("/api/v1/contacts/{$contact->id}/activate")
             ->assertOk()
-            ->assertJsonPath('message', 'Contact activated.')
+            ->assertJsonPath('message', 'Contact restored.')
             ->assertJsonPath('data.is_active', true);
 
         $this->assertSame(
-            ['Deactivated contact "Uddin Traders Ltd"', 'Activated contact "Uddin Traders Ltd"'],
+            ['Archived contact "Uddin Traders Ltd"', 'Restored contact "Uddin Traders Ltd"'],
             ActivityLog::where('user_id', $user->id)->orderBy('id')->pluck('description')->all(),
         );
     }

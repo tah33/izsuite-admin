@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-12
-- **Code:** Doc 14 Phase E1 is committed: frontend `76b3aa3` on `nuxt`, and on `main` the admin commit right after `4bfb9c7`.
-- **Tests:** 713 backend tests pass (last full run 2026-11-12, on this code, on the second PC).
-- **Next step:** Doc 14 Phase E2: manual numbers, file limits, action names, an expense's payee as a contact (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
+- **Code:** Doc 14 is done. Its last phase, E2, is committed: frontend `b29f546` on `nuxt`, and on `main` the admin commit right after `8e38b43`.
+- **Tests:** 718 backend tests pass (last full run 2026-11-12, on this code, on the second PC).
+- **Next step:** Doc 15, starting with its gap check (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
 
 Update this file at the end of every phase and commit it with that phase.
 
@@ -14,7 +14,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 14 Phase E2.
+   > Read PROJECT_STATUS.md, then start the Doc 15 gap check.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -38,8 +38,8 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 11 | Business Setup and Settings | Done |
 | 12 | Users, Roles, Permissions and Locations | Done, except package change rules (Doc 13) |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
-| **14** | **Shared Platform Services** | **In progress: A to D and E1 done. E2 left** |
-| 15 | izSuite System Administration Portal | Not started as a doc, parts exist |
+| 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
+| **15** | **izSuite System Administration Portal** | **Next: the gap check. Parts exist** |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -168,7 +168,7 @@ On a server, the Stripe webhook needs two events: `checkout.session.completed` a
 
 **Careful:** the old `plans`, `subscriptions`, `invoices` and `payment_methods` tables and admin screens come from an earlier recruitment product. They work per user account, not per business, and do not fit Doc 13. Phase C replaces them rather than reusing them, except `payment_methods`, which holds Bank Transfer and, from Phase D2, Stripe's keys (encrypted).
 
-### 2. Doc 14: Shared Platform Services (next: Phase E2)
+### 2. Doc 14: Shared Platform Services (done 2026-11-12)
 
 The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 
@@ -275,12 +275,34 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 - **The payment account transactions export** is logged like the others, with its filters.
 - Checked in the browser: a contact's added line, the Edit Location dialog's, and a EUR draft invoice whose rate the form filled from the business's rates ("your rate of 01 Nov 2026") and whose History says it was made in Sales Lite. The test data was removed afterwards.
 
-**Phase E2: numbers, files and names** (sections 4, 6, 12 and 23), with these defaults:
+**Phase E2: numbers, files and names** (sections 4, 6, 12 and 23) is built, with these defaults:
 
-- Manual document numbers, behind a permission and checked for uniqueness.
-- File type and size limits set in the admin. Removing a file from an issued or completed record needs the permission to void it, and is logged with the record's status.
-- The action names of section 23: Create Quotation, Create Proforma Invoice, Create Invoice, Record Purchase and Add Item, and Archive and Restore in place of Deactivate and Activate.
-- On an expense, a payee typed in can be added as a contact.
+- **The action names of section 23.**
+  - The lists' buttons: New Sale on Invoices, Create Quotation, Create Proforma Invoice, Record Purchase and Record Expense. The new sales pages are titled Create Invoice, Create Quotation and Create Proforma Invoice.
+  - Add Item on a document's lines.
+  - Archive and Restore in place of Deactivate and Activate, for contacts, items and payment accounts. Their filters, pills and messages say Archived, and so does the Activity Log.
+  - Locations, roles and tax rates keep Deactivate, the word Docs 11 and 12 use for them.
+- **A payee typed in on an expense** can be added as a contact: "Add "Corner Taxi Stand" as a contact" under it, for roles that may add contacts. It opens the quick supplier form with the name filled in, and the new contact becomes the payee.
+- **Numbers typed by hand** (section 6), behind a new permission: Documents > Enter Numbers by Hand (`documents.number`).
+  - The Business Owner and Administrator hold it, and so do Manager roles made from now on. Roles made before get it when it is ticked.
+  - The Issue dialog on an invoice's or credit note's page, and the Record dialog on a purchase's or expense's page, have a Number field. Left empty, the document gets the next number, and so does one issued or recorded straight from its form.
+  - A typed number must not be on another document of its type: "INV-00002 is on another invoice already. Choose another number." It takes letters, digits, spaces and `. _ / -`, up to 40 characters.
+  - The next automatic number steps over one typed by hand.
+  - Quotations and proformas get the next number when sent, and payments always do.
+- **What a business may attach** (section 12), set in Admin > Settings > Files.
+  - Attachment types, from those izSuite takes, and Largest attachment, 1 to 50 MB (10 by default).
+  - Every record's attachments follow them: contacts, sales documents, purchases, expenses and payments. The file picker, the words under it ("PDF or PNG files, up to 5 MB each.") and the error ("Attach PDF or PNG files.") follow the admin's choice.
+  - Files attached already stay. Item images, digital files and signatures keep their own limits.
+- **Removing a file from a settled record** (section 12) needs the permission that undoes the record.
+  - Settled means a sales document issued or sent, a purchase or expense recorded, or a payment completed, and the same once voided, cancelled or reversed.
+  - Void for invoices, credit notes, purchases and expenses; Cancel for quotations and proformas; Reverse for payments. A draft's files go with editing it, as before.
+  - The record's page hides Remove from a role without it, and the API refuses it: "This invoice is issued. Removing its files needs the permission to void it."
+  - The Activity Log keeps the status: 'Removed attachment "signed-order.pdf" from invoice INV-2026/0042 (issued)'.
+- Checked in the browser:
+  - As the owner: an invoice issued as INV-2026/0042, typed by hand; a file attached to it and removed, logged with "(issued)"; a payee typed on an expense added as a supplier; Archive and Archived on contacts; Add Item on the lines.
+  - In the admin: the Files tab. Narrowed to PDF and PNG at 5 MB, the invoice's Attachments said so and refused a JPG with "Attach PDF or PNG files." The defaults were put back.
+  - Not checked in the browser, only by tests: the Number field when recording a purchase or expense, a role without Enter Numbers by Hand, and Remove hidden from a limited role.
+  - The test data was removed afterwards.
 
 **Suggested to leave, unless you say otherwise:**
 
@@ -291,7 +313,7 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 - Share links that expire. They stay until revoked.
 - Imports beyond contacts and items.
 
-### 3. Doc 15: izSuite System Administration Portal
+### 3. Doc 15: izSuite System Administration Portal (next: the gap check)
 
 It starts with a gap check, since much was built along the way. The admin panel exists (Clients with Login as, Menu Builder, Packages, apps, Subscription Invoices and Taxes, Payment Methods), but was never checked against this doc.
 
@@ -454,6 +476,7 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 14: Phase C, global search and the header | the commit after `395c349` | `3fcc76d` | |
 | Doc 14: Phase D, notes, comments and activity | the commit after `4ae5865` | `24085c5` | 000122, 000123 |
 | Doc 14: Phase E1, who and where from | the commit after `4bfb9c7` | `76b3aa3` | 000124 |
+| Doc 14: Phase E2, numbers, files and names | the commit after `8e38b43` | `b29f546` | |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -602,6 +625,9 @@ These are easy to undo by mistake.
 - The resources add `authors` (`added_by`, `added_at`, `changed_by`, `changed_at`) only where the record was read with them (`whenLoaded`). That is each record page's `find()` (`RecordAuthorRepository::load`), and the Locations list. Other lists stay as short as before.
 - The app that made a transaction is `source_app_id` on the three documents and three payments, set by the `MadeByApp` trait from the family's `workspace_apps` row. It is kept by catalog id, as apps are never named by `app_key` in records. It shows as `made_in` (and `made_by` on documents), loaded with the record's `SHOWN_WITH`.
 - A document's `exchange_rate_date` and `exchange_rate_source` (`business` or `transaction`, `ExchangeRate::SOURCE_*`) come from `ExchangeRateService::originOf`. They are worked out in each header builder and when `SalesDocumentFlow::issue` swaps in the current rate. `SalesConversionService` and `CreditNoteService` copy them from their source.
+- A number typed by hand (Doc 14 Phase E2) is checked by `DocumentNumbers::typed()`: the `documents.number` permission, then the type's `numberTaken` repository query. `SalesDocumentFlow::issue` (and `CreditNoteService::issue` through it), `PurchaseFlow::record` and `ExpenseFlow::record` put it on in place of `next()`. On the frontend, `useRecording` sends it again with a duplicate warning's answer.
+- The attachment limits are the `files_attachment_types` and `files_attachment_max_mb` settings, read through `App\Services\Files\FileLimits`. It narrows `FileCollection::Attachments` only, never past the code's own list or 50 MB. `UploadFilesRequest` checks uploads by it, and `GET /files/limits` (`FileLimitsResource`) serves it to `useFileLimits()`. The settings tab needed `files` in `SettingRepository::getGrouped`'s list of shown groups.
+- `FileRemovalRule` decides who may remove a settled record's file, from the record's class and status. `RecordFileService::remove` asks it first, so every attachment controller follows it. Pages pass `can-remove` to `RecordFilesPanel` with the same rule.
 - The frontend's location pick is `useLocationPick()`. It is shared state behind the `izsuite_location` cookie, and `''` means All Locations. A pick no longer offered (an inactive location, another business's) counts as All Locations. `forNewRecord()` waits for the locations list, so a form opened right after a reload still gets the pick.
 
 ## Small things left
@@ -627,6 +653,8 @@ Each of these is yours to settle.
 - Should a business over its plan's limits have a deadline to choose what stays active, after which izSuite chooses (the newest users and locations first)? Doc 13 does not say, so today it stays over, with nothing more added, until the owner chooses.
 - Should internal notes stay editable after a document is issued or recorded? Today they change only with the rest of the form, and comments carry anything later.
 - May a full-access role delete anyone's comment? Today only its author can, and comments are never edited.
+- Should Managers type document numbers by hand? Manager roles made from now on may, since a Manager holds everything outside Settings. Roles made before may not until it is ticked.
+- Should a completed payment's files need Reverse to be removed (built in E2)? The other way is to treat a payment's files like a draft's, under Record Payment.
 
 ## Deploying to a server
 

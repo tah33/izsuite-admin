@@ -44,6 +44,8 @@
             'billing_company_tax_id'   => __('Tax ID'),
             'billing_invoice_due_days' => __('Days to pay an invoice'),
             'billing_retry_days'       => __('Card retries in grace'),
+            'files_attachment_types'   => __('Attachment types'),
+            'files_attachment_max_mb'  => __('Largest attachment (MB)'),
         ];
 
         $helpTexts = [
@@ -51,6 +53,8 @@
             'billing_company_email'    => __('Printed on invoices, for questions about a bill.'),
             'billing_invoice_due_days' => __('An invoice without a trial is due this many days after it is issued. An invoice already issued keeps its own date.'),
             'billing_retry_days'       => __('Grace days, by number and separated by commas, on which a declined saved card is charged again. It is always tried on the last day of grace too.'),
+            'files_attachment_types'   => __('The file types a business may attach to its records, by extension and separated by commas, from those izSuite takes: :list.', ['list' => implode(', ', \App\Enums\FileCollection::Attachments->extensions())]),
+            'files_attachment_max_mb'  => __('Up to :max MB a file. Files attached already stay as they are.', ['max' => \App\Services\Files\FileLimits::MAX_ATTACHMENT_MB]),
             'smtp_enabled'      => __('When off, the app falls back to the mailer configured in .env. Your credentials below are kept either way.'),
             'smtp_host'         => __('e.g. smtp.gmail.com, smtp.mailgun.org, smtp-relay.brevo.com'),
             'smtp_port'         => __('587 for TLS, 465 for SSL, 25 for unencrypted.'),

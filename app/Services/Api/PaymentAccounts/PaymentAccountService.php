@@ -176,7 +176,7 @@ class PaymentAccountService
                 : ['is_active' => false, 'default_receiving' => false, 'default_payment' => false]);
         });
 
-        ActivityLogService::record('updated', ($active ? 'Activated' : 'Deactivated')." payment account {$this->quoted($account)}", $account, [
+        ActivityLogService::record('updated', ($active ? 'Restored' : 'Archived')." payment account {$this->quoted($account)}", $account, [
             'source' => 'api',
             'fields' => $account->wasChanged('is_active') ? ['is_active'] : [],
         ]);

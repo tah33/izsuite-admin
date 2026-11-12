@@ -58,8 +58,11 @@ class PurchaseFlow
         $this->checkReady($purchase);
         $this->checkDuplicates($workspace, $purchase, $duplicate);
 
+        // A number typed as it is recorded (Doc 14 section 14.6), checked before anything changes.
+        $typed = $this->documentNumbers->typed(DocumentType::Purchase, $duplicate['number'] ?? null, fn (string $taken) => $this->purchaseRepository->numberTaken($workspace, $taken));
+
         DB::transaction(fn () => $this->purchaseRepository->update($purchase, [
-            'number'            => $this->documentNumbers->next(
+            'number'            => $typed ?? $this->documentNumbers->next(
                 $workspace,
                 DocumentType::Purchase,
                 CarbonImmutable::parse($purchase->document_date),

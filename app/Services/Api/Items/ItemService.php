@@ -142,7 +142,7 @@ class ItemService
 
         $this->itemRepository->update($item, ['is_active' => $active]);
 
-        ActivityLogService::record('updated', ($active ? 'Activated' : 'Deactivated')." item {$this->quoted($item)}", $item, [
+        ActivityLogService::record('updated', ($active ? 'Restored' : 'Archived')." item {$this->quoted($item)}", $item, [
             'source' => 'api',
             'fields' => $item->wasChanged('is_active') ? ['is_active'] : [],
         ]);

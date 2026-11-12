@@ -129,7 +129,7 @@ class ContactController extends Controller
         $contact = $this->contactService->setActive($this->currentWorkspace($request), $id, $active);
 
         return response()->json([
-            'message' => $active ? 'Contact activated.' : 'Contact deactivated.',
+            'message' => $active ? 'Contact restored.' : 'Contact archived.',
             'data'    => new ContactResource($contact),
         ]);
     }

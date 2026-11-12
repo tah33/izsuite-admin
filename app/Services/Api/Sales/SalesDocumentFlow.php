@@ -66,10 +66,10 @@ class SalesDocumentFlow
      * $rate 'keep' - or at the business's rate for its date - 'current' - its
      * base figures then worked out again (Doc 08 sections 11 and 18).
      */
-    public function issue(Workspace $workspace, DocumentType $type, int $id, User $user, ?string $rate = null): SalesDocument
+    public function issue(Workspace $workspace, DocumentType $type, int $id, User $user, ?string $rate = null, ?string $number = null): SalesDocument
     {
         if ($type === DocumentType::CreditNote) {
-            return $this->creditNoteService->issue($workspace, $id, $user);
+            return $this->creditNoteService->issue($workspace, $id, $user, $number);
         }
 
         $document = $this->allowed($workspace, $type, $id, 'issue', 'Only a draft invoice can be issued.');
@@ -77,6 +77,7 @@ class SalesDocumentFlow
         $this->checkReady($workspace, $document);
 
         $current = $this->rateToIssueAt($workspace, $document, $rate);
+        $typed   = $this->documentNumbers->typed($document->type, $number, fn (string $taken) => $this->salesDocumentRepository->numberTaken($workspace, $document->type, $taken));
 
         DB::transaction(fn () => $this->salesDocumentRepository->update($document, [
             ...($current ? [
@@ -84,7 +85,7 @@ class SalesDocumentFlow
                 ...$this->exchangeRateService->originOf($workspace, $document->currency, $document->document_date, $current),
                 ...$this->salesCalculator->baseTotals((string) $document->grand_total, (string) $document->tax_total, $current),
             ] : []),
-            ...$this->numbered($workspace, $document),
+            ...$this->numbered($workspace, $document, $typed),
             'status'         => SalesDocumentStatus::Issued,
             'payment_status' => bccomp((string) $document->grand_total, '0', 2) > 0 ? SalesDocument::PAYMENT_UNPAID : 'paid',
             'balance_due'    => $document->grand_total,
@@ -186,14 +187,15 @@ class SalesDocumentFlow
     }
 
     /**
-     * Its number - the one it has, or the next - and the business and customer
-     * as they are now. Called inside the transaction that saves it, so a
-     * failed save gives the number back.
+     * Its number - the one it has, one typed as it is issued ($typed, checked
+     * already: Doc 14 section 14.6), or the next - and the business and
+     * customer as they are now. Called inside the transaction that saves it,
+     * so a failed save gives the number back.
      */
-    private function numbered(Workspace $workspace, SalesDocument $document): array
+    private function numbered(Workspace $workspace, SalesDocument $document, ?string $typed = null): array
     {
         return [
-            'number'            => $document->number ?? $this->documentNumbers->next(
+            'number'            => $document->number ?? $typed ?? $this->documentNumbers->next(
                 $workspace,
                 $document->type,
                 CarbonImmutable::parse($document->document_date),
