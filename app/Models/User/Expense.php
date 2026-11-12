@@ -68,6 +68,7 @@ class Expense extends Model
         'withholding_amount',
         'balance_due',
         'notes',
+        'internal_notes',
         'business_snapshot',
         'payee_snapshot',
         'template_snapshot',

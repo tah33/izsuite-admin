@@ -74,6 +74,7 @@ class ExpenseResource extends JsonResource
             'withholding_amount' => $this->withholding_amount,
             'balance_due'        => $this->balance_due,
             'notes'              => $this->notes,
+            'internal_notes'     => $this->internal_notes,
             'status_reason'      => $this->status_reason,
             'duplicate_reason'   => $this->duplicate_reason,
             'payments'           => ExpensePaymentListResource::collection($this->whenLoaded('payments')),

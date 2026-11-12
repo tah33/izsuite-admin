@@ -78,6 +78,7 @@ class SalesDocument extends Model
         'refunded_amount',
         'balance_due',
         'notes',
+        'internal_notes',
         'terms',
         'payment_instructions',
         'business_snapshot',

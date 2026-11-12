@@ -221,6 +221,7 @@ class PurchaseService
             'discount_type'           => $discount ? $data['discount_type'] : null,
             'discount_value'          => $discount ? (string) $data['discount_value'] : null,
             'notes'                   => $data['notes'] ?? null,
+            'internal_notes'          => $data['internal_notes'] ?? null,
         ];
     }
 

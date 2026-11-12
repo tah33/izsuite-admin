@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-12
-- **Code:** Doc 14 Phase C is committed: frontend `3fcc76d` on `nuxt`, and on `main` the admin commit right after `395c349`.
-- **Tests:** 701 backend tests pass (last full run 2026-11-12, on this code, on the second PC).
-- **Next step:** Doc 14 Phase D, notes, comments and activity (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
+- **Code:** Doc 14 Phase D is committed: frontend `24085c5` on `nuxt`, and on `main` the admin commit right after `4ae5865`.
+- **Tests:** 708 backend tests pass (last full run 2026-11-12, on this code, on the second PC).
+- **Next step:** Doc 14 Phase E, the smaller gaps (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
 
 Update this file at the end of every phase and commit it with that phase.
 
@@ -14,7 +14,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 14 Phase D.
+   > Read PROJECT_STATUS.md, then start Doc 14 Phase E.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -38,7 +38,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 11 | Business Setup and Settings | Done |
 | 12 | Users, Roles, Permissions and Locations | Done, except package change rules (Doc 13) |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
-| **14** | **Shared Platform Services** | **In progress: A, B and C done. D and E left** |
+| **14** | **Shared Platform Services** | **In progress: A to D done. E left** |
 | 15 | izSuite System Administration Portal | Not started as a doc, parts exist |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
@@ -168,7 +168,7 @@ On a server, the Stripe webhook needs two events: `checkout.session.completed` a
 
 **Careful:** the old `plans`, `subscriptions`, `invoices` and `payment_methods` tables and admin screens come from an earlier recruitment product. They work per user account, not per business, and do not fit Doc 13. Phase C replaces them rather than reusing them, except `payment_methods`, which holds Bank Transfer and, from Phase D2, Stripe's keys (encrypted).
 
-### 2. Doc 14: Shared Platform Services (next: Phase D)
+### 2. Doc 14: Shared Platform Services (next: Phase E)
 
 The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 
@@ -216,7 +216,7 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 - Sent by e-mail only, a notification stays out of the bell; by neither, it isn't made.
 - Usage limits (Doc 13 section 19), checked hourly for those with Manage Subscription, in the app and by e-mail: storage nearly full or full; users or active locations near their limit, at it, or past it after a move to a lower plan. Each state is told once while the limit stays the same. A limit of one that is simply reached isn't told, as on the Dashboard, since every Billing Starter business is at it.
 - E-mails go in the recipient's language where a translation exists (English for now).
-- Mentions come with comments in Phase D.
+- Mentions came with comments in Phase D, as a fifth kind: Comments and mentions.
 
 **Phase C: global search and the header** (sections 3 and 16) is built, with these defaults:
 
@@ -241,11 +241,22 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
   - As a Sales User limited to one location: another location's invoice not found, and the business's contacts found.
   - The test data was removed afterwards.
 
-**Phase D: notes, comments and activity** (section 14):
+**Phase D: notes, comments and activity** (section 14) is built, with these defaults:
 
-- Internal notes beside the document notes on sales documents, purchases and expenses. Internal notes never print.
-- Comments on sales documents, purchases and expenses, with mentions of the business's users, who are notified through Phase B.
-- An activity timeline on each record's page, from the Activity Log.
+- **Internal notes** sit beside the notes on sales documents (credit notes too), purchases and expenses. They never reach a PDF, print, e-mail or secure link. The record's page shows them in an Internal Notes card.
+  - They change like the rest of the form, so only while the record can be edited. A conversion copies them into the new document.
+  - The purchase and expense Notes field now says "Shown on its PDF", which it was all along.
+- **Comments** sit on the same three record pages, in a Comments and Activity card, oldest first.
+  - Anyone who may view the record reads and writes them, while its app is on. Only the author deletes one, and nobody edits them.
+  - "@" suggests the business's users who may also view the record at its location. They are told in the app and by e-mail, under a new Comments and mentions kind that each business and user can turn off.
+  - A mention's link opens the record at its comments.
+- **The activity timeline** is that card's Activity tab, newest first. It shows what was done to the record and its money, by whom and when. izSuite's own steps say "izSuite".
+  - The entries come from the Activity Log: the record's own, its payments' or refunds', the entry that made each document converted or credited from it, and comments written or deleted.
+  - Anyone who may view the record sees it. Without the app's values the amounts are taken out of the text ("Recorded payment RCT-00001 for invoice INV-00001"), and the previous and new values are left out.
+- Checked in the browser:
+  - As the owner: the Internal Notes field and card, and a comment mentioning a Sales User, which suggested only those who may view invoices. The timeline showed it.
+  - As that Sales User: the bell's notification opened the invoice at its comments, the owner's comment had no Delete, and "@" offered only the owner.
+  - The test data was removed afterwards.
 
 **Phase E: smaller gaps** (sections 4, 5, 6, 9, 12, 17 and 23):
 
@@ -427,6 +438,7 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 14: Phase B1, notifications and the bell | `b1b7656` | `44dfae2` | 000120 |
 | Doc 14: Phase B2, notification preferences and usage limits | `395c349` | `bbc981d` | 000121 |
 | Doc 14: Phase C, global search and the header | the commit after `395c349` | `3fcc76d` | |
+| Doc 14: Phase D, notes, comments and activity | the commit after `4ae5865` | `24085c5` | 000122, 000123 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -562,6 +574,13 @@ These are easy to undo by mistake.
   - It sends no amounts, so values permissions play no part, and it never matches by amount.
   - The queries are `GlobalSearchRepository`. Each result is `SearchResultResource`: `group`, `type`, `title`, `subtitle`, `status`, `date`, `location`, `app`, `archived` and `link`.
 - The navigation's `workspace.logo_url` is read on every `/navigation` (`NavigationBuilder::for`), outside its cache. A new logo replaces the old file without bumping `nav_version`, so a cached URL would break.
+- Internal notes (Doc 14 Phase D) are `internal_notes` on `sales_documents`, `purchases` and `expenses` (migration 000122). No sheet, snapshot or e-mail reads them. `SalesConversionService` copies them, and `SalesSnapshots` leaves them out.
+- Comments are `record_comments` (migration 000123), keyed by the record's morph class and id.
+  - `mentions` keeps `[{id, name}]` as they were written: a later rename does not change an old comment.
+  - `RecordCommentService` keeps only mentions of those `NotificationAudience::membersWithPermission` allows (the record's View permission at its location), and sends them `comments.mentioned`, keyed per comment.
+  - Writing and deleting are logged on the record, so they appear in its timeline.
+- `DiscussedRecords` finds the record for both features: the route's `family` default, a sales route's `{kind}`, and `{id}`. The routes are `.../activity` and `.../comments` (with `/people` and `/{commentId}`) under each app's own record routes. So `app`, `RoutePermissions` (the record's View) and `RouteRecords` (its location) guard them as they guard the record.
+- The timeline is `RecordActivityRepository`, from `activity_logs` by `model_type` and `model_id`, up to 100 entries. `RecordActivityService::withoutAmounts` takes "of USD 100.00" and "USD 10.00" out of the text for a role without the app's values.
 - The frontend's location pick is `useLocationPick()`. It is shared state behind the `izsuite_location` cookie, and `''` means All Locations. A pick no longer offered (an inactive location, another business's) counts as All Locations. `forNewRecord()` waits for the locations list, so a form opened right after a reload still gets the pick.
 
 ## Small things left
@@ -585,6 +604,8 @@ Each of these is yours to settle.
 - Who turns off someone's two-factor authentication when they lose both their phone and their recovery codes? Today nobody can; Doc 15's support tools would be the place.
 - Should View Activity Log keep needing every values and details permission (built in D2)? The other way is to mask them in the log, but masking cannot reach amounts written into an entry's text, such as "Recorded payment PAY-0001 of USD 100.00".
 - Should a business over its plan's limits have a deadline to choose what stays active, after which izSuite chooses (the newest users and locations first)? Doc 13 does not say, so today it stays over, with nothing more added, until the owner chooses.
+- Should internal notes stay editable after a document is issued or recorded? Today they change only with the rest of the form, and comments carry anything later.
+- May a full-access role delete anyone's comment? Today only its author can, and comments are never edited.
 
 ## Deploying to a server
 

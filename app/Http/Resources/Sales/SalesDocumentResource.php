@@ -95,6 +95,7 @@ class SalesDocumentResource extends JsonResource
             'balance_due'          => $this->balance_due,
             'refundable'           => $this->type === DocumentType::CreditNote ? $rules->refundable($this->resource) : null,
             'notes'                => $this->notes,
+            'internal_notes'       => $this->internal_notes,
             'terms'                => $this->terms,
             'payment_instructions' => $this->payment_instructions,
             'status_reason'        => $this->status_reason,

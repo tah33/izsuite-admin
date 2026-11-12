@@ -122,6 +122,7 @@ class SaveSalesDocumentRequest extends FormRequest
             'discount_type'          => ['nullable', Rule::in(['percent', 'amount'])],
             'discount_value'         => ['nullable', 'numeric', 'decimal:0,4', 'min:0', 'max:9999999999999.99'],
             'notes'                  => ['nullable', 'string', 'max:5000'],
+            'internal_notes'         => ['nullable', 'string', 'max:5000'],
             'terms'                  => ['nullable', 'string', 'max:10000'],
             'payment_instructions'   => ['nullable', 'string', 'max:5000'],
             'lines'                  => $draft ? ['nullable', 'array', 'max:200'] : ['required', 'array', 'min:1', 'max:200'],

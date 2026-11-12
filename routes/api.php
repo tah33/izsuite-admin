@@ -70,6 +70,8 @@ use App\Http\Controllers\Api\PurchaseFlowController;
 use App\Http\Controllers\Api\PurchaseFormController;
 use App\Http\Controllers\Api\PurchasePdfController;
 use App\Http\Controllers\Api\PurchaseSettingController;
+use App\Http\Controllers\Api\RecordActivityController;
+use App\Http\Controllers\Api\RecordCommentController;
 use App\Http\Controllers\Api\RegionalSettingController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\RoleController;
@@ -595,6 +597,13 @@ Route::prefix('v1')->group(function () {
             Route::get('/{id}/attachments', [SalesDocumentAttachmentController::class, 'index'])->whereNumber('id')->name('api.sales.attachments.index');
             Route::post('/{id}/attachments', [SalesDocumentAttachmentController::class, 'store'])->whereNumber('id')->name('api.sales.attachments.store');
             Route::delete('/{id}/attachments/{fileId}', [SalesDocumentAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.sales.attachments.destroy');
+
+            // Its comments and activity timeline (Doc 14 Phase D).
+            Route::get('/{id}/activity', RecordActivityController::class)->whereNumber('id')->defaults('family', 'sales')->name('api.sales.activity');
+            Route::get('/{id}/comments', [RecordCommentController::class, 'index'])->whereNumber('id')->defaults('family', 'sales')->name('api.sales.comments.index');
+            Route::get('/{id}/comments/people', [RecordCommentController::class, 'people'])->whereNumber('id')->defaults('family', 'sales')->name('api.sales.comments.people');
+            Route::post('/{id}/comments', [RecordCommentController::class, 'store'])->whereNumber('id')->defaults('family', 'sales')->middleware('idempotent')->name('api.sales.comments.store');
+            Route::delete('/{id}/comments/{commentId}', [RecordCommentController::class, 'destroy'])->whereNumber(['id', 'commentId'])->defaults('family', 'sales')->name('api.sales.comments.destroy');
         });
 
         // The kinds the sales document form makes and changes - a credit note is made from its invoice.
@@ -641,6 +650,13 @@ Route::prefix('v1')->group(function () {
         Route::get('/{id}/attachments', [PurchaseAttachmentController::class, 'index'])->whereNumber('id')->name('api.purchases.attachments.index');
         Route::post('/{id}/attachments', [PurchaseAttachmentController::class, 'store'])->whereNumber('id')->name('api.purchases.attachments.store');
         Route::delete('/{id}/attachments/{fileId}', [PurchaseAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.purchases.attachments.destroy');
+
+        // Its comments and activity timeline (Doc 14 Phase D).
+        Route::get('/{id}/activity', RecordActivityController::class)->whereNumber('id')->defaults('family', 'purchases')->name('api.purchases.activity');
+        Route::get('/{id}/comments', [RecordCommentController::class, 'index'])->whereNumber('id')->defaults('family', 'purchases')->name('api.purchases.comments.index');
+        Route::get('/{id}/comments/people', [RecordCommentController::class, 'people'])->whereNumber('id')->defaults('family', 'purchases')->name('api.purchases.comments.people');
+        Route::post('/{id}/comments', [RecordCommentController::class, 'store'])->whereNumber('id')->defaults('family', 'purchases')->middleware('idempotent')->name('api.purchases.comments.store');
+        Route::delete('/{id}/comments/{commentId}', [RecordCommentController::class, 'destroy'])->whereNumber(['id', 'commentId'])->defaults('family', 'purchases')->name('api.purchases.comments.destroy');
     });
 
     /* ----------------------------------------------------------
@@ -683,6 +699,13 @@ Route::prefix('v1')->group(function () {
             Route::get('/{id}/attachments', [ExpenseAttachmentController::class, 'index'])->whereNumber('id')->name('api.expenses.attachments.index');
             Route::post('/{id}/attachments', [ExpenseAttachmentController::class, 'store'])->whereNumber('id')->name('api.expenses.attachments.store');
             Route::delete('/{id}/attachments/{fileId}', [ExpenseAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.expenses.attachments.destroy');
+
+            // Its comments and activity timeline (Doc 14 Phase D).
+            Route::get('/{id}/activity', RecordActivityController::class)->whereNumber('id')->defaults('family', 'expenses')->name('api.expenses.activity');
+            Route::get('/{id}/comments', [RecordCommentController::class, 'index'])->whereNumber('id')->defaults('family', 'expenses')->name('api.expenses.comments.index');
+            Route::get('/{id}/comments/people', [RecordCommentController::class, 'people'])->whereNumber('id')->defaults('family', 'expenses')->name('api.expenses.comments.people');
+            Route::post('/{id}/comments', [RecordCommentController::class, 'store'])->whereNumber('id')->defaults('family', 'expenses')->middleware('idempotent')->name('api.expenses.comments.store');
+            Route::delete('/{id}/comments/{commentId}', [RecordCommentController::class, 'destroy'])->whereNumber(['id', 'commentId'])->defaults('family', 'expenses')->name('api.expenses.comments.destroy');
         });
     });
 

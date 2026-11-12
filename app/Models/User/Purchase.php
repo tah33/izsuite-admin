@@ -71,6 +71,7 @@ class Purchase extends Model
         'withholding_amount',
         'balance_due',
         'notes',
+        'internal_notes',
         'business_snapshot',
         'supplier_snapshot',
         'template_snapshot',

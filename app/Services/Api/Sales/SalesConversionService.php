@@ -99,7 +99,7 @@ class SalesConversionService
         return [
             ...$source->only([
                 'contact_id', 'location_id', 'currency', 'exchange_rate', 'price_tax_mode', 'tax_rounding', 'customer_reference',
-                'sales_reference', 'discount_type', 'discount_value', 'notes', 'terms', 'payment_instructions',
+                'sales_reference', 'discount_type', 'discount_value', 'notes', 'internal_notes', 'terms', 'payment_instructions',
             ]),
             'type'          => $to,
             'document_date' => $today,

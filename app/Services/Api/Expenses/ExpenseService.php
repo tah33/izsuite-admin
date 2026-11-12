@@ -229,6 +229,7 @@ class ExpenseService
             'receipt_number' => $data['receipt_number'] ?? null,
             'reference'      => $data['reference'] ?? null,
             'notes'          => $data['notes'] ?? null,
+            'internal_notes' => $data['internal_notes'] ?? null,
         ];
     }
 

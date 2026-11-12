@@ -25,6 +25,7 @@ class SaveCreditNoteRequest extends FormRequest
             'document_date'          => $preview ? ['sometimes'] : ['required', 'date_format:Y-m-d'],
             'reason'                 => $preview ? ['sometimes'] : ['required', 'string', 'max:500'],
             'notes'                  => ['nullable', 'string', 'max:5000'],
+            'internal_notes'         => ['nullable', 'string', 'max:5000'],
             'lines'                  => ['required', 'array', 'min:1', 'max:500'],
             'lines.*.source_line_id' => ['required', 'integer', 'distinct'],
             'lines.*.quantity'       => ['required', 'numeric', 'decimal:0,3', 'gt:0', 'max:9999999999'],

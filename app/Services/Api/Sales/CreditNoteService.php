@@ -232,6 +232,7 @@ class CreditNoteService
             'tax_rounding'   => $invoice->tax_rounding,
             'reason'         => $data['reason'],
             'notes'          => $data['notes'] ?? null,
+            'internal_notes' => $data['internal_notes'] ?? null,
             'source_id'      => $invoice->id,
         ];
     }

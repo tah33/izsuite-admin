@@ -25,10 +25,23 @@ class NotificationAudience
     /** @return Collection<int, User> */
     public function withPermission(Workspace $workspace, string $permission, ?int $locationId = null): Collection
     {
+        return $this->membersWithPermission($workspace, $permission, $locationId)
+            ->map(fn (WorkspaceMember $member) => $member->user)
+            ->values();
+    }
+
+    /**
+     * As withPermission(), their memberships, each with its user. This is
+     * for their names in the business, as a mention picks them (Doc 14
+     * Phase D).
+     *
+     * @return Collection<int, WorkspaceMember>
+     */
+    public function membersWithPermission(Workspace $workspace, string $permission, ?int $locationId = null): Collection
+    {
         return $this->members->getFor($workspace)
             ->filter(fn (WorkspaceMember $member) => $member->status === WorkspaceMember::ACTIVE && $member->user)
-            ->map(fn (WorkspaceMember $member) => $member->user)
-            ->filter(fn (User $user) => $this->access->allows($user, $workspace, $permission) && $this->reaches($user, $workspace, $locationId))
+            ->filter(fn (WorkspaceMember $member) => $this->access->allows($member->user, $workspace, $permission) && $this->reaches($member->user, $workspace, $locationId))
             ->values();
     }
 

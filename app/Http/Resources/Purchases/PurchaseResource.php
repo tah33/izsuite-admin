@@ -73,6 +73,7 @@ class PurchaseResource extends JsonResource
             'withholding_amount'      => $this->withholding_amount,
             'balance_due'             => $this->balance_due,
             'notes'                   => $this->notes,
+            'internal_notes'          => $this->internal_notes,
             'status_reason'           => $this->status_reason,
             'duplicate_reason'        => $this->duplicate_reason,
             'payments'                => SupplierPaymentListResource::collection($this->whenLoaded('payments')),

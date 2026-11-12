@@ -223,6 +223,7 @@ class SalesDocumentService
             'discount_type'        => $discount ? $data['discount_type'] : null,
             'discount_value'       => $discount ? (string) $data['discount_value'] : null,
             'notes'                => $data['notes'] ?? null,
+            'internal_notes'       => $data['internal_notes'] ?? null,
             'terms'                => $data['terms'] ?? null,
             'payment_instructions' => $data['payment_instructions'] ?? null,
         ];

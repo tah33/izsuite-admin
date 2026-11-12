@@ -74,6 +74,7 @@ class SavePurchaseRequest extends FormRequest
             'discount_type'           => ['nullable', Rule::in(['percent', 'amount'])],
             'discount_value'          => ['nullable', 'numeric', 'decimal:0,4', 'min:0', 'max:9999999999999.99'],
             'notes'                   => ['nullable', 'string', 'max:5000'],
+            'internal_notes'          => ['nullable', 'string', 'max:5000'],
             'lines'                   => ['required', 'array', 'min:1', 'max:200'],
             'lines.*.item_id'         => ['nullable', 'integer'],
             'lines.*.name'            => ['required', 'string', 'max:255'],

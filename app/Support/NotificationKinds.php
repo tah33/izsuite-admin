@@ -20,6 +20,7 @@ final class NotificationKinds
         'usage'        => ['Usage limits', "Users, active locations or storage nearly at, at or past the plan's limits.", false, true],
         'apps'         => ['Apps', 'Apps turned on or off.', false, false],
         'members'      => ['Users', 'Someone joining the business from an invitation.', false, true],
+        'comments'     => ['Comments and mentions', 'Someone mentioning you in a comment on a sales document, purchase or expense.', false, true],
     ];
 
     public static function of(string $trigger): string
