@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-12
-- **Code:** Doc 14 Phase D is committed: frontend `24085c5` on `nuxt`, and on `main` the admin commit right after `4ae5865`.
-- **Tests:** 708 backend tests pass (last full run 2026-11-12, on this code, on the second PC).
-- **Next step:** Doc 14 Phase E, the smaller gaps (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
+- **Code:** Doc 14 Phase E1 is committed: frontend `76b3aa3` on `nuxt`, and on `main` the admin commit right after `4bfb9c7`.
+- **Tests:** 713 backend tests pass (last full run 2026-11-12, on this code, on the second PC).
+- **Next step:** Doc 14 Phase E2: manual numbers, file limits, action names, an expense's payee as a contact (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
 
 Update this file at the end of every phase and commit it with that phase.
 
@@ -14,7 +14,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 14 Phase E.
+   > Read PROJECT_STATUS.md, then start Doc 14 Phase E2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -38,7 +38,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 11 | Business Setup and Settings | Done |
 | 12 | Users, Roles, Permissions and Locations | Done, except package change rules (Doc 13) |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
-| **14** | **Shared Platform Services** | **In progress: A to D done. E left** |
+| **14** | **Shared Platform Services** | **In progress: A to D and E1 done. E2 left** |
 | 15 | izSuite System Administration Portal | Not started as a doc, parts exist |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
@@ -168,7 +168,7 @@ On a server, the Stripe webhook needs two events: `checkout.session.completed` a
 
 **Careful:** the old `plans`, `subscriptions`, `invoices` and `payment_methods` tables and admin screens come from an earlier recruitment product. They work per user account, not per business, and do not fit Doc 13. Phase C replaces them rather than reusing them, except `payment_methods`, which holds Bank Transfer and, from Phase D2, Stripe's keys (encrypted).
 
-### 2. Doc 14: Shared Platform Services (next: Phase E)
+### 2. Doc 14: Shared Platform Services (next: Phase E2)
 
 The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 
@@ -258,13 +258,27 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
   - As that Sales User: the bell's notification opened the invoice at its comments, the owner's comment had no Delete, and "@" offered only the owner.
   - The test data was removed afterwards.
 
-**Phase E: smaller gaps** (sections 4, 5, 6, 9, 12, 17 and 23):
+**Phase E: smaller gaps** (sections 4, 5, 6, 9, 12, 17 and 23) was split on starting it (2026-11-12): E1, who and where from; E2, numbers, files and names.
 
-- Who created and last changed each contact, item, payment account and location, and the app that made each sales document, purchase, expense and payment.
+**Phase E1: who and where from** (sections 5, 9 and 17) is built, with these defaults:
+
+- **Who added and last changed** each contact, item, payment account and location. A line under the record page's title says it ("Added by Nadia Karim, 28 Oct 2026 · Last changed by Salma Uddin, 30 Oct 2026"), and so does the Edit Location dialog.
+  - Any save writes it down: a form, a deactivation, an import (put down to whoever started it).
+  - A location's creator was already kept as its user, and carried over.
+  - Records from before have nobody, and their line says only "Added" and the date.
+- **The app that made** each sales document, purchase, expense and payment: "Made In: Sales Lite by Nadia Karim" in a sales document's History and among a purchase's or expense's facts, and "Made In" among a payment's details. Everything made before was made by its family's Lite app.
+- **Where a document's exchange rate came from**, beside the rate on its page:
+  - "your rate of 01 Nov 2026": the business's own rate in force on its date, from Settings > Exchange Rates;
+  - "entered on it": a rate typed or changed on the document. Its date is the document's.
+  - It is worked out whenever the rate is saved, and again when an invoice is issued at the business's rate. A conversion and a credit note keep their source's.
+  - Payments are left out: a payment's rate is worked out from the amount paid and the amount it settles, not taken from a rate. Documents from before stay unknown and say nothing.
+- **The payment account transactions export** is logged like the others, with its filters.
+- Checked in the browser: a contact's added line, the Edit Location dialog's, and a EUR draft invoice whose rate the form filled from the business's rates ("your rate of 01 Nov 2026") and whose History says it was made in Sales Lite. The test data was removed afterwards.
+
+**Phase E2: numbers, files and names** (sections 4, 6, 12 and 23), with these defaults:
+
 - Manual document numbers, behind a permission and checked for uniqueness.
-- The exchange rate's date and source kept on each transaction.
 - File type and size limits set in the admin. Removing a file from an issued or completed record needs the permission to void it, and is logged with the record's status.
-- The payment account transactions export logged, like the others.
 - The action names of section 23: Create Quotation, Create Proforma Invoice, Create Invoice, Record Purchase and Add Item, and Archive and Restore in place of Deactivate and Activate.
 - On an expense, a payee typed in can be added as a contact.
 
@@ -439,6 +453,7 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 14: Phase B2, notification preferences and usage limits | `395c349` | `bbc981d` | 000121 |
 | Doc 14: Phase C, global search and the header | the commit after `395c349` | `3fcc76d` | |
 | Doc 14: Phase D, notes, comments and activity | the commit after `4ae5865` | `24085c5` | 000122, 000123 |
+| Doc 14: Phase E1, who and where from | the commit after `4bfb9c7` | `76b3aa3` | 000124 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -581,6 +596,12 @@ These are easy to undo by mistake.
   - Writing and deleting are logged on the record, so they appear in its timeline.
 - `DiscussedRecords` finds the record for both features: the route's `family` default, a sales route's `{kind}`, and `{id}`. The routes are `.../activity` and `.../comments` (with `/people` and `/{commentId}`) under each app's own record routes. So `app`, `RoutePermissions` (the record's View) and `RouteRecords` (its location) guard them as they guard the record.
 - The timeline is `RecordActivityRepository`, from `activity_logs` by `model_type` and `model_id`, up to 100 entries. `RecordActivityService::withoutAmounts` takes "of USD 100.00" and "USD 10.00" out of the text for a role without the app's values.
+- Who added and last changed a shared record (Doc 14 Phase E1, migration 000124) is `created_by` and `updated_by`. They are on `contacts`, `items`, `payment_accounts` and `locations`, written by the `RecordsAuthors` model trait on every create and update.
+  - The trait asks `App\Support\Authors::current()`: the signed-in user, or whoever `Authors::as()` names. `ImportService::runNext` runs each import row as the import's user.
+  - Transactions kept their own `created_by` and `updated_by` already, set by their services. `HasAuthors` gives them the `creator` and `updater` relations.
+- The resources add `authors` (`added_by`, `added_at`, `changed_by`, `changed_at`) only where the record was read with them (`whenLoaded`). That is each record page's `find()` (`RecordAuthorRepository::load`), and the Locations list. Other lists stay as short as before.
+- The app that made a transaction is `source_app_id` on the three documents and three payments, set by the `MadeByApp` trait from the family's `workspace_apps` row. It is kept by catalog id, as apps are never named by `app_key` in records. It shows as `made_in` (and `made_by` on documents), loaded with the record's `SHOWN_WITH`.
+- A document's `exchange_rate_date` and `exchange_rate_source` (`business` or `transaction`, `ExchangeRate::SOURCE_*`) come from `ExchangeRateService::originOf`. They are worked out in each header builder and when `SalesDocumentFlow::issue` swaps in the current rate. `SalesConversionService` and `CreditNoteService` copy them from their source.
 - The frontend's location pick is `useLocationPick()`. It is shared state behind the `izsuite_location` cookie, and `''` means All Locations. A pick no longer offered (an inactive location, another business's) counts as All Locations. `forNewRecord()` waits for the locations list, so a form opened right after a reload still gets the pick.
 
 ## Small things left

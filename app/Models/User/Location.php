@@ -2,6 +2,7 @@
 
 namespace App\Models\User;
 
+use App\Models\Concerns\RecordsAuthors;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -15,6 +16,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  */
 class Location extends Model
 {
+    use RecordsAuthors;
+
     protected $fillable = [
         'user_id',
         'workspace_id',

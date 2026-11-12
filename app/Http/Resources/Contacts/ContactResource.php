@@ -65,6 +65,14 @@ class ContactResource extends JsonResource
             'tax_exemption_number'     => $this->tax_exemption_number,
             'notes'                    => $this->notes,
             'is_active'                => $this->is_active,
+
+            // Who added it and who last changed it (Doc 14 section 14.5), where it was read with them
+            'authors' => $this->whenLoaded('creator', fn () => [
+                'added_by'   => $this->creator?->name,
+                'added_at'   => $this->created_at?->toIso8601String(),
+                'changed_by' => $this->updater?->name,
+                'changed_at' => $this->updated_at?->toIso8601String(),
+            ]),
             'in_use'                   => (bool) ($this->in_sales ?? false) || (bool) ($this->in_purchases ?? false) || (bool) ($this->in_expenses ?? false),
             'in_sales'                 => (bool) ($this->in_sales ?? false),
             'in_purchases'             => (bool) ($this->in_purchases ?? false),

@@ -4,6 +4,7 @@ namespace App\Models\User;
 
 use App\Enums\TaxTreatment;
 use App\Models\Concerns\HasFiles;
+use App\Models\Concerns\RecordsAuthors;
 use App\Services\User\Workspaces\WorkspaceSequence;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -25,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Contact extends Model
 {
     use HasFiles;
+    use RecordsAuthors;
 
     public const TYPE_BUSINESS = 'business';
 

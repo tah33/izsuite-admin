@@ -5,6 +5,7 @@ namespace App\Repositories\User;
 use App\Models\User\Location;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceMember;
+use App\Repositories\Shared\RecordAuthorRepository;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -40,6 +41,7 @@ class LocationRepository
             ->count();
 
         return $workspace->locations()
+            ->with(RecordAuthorRepository::WITH)
             ->when($ids !== null, fn (Builder $query) => $query->whereIn('locations.id', $ids))
             ->withCount(['members as chosen_count' => fn (Builder $query) => $query
                 ->whereIn('workspace_members.status', WorkspaceMember::COUNTED)

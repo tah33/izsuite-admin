@@ -47,6 +47,15 @@ class ExpenseResource extends JsonResource
             'version' => EditConflicts::version($this->resource),
             'number'             => $this->number,
             'status'             => $this->status->value,
+
+            // The app that made it, and who (Doc 14 section 14.5), where it was read with them
+            'made_in' => $this->whenLoaded('sourceApp', fn () => $this->sourceApp?->name),
+            'made_by' => $this->whenLoaded('creator', fn () => $this->creator?->name),
+
+            // Where its exchange rate came from (Doc 14 section 14.9): the business's own rates of that date, or entered on it
+            'exchange_rate_date'   => $this->exchange_rate_date,
+            'exchange_rate_source' => $this->exchange_rate_source,
+
             'payment_status'     => $this->payment_status,
             'overdue'            => $rules->overdue($this->resource, $this->today),
             'actions'            => app(AllowedActions::class)->record('expenses.expenses', $rules->actions($this->resource)),

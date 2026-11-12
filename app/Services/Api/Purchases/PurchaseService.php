@@ -2,6 +2,7 @@
 
 namespace App\Services\Api\Purchases;
 
+use App\Services\Api\BusinessSetup\ExchangeRateService;
 use App\Services\Shared\EditConflicts;
 use App\Enums\PurchaseStatus;
 use App\Models\User\Purchase;
@@ -52,6 +53,7 @@ class PurchaseService
         protected PurchaseRules $purchaseRules,
         protected BusinessCalendar $businessCalendar,
         protected WorkspaceAccess $access,
+        protected ExchangeRateService $exchangeRateService,
     ) {}
 
     /** The business's today, which overdue is measured by: "2026-10-28". */
@@ -206,6 +208,7 @@ class PurchaseService
     {
         $discount = ($data['discount_type'] ?? null) && ! Decimal::isZero(isset($data['discount_value']) ? (string) $data['discount_value'] : null);
         $terms    = $this->paymentTerms($workspace, $data);
+        $rate     = $data['currency'] === $workspace->base_currency ? '1' : (string) $data['exchange_rate'];
 
         return [
             'contact_id'              => $data['contact_id'],
@@ -214,7 +217,8 @@ class PurchaseService
             'due_date'                => $data['due_date'] ?? CarbonImmutable::parse($data['document_date'])->addDays($terms)->toDateString(),
             'payment_terms'           => $terms,
             'currency'                => $data['currency'],
-            'exchange_rate'           => $data['currency'] === $workspace->base_currency ? '1' : (string) $data['exchange_rate'],
+            'exchange_rate'           => $rate,
+            ...$this->exchangeRateService->originOf($workspace, $data['currency'], $data['document_date'], $rate),
             'supplier_invoice_number' => $data['supplier_invoice_number'] ?? null,
             'supplier_invoice_date'   => $data['supplier_invoice_date'] ?? null,
             'reference'               => $data['reference'] ?? null,

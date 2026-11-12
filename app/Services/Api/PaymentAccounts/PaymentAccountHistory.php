@@ -6,6 +6,7 @@ use App\Models\User\AccountTransaction;
 use App\Models\User\PaymentAccount;
 use App\Models\User\Workspace;
 use App\Repositories\User\AccountTransactionRepository;
+use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\WorkspaceAccess;
 use App\Support\Csv;
 use App\Support\Decimal;
@@ -44,6 +45,12 @@ class PaymentAccountHistory
     {
         $account = $this->paymentAccountService->find($workspace, $accountId);
         $rows    = $this->accountTransactionRepository->allFor($account, [...$filters, 'location_ids' => $this->access->locations()]);
+
+        // Logged like every other export (Doc 14 section 14.17): what was taken, and with which filters.
+        ActivityLogService::record('exported', "Exported {$rows->count()} transactions of payment account {$account->name}", $account, [
+            'source'  => 'api',
+            'filters' => array_filter($filters, fn ($value) => $value !== null && $value !== ''),
+        ]);
 
         return Csv::download(
             Str::slug($account->name).'-transactions.csv',

@@ -2,6 +2,7 @@
 
 namespace App\Services\Api\Expenses;
 
+use App\Services\Api\BusinessSetup\ExchangeRateService;
 use App\Services\Shared\EditConflicts;
 use App\Enums\ExpenseStatus;
 use App\Models\User\Expense;
@@ -53,6 +54,7 @@ class ExpenseService
         protected ExpenseRules $expenseRules,
         protected BusinessCalendar $businessCalendar,
         protected WorkspaceAccess $access,
+        protected ExchangeRateService $exchangeRateService,
     ) {}
 
     /** The business's today, which overdue is measured by: "2026-10-28". */
@@ -216,6 +218,7 @@ class ExpenseService
     {
         $terms   = $this->paymentTerms($workspace, $data);
         $contact = $data['contact_id'] ?? null;
+        $rate     = $data['currency'] === $workspace->base_currency ? '1' : (string) $data['exchange_rate'];
 
         return [
             'contact_id'     => $contact,
@@ -225,7 +228,8 @@ class ExpenseService
             'due_date'       => $data['due_date'] ?? CarbonImmutable::parse($data['document_date'])->addDays($terms)->toDateString(),
             'payment_terms'  => $terms,
             'currency'       => $data['currency'],
-            'exchange_rate'  => $data['currency'] === $workspace->base_currency ? '1' : (string) $data['exchange_rate'],
+            'exchange_rate'  => $rate,
+            ...$this->exchangeRateService->originOf($workspace, $data['currency'], $data['document_date'], $rate),
             'receipt_number' => $data['receipt_number'] ?? null,
             'reference'      => $data['reference'] ?? null,
             'notes'          => $data['notes'] ?? null,

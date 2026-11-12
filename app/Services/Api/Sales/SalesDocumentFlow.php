@@ -79,7 +79,11 @@ class SalesDocumentFlow
         $current = $this->rateToIssueAt($workspace, $document, $rate);
 
         DB::transaction(fn () => $this->salesDocumentRepository->update($document, [
-            ...($current ? ['exchange_rate' => $current, ...$this->salesCalculator->baseTotals((string) $document->grand_total, (string) $document->tax_total, $current)] : []),
+            ...($current ? [
+                'exchange_rate' => $current,
+                ...$this->exchangeRateService->originOf($workspace, $document->currency, $document->document_date, $current),
+                ...$this->salesCalculator->baseTotals((string) $document->grand_total, (string) $document->tax_total, $current),
+            ] : []),
             ...$this->numbered($workspace, $document),
             'status'         => SalesDocumentStatus::Issued,
             'payment_status' => bccomp((string) $document->grand_total, '0', 2) > 0 ? SalesDocument::PAYMENT_UNPAID : 'paid',

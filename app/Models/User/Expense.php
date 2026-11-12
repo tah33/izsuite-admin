@@ -4,7 +4,9 @@ namespace App\Models\User;
 
 use App\Enums\ExpenseStatus;
 use App\Models\Concerns\AtLocation;
+use App\Models\Concerns\HasAuthors;
 use App\Models\Concerns\HasFiles;
+use App\Models\Concerns\MadeByApp;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -29,7 +31,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Expense extends Model
 {
     use AtLocation;
+    use HasAuthors;
     use HasFiles;
+    use MadeByApp;
+
+    /** The family whose app makes them (MadeByApp). */
+    protected const APP_FAMILY = 'expenses';
 
     public const PAYMENT_NOT_APPLICABLE = 'not_applicable';
 
@@ -52,6 +59,8 @@ class Expense extends Model
         'payment_terms',
         'currency',
         'exchange_rate',
+        'exchange_rate_date',
+        'exchange_rate_source',
         'price_tax_mode',
         'tax_rounding',
         'receipt_number',

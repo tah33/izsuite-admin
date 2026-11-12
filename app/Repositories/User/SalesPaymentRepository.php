@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Collection;
 class SalesPaymentRepository
 {
     /** What a receipt's page shows with it. */
-    private const SHOWN_WITH = ['document:id,type,number,currency,grand_total,balance_due,source_id', 'contact:id,name', 'account:id,name,currency', 'creator:id,first_name,last_name', 'reverser:id,first_name,last_name', 'emails.sender:id,first_name,last_name'];
+    private const SHOWN_WITH = ['document:id,type,number,currency,grand_total,balance_due,source_id', 'contact:id,name', 'account:id,name,currency', 'creator:id,first_name,last_name', 'reverser:id,first_name,last_name', 'sourceApp:id,name', 'emails.sender:id,first_name,last_name'];
 
     /**
      * Payments Received (Doc 08 section 2): payments only unless $filters

@@ -35,6 +35,13 @@ class LocationResource extends JsonResource
             'country'         => $this->country,
             'timezone'        => $this->timezone,
             'document_header' => $this->document_header,
+            // Who added it and who last changed it (Doc 14 section 14.5), where it was read with them
+            'authors' => $this->whenLoaded('creator', fn () => [
+                'added_by'   => $this->creator?->name,
+                'added_at'   => $this->created_at?->toIso8601String(),
+                'changed_by' => $this->updater?->name,
+                'changed_at' => $this->updated_at?->toIso8601String(),
+            ]),
         ];
     }
 }

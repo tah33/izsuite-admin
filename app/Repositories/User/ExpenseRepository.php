@@ -24,7 +24,7 @@ use Illuminate\Support\LazyCollection;
 class ExpenseRepository
 {
     /** What an expense's page and edit form show with it - its payments with the account each came out of. */
-    private const SHOWN_WITH = ['lines', 'contact', 'location:id,name', 'payments.account:id,name,currency'];
+    private const SHOWN_WITH = ['lines', 'contact', 'location:id,name', 'payments.account:id,name,currency', 'sourceApp:id,name', 'creator:id,first_name,last_name'];
 
     public function paginateFor(Workspace $workspace, array $filters, int $perPage, string $today): LengthAwarePaginator
     {

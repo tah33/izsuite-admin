@@ -5,6 +5,7 @@ namespace App\Services\Api\Contacts;
 use App\Services\Shared\EditConflicts;
 use App\Models\User\Contact;
 use App\Models\User\Workspace;
+use App\Repositories\Shared\RecordAuthorRepository;
 use App\Repositories\User\ContactRepository;
 use App\Repositories\User\ExpenseRepository;
 use App\Repositories\User\PurchaseRepository;
@@ -25,6 +26,7 @@ class ContactService
         protected PurchaseRepository $purchaseRepository,
         protected ExpenseRepository $expenseRepository,
         protected WorkspaceAccess $access,
+        protected RecordAuthorRepository $recordAuthorRepository,
     ) {}
 
     /** The tax ID is searched only while the business uses taxes (Doc 03 section 3). */
@@ -33,9 +35,10 @@ class ContactService
         return $this->contactRepository->paginateFor($workspace, $filters, $perPage, $workspace->usesTaxes() && $this->access->can('taxes.view'));
     }
 
+    /** For its own page: with who added it and who last changed it (Doc 14 section 14.5). */
     public function find(Workspace $workspace, int $id): Contact
     {
-        return $this->findOwned($workspace, $id);
+        return $this->recordAuthorRepository->load($this->findOwned($workspace, $id));
     }
 
     /**

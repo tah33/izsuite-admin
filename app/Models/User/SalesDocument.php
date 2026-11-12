@@ -5,7 +5,9 @@ namespace App\Models\User;
 use App\Enums\DocumentType;
 use App\Enums\SalesDocumentStatus;
 use App\Models\Concerns\AtLocation;
+use App\Models\Concerns\HasAuthors;
 use App\Models\Concerns\HasFiles;
+use App\Models\Concerns\MadeByApp;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -35,7 +37,12 @@ use Illuminate\Database\Eloquent\Relations\MorphOne;
 class SalesDocument extends Model
 {
     use AtLocation;
+    use HasAuthors;
     use HasFiles;
+    use MadeByApp;
+
+    /** The family whose app makes them (MadeByApp). */
+    protected const APP_FAMILY = 'sales';
 
     public const PAYMENT_NOT_APPLICABLE = 'not_applicable';
 
@@ -56,6 +63,8 @@ class SalesDocument extends Model
         'payment_terms',
         'currency',
         'exchange_rate',
+        'exchange_rate_date',
+        'exchange_rate_source',
         'price_tax_mode',
         'tax_rounding',
         'customer_reference',

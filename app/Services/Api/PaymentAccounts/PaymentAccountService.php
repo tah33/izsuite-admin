@@ -5,6 +5,7 @@ namespace App\Services\Api\PaymentAccounts;
 use App\Services\Shared\EditConflicts;
 use App\Models\User\PaymentAccount;
 use App\Models\User\Workspace;
+use App\Repositories\Shared\RecordAuthorRepository;
 use App\Repositories\User\AccountTransactionRepository;
 use App\Repositories\User\PaymentAccountRepository;
 use App\Services\Shared\ActivityLogService;
@@ -43,6 +44,7 @@ class PaymentAccountService
         protected PaymentAccountRepository $paymentAccountRepository,
         protected AccountTransactionRepository $accountTransactionRepository,
         protected WorkspaceAccess $access,
+        protected RecordAuthorRepository $recordAuthorRepository,
     ) {}
 
     /** Every account, each with its recorded balance and whether money has moved through it. */
@@ -58,7 +60,8 @@ class PaymentAccountService
     /** One account, with its recorded balance. Another business's answers like one that does not exist. */
     public function find(Workspace $workspace, int $id): PaymentAccount
     {
-        $account = $this->findOwned($workspace, $id);
+        // With who added it and who last changed it, for its own page (Doc 14 section 14.5).
+        $account = $this->recordAuthorRepository->load($this->findOwned($workspace, $id));
 
         return $this->withBalance($account, $this->accountTransactionRepository->netFor($account), $this->accountTransactionRepository->existsFor($account));
     }

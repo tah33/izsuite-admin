@@ -4,6 +4,7 @@ namespace App\Models\User;
 
 use App\Models\Concerns\AtLocation;
 use App\Models\Concerns\HasFiles;
+use App\Models\Concerns\MadeByApp;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -27,6 +28,10 @@ class SupplierPayment extends Model
 {
     use AtLocation;
     use HasFiles;
+    use MadeByApp;
+
+    /** The family whose app makes them (MadeByApp). */
+    protected const APP_FAMILY = 'purchases';
 
     public const COMPLETED = 'completed';
 

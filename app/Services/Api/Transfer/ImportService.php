@@ -12,6 +12,7 @@ use App\Repositories\User\ImportRepository;
 use App\Repositories\User\UserRepository;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\WorkspaceAccess;
+use App\Support\Authors;
 use App\Support\Csv;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -318,11 +319,12 @@ class ImportService
             }
 
             try {
-                DB::transaction(function () use ($row, $transfer, $workspace) {
+                // Added by whoever started the import (Doc 14 section 14.5): the job has nobody signed in.
+                Authors::as($import->user_id, fn () => DB::transaction(function () use ($row, $transfer, $workspace) {
                     $record = $transfer->create($workspace, $row->data);
 
                     $this->importRepository->updateRow($row, ['outcome' => ImportRow::CREATED, 'record_id' => $record->getKey()]);
-                });
+                }));
             } catch (\Throwable $e) {
                 report($e);
                 $this->importRepository->updateRow($row, ['outcome' => ImportRow::FAILED, 'message' => 'It could not be added - most likely something in it changed since the check. Add it from the form.']);

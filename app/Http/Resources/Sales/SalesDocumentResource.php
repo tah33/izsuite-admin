@@ -114,6 +114,14 @@ class SalesDocumentResource extends JsonResource
             'delivery'             => app(AllowedActions::class)->delivery($this->type, $rules->delivery($this->resource, $this->today)),
             'link'                 => $this->activeLink ? new DocumentLinkResource(['link' => $this->activeLink, 'url' => app(DocumentLinks::class)->url($this->activeLink)]) : null,
             'emails'               => DocumentEmailResource::collection($this->emails),
+
+            // The app that made it, and who (Doc 14 section 14.5), where it was read with them
+            'made_in' => $this->whenLoaded('sourceApp', fn () => $this->sourceApp?->name),
+            'made_by' => $this->whenLoaded('creator', fn () => $this->creator?->name),
+
+            // Where its exchange rate came from (Doc 14 section 14.9): the business's own rates of that date, or entered on it
+            'exchange_rate_date'   => $this->exchange_rate_date,
+            'exchange_rate_source' => $this->exchange_rate_source,
         ], self::VALUES);
     }
 

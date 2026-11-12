@@ -228,6 +228,8 @@ class CreditNoteService
             'document_date'  => $data['document_date'],
             'currency'       => $invoice->currency,
             'exchange_rate'  => (string) $invoice->exchange_rate,
+            'exchange_rate_date'   => $invoice->exchange_rate_date,
+            'exchange_rate_source' => $invoice->exchange_rate_source,
             'price_tax_mode' => $invoice->price_tax_mode,
             'tax_rounding'   => $invoice->tax_rounding,
             'reason'         => $data['reason'],

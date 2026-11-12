@@ -38,6 +38,7 @@ class SalesDocumentRepository
         'creditNotes:id,source_id,type,number,status,document_date,grand_total,applied_amount,refunded_amount,balance_due,payment_status',
         'payments.account:id,name,currency',
         'activeLink', 'emails.sender:id,first_name,last_name',
+        'sourceApp:id,name', 'creator:id,first_name,last_name',
     ];
 
     public function paginateFor(Workspace $workspace, DocumentType $type, array $filters, int $perPage, string $today): LengthAwarePaginator

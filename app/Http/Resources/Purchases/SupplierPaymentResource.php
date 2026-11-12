@@ -44,6 +44,8 @@ class SupplierPaymentResource extends JsonResource
             ], ['amount']) : null,
             'balance_after'   => $this->balance_after,
             'recorded_by'     => $this->creator ? trim("{$this->creator->first_name} {$this->creator->last_name}") : null,
+            // The app that made it (Doc 14 section 14.5)
+            'made_in'         => $this->whenLoaded('sourceApp', fn () => $this->sourceApp?->name),
             'reversed_at'     => $this->reversed_at?->toIso8601String(),
             'reversed_by'     => $this->reverser ? trim("{$this->reverser->first_name} {$this->reverser->last_name}") : null,
             'reversal_reason' => $this->reversal_reason,
