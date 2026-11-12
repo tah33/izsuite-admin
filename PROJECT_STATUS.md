@@ -2,10 +2,10 @@
 
 What is done, what comes next, and how to carry on from another PC.
 
-- **Last updated:** 2026-11-09
-- **Code:** Doc 14 Phase B2 is committed: frontend `bbc981d` on `nuxt`, and on `main` the admin commit right after `b1b7656`.
-- **Tests:** 693 backend tests pass (last full run 2026-11-09, on this code).
-- **Next step:** Doc 14 Phase C, global search and the header (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
+- **Last updated:** 2026-11-12
+- **Code:** Doc 14 Phase C is committed: frontend `3fcc76d` on `nuxt`, and on `main` the admin commit right after `395c349`.
+- **Tests:** 701 backend tests pass (last full run 2026-11-12, on this code, on the second PC).
+- **Next step:** Doc 14 Phase D, notes, comments and activity (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
 
 Update this file at the end of every phase and commit it with that phase.
 
@@ -14,7 +14,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 14 Phase C.
+   > Read PROJECT_STATUS.md, then start Doc 14 Phase D.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -38,7 +38,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 11 | Business Setup and Settings | Done |
 | 12 | Users, Roles, Permissions and Locations | Done, except package change rules (Doc 13) |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
-| **14** | **Shared Platform Services** | **In progress: A and B done. C to E left** |
+| **14** | **Shared Platform Services** | **In progress: A, B and C done. D and E left** |
 | 15 | izSuite System Administration Portal | Not started as a doc, parts exist |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
@@ -168,7 +168,7 @@ On a server, the Stripe webhook needs two events: `checkout.session.completed` a
 
 **Careful:** the old `plans`, `subscriptions`, `invoices` and `payment_methods` tables and admin screens come from an earlier recruitment product. They work per user account, not per business, and do not fit Doc 13. Phase C replaces them rather than reusing them, except `payment_methods`, which holds Bank Transfer and, from Phase D2, Stripe's keys (encrypted).
 
-### 2. Doc 14: Shared Platform Services (next: Phase C)
+### 2. Doc 14: Shared Platform Services (next: Phase D)
 
 The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 
@@ -218,11 +218,28 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 - E-mails go in the recipient's language where a translation exists (English for now).
 - Mentions come with comments in Phase D.
 
-**Phase C: global search and the header** (sections 3 and 16):
+**Phase C: global search and the header** (sections 3 and 16) is built, with these defaults:
 
-- A search box in the header finding contacts (name, phone, e-mail), items (name, SKU, barcode), documents, purchases and expenses (number, reference) and payments (reference), as the user's apps, role and locations allow. Each result shows its type, name or number, status, date, location and app; archived ones are marked.
-- The business's logo beside its name, and a Help link.
-- The location picker hidden when there is only one location. The location picked is used for new records, the Dashboard and reports.
+- **Global Search.** A search box sits in the header. On narrower screens it is a button that opens the box over the bar. Ctrl K (⌘K on a Mac) jumps to it from anywhere. From two characters typed, it finds:
+  - contacts by name, trading name, contact person, e-mail, contact number or phone. A phone typed with other spaces or dashes still matches, since only its digits are compared.
+  - items by name, SKU, barcode or item number.
+  - quotations, proformas, invoices and credit notes by number or customer or sales reference; purchases by number, reference or supplier invoice number; expenses by number, reference or receipt number.
+  - customer payments and refunds, supplier payments and expense payments by number or reference.
+- Results are grouped by kind, at most 5 of each. Each shows its name or number, its type, who it is for, its date, location, app and status, and opens its record. The arrow keys and Enter work. Archived contacts and items are marked and come after active ones.
+- A kind comes only when the role may view it. Transactions come only from the user's locations. Records stay findable after their app is turned off, like the Documents page.
+- **The header** shows the business's logo beside its name (hidden on phones), and a Help button that opens the Contact page (FAQ and contact form) in a new tab.
+- **The location picker** lists the user's active locations, after All Locations. It is hidden while there is one location or none. A pick:
+  - is where new sales documents, purchases and expenses start, in place of the user's default location;
+  - is what the Dashboard and the reports open on, and they follow a new pick. Their own location filters still narrow one view;
+  - is cleared when another business is picked.
+
+  It is kept in the `izsuite_location` cookie as before.
+- Checked in the browser:
+  - As the owner: search by name, phone, SKU and a sales reference, the arrow keys and Enter, nothing found, the narrow-screen button and Ctrl K.
+  - A new invoice starting at the picked location, after a reload too. The Dashboard and a report opening on the pick, and following All Locations again.
+  - The logo beside the name, and the picker gone with one active location.
+  - As a Sales User limited to one location: another location's invoice not found, and the business's contacts found.
+  - The test data was removed afterwards.
 
 **Phase D: notes, comments and activity** (section 14):
 
@@ -339,6 +356,10 @@ docker compose up -d
 - The first PC reaches GitHub through an SSH alias, `github-personal`. Either add the same alias or use the `github.com` addresses above.
 - Keep the two repos in sibling folders. The rules in `CLAUDE.md` refer to `../izsuite-antigravity`.
 - Admin: http://localhost:8000 (`/login`). Frontend: http://localhost:3000.
+- **The second PC** (set up 2026-11-12) differs in three ways:
+  - The folders are `D:\projects\izsuite\izsuite-backend` and `D:\projects\izsuite\izsuite-frontend`.
+  - Other projects hold port 8000, so the API is on 8010. The admin's `.env` has `APP_PORT=8010` and `APP_URL=http://localhost:8010`, and the frontend's has `NUXT_PUBLIC_API_BASE=http://localhost:8010`.
+  - The requirements PDF is `D:\project docs\izSuite Software Product Requirements  Version 10_261030_202704.pdf`.
 
 **To bring the same test data,** run the first command on the old PC and the second on the new one. Uploaded images and attachments are not in the dump, so some may be missing.
 
@@ -404,7 +425,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 13: Phase D3, automatic card charges | the commit after `cca298d` | `b41141a` | 000118 |
 | Doc 14: Phase A, safe saving | the commit after `28761a3` | `17afdd5` | 000119 |
 | Doc 14: Phase B1, notifications and the bell | `b1b7656` | `44dfae2` | 000120 |
-| Doc 14: Phase B2, notification preferences and usage limits | the commit after `b1b7656` | `bbc981d` | 000121 |
+| Doc 14: Phase B2, notification preferences and usage limits | `395c349` | `bbc981d` | 000121 |
+| Doc 14: Phase C, global search and the header | the commit after `395c349` | `3fcc76d` | |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -534,13 +556,19 @@ These are easy to undo by mistake.
 - Notification e-mails are sent with `Mail::locale()` in the user's language, English for now.
 - The bell: `GET /notifications`, `GET /notifications/unread` (counted every minute and when the window comes back), `POST /notifications/{id}/read` and `POST /notifications/read`. They are open to every member, and each user sees only their own.
 - `/profile` answers in the usual envelopes, and the signed-in user (`UserResource`) carries only their name, e-mail, phone, image, language and time zone.
+- Global Search (Doc 14 Phase C) is `GET /search?q=`:
+  - It is open to every member (`RoutePermissions::MEMBER`) and throttled to 120 a minute. `GlobalSearchService` keeps each kind to the role's View permission (sales kinds through `WorkspaceAccess::viewable`), and transactions to `WorkspaceAccess::locations()` (`atLocations`).
+  - A family's records come while its app has a `workspace_apps` row (`WorkspaceApps::hasHistory`), on or off, just as `EnsureAppActive` lets them be read.
+  - It sends no amounts, so values permissions play no part, and it never matches by amount.
+  - The queries are `GlobalSearchRepository`. Each result is `SearchResultResource`: `group`, `type`, `title`, `subtitle`, `status`, `date`, `location`, `app`, `archived` and `link`.
+- The navigation's `workspace.logo_url` is read on every `/navigation` (`NavigationBuilder::for`), outside its cache. A new logo replaces the old file without bumping `nav_version`, so a cached URL would break.
+- The frontend's location pick is `useLocationPick()`. It is shared state behind the `izsuite_location` cookie, and `''` means All Locations. A pick no longer offered (an inactive location, another business's) counts as All Locations. `forNewRecord()` waits for the locations list, so a form opened right after a reload still gets the pick.
 
 ## Small things left
 
 - **Doc 05:** the optional Responsible User on a payment account, and the Transfer Fee on a transfer, were never built.
 - A disabled Settings section also disables its "Try again" button. Reloading the page works.
 - Purchase and expense duplicate warnings can name document numbers from other locations, because that check covers the whole business.
-- The top bar's location pick only lists and remembers a location. It does not set where new records go.
 - Replacing the logo or signature deletes the old file, so documents numbered earlier can lose that image.
 - Menu Builder has no "Preview sidebar" yet.
 - Country localization shows as none.

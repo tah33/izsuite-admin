@@ -3,11 +3,14 @@
 namespace App\Services\User\Apps;
 
 use App\Enums\Edition;
+use App\Enums\FileCollection;
 use App\Models\Frontend\MenuItem;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceApp;
 use App\Repositories\Admin\MenuItemRepository;
+use App\Repositories\User\WorkspaceFileRepository;
+use App\Services\Files\FileStorage;
 use App\Services\Shared\BusinessCalendar;
 use App\Services\Shared\WorkspaceAccess;
 use App\Support\Permissions;
@@ -36,6 +39,8 @@ class NavigationBuilder
         private MenuItemRepository $menuItems,
         private BusinessCalendar $calendar,
         private WorkspaceAccess $access,
+        private WorkspaceFileRepository $workspaceFiles,
+        private FileStorage $fileStorage,
     ) {}
 
     public function for(?Workspace $workspace, User $user): array
@@ -48,7 +53,23 @@ class NavigationBuilder
             CatalogVersion::current(),
         );
 
-        return Cache::remember($key, now()->addDay(), fn () => $this->build($workspace, $user));
+        $navigation = Cache::remember($key, now()->addDay(), fn () => $this->build($workspace, $user));
+
+        // The business's logo beside its name in the header (Doc 14 section 3).
+        // It is read fresh, not cached: a new logo replaces the old file
+        // without the business's nav_version going up.
+        if ($workspace && $navigation['workspace']) {
+            $navigation['workspace']['logo_url'] = $this->logoUrl($workspace);
+        }
+
+        return $navigation;
+    }
+
+    private function logoUrl(Workspace $workspace): ?string
+    {
+        $logo = $this->workspaceFiles->inCollection($workspace, FileCollection::Logo)->first();
+
+        return $logo ? $this->fileStorage->url($logo, thumbnail: true) : null;
     }
 
     private function build(?Workspace $workspace, User $user): array

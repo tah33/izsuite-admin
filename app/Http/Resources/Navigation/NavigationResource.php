@@ -21,6 +21,8 @@ class NavigationResource extends JsonResource
                 'id'             => $workspace['id'],
                 'business_id'    => $workspace['business_id'] ?? null,
                 'name'           => $workspace['name'],
+                // Shown beside the name in the header; null without one.
+                'logo_url'       => $workspace['logo_url'] ?? null,
                 'package'        => $workspace['package'] ? ['name' => $workspace['package']['name']] : null,
                 'base_currency'  => $workspace['base_currency'],
                 'currencies'     => $workspace['currencies'],

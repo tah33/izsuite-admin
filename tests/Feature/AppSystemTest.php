@@ -181,6 +181,8 @@ class AppSystemTest extends TestCase
             'id'              => $this->workspace->id,
             'business_id'     => $this->workspace->businessId(),
             'name'            => 'Main Business',
+            // No logo uploaded (Doc 14 Phase C: the header shows it beside the name).
+            'logo_url'        => null,
             'package'         => ['name' => 'Billing Starter'],
             'base_currency'   => 'USD',
             'currencies'      => ['USD'],

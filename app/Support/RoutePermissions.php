@@ -35,6 +35,8 @@ final class RoutePermissions
         return [
             'api.navigation'               => self::MEMBER,
             'api.dashboard'                => 'dashboard.view',
+            // Any member: each kind of result is kept to what their role may view (GlobalSearchService).
+            'api.search'                   => self::MEMBER,
             'api.files.link'               => self::MEMBER,
             'api.business-settings.usage'  => self::MEMBER,
             // Each user's own notifications (Doc 14 section 15).

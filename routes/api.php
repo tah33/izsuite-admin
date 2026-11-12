@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\ExpensePdfController;
 use App\Http\Controllers\Api\ExpenseSettingController;
 use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\FileController;
+use App\Http\Controllers\Api\GlobalSearchController;
 use App\Http\Controllers\Api\ImportController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\ItemController;
@@ -430,6 +431,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/reports/{report}/export', [ReportController::class, 'export'])->where('report', '[a-z-]+')->name('api.reports.export');
         Route::get('/reports/{report}/excel', [ReportController::class, 'excel'])->where('report', '[a-z-]+')->name('api.reports.excel');
         Route::get('/reports/{report}/pdf',[ReportController::class, 'pdf'])->where('report', '[a-z-]+')->middleware('throttle:30,1')->name('api.reports.pdf');
+
+        // The header's Global Search (Doc 14 section 16), asked as the user types.
+        Route::get('/search', GlobalSearchController::class)->middleware('throttle:120,1')->name('api.search');
     });
 
     /* ----------------------------------------------------------
