@@ -6,6 +6,7 @@ use App\Models\Admin\AdminAuditLog;
 use App\Models\Billing\WorkspaceSubscription;
 use App\Models\Shared\ActivityLog;
 use App\Models\User\BusinessSetting;
+use App\Models\User\Ticket;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceApp;
 use App\Models\User\WorkspaceMember;
@@ -48,6 +49,17 @@ class BusinessRepository
     public function countries(): array
     {
         return BusinessSetting::whereNotNull('country')->where('country', '!=', '')->distinct()->orderBy('country')->pluck('country')->all();
+    }
+
+    /** @return Collection<int, Ticket> its latest support cases (Doc 15 section 15.22), with who opened each */
+    public function supportCases(Workspace $workspace, int $limit = 10): Collection
+    {
+        return $workspace->supportCases()
+            ->with('user:id,first_name,last_name')
+            ->latest('updated_at')
+            ->latest('id')
+            ->limit($limit)
+            ->get(['id', 'workspace_id', 'user_id', 'subject', 'status', 'priority', 'updated_at']);
     }
 
     /** @return Collection<int, AdminAuditLog> the latest admin entries about $workspace: it, or a record of it */

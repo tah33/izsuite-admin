@@ -416,6 +416,12 @@ class Workspace extends Model
         return $this->hasMany(WorkspaceStatusChange::class);
     }
 
+    /** The support cases about it, opened from the app or by izSuite staff (Doc 15 section 15.22). */
+    public function supportCases(): HasMany
+    {
+        return $this->hasMany(Ticket::class);
+    }
+
     /** The logo on its documents and pages (Settings > Business). */
     public function logo(): MorphOne
     {

@@ -2,30 +2,32 @@
 @section('title', __('Support Tickets'))
 
 @section('content')
+    {{-- One business's cases, from its page (Doc 15 section 15.22): every link here keeps to it. --}}
+    {{-- A block, not the one-line form: Blade would read a one-line one as opening the blocks below. --}}
+    @php
+        $scope = $business ? ['workspace' => $business->id] : [];
+    @endphp
+    @if($business)
+        <p class="text-sm text-[var(--text-muted)] mb-3">
+            {{ __('Cases about :business.', ['business' => $business->name]) }}
+            <a href="{{ route('admin.tickets.index') }}" class="text-[var(--primary)]">{{ __('Show every case') }}</a>
+        </p>
+    @endif
+
     {{-- One toolbar row: status tabs and search on the left, page actions on the right. --}}
     <div class="flex flex-wrap items-center gap-3 mb-4">
         {{-- Status Tabs --}}
         <div class="tabs">
-            <a href="{{ route('admin.tickets.index') }}"
+            <a href="{{ route('admin.tickets.index', $scope) }}"
                class="tab {{ !request('status') ? 'active' : '' }}">
                {{ __('All') }}
             </a>
-            <a href="{{ route('admin.tickets.index', ['status' => 'open']) }}"
-               class="tab {{ request('status') === 'open' ? 'active' : '' }}">
-               {{ __('Open') }}
-            </a>
-            <a href="{{ route('admin.tickets.index', ['status' => 'in_progress']) }}"
-               class="tab {{ request('status') === 'in_progress' ? 'active' : '' }}">
-               {{ __('In Progress') }}
-            </a>
-            <a href="{{ route('admin.tickets.index', ['status' => 'resolved']) }}"
-               class="tab {{ request('status') === 'resolved' ? 'active' : '' }}">
-               {{ __('Resolved') }}
-            </a>
-            <a href="{{ route('admin.tickets.index', ['status' => 'closed']) }}"
-               class="tab {{ request('status') === 'closed' ? 'active' : '' }}">
-               {{ __('Closed') }}
-            </a>
+            @foreach(\App\Models\User\Ticket::LABELS as $value => $label)
+                <a href="{{ route('admin.tickets.index', [...$scope, 'status' => $value]) }}"
+                   class="tab {{ request('status') === $value ? 'active' : '' }}">
+                   {{ __($label) }}
+                </a>
+            @endforeach
         </div>
 
         {{-- Filters --}}
@@ -33,21 +35,24 @@
             @if(request('status'))
                 <input type="hidden" name="status" value="{{ request('status') }}">
             @endif
+            @if($business)
+                <input type="hidden" name="workspace" value="{{ $business->id }}">
+            @endif
             <div class="search-input-wrapper flex-1 min-w-[200px]">
                 <i data-lucide="search" class="search-icon"></i>
                 <input type="text" name="search" value="{{ request('search') }}"
-                       placeholder="{{ __('Search tickets...') }}" class="form-input search-input w-full">
+                       placeholder="{{ __('Subject, requester or business...') }}" class="form-input search-input w-full">
             </div>
             <x-per-page-select />
             <button type="submit" class="btn btn-secondary">
                 <i data-lucide="search" class="w-4 h-4"></i>{{ __('Filter') }}
             </button>
-            <a href="{{ route('admin.tickets.index', request('status') ? ['status' => request('status')] : []) }}" class="btn btn-secondary self-stretch" title="{{ __('Reset') }}">
+            <a href="{{ route('admin.tickets.index', [...$scope, ...(request('status') ? ['status' => request('status')] : [])]) }}" class="btn btn-secondary self-stretch" title="{{ __('Reset') }}">
                 <i data-lucide="x" class="w-4 h-4"></i>
             </a>
         </form>
 
-        <a href="{{ route('admin.tickets.create') }}" class="btn btn-primary">
+        <a href="{{ route('admin.tickets.create', $scope) }}" class="btn btn-primary">
             <i data-lucide="plus" class="w-4 h-4"></i> {{ __('Create Ticket') }}
         </a>
     </div>
@@ -101,15 +106,19 @@
                             </div>
 
                             <p class="text-gray-600 dark:text-gray-400 text-sm mb-2 line-clamp-1">
-                                {{ $ticket->latestMessage ? $ticket->latestMessage->message : __('No messages yet') }}
+                                {{ $ticket->latestMessage ? ($ticket->latestMessage->by_staff ? \App\Support\HtmlText::of($ticket->latestMessage->message) : $ticket->latestMessage->message) : __('No messages yet') }}
                             </p>
 
                             <div class="flex items-center gap-2 text-xs text-gray-500">
                                 <span class="font-medium text-gray-700 dark:text-gray-300">
                                     {{ __('By') }} {{ $ticket->user->name }}
                                 </span>
+                                @if($ticket->workspace)
+                                    <span>&bull;</span>
+                                    <span>{{ $ticket->workspace->name }}</span>
+                                @endif
                                 <span>&bull;</span>
-                                <span>{{ $ticket->messages_count ?? 0 }} {{ __('replies') }}</span>
+                                <span>{{ trans_choice(':count message|:count messages', $ticket->messages_count ?? 0) }}</span>
                                 <span>&bull;</span>
                                 <span>{{ $ticket->created_at->diffForHumans() }}</span>
                             </div>

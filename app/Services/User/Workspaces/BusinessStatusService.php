@@ -34,6 +34,9 @@ use Illuminate\Validation\ValidationException;
  */
 class BusinessStatusService
 {
+    /** Open whatever the status: each member's own notifications, and the support cases that reach izSuite. */
+    private const ALWAYS_OPEN = ['api.notifications.*', 'api.support-cases.*'];
+
     public function __construct(
         protected WorkspaceRepository $workspaces,
         protected WorkspaceStatusChangeRepository $changes,
@@ -149,15 +152,16 @@ class BusinessStatusService
     /**
      * What the API answers instead, when the status forbids $request: any
      * request for a suspended or closed business but its navigation, which
-     * says why, and its members' own notifications, where izSuite's notice
-     * of it waits; any change to one that is restricted or under review, but
-     * marking notifications read.
+     * says why, its members' own notifications, where izSuite's notice of it
+     * waits, and its support cases, where they write to izSuite about it;
+     * any change to one that is restricted or under review, but marking
+     * notifications read and writing to support.
      */
     public function refusal(Request $request, Workspace $workspace): ?JsonResponse
     {
         $status = $workspace->status ?? BusinessStatus::ACTIVE;
 
-        if (BusinessStatus::isShut($status) && ! $request->routeIs('api.navigation', 'api.notifications.*')) {
+        if (BusinessStatus::isShut($status) && ! $request->routeIs('api.navigation', ...self::ALWAYS_OPEN)) {
             return response()->json([
                 'message'         => $status === BusinessStatus::CLOSED
                     ? 'This business is closed. Its records are kept, but nobody can open it.'
@@ -166,7 +170,7 @@ class BusinessStatusService
             ], 403);
         }
 
-        if (BusinessStatus::isReadOnly($status) && ! $request->isMethodSafe() && ! $request->routeIs('api.notifications.*')) {
+        if (BusinessStatus::isReadOnly($status) && ! $request->isMethodSafe() && ! $request->routeIs(...self::ALWAYS_OPEN)) {
             return response()->json([
                 'message'         => $status === BusinessStatus::UNDER_REVIEW
                     ? 'This business is under review by izSuite: you can view its records, but not change them for now.'

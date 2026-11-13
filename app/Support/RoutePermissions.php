@@ -45,6 +45,11 @@ final class RoutePermissions
             'api.notifications.unread'     => self::MEMBER,
             'api.notifications.read'       => self::MEMBER,
             'api.notifications.read-all'   => self::MEMBER,
+            // Support cases (Doc 15 section 15.22): anyone in the business asks izSuite; the owner sees every case.
+            'api.support-cases.index'      => self::MEMBER,
+            'api.support-cases.store'      => self::MEMBER,
+            'api.support-cases.show'       => self::MEMBER,
+            'api.support-cases.reply'      => self::MEMBER,
 
             // The subscription, its invoices and its billing details (Doc 13 sections 11 and 21); over its limits, only the owner chooses (OverLimitService)
             'api.subscription.show'               => 'settings.subscription',

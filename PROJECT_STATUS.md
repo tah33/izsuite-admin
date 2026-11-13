@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-13
-- **Code:** Doc 15 Phase B2 (users and their accounts) is on `main` in the admin commit right after `1f6dfb2`, and on `nuxt` in the frontend commit right after `706dd4a`.
-- **Tests:** 756 backend tests pass (last full run 2026-11-13, on this code, on the second PC).
-- **Next step:** Doc 15 Phase B3: support cases and support access (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
+- **Code:** Doc 15 Phase B3 (support cases) is on `main` in the admin commit right after `ff7538e`, and on `nuxt` in the frontend commit right after `6b298ec`.
+- **Tests:** 762 backend tests pass (last full run 2026-11-13, on this code, on the second PC).
+- **Next step:** Doc 15 Phase B4: support sessions (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 15 Phase B3.
+   > Read PROJECT_STATUS.md, then start Doc 15 Phase B4.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -40,7 +40,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 12 | Users, Roles, Permissions and Locations | Done, except package change rules (Doc 13) |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
-| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phase A, B1 and B2 done (2026-11-13), B3 next** |
+| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phase A, B1, B2 and B3 done (2026-11-13), B4 next** |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -314,7 +314,7 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 - Share links that expire. They stay until revoked.
 - Imports beyond contacts and items.
 
-### 3. Doc 15: izSuite System Administration Portal (next: Phase B3)
+### 3. Doc 15: izSuite System Administration Portal (next: Phase B4)
 
 The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign-in) had grown through Docs 01 to 14, partly from the earlier recruitment product, and was checked against all 27 sections.
 
@@ -477,14 +477,38 @@ B2 was split again on starting it (2026-11-13), as support access is a phase of 
 
   The list was reworked during the check to fit 1366 pixels. The throwaway accounts, their activity, the audit entries and the sign-in were then removed, and the admin's two-factor reset.
 
-**Phase B3: support cases and support access** (section 22):
+B3 was split again on starting it (2026-11-13), as a support session names a support case: B3, support cases; B4, support sessions.
+
+**Phase B3: support cases** (section 22) is built, with your defaults:
+
+- **In the app, Support** (the top bar's help button, and Contact Support on the status banner and panel): the business's cases, a page at a time, filtered by status; a new case (subject and message); and each case's conversation with a box to write on it.
+  - Anyone in the business opens cases. The owner sees every case about it; anyone else sees the cases they opened.
+  - Support stays open whatever the business's status: a suspended or closed business shows its panel everywhere else, but Support opens, and the API takes cases from a restricted one.
+  - Writing on a resolved case opens it again; a closed one takes no more ("Open a new one if you still need help").
+  - Text only from the app, no attachments yet. Staff's attachments show as links.
+- **In the admin, Tickets are the cases:**
+  - Each case names its business, which the list shows and searches, and the case's page links to.
+  - A business's page lists its latest ten cases, with All Cases (the list kept to that business) and New Case, which opens the form for that business with its owner chosen; only people in it can be chosen.
+  - Staff's reply moves an open case to In Progress. It reaches whoever opened the case in their bell (as a Message from izSuite) and by e-mail, with the reply's words and a link to the case. So does a case being resolved or closed.
+- **Words stay words, both ways.** The app's messages show in the admin as text, never as markup: before this, the admin printed every message as HTML, so a message from the app could have run a script in an admin's browser. Staff's editor markup reaches the app as plain text, with paragraphs and link addresses kept.
+- **Fixed on the way:** the new-ticket form offered the earlier product's recruiters and candidates instead of izSuite's users, and the assignee list offered website users as staff. The case count in the list counts messages, and reads "1 message".
+- Checked in the browser as `user@izsuite.io` and the seeded admin:
+  - the help button opened Support; an empty New Case showed both errors; the case opened with its notice, and markup typed into it showed as typed;
+  - in Admin > Tickets the case named the business; its page showed the app's words as text; a reply with bold text reached the app as text, in the bell and by e-mail, and moved the case to In Progress;
+  - a reply from the app, then Resolved in the admin: the bell and e-mail said so, and the app said writing opens it again;
+  - the business's page listed the case, and New Case opened the form for it with the owner chosen;
+  - with the business suspended, Contact Support on the panel opened the new-case form, and other pages showed the panel again.
+
+  The check found Support kept behind the panel when opened from the panel's own button, which is fixed (see [Decisions worth knowing](#decisions-worth-knowing)). The check's case, its notices, the status change, activity, audit entries and sign-in were then removed, workspace 1's setup undone, and the admin's two-factor reset.
+
+**Phase B4: support sessions** (section 22):
 
 - **Support sessions replace Login as:**
   - The admin names the support case and a reason.
   - The session is read-only, lasts 1 hour (up to 4) and ends by itself, with a banner throughout: "izSuite support is viewing this business, read-only, until 15:30".
   - Edit access needs its own permission and the customer's agreement, noted.
   - The business's Activity Log shows the session and the sensitive areas it opened: settings, payment account details and users.
-- **Support cases:** Tickets become support cases tied to a business, so a support session can name one. A business's page lists its cases, and the app's Contact Support opens one.
+  - Payment details show masked, and nothing an edit session changes is silent: it is logged as izSuite support's.
 
 **Phase C: subscriptions and billing** (sections 9, 13, 14 and 17), likely split in two:
 
@@ -604,6 +628,8 @@ Each document goes the same way:
 - Install npm packages inside the container: `docker compose exec -T frontend npm install ...`.
 - The frontend has no `vue-tsc` or `eslint`, and Pint is not installed despite `pint.json`. So the browser check is what catches frontend mistakes.
 - Dev mail is `MAIL_MAILER=log`, so invitation links are in `/app/storage/logs/laravel.log`.
+- Blade: a one-line `@php(...)` in a view that also has a `@php ... @endphp` block further down is read as the start of that block, and everything between them is printed raw. Use the block form in such a view - and keep the word out of its comments, which Blade reads before it strips them.
+- Nuxt: in a layout, `useRoute()` moves to a new page only once that page has rendered. Where the layout itself decides whether the page renders (the dashboard's status panel), read `useRouter().currentRoute` instead.
 
 ### Checking the app as a limited member
 
@@ -727,7 +753,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 15: gap check, and Phase A1, signing in to the admin | `addce5a` | | 000125 |
 | Doc 15: Phase A2, the audit log, roles and critical actions | `15e0a32` | | 000126 |
 | Doc 15: Phase B1, businesses and their statuses | `1f6dfb2` | `706dd4a` | 000127 |
-| Doc 15: Phase B2, users and their accounts | the commit after `1f6dfb2` | the commit after `706dd4a` | 000128 |
+| Doc 15: Phase B2, users and their accounts | `ff7538e` | `6b298ec` | 000128 |
+| Doc 15: Phase B3, support cases | the commit after `ff7538e` | the commit after `6b298ec` | 000129 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -907,6 +934,11 @@ These are easy to undo by mistake.
   - A reset ticket keeps its own end in `password_reset_tokens.expires_at` (migration 000128): 15 minutes when bought with the e-mailed code, 60 for support's link (`PasswordResetService::issueLink`). The website's `reset-password` page reads `email` and `token` from the link and then drops them from the address.
   - The user's notices are `AccountNoticeMail`, queued, with a button when there is a link.
 - The admin-activity card on a business's and a user's page is `admin/partials/admin-activity`.
+- Support cases (Doc 15 Phase B3, migration 000129) are `tickets`, with `workspace_id` for the business. The app reaches them through `/support-cases` (`SupportCaseController`, `SupportCaseService`, `SupportCaseRepository`), open to every member (`RoutePermissions::MEMBER`); `BusinessStatusService::ALWAYS_OPEN` keeps them open, with the notifications, whatever the status.
+  - `ticket_messages.by_staff` says who wrote a message. Only staff's is printed as markup in the admin; everyone else's is escaped. `SupportCaseDetailResource` turns staff's markup into text with `App\Support\HtmlText`, and the app shows every message as text.
+  - Staff's replies and a case resolved or closed reach its opener through `SupportCaseNotifier`: the bell (`izsuite.case`) and `AccountNoticeMail`.
+  - Admin activity on a case keeps `workspace_id` in its properties, so the business's page shows it.
+- The dashboard layout shows Support's pages (`/support...`) whatever the business's status, reading the path from `useRouter().currentRoute`.
 - Dev's admin CSS is `public/build`, git-ignored and built only when missing (`docker/entrypoint.sh`), so it goes stale. After adding Tailwind classes to admin views, run `docker exec izsuite-api npm run build`; a server builds it fresh on deploy.
 - The frontend's location pick is `useLocationPick()`. It is shared state behind the `izsuite_location` cookie, and `''` means All Locations. A pick no longer offered (an inactive location, another business's) counts as All Locations. `forNewRecord()` waits for the locations list, so a form opened right after a reload still gets the pick.
 
@@ -935,7 +967,8 @@ Each of these is yours to settle.
 - Should Managers type document numbers by hand? Manager roles made from now on may, since a Manager holds everything outside Settings. Roles made before may not until it is ticked.
 - Should a completed payment's files need Reverse to be removed (built in E2)? The other way is to treat a payment's files like a draft's, under Record Payment.
 - Once Doc 15 Phase C removes the earlier product's Plans & Pricing and Subscription History screens, should its `plans`, `plan_payment_providers`, `subscriptions` and `invoices` tables be dropped too?
-- Should support cases stay in izSuite's own Tickets (Doc 15 Phase B3's default), or come from an outside help desk?
+- Should support cases stay in izSuite's own Tickets (Doc 15 Phase B3 kept them there), or come from an outside help desk?
+- Who in a business sees its support cases? Today the owner sees every one, and anyone else only the ones they opened. A business's Administrators could see them all too.
 - Should Admin > Users treat phone numbers typed differently ("+880 1711-000000" and "+8801711000000") as the same for its shared-phone alert? Today only the same typing matches.
 
 ## Deploying to a server

@@ -10,9 +10,10 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * A notice from izSuite support about a user's own account (Doc 15 section
- * 15.7): a link to choose a new password, the account locked or unlocked,
- * or its two-factor sign-in reset. A button when there is a link to follow.
+ * A notice from izSuite support to one user (Doc 15 sections 15.7 and
+ * 15.22): a link to choose a new password, the account locked or unlocked,
+ * its two-factor sign-in reset, or a reply on their support case. A button
+ * when there is a link to follow.
  */
 class AccountNoticeMail extends Mailable implements ShouldQueue
 {

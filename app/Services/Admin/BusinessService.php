@@ -71,9 +71,10 @@ class BusinessService
         return [
             'business'           => $workspace,
             'subscriptionStatus' => self::subscriptionStatus($workspace),
-            'statusHistory' => $this->statusChanges->historyFor($workspace),
-            'activity'      => $this->businesses->adminActivity($workspace),
-            'packages'      => $this->packages->allByRank(),
+            'statusHistory'      => $this->statusChanges->historyFor($workspace),
+            'supportCases'       => $this->businesses->supportCases($workspace),
+            'activity'           => $this->businesses->adminActivity($workspace),
+            'packages'           => $this->packages->allByRank(),
         ];
     }
 

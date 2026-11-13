@@ -94,6 +94,7 @@ use App\Http\Controllers\Api\StripeWebhookController;
 use App\Http\Controllers\Api\SubscriptionCardController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\SubscriptionInvoiceController;
+use App\Http\Controllers\Api\SupportCaseController;
 use App\Http\Controllers\Api\SupplierPaymentAttachmentController;
 use App\Http\Controllers\Api\SupplierPaymentController;
 use App\Http\Controllers\Api\TaxRateController;
@@ -357,6 +358,14 @@ Route::prefix('v1')->group(function () {
         Route::get('/unread', [NotificationController::class, 'unread'])->name('api.notifications.unread');
         Route::post('/read', [NotificationController::class, 'readAll'])->name('api.notifications.read-all');
         Route::post('/{id}/read', [NotificationController::class, 'read'])->whereNumber('id')->name('api.notifications.read');
+    });
+
+    // Support cases (Doc 15 section 15.22): the business asks izSuite, whatever its status.
+    Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('support-cases')->group(function () {
+        Route::get('/', [SupportCaseController::class, 'index'])->name('api.support-cases.index');
+        Route::post('/', [SupportCaseController::class, 'store'])->middleware('throttle:10,1')->name('api.support-cases.store');
+        Route::get('/{id}', [SupportCaseController::class, 'show'])->whereNumber('id')->name('api.support-cases.show');
+        Route::post('/{id}/replies', [SupportCaseController::class, 'reply'])->whereNumber('id')->middleware('throttle:30,1')->name('api.support-cases.reply');
     });
 
     Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('subscription')->group(function () {
