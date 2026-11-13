@@ -44,7 +44,7 @@ class WorkspaceController extends Controller
 
             $package = $this->workspaceService->changePackage($workspace, (int) $request->validated('package_id'), $request->user());
 
-            return $this->adminSuccess($request, "\"{$workspace->name}\" is now on {$package->name}.", route('admin.clients.show', $workspace->user_id));
+            return $this->adminSuccess($request, "\"{$workspace->name}\" is now on {$package->name}.", route('admin.businesses.show', $workspace->id));
 
         } catch (\Throwable $e) {
             report($e);

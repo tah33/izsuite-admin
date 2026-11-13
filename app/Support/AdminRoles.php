@@ -39,22 +39,26 @@ final class AdminRoles
                 'admin.payment-methods.index', 'admin.payment-methods.create', 'admin.payment-methods.edit', 'admin.payment-methods.destroy',
                 'admin.currencies.index', 'admin.currencies.create', 'admin.currencies.edit', 'admin.currencies.destroy', 'admin.currencies.save-formatting',
                 'admin.clients.index', 'admin.clients.show', 'admin.workspaces.package.review', 'admin.workspaces.package',
+                'admin.businesses.index', 'admin.businesses.show',
             ]],
             // Businesses' and users' support: cases, messages, and opening a user's dashboard.
             'support-administrator' => ['Support Administrator', [
                 'admin.clients.index', 'admin.clients.show', 'admin.clients.login-as',
+                'admin.businesses.index', 'admin.businesses.show', 'admin.businesses.notify',
                 'admin.tickets.index', 'admin.tickets.show', 'admin.tickets.create', 'admin.tickets.reply', 'admin.tickets.update',
                 'admin.departments.index',
                 'admin.contact-messages.index', 'admin.contact-messages.show', 'admin.contact-messages.reply',
             ]],
-            // Audit records and who may do what.
+            // Audit records, who may do what, and a business's status: restricting, suspending, closing.
             'compliance-and-security-administrator' => ['Compliance and Security Administrator', [
                 'admin.audit-log.index', 'admin.audit-log.show', 'admin.audit-log.export',
                 'admin.staff.index', 'admin.roles.index',
+                'admin.businesses.index', 'admin.businesses.show', 'admin.businesses.status',
             ]],
             // Lists and details only: no saving, no exports, and not the settings page, which holds keys.
             'read-only-administrator' => ['Read-Only Administrator', [
                 'admin.app-categories.index', 'admin.apps.index', 'admin.audit-log.index', 'admin.audit-log.show',
+                'admin.businesses.index', 'admin.businesses.show',
                 'admin.clients.index', 'admin.clients.show', 'admin.contact-messages.index', 'admin.contact-messages.show',
                 'admin.content.index', 'admin.currencies.index', 'admin.departments.index', 'admin.faqs.index', 'admin.languages.index',
                 'admin.menu-items.index', 'admin.package-access.index', 'admin.packages.index', 'admin.pages.index',

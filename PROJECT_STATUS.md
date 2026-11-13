@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-13
-- **Code:** Doc 15 Phase A2 (the audit log, roles and critical actions) is on `main` in the admin commit right after `addce5a`. The frontend has nothing new since `b29f546` on `nuxt`.
-- **Tests:** 741 backend tests pass (last full run 2026-11-13, on this code, on the second PC).
-- **Next step:** Doc 15 Phase B: businesses, users and support access (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
+- **Code:** Doc 15 Phase B1 (businesses and their statuses) is on `main` in the admin commit right after `15e0a32`, and on `nuxt` in the frontend commit right after `b29f546`.
+- **Tests:** 747 backend tests pass (last full run 2026-11-13, on this code, on the second PC).
+- **Next step:** Doc 15 Phase B2: users and support access (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 15 Phase B.
+   > Read PROJECT_STATUS.md, then start Doc 15 Phase B2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -40,7 +40,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 12 | Users, Roles, Permissions and Locations | Done, except package change rules (Doc 13) |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
-| **15** | **izSuite System Administration Portal** | **In progress: gap check and Phase A done (2026-11-13), B next** |
+| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phase A and Phase B1 done (2026-11-13), B2 next** |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -314,7 +314,7 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 - Share links that expire. They stay until revoked.
 - Imports beyond contacts and items.
 
-### 3. Doc 15: izSuite System Administration Portal (next: Phase B)
+### 3. Doc 15: izSuite System Administration Portal (next: Phase B2)
 
 The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign-in) had grown through Docs 01 to 14, partly from the earlier recruitment product, and was checked against all 27 sections.
 
@@ -409,26 +409,45 @@ The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign
 
   The check's audit entries and sign-in were then removed, and the admin's two-factor reset again. Dev's admin styles were rebuilt (`npm run build` in the container), because the build dated from July and lacked newer Tailwind classes.
 
-**Phase B: businesses, users and support access** (sections 5, 6, 7 and 22), likely split in two:
+**Phase B: businesses, users and support access** (sections 5, 6, 7 and 22) was split on starting it (2026-11-13): B1, businesses and their statuses; B2, users and support access. Two of its items moved: extending a trial or grace period to Phase C, with the other subscription actions, and resending the owner's verification e-mail to B2, with the other account actions.
 
-- **Admin > Businesses**, one row per business: name, ID, owner, country, plan, subscription status, business status, users, locations, storage, sign-up date and last activity. It filters by plan, country, both statuses, sign-up date and limits reached. Admin > Users stays the list of people.
-- **A business's page:** its profile, owner, plan and subscription, billing details, apps, counts and storage, support cases and the admin activity on it. From there an admin can:
-  - send it a notification;
-  - resend the owner's verification e-mail;
-  - change its plan, as now;
-  - extend a trial or grace period, with a reason;
-  - suspend or reactivate it;
-  - schedule its closure, or cancel that.
-- **Business statuses**, apart from the subscription's. Nothing is ever deleted.
-  - Active.
-  - Restricted, and Under Review: members can read but not change anything, and a banner says why.
-  - Suspended: members cannot open the business. The owner sees why and how to reach support.
-  - Closure Scheduled: it works as usual until the date, with a banner.
-  - Closed: nobody opens it.
+**Phase B1: businesses and their statuses** (sections 5 and 6) is built, with your defaults:
 
-  Each change keeps its reason, the admin, the date it takes effect, notes, whether the owner was told, and what reactivates it.
+- **Admin > Businesses**, in the sidebar before Users, one row per business: name and ID, owner, plan and subscription, status, usage (users, locations and storage against the plan), sign-up date and last activity.
+  - It searches by name, `BW-` ID, or the owner's name or e-mail. It filters by status, plan, subscription (Free, Trial, Awaiting Payment, Active, Cancellation Scheduled, Grace Period), country, sign-up dates, and "At or past a limit". A limit of one, such as Billing Starter's one user, counts only once passed.
+  - Admin > Users stays the list of people.
+- **A business's page:** its profile, owner (and whether their e-mail is checked), plan and subscription, billing details, usage, contacts, items and apps, its status with the last 20 changes, and the latest admin activity on it from the audit log.
+  - Its buttons: Change Status, Send a Message, Owner's Account (the owner's page in Admin > Users) and Move Plan. Moving a plan now starts and ends on this page.
+- **Business statuses**, apart from the subscription's. Nothing is deleted.
+  - **Restricted** and **Under Review:** members read everything, but the API refuses every change: "izSuite has restricted this business: you can view its records, but not change them until the restriction is lifted." Marking notifications read still works. A banner above every page says so.
+  - **Suspended** and **Closed:** a panel takes the place of every page, with Contact Support and Your Businesses. The API answers nothing for the business but its navigation and the bell.
+  - **Closure Scheduled:** it works as usual, with a banner giving the day. Hourly, `businesses:close-due` closes it on that day, for the reason it was scheduled. Choosing another status before then cancels the closure.
+  - The owner sees why and what reactivates it, on the banner or the panel. Anyone else reads "Its owner has the details."
+  - Contact Support opens the website's contact page until B2's support cases.
+- **Changing a status** asks for:
+  - a reason, which the owner sees;
+  - what reactivates it, optional, which the owner sees;
+  - internal notes, for admins only;
+  - for a closure, its day: today or later.
+
+  "Tell the owner" is ticked by default: a notice in their bell, and an e-mail. Each change keeps the status before it, the reason, the notes, the day it took effect, the closing day, whether the owner was told, and the admin. The audit log has it too, with the reason.
+- **Send a Message:** a title and a message, to the owner or to everyone in the business, in the bell. The owner gets it by e-mail as well. The audit log keeps it, with how many it reached.
+- **A new notification kind, Messages from izSuite**, always on, in everyone's preferences. It carries the status notices and the messages.
+- **Roles:** Billing and Read-Only Administrators open the list and the pages. Support Administrators may also send messages, and Compliance and Security Administrators may also change a status. A migration added these to the starting roles on dev, keeping whatever else each holds.
+- Checked in the browser as the seeded admin and `user@izsuite.io`:
+  - the list, its limits filter on MySQL, and the business page;
+  - Restricted with a reason: the history said the owner was told, the audit log had it, the app showed the banner and the bell the notice, and saving a contact was refused with the message;
+  - Send a Message with empty fields showed both errors under them, then reached the business's bell;
+  - Suspended: the panel on every page, with why and what reactivates it, and the bell still opening;
+  - Closure Scheduled for today: the banner with the day. `businesses:close-due` then closed it, and the app showed the closed panel;
+  - Active again: the app was back, with no banner.
+
+  The check found that the bell was refused while a business was shut, hiding izSuite's notice of it, so it now opens; the app also stopped asking a shut business for its lists. The check's status changes, notices, audit entries, activity and sign-in were then removed, workspace 1's setup (marked done for the check) undone, and the admin's two-factor reset.
+
+**Phase B2: users and support access** (sections 7 and 22):
+
 - **Users:** the list adds two-factor on or off, the number of businesses and security alerts. An admin can:
-  - resend the verification e-mail;
+  - resend the verification e-mail, to any account or a business's owner;
   - lock or unlock the account;
   - sign it out everywhere;
   - send a single-use password reset link;
@@ -440,7 +459,7 @@ The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign
   - The session is read-only, lasts 1 hour (up to 4) and ends by itself, with a banner throughout: "izSuite support is viewing this business, read-only, until 15:30".
   - Edit access needs its own permission and the customer's agreement, noted.
   - The business's Activity Log shows the session and the sensitive areas it opened: settings, payment account details and users.
-- **Support cases:** Tickets become support cases tied to a business, so a support session can name one.
+- **Support cases:** Tickets become support cases tied to a business, so a support session can name one. A business's page lists its cases, and the app's Contact Support opens one.
 
 **Phase C: subscriptions and billing** (sections 9, 13, 14 and 17), likely split in two:
 
@@ -681,7 +700,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 14: Phase E1, who and where from | the commit after `4bfb9c7` | `76b3aa3` | 000124 |
 | Doc 14: Phase E2, numbers, files and names | the commit after `8e38b43` | `b29f546` | |
 | Doc 15: gap check, and Phase A1, signing in to the admin | `addce5a` | | 000125 |
-| Doc 15: Phase A2, the audit log, roles and critical actions | the commit after `addce5a` | | 000126 |
+| Doc 15: Phase A2, the audit log, roles and critical actions | `15e0a32` | | 000126 |
+| Doc 15: Phase B1, businesses and their statuses | the commit after `15e0a32` | the commit after `b29f546` | 000127 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -848,6 +868,13 @@ These are easy to undo by mistake.
 - `SettingChanges::isSecret()` leaves out any setting whose name holds password, secret, token, api_key, credentials or recovery_codes, for business logs as well as the audit log.
 - A critical action calls `CriticalActionService::confirm($admin, $password, $reason, $what)` before it changes anything. Its fields are `confirm_password` and `reason`, drawn by `admin/partials/critical-confirm.blade.php`, which `<x-confirm-modal>` takes in its slot. On success it puts the reason and approval on the request (`approvedWithPassword`), so every audit entry of that request keeps them.
 - The starting admin roles are `App\Support\AdminRoles`, by route name: made by migration 000126 where roles exist already, and by `RoleSeeder` after the Super Admin, who must hold id 1.
+- A business's status (Doc 15 Phase B1, migration 000127) is `workspaces.status`, named in `App\Support\BusinessStatus`, with each change in `workspace_status_changes`. Only `BusinessStatusService` changes it.
+  - `ResolveWorkspace` asks its `refusal()` on every business request. Suspended or Closed: a 403 with `business_status` for everything but `api.navigation` and `api.notifications.*`. Restricted or Under Review: a 403 for anything but a GET, except the notifications'.
+  - `/navigation` gives `workspace.status`: null while Active, and the reason and reactivation for the owner only. `NavigationBuilder` adds it after the cache, so a change shows at the next load.
+  - In the frontend, `layouts/dashboard.vue` shows `BusinessStatusShut` in place of the page when `status.shut`, else `BusinessStatusBanner` above it. It asks a shut business for no lists.
+  - `businesses:close-due` runs hourly (`routes/console.php`). It closes a business still Closure Scheduled whose latest change's `closes_on` is today or past. A date column is compared with `whereDate`, since SQLite keeps it as text with a time.
+- izSuite's notices go through the notification kind `izsuite` (Messages from izSuite, locked on): `izsuite.status` for a status change, `izsuite.message` for Send a Message. The owner's e-mail, `BusinessNoticeMail`, is queued apart from them, as a locked kind never e-mails through `Notifier`.
+- `BusinessRepository`'s "At or past a limit" filter puts HAVING on the counts' aliases, grouped by `workspaces.id` and `packages.id`: SQLite needs a GROUP BY for HAVING, and MySQL's full group-by mode accepts those keys.
 - Dev's admin CSS is `public/build`, git-ignored and built only when missing (`docker/entrypoint.sh`), so it goes stale. After adding Tailwind classes to admin views, run `docker exec izsuite-api npm run build`; a server builds it fresh on deploy.
 - The frontend's location pick is `useLocationPick()`. It is shared state behind the `izsuite_location` cookie, and `''` means All Locations. A pick no longer offered (an inactive location, another business's) counts as All Locations. `forNewRecord()` waits for the locations list, so a form opened right after a reload still gets the pick.
 
@@ -877,7 +904,7 @@ Each of these is yours to settle.
 - Should Managers type document numbers by hand? Manager roles made from now on may, since a Manager holds everything outside Settings. Roles made before may not until it is ticked.
 - Should a completed payment's files need Reverse to be removed (built in E2)? The other way is to treat a payment's files like a draft's, under Record Payment.
 - Once Doc 15 Phase C removes the earlier product's Plans & Pricing and Subscription History screens, should its `plans`, `plan_payment_providers`, `subscriptions` and `invoices` tables be dropped too?
-- Should support cases stay in izSuite's own Tickets (Doc 15 Phase B's default), or come from an outside help desk?
+- Should support cases stay in izSuite's own Tickets (Doc 15 Phase B2's default), or come from an outside help desk?
 
 ## Deploying to a server
 
@@ -885,4 +912,5 @@ Each of these is yours to settle.
 - The host nginx needs `client_max_body_size` of at least 120M, and the image must be rebuilt for the upload limits.
 - A database that still has `workspaces.staff_id` links and has not yet run migration 000060 would lose them. Check this on any older server.
 - Doc 15 Phase A1: after deploying, every admin is asked to set up two-factor at their next sign-in, so have an authenticator app ready. The new-browser e-mails go through the queue worker.
+- Doc 15 Phase B1: the scheduler runs `businesses:close-due` hourly, and the owner's status e-mails go through the queue worker.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

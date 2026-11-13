@@ -22,6 +22,18 @@ class NotificationAudience
         private WorkspaceAccess $access,
     ) {}
 
+    /** @return Collection<int, User> every active user of the business, its owner among them */
+    public function everyone(Workspace $workspace): Collection
+    {
+        return $this->members->getFor($workspace)
+            ->filter(fn (WorkspaceMember $member) => $member->status === WorkspaceMember::ACTIVE && $member->user)
+            ->map(fn (WorkspaceMember $member) => $member->user)
+            ->push($workspace->user)
+            ->filter()
+            ->unique('id')
+            ->values();
+    }
+
     /** @return Collection<int, User> */
     public function withPermission(Workspace $workspace, string $permission, ?int $locationId = null): Collection
     {

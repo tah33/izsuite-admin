@@ -24,11 +24,11 @@
 @section('content')
     <div class="mb-6">
         <div class="flex items-center gap-2 text-sm mb-2 text-[var(--text-muted)]">
-            <a href="{{ route('admin.clients.index') }}" class="text-[var(--primary)]">{{ __('Clients') }}</a>
+            <a href="{{ route('admin.businesses.index') }}" class="text-[var(--primary)]">{{ __('Businesses') }}</a>
             <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-            <a href="{{ route('admin.clients.show', $workspace->user_id) }}" class="text-[var(--primary)]">{{ $workspace->user?->name ?? __('Client') }}</a>
+            <a href="{{ route('admin.businesses.show', $workspace->id) }}" class="text-[var(--primary)]">{{ $workspace->name }}</a>
             <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-            <span>{{ $workspace->name }}</span>
+            <span>{{ __('Move plan') }}</span>
         </div>
         <h1 class="page-title">{{ __('Move ":business" to :plan', ['business' => $workspace->name, 'plan' => $package->name]) }}</h1>
         <p class="page-subtitle">
@@ -99,6 +99,6 @@
                 </button>
             </form>
         @endif
-        <a href="{{ route('admin.clients.show', $workspace->user_id) }}" class="btn btn-secondary">{{ $impact['direction'] === 'same' ? __('Back') : __('Cancel') }}</a>
+        <a href="{{ route('admin.businesses.show', $workspace->id) }}" class="btn btn-secondary">{{ $impact['direction'] === 'same' ? __('Back') : __('Cancel') }}</a>
     </div>
 @endsection

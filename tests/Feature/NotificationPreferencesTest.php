@@ -77,7 +77,7 @@ class NotificationPreferencesTest extends TestCase
     /** Every kind as it is unless chosen, with $changes: kind => [in the app, by e-mail]. */
     private function choose(array $changes): array
     {
-        $kinds = ['subscription' => [true, false], 'usage' => [true, true], 'apps' => [true, false], 'members' => [true, true], 'comments' => [true, true], ...$changes];
+        $kinds = ['subscription' => [true, false], 'usage' => [true, true], 'apps' => [true, false], 'members' => [true, true], 'comments' => [true, true], 'izsuite' => [true, false], ...$changes];
 
         return array_map(fn (array $channels) => ['in_app' => $channels[0], 'email' => $channels[1]], $kinds);
     }
@@ -94,10 +94,10 @@ class NotificationPreferencesTest extends TestCase
 
         $kinds = $this->getJson('/api/v1/business-settings/notifications')->assertOk()->json('data.kinds');
 
-        // Comments and mentions came with Doc 14 Phase D, by e-mail too unless turned off.
-        $this->assertSame(['subscription', 'usage', 'apps', 'members', 'comments'], array_column($kinds, 'key'));
+        // Comments and mentions came with Doc 14 Phase D, by e-mail too unless turned off; messages from izSuite with Doc 15 Phase B1, always on.
+        $this->assertSame(['subscription', 'usage', 'apps', 'members', 'comments', 'izsuite'], array_column($kinds, 'key'));
         $this->assertSame(['key', 'label', 'description', 'locked', 'in_app', 'email'], array_keys($kinds[0]));
-        $this->assertSame([[true, true, false], [false, true, true], [false, true, false], [false, true, true], [false, true, true]], array_map(fn (array $kind) => [$kind['locked'], $kind['in_app'], $kind['email']], $kinds));
+        $this->assertSame([[true, true, false], [false, true, true], [false, true, false], [false, true, true], [false, true, true], [true, true, false]], array_map(fn (array $kind) => [$kind['locked'], $kind['in_app'], $kind['email']], $kinds));
 
         // The business sends app notices by e-mail only: out of Salma's bell, in her inbox.
         $this->putJson('/api/v1/business-settings/notifications', ['preferences' => $this->choose(['apps' => [false, true]])])
@@ -120,9 +120,9 @@ class NotificationPreferencesTest extends TestCase
         $this->getJson('/api/v1/notifications', $pick)->assertOk()->assertJsonPath('pagination.total', 0);
         $this->postJson("/api/v1/notifications/{$notification->id}/read", [], $pick)->assertNotFound();
 
-        // A user receives what the business sends until they say otherwise.
+        // A user receives what the business sends until they say otherwise. Always-on kinds never e-mail through here.
         $this->assertSame(
-            [[true, false], [true, true], [true, true], [true, true], [true, true]],
+            [[true, false], [true, true], [true, true], [true, true], [true, true], [true, false]],
             array_map(fn (array $kind) => [$kind['in_app'], $kind['email']], $this->getJson('/api/v1/profile/notifications')->assertOk()->json('data.kinds')),
         );
 

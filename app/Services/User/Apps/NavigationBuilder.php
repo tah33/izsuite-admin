@@ -13,6 +13,7 @@ use App\Repositories\User\WorkspaceFileRepository;
 use App\Services\Files\FileStorage;
 use App\Services\Shared\BusinessCalendar;
 use App\Services\Shared\WorkspaceAccess;
+use App\Services\User\Workspaces\BusinessStatusService;
 use App\Support\Permissions;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -41,6 +42,7 @@ class NavigationBuilder
         private WorkspaceAccess $access,
         private WorkspaceFileRepository $workspaceFiles,
         private FileStorage $fileStorage,
+        private BusinessStatusService $statuses,
     ) {}
 
     public function for(?Workspace $workspace, User $user): array
@@ -60,6 +62,9 @@ class NavigationBuilder
         // without the business's nav_version going up.
         if ($workspace && $navigation['workspace']) {
             $navigation['workspace']['logo_url'] = $this->logoUrl($workspace);
+
+            // Its status, read fresh too (Doc 15 section 15.6): null while Active.
+            $navigation['workspace']['status'] = $this->statuses->forNavigation($workspace, $user);
         }
 
         return $navigation;

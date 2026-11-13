@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Repositories\User\WorkspaceRepository;
+use App\Services\User\Workspaces\BusinessStatusService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,6 +21,10 @@ use Symfony\Component\HttpFoundation\Response;
  * `workspace:required` (a business's locations, staff, settings), are never
  * reached: the answer is a 404 that says to create one first.
  *
+ * The business's own status has a say too (Doc 15 section 15.6): nothing of
+ * a suspended or closed one opens but its navigation, and one restricted or
+ * under review is read, not changed (BusinessStatusService::refusal).
+ *
  * Read it back with $request->attributes->get('workspace').
  */
 class ResolveWorkspace
@@ -28,6 +33,7 @@ class ResolveWorkspace
 
     public function __construct(
         protected WorkspaceRepository $workspaceRepository,
+        protected BusinessStatusService $statuses,
     ) {}
 
     public function handle(Request $request, Closure $next, ?string $need = null): Response
@@ -45,6 +51,10 @@ class ResolveWorkspace
         abort_if($workspace === null && $need === 'required', 404, 'Create a workspace first.');
 
         $request->attributes->set('workspace', $workspace);
+
+        if ($workspace && ($refusal = $this->statuses->refusal($request, $workspace))) {
+            return $refusal;
+        }
 
         return $next($request);
     }

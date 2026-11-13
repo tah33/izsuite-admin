@@ -9,6 +9,7 @@ use App\Models\Billing\SubscriptionInvoice;
 use App\Models\Billing\WorkspaceSubscription;
 use App\Models\Concerns\HasFiles;
 use App\Services\User\Apps\ProvisionWorkspaceApps;
+use App\Support\BusinessStatus;
 use App\Support\RegionalDefaults;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -123,6 +124,9 @@ class Workspace extends Model
             $workspace->sku_auto ??= false;
             $workspace->sku_prefix ??= 'SKU-';
             $workspace->barcode_format ??= 'any';
+
+            // Doc 15 section 15.6: every business starts Active.
+            $workspace->status ??= BusinessStatus::ACTIVE;
         });
 
         static::created(fn (self $workspace) => app(ProvisionWorkspaceApps::class)->handle($workspace));
@@ -404,6 +408,12 @@ class Workspace extends Model
     public function businessFiles(): HasMany
     {
         return $this->hasMany(WorkspaceFile::class);
+    }
+
+    /** Every change to its status, by the admin panel (Doc 15 section 15.6). */
+    public function statusChanges(): HasMany
+    {
+        return $this->hasMany(WorkspaceStatusChange::class);
     }
 
     /** The logo on its documents and pages (Settings > Business). */

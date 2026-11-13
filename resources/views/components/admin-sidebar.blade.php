@@ -70,6 +70,11 @@
             <span>{{ __('Menu Builder') }}</span>
         </a>
 
+        <a href="{{ route('admin.businesses.index') }}" class="sidebar-link {{ request()->routeIs('admin.businesses.*', 'admin.workspaces.*') ? 'active' : '' }}">
+            <i data-lucide="building-2" class="icon"></i>
+            <span>{{ __('Businesses') }}</span>
+        </a>
+
         <a href="{{ route('admin.clients.index') }}" class="sidebar-link {{ request()->routeIs('admin.clients.*') ? 'active' : '' }}">
             <i data-lucide="users" class="icon"></i>
             <span>{{ __('Users') }}</span>

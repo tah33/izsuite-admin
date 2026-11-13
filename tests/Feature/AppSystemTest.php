@@ -192,6 +192,8 @@ class AppSystemTest extends TestCase
             'warranty_enabled' => true,
             'regional'        => ['date_format' => 'd M Y', 'time_format' => '24h', 'number_format' => 'comma_dot', 'timezone' => app_display_timezone(), 'rate_precision' => 6],
             'setup_completed' => false,
+            // Active, so no status to show (Doc 15 Phase B1: the banner says why one is restricted or shut).
+            'status'          => null,
         ], $nav['workspace']);
         $this->assertSame(
             ['name' => 'Sales Lite', 'edition' => 'lite', 'status' => 'active', 'has_history' => true],

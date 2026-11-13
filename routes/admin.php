@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminAuditLogController;
 use App\Http\Controllers\Admin\AdminTwoFactorController;
 use App\Http\Controllers\Admin\AppController;
+use App\Http\Controllers\Admin\BusinessController;
 use App\Http\Controllers\Admin\AppCategoryController;
 use App\Http\Controllers\Admin\ClientController;
 use App\Http\Controllers\Admin\ContactMessageController;
@@ -71,6 +72,11 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     Route::get('/clients', [ClientController::class, 'index'])->name('clients.index');
     Route::get('/clients/{id}', [ClientController::class, 'show'])->whereNumber('id')->name('clients.show');
     Route::post('/clients/{id}/login-as', [ClientController::class, 'loginAs'])->whereNumber('id')->name('clients.login-as');
+    // Businesses (Doc 15 Phase B1): the list, a business's page, its status, and a message from izSuite.
+    Route::get('/businesses', [BusinessController::class, 'index'])->name('businesses.index');
+    Route::get('/businesses/{id}', [BusinessController::class, 'show'])->whereNumber('id')->name('businesses.show');
+    Route::post('/businesses/{id}/status', [BusinessController::class, 'changeStatus'])->whereNumber('id')->name('businesses.status');
+    Route::post('/businesses/{id}/notify', [BusinessController::class, 'notify'])->whereNumber('id')->name('businesses.notify');
     Route::get('/workspaces/{id}/package', [WorkspaceController::class, 'reviewPackage'])->whereNumber('id')->name('workspaces.package.review');
     // izSuite's subscription invoices: confirming a bank transfer issues the receipt and starts the plan (Doc 13 Phase C1).
     Route::get('/subscription-invoices', [SubscriptionInvoiceController::class, 'index'])->name('subscription-invoices.index');

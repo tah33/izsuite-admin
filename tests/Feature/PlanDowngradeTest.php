@@ -112,9 +112,9 @@ class PlanDowngradeTest extends TestCase
         $this->get(route('admin.workspaces.package.review', ['id' => $this->business->id, 'package_id' => $this->packages['premium']->id]))
             ->assertOk()->assertSee('Nothing is turned off');
 
-        // The move itself: apps within the plan, back to the client's page; nobody switched off yet.
+        // The move itself: apps within the plan, back to the business's page (Doc 15 Phase B1); nobody switched off yet.
         $this->patch(route('admin.workspaces.package', $this->business->id), ['package_id' => $this->packages['starter']->id])
-            ->assertRedirect(route('admin.clients.show', $this->owner->id));
+            ->assertRedirect(route('admin.businesses.show', $this->business->id));
 
         $this->assertSame('sales_lite', $this->business->workspaceApps()->with('app')->where('family_key', 'sales')->first()->app->app_key);
         $this->assertSame(['active', 'active', 'pending'], array_map(fn (WorkspaceMember $member) => $member->fresh()->status, array_values($this->members)));

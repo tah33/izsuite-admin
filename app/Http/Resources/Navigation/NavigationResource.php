@@ -32,6 +32,8 @@ class NavigationResource extends JsonResource
                 'warranty_enabled' => $workspace['warranty_enabled'] ?? true,
                 'regional'        => $workspace['regional'] ?? null,
                 'setup_completed' => $workspace['setup_completed'] ?? true,
+                // Doc 15 section 15.6: null while Active; else its banner or why it cannot be opened.
+                'status'          => $workspace['status'] ?? null,
             ] : null,
 
             // By family. An object even when empty, so the client always gets a

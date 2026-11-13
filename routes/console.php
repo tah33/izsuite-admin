@@ -18,3 +18,6 @@ Schedule::command('subscriptions:advance')->hourly()->withoutOverlapping();
 
 // The plan's limits nearly reached, reached or passed, each state once (Doc 14 Phase B2).
 Schedule::command('notifications:usage')->hourly()->withoutOverlapping();
+
+// Businesses closed on their scheduled closing day (Doc 15 Phase B1).
+Schedule::command('businesses:close-due')->hourly()->withoutOverlapping();
