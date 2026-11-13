@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminTwoFactorController;
 use App\Http\Controllers\Admin\AppController;
 use App\Http\Controllers\Admin\AppCategoryController;
 use App\Http\Controllers\Admin\ClientController;
@@ -37,8 +38,15 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    // Each admin's own two-factor sign-in (Doc 15 section 15.2), open to every role.
+    Route::get('/two-factor/setup', [AdminTwoFactorController::class, 'setup'])->name('two-factor.setup');
+    Route::post('/two-factor/setup', [AdminTwoFactorController::class, 'confirm'])->name('two-factor.confirm');
+    Route::get('/two-factor/recovery-codes', [AdminTwoFactorController::class, 'recoveryCodes'])->name('two-factor.recovery-codes');
+    Route::post('/two-factor/recovery-codes', [AdminTwoFactorController::class, 'newRecoveryCodes'])->name('two-factor.new-recovery-codes');
+
     Route::resource('staff', StaffController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])->parameters(['staff' => 'id']);
     Route::patch('/staff/{id}/toggle-status', [StaffController::class, 'toggleStatus'])->name('staff.toggle-status');
+    Route::post('/staff/{id}/two-factor/reset', [StaffController::class, 'resetTwoFactor'])->whereNumber('id')->name('staff.two-factor.reset');
 
     Route::resource('roles', RoleController::class)->except(['show'])->parameters(['roles' => 'id']);
     Route::resource('pages', PageController::class)->except(['show'])->parameters(['pages' => 'id']);

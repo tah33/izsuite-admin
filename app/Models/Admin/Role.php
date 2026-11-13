@@ -17,10 +17,11 @@ class Role extends Model
     /**
      * Roles of frontend accounts, which are never admin staff: clients -
      * everyone who signs up on the website ("user") - and the old recruitment
-     * product's recruiters and candidates. The Staff page neither lists nor
-     * gives them.
+     * product's recruiters, candidates and affiliates. Every other role is an
+     * admin role (User::isAdmin). Admin > Roles and the Staff page neither
+     * list nor give them, and nobody renames them.
      */
-    public const FRONTEND_SLUGS = ['user', 'recruiter', 'candidate'];
+    public const FRONTEND_SLUGS = ['user', 'recruiter', 'candidate', 'affiliate'];
 
     protected $fillable         = [
         'name',
@@ -55,6 +56,12 @@ class Role extends Model
         }
 
         return in_array($routeName, $this->permissions ?? []);
+    }
+
+    /** A website account's role, never an admin's. */
+    public function isFrontend(): bool
+    {
+        return in_array($this->slug, self::FRONTEND_SLUGS, true);
     }
 
     /**

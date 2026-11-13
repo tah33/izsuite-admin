@@ -103,6 +103,7 @@ class User extends Authenticatable
             'two_factor_recovery_codes' => 'array',
             'two_factor_confirmed_at'   => 'datetime',
             'two_factor_last_step'      => 'integer',
+            'sessions_valid_from'       => 'datetime',
         ];
     }
 
@@ -159,10 +160,15 @@ class User extends Authenticatable
             });
     }
 
+    /**
+     * Whether the account is izSuite staff: the Super Admin, or any role but a
+     * website account's (Role::FRONTEND_SLUGS). That takes in the roles made
+     * in Admin > Roles, whatever they are called (Doc 15 section 15.3).
+     */
     public function isAdmin(): bool
     {
         return $this->role_id === Role::SUPER_ADMIN_ID
-            || ($this->role && in_array($this->role->slug, ['super-admin', 'admin', 'staff'], true));
+            || ($this->role && ! $this->role->isFrontend());
     }
 
     public function isSuperAdmin(): bool

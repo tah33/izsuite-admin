@@ -10,6 +10,7 @@ class RoleRepository
     public function getAll(): Collection
     {
         return Role::where('id', '>', Role::SUPER_ADMIN_ID)
+            ->whereNotIn('slug', Role::FRONTEND_SLUGS)
             ->withCount('users')
             ->orderBy('id')
             ->get();

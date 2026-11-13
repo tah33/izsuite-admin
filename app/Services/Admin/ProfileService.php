@@ -3,29 +3,49 @@
 namespace App\Services\Admin;
 
 use App\Models\User\User;
+use App\Repositories\Admin\AdminSignInRepository;
 use App\Repositories\User\UserRepository;
+use Illuminate\Contracts\Session\Session;
 use Illuminate\Support\Facades\Hash;
 
 /**
- * The signed-in admin's own account: their details, their password, and
- * deleting the account.
+ * The signed-in admin's own account: their details, their password, their
+ * two-factor sign-in and sign-in history (Doc 15 section 15.2), and deleting
+ * the account.
  */
 class ProfileService
 {
     public function __construct(
         protected UserRepository $userRepository,
+        protected AdminSignInRepository $signIns,
+        protected AdminSessionService $sessions,
+        protected AdminTwoFactorService $twoFactor,
     ) {}
+
+    /** What the profile page shows besides the account itself. */
+    public function page(User $user): array
+    {
+        return [
+            'user'              => $user,
+            'twoFactorOn'       => $this->twoFactor->isOn($user),
+            'recoveryCodesLeft' => $this->twoFactor->recoveryCodesLeft($user),
+            'signIns'           => $this->signIns->latestFor($user),
+        ];
+    }
 
     public function update(User $user, array $data): void
     {
         $this->userRepository->update($user, $data);
     }
 
-    public function changePassword(User $user, string $password): void
+    /** A new password. Every other session of the account ends; this one goes on. */
+    public function changePassword(Session $session, User $user, string $password): void
     {
         $this->userRepository->update($user, [
             'password' => Hash::make($password),
         ]);
+
+        $this->sessions->endAllBut($session, $user);
     }
 
     /** Why $user cannot delete their own account, if they cannot. */

@@ -17,9 +17,7 @@ class ProfileController extends Controller
     public function show()
     {
         try {
-            return view('admin.profile.show', [
-                'user' => auth()->user(),
-            ]);
+            return view('admin.profile.show', $this->profileService->page(auth()->user()));
 
         } catch (\Throwable $e) {
             report($e);
@@ -43,9 +41,9 @@ class ProfileController extends Controller
     public function updatePassword(UpdateAdminProfilePasswordRequest $request)
     {
         try {
-            $this->profileService->changePassword(auth()->user(), $request->password);
+            $this->profileService->changePassword($request->session(), auth()->user(), $request->password);
 
-            return back()->with('success', __('Password changed successfully.'));
+            return back()->with('success', __('Password changed. Your other sessions have ended.'));
 
         } catch (\Throwable $e) {
             report($e);

@@ -80,9 +80,13 @@ class StaffController extends Controller
                 abort(404);
             }
 
-            $roles     = $this->staffService->assignableRoles();
-
-            return view('admin.staff.edit', compact('staffUser', 'roles'));
+            return view('admin.staff.edit', [
+                'staffUser'   => $staffUser,
+                'roles'       => $this->staffService->assignableRoles(),
+                // Doc 15 section 15.2: their sign-in history and two-factor sign-in.
+                'signIns'     => $this->staffService->recentSignIns($staffUser),
+                'twoFactorOn' => $this->staffService->twoFactorIsOn($staffUser),
+            ]);
 
         } catch (\Throwable $e) {
             report($e);
@@ -128,6 +132,10 @@ class StaffController extends Controller
                 abort(403);
             }
 
+            if ($problem = $this->staffService->statusProblem($staffUser)) {
+                return $this->adminFailure(request(), $problem, 400);
+            }
+
             $this->staffService->toggleStatus($staffUser);
 
             $status    = $staffUser->status === 'active' ? 'activated' : 'deactivated';
@@ -136,6 +144,33 @@ class StaffController extends Controller
                 request(),
                 "{$staffUser->name} has been {$status}.",
                 route('admin.staff.index')
+            );
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /**
+     * Turn a member's two-factor sign-in off - a Super Admin only - so they
+     * set it up again at their next sign-in: for a lost phone.
+     */
+    public function resetTwoFactor(Request $request, int $id)
+    {
+        try {
+            $staffUser = $this->staffService->findEditable($id);
+
+            if (! $staffUser) {
+                abort(404);
+            }
+
+            $this->staffService->resetTwoFactor($request->user(), $staffUser);
+
+            return $this->adminSuccess(
+                $request,
+                "{$staffUser->name}'s two-factor sign-in was reset. They set it up again at their next sign-in.",
+                route('admin.staff.edit', $staffUser->id)
             );
 
         } catch (\Throwable $e) {

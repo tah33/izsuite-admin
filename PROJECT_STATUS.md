@@ -2,10 +2,11 @@
 
 What is done, what comes next, and how to carry on from another PC.
 
-- **Last updated:** 2026-11-12
-- **Code:** Doc 14 is done. Its last phase, E2, is committed: frontend `b29f546` on `nuxt`, and on `main` the admin commit right after `8e38b43`.
-- **Tests:** 718 backend tests pass (last full run 2026-11-12, on this code, on the second PC).
-- **Next step:** Doc 15, starting with its gap check (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
+- **Last updated:** 2026-11-13
+- **Code:** Doc 15's gap check and Phase A1 (signing in to the admin) are on `main` in the admin commit right after `e619cfd`. The frontend has nothing new since `b29f546` on `nuxt`.
+- **Tests:** 732 backend tests pass (last full run 2026-11-13, on this code, on the second PC).
+- **Next step:** Doc 15 Phase A2: the audit log, the starting admin roles and critical actions (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
+- **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
 
@@ -14,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start the Doc 15 gap check.
+   > Read PROJECT_STATUS.md, then start Doc 15 Phase A2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -39,7 +40,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 12 | Users, Roles, Permissions and Locations | Done, except package change rules (Doc 13) |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
-| **15** | **izSuite System Administration Portal** | **Next: the gap check. Parts exist** |
+| **15** | **izSuite System Administration Portal** | **In progress: gap check and Phase A1 done (2026-11-13), A2 next** |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -313,9 +314,193 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 - Share links that expire. They stay until revoked.
 - Imports beyond contacts and items.
 
-### 3. Doc 15: izSuite System Administration Portal (next: the gap check)
+### 3. Doc 15: izSuite System Administration Portal (next: Phase A2)
 
-It starts with a gap check, since much was built along the way. The admin panel exists (Clients with Login as, Menu Builder, Packages, apps, Subscription Invoices and Taxes, Payment Methods), but was never checked against this doc.
+The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign-in) had grown through Docs 01 to 14, partly from the earlier recruitment product, and was checked against all 27 sections.
+
+**Already built:**
+
+- A separate admin panel with its own sign-in page and web sessions, ending after 120 minutes idle. Admin roles (`roles`) are apart from the businesses' roles (`workspace_roles`).
+- Admin > Roles: Super Admin may do everything; any other role lists the admin pages it may open, by route. Admin > Staff gives staff a role and can switch them off. (Both have faults; see below.)
+- Admin > Users (the clients): each account's status, verification, sign-up and last sign-in, its businesses with their plans, and totals across them (users, locations, contacts, items, storage). It can be searched and filtered by plan.
+- Login as: a one-time link that opens the user's dashboard for 2 hours, with a Back to admin button. It is logged against the user's account with the admin's name, but outside any business's Activity Log. The user's sessions list shows it as "izSuite support".
+- Moving a business to another plan, after a review of what changes (Doc 13 Phase B2).
+- Packages: the three plans, with name, description, limits (storage, businesses, users, locations), one price currency with monthly and yearly prices ("to be announced" when empty), trial and grace days, branding, and offered or not. Package Access sets which apps each plan includes, checked against the apps' dependencies.
+- The Apps Center catalogue: categories, and apps in families of Lite and full editions, each with its key, icon, descriptions, features, support link, status (Available or Coming Soon), order and dependencies. The Menu Builder adds an app's sidebar pages by family, edition and permission, with no frontend rebuild.
+- Billing (Doc 13):
+  - Subscription Invoices: filters, confirming a transfer, cancelling, the PDF, and each card try with its result.
+  - Subscription Taxes per country, with dates and reverse charge.
+  - Payment Methods: Bank Transfer, and Stripe with test and live keys kept apart, encrypted and shown masked. Its webhooks are checked, and a payment is settled once.
+- Languages with their translations, and currencies with their formatting. Settings has izSuite's billing details, the card retry days, mail, branding and the attachment limits.
+- Website content: pages, header and footer, FAQs, and the contact form's messages with replies.
+- Tickets with departments, answered by staff. They come from the earlier product: a business cannot open one from the app.
+- Laravel's `/up` answers while the app is up, and failed queue jobs are kept in `failed_jobs`.
+
+**Found while checking**, to fix first (proved with a throwaway test, then deleted):
+
+- **A staff member switched off in Admin > Staff can still sign in.** Neither the sign-in nor the admin pages check the account's status. *Fixed in Phase A1.*
+- **A staff member given a role made in Admin > Roles cannot sign in at all.** Only the roles named Super Admin, Admin and Staff count as admin (`User::isAdmin()` checks the role's slug), so new admin roles do nothing yet. *Fixed in Phase A1.*
+- **The admin sign-in has no rate limit.** Thirty wrong passwords in a row were all answered. *Fixed in Phase A1.*
+- **No admin action is recorded.** The activity log skips anything an admin does (`ActivityLogService::shouldSkipAdminActivity`), so the admin services' 61 log calls write nothing, sign-ins included. The 15 admin entries in the dev database are seeded demo rows. *For Phase A2. Admin sign-ins are kept since A1.*
+- The sidebar still shows the earlier product's Plans & Pricing and Subscription History. They work per user account and no longer fit, since Doc 13 replaced them. The Overview's figures are that product's too: Pro Users and Monthly Revenue are always 0.
+
+**Missing**, as suggested phases with defaults:
+
+**Phase A: admin access, roles and the audit log** (sections 2, 3, 25 and 26) was split on starting it (2026-11-13): A1, signing in to the admin; A2, the audit log, roles and critical actions.
+
+**Phase A1: signing in to the admin** (section 2) is built, with your defaults:
+
+- **The three sign-in faults fixed.**
+  - A switched-off account is refused at sign-in, once the password is right: "This account is switched off. A Super Admin can switch it on again." An open session ends at its next request.
+  - Every role but a website account's is an admin role, so a role made in Admin > Roles signs in and opens the pages it lists.
+  - Five wrong passwords a minute, per address and IP address. The next try waits: "Too many sign-in attempts. Try again in 42 seconds."
+- **Roles stay what they are.** Admin > Roles lists and edits admin roles only: User, Recruiter, Candidate and Affiliate are the website's and are left out. A role keeps the slug it was made with when renamed, and a new role cannot take a website role's name or a taken one.
+- **Two-factor for every admin**, with the authenticator app the businesses use.
+  - An admin without it signs in, then sees only its set-up page: a QR code and the key to type, then the app's first code. Ten recovery codes are shown once.
+  - With it on, the code is asked after the password, or a recovery code instead. Five wrong codes, or five minutes, and the sign-in starts again.
+  - The profile shows it with the recovery codes left, and makes new ones with the password.
+  - A Super Admin resets another admin's from their Staff page, for a lost phone. They are signed out and set it up again.
+- **Sessions end:**
+  - after 30 minutes without a request, at the next one: "You were signed out after 30 minutes without activity." "Remember me" is gone from the admin sign-in.
+  - when the account is switched off, gets a new role or password, or has its two-factor reset. An admin's own new password ends their other sessions only.
+  - Nobody switches themselves off.
+- **Passwords:** at least 12 characters for admins, with mixed case, a number and a symbol, on the staff forms and the profile. Website accounts keep 8.
+- **Sign-in history:** each sign-in, and each failed attempt with its reason, with the time, IP address and browser. The profile shows the admin's own latest ten, and a staff member's Staff page shows theirs. The staff list says whose two-factor is set up.
+- **New-browser e-mail:** a sign-in from a browser the admin has not signed in on before is e-mailed to them, with the time, browser and IP address. A browser is known by its own random cookie. The very first sign-in sends none.
+- Every admin may open their own profile, password and two-factor pages, whatever their role.
+- Checked in the browser as the seeded admin:
+  - signing in without two-factor led to the set-up page, whose QR code drew, and other pages led back to it;
+  - a wrong code was refused under the field, and the right one showed the ten recovery codes once;
+  - the profile showed two-factor on and the sign-in;
+  - after signing out, a wrong password was refused, and the right one asked for the code, which signed in;
+  - the staff list and a staff page showed two-factor not set up, and Admin > Roles showed only Admin and Staff.
+
+  The admin's two-factor was then reset and the check's sign-ins removed, so `admin@izsuite.io` sets two-factor up at its next sign-in. The idle end, the throttle, the reset and the e-mail are covered by tests only.
+
+**Phase A2: the audit log, roles and critical actions** (sections 3, 25 and 26), with these defaults:
+
+- The last fault fixed: admin actions are recorded, in their own log apart from the businesses' Activity Logs, with sign-ins and sign-outs.
+- The roles of section 3 as starting roles: Super Administrator (one, as now), Product, Billing, Support, Compliance and Security, and Read-Only. Each opens the pages of its area, and Read-Only opens lists and details only. All stay editable.
+- Admin > Audit Log: every admin action with the admin, their role, the action, the record, its previous and new values, the reason, the time, IP address, browser and result. It can be searched by admin, action, record and dates, and exported as CSV by roles allowed to. Nobody can edit it.
+- Critical actions (section 25) say what they will affect, then ask for the password again and a reason:
+  - making a Super Admin;
+  - overriding a business's ownership;
+  - suspending several businesses at once;
+  - changing a live payment provider;
+  - refunds above an amount set in Settings;
+  - changing every plan's apps;
+  - turning off a security control.
+
+**Phase B: businesses, users and support access** (sections 5, 6, 7 and 22), likely split in two:
+
+- **Admin > Businesses**, one row per business: name, ID, owner, country, plan, subscription status, business status, users, locations, storage, sign-up date and last activity. It filters by plan, country, both statuses, sign-up date and limits reached. Admin > Users stays the list of people.
+- **A business's page:** its profile, owner, plan and subscription, billing details, apps, counts and storage, support cases and the admin activity on it. From there an admin can:
+  - send it a notification;
+  - resend the owner's verification e-mail;
+  - change its plan, as now;
+  - extend a trial or grace period, with a reason;
+  - suspend or reactivate it;
+  - schedule its closure, or cancel that.
+- **Business statuses**, apart from the subscription's. Nothing is ever deleted.
+  - Active.
+  - Restricted, and Under Review: members can read but not change anything, and a banner says why.
+  - Suspended: members cannot open the business. The owner sees why and how to reach support.
+  - Closure Scheduled: it works as usual until the date, with a banner.
+  - Closed: nobody opens it.
+
+  Each change keeps its reason, the admin, the date it takes effect, notes, whether the owner was told, and what reactivates it.
+- **Users:** the list adds two-factor on or off, the number of businesses and security alerts. An admin can:
+  - resend the verification e-mail;
+  - lock or unlock the account;
+  - sign it out everywhere;
+  - send a single-use password reset link;
+  - reset its two-factor after checking who is asking.
+
+  Nobody ever sees or sets a password.
+- **Support sessions replace Login as:**
+  - The admin names the support case and a reason.
+  - The session is read-only, lasts 1 hour (up to 4) and ends by itself, with a banner throughout: "izSuite support is viewing this business, read-only, until 15:30".
+  - Edit access needs its own permission and the customer's agreement, noted.
+  - The business's Activity Log shows the session and the sensitive areas it opened: settings, payment account details and users.
+- **Support cases:** Tickets become support cases tied to a business, so a support session can name one.
+
+**Phase C: subscriptions and billing** (sections 9, 13, 14 and 17), likely split in two:
+
+- **Admin > Subscriptions**, from `workspace_subscriptions`: business, plan, cycle, currency, status, start, trial end, renewal, cancellation date, provider and last payment.
+  - Statuses as the doc names them: Free, Trialing, Active, Past Due, Grace Period, Cancellation Scheduled, Downgraded and Cancelled. Suspended follows the business's status.
+  - Actions, each with a reason and logged: change plan; extend a trial or grace period; schedule a cancellation; cancel a scheduled change; resend an invoice or notice; retry a failed card payment; and an adjustment, a credit taken off the next invoice.
+- **Billing:**
+  - Payments, with the failed ones.
+  - Refunds, each with a reason. A card refund goes through Stripe and counts once Stripe confirms it; a transfer refund is recorded by hand.
+  - Credits.
+  - Reports: revenue by month, plan and currency; open and overdue invoices; failed payments.
+- The earlier product's Plans & Pricing and Subscription History screens removed. Their tables wait for your decision.
+- **Prices** in several currencies per plan, each with start and end dates and kept in history. A business pays in its own currency when the plan has a price in it, else in the plan's first currency. A price change reaches existing subscribers only when the admin applies it, with an e-mail 30 days before.
+- **Promotions:** codes with a percent or fixed discount, the plans, countries and cycles they apply to, dates, a total limit and one per business, and a new-customers-only option. The subscribe dialog shows the discounted price, the tax and what renewals will cost.
+
+**Phase D: the dashboard, usage and service health** (sections 4, 18 and 23):
+
+- **The Overview with real figures:**
+  - businesses: all, active, on each plan, on trial, past due, in grace and suspended;
+  - new sign-ups and active users;
+  - the most activated apps, and storage used;
+  - subscription revenue and failed payments;
+  - failed background jobs, and alerts.
+
+  It filters by dates, country, plan, subscription status, app and currency, and shows no business's transactions.
+- **Usage:** each business's users, locations, storage and apps against its limits, with the warning state, as a list to sort and filter. A daily snapshot gives its history.
+- **Service health:** the database, file storage, the queue (jobs waiting and failed, and retrying a failed one where safe), e-mail delivery (failed notifications and document e-mails), Stripe (its last webhook and failed calls), imports and exports, failed sign-ins, and alerts. Incidents keep notes, the admin responsible and their status. A retry never sends an invoice, payment or e-mail twice.
+
+**Phase E: the catalogue and packages in depth** (sections 8, 10 and 12):
+
+- **Packages:**
+  - their fixed internal code shown;
+  - a reporting level and a support level;
+  - monthly and yearly each offered or not;
+  - the countries a plan is offered in;
+  - changes with an effective date and version history. A subscriber keeps the version they subscribed to.
+- **Apps:**
+  - the statuses Draft, Coming Soon, Published, Temporarily Unavailable, Deprecated and Retired (Available becomes Published);
+  - the countries an app is offered in;
+  - apps it conflicts with;
+  - its release version.
+
+  Retiring an app keeps its data.
+- **Feature flags:**
+  - each with its name, description and audience: internal, chosen businesses, countries, plans, or a percentage of businesses;
+  - its dates, status and the admin responsible, and an emergency off switch;
+  - the code asks `Features::enabled()`, and the frontend gets a business's flags from `/navigation`.
+
+  Turning a flag off deletes nothing.
+
+**Phase F: communications, announcements and countries** (sections 19, 20 and 21):
+
+- **E-mail templates** in the admin for the platform's e-mails:
+  - which e-mails: verification, invitation, password reset, security alerts, subscription notices, trial ending, renewal reminders, failed payments, grace, suspension, plan changes, usage limits, app announcements and maintenance;
+  - each per language, with a subject, message, variables, preview, test send, status and version history.
+
+  Today they are Blade views in the code. Security and billing notices stay ones nobody in a business can turn off.
+- **Announcements:**
+  - a banner in the workspace, for all businesses, chosen plans, countries, apps or businesses, or for admins only;
+  - each with a title, message, dates, priority, a link, and whether it can be dismissed. Emergency and legal ones cannot be.
+- **Countries in the admin** (today a fixed list in the code, `App\Support\Countries`), each with the defaults a new business takes: currency, timezone, date and number formats, address format and payment methods, with effective dates. Tax templates and document terminology wait for country localization.
+
+**Phase G: privacy and compliance** (section 24):
+
+- Privacy requests (a data export, closing an account, a correction), each with its identity check noted, its status and its audit entries.
+- A business's data exported as a ZIP of CSV files, by a restricted permission, through a link that expires after 7 days.
+- Legal holds that stop a closure or deletion, and consent records: terms accepted and marketing.
+- Retention rules are shown but not enforced until you set them.
+
+**Suggested to leave, unless you say otherwise:**
+
+- A second admin's approval for critical actions, which section 25 asks for "where configured". The password and a reason come first; approval can follow once there are several admins.
+- Configuring how Lite and full apps relate (section 11) in the admin. It stays in the code, since a wrong change could corrupt data, which the section itself forbids.
+- API, automation, AI and SMS usage, their charges, setup fees and included usage. As in Doc 13, they wait for those services.
+- Health checks for SMS delivery and exchange-rate providers, which don't exist yet: businesses enter their own rates.
+- Prices by customer type, since there are no customer types yet.
+- IP allow-listing and a separate domain for the admin panel. These are server decisions.
+- Deleting a business for good. Closed keeps its data.
 
 ### 4. The full apps
 
@@ -348,7 +533,7 @@ Each document goes the same way:
   docker exec izsuite-mysql sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --single-transaction --routines --no-tablespaces "$MYSQL_DATABASE"' > ../izsuite-dev-before-doc-12-phase-d.sql
   ```
 
-- **No passwords or keys in chat or in files.** Test logins are in `database/seeders/UserSeeder.php`.
+- **No passwords or keys in chat or in files.** Test logins are in `database/seeders/UserSeeder.php`. Since Doc 15 Phase A1 the admin also asks for an authenticator app's code. After a browser check, reset the seeded admin's two-factor columns to null so its owner sets up their own.
 
 ### Things that catch you out
 
@@ -477,6 +662,7 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 14: Phase D, notes, comments and activity | the commit after `4ae5865` | `24085c5` | 000122, 000123 |
 | Doc 14: Phase E1, who and where from | the commit after `4bfb9c7` | `76b3aa3` | 000124 |
 | Doc 14: Phase E2, numbers, files and names | the commit after `8e38b43` | `b29f546` | |
+| Doc 15: gap check, and Phase A1, signing in to the admin | the commit after `e619cfd` | | 000125 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -628,6 +814,17 @@ These are easy to undo by mistake.
 - A number typed by hand (Doc 14 Phase E2) is checked by `DocumentNumbers::typed()`: the `documents.number` permission, then the type's `numberTaken` repository query. `SalesDocumentFlow::issue` (and `CreditNoteService::issue` through it), `PurchaseFlow::record` and `ExpenseFlow::record` put it on in place of `next()`. On the frontend, `useRecording` sends it again with a duplicate warning's answer.
 - The attachment limits are the `files_attachment_types` and `files_attachment_max_mb` settings, read through `App\Services\Files\FileLimits`. It narrows `FileCollection::Attachments` only, never past the code's own list or 50 MB. `UploadFilesRequest` checks uploads by it, and `GET /files/limits` (`FileLimitsResource`) serves it to `useFileLimits()`. The settings tab needed `files` in `SettingRepository::getGrouped`'s list of shown groups.
 - `FileRemovalRule` decides who may remove a settled record's file, from the record's class and status. `RecordFileService::remove` asks it first, so every attachment controller follows it. Pages pass `can-remove` to `RecordFilesPanel` with the same rule.
+- An admin is any user whose role is Super Admin or not a website account's (`User::isAdmin`, `Role::FRONTEND_SLUGS`: user, recruiter, candidate, affiliate). Website roles never appear in Admin > Roles, and a role's slug never changes after it is made, since renaming a website role would make its holders admins.
+- The admin sign-in (Doc 15 Phase A1) is `AdminLoginService`: the password with `RateLimiter` (key `admin-sign-in:` and a hash of the address and IP), then a code step held in the session (`admin.sign_in_challenge`) using `TwoFactorService::passes`. An admin's two-factor uses the same `users.two_factor_*` columns as the website's, under the issuer "izSuite Admin" (`AdminTwoFactorService`).
+- An admin session is `AdminSessionService`, checked by `AdminMiddleware` on every admin request:
+  - `admin.signed_in_at` against `users.sessions_valid_from`, which `endAll()` sets;
+  - `admin.last_seen_at` for the 30 idle minutes;
+  - `admin.setting_up_two_factor` until two-factor is on.
+
+  Only sessions begun at the sign-in page carry them, so a test's `actingAs` is held to the account's status only. In a test that signs in for real, call `$this->app['auth']->forgetGuards()` before a request that must see a changed account: the guard keeps the user it loaded.
+- Admin sign-ins are `admin_sign_ins` (migration 000125): `succeeded`, `failure` (password, switched_off, two_factor, throttled), IP address, browser, and `device`, a hash of the browser's `izsuite_admin_device` cookie (a random id, kept a year).
+- The two-factor set-up's QR code is drawn by `public/vendor/qrcode/qrcode.min.js`: node-qrcode 1.5.4 (MIT, its licence beside it), bundled with esbuild from the frontend's own copy. To rebuild it: `docker exec izsuite-frontend node_modules/.bin/esbuild node_modules/qrcode/lib/browser.js --bundle --minify --format=iife --global-name=QRCode --outfile=/tmp/qrcode.min.js`, then `docker cp` it over.
+- `PermissionCheckMiddleware` lets every admin open the Overview and their own profile, password and two-factor pages, whatever their role.
 - The frontend's location pick is `useLocationPick()`. It is shared state behind the `izsuite_location` cookie, and `''` means All Locations. A pick no longer offered (an inactive location, another business's) counts as All Locations. `forNewRecord()` waits for the locations list, so a form opened right after a reload still gets the pick.
 
 ## Small things left
@@ -655,10 +852,13 @@ Each of these is yours to settle.
 - May a full-access role delete anyone's comment? Today only its author can, and comments are never edited.
 - Should Managers type document numbers by hand? Manager roles made from now on may, since a Manager holds everything outside Settings. Roles made before may not until it is ticked.
 - Should a completed payment's files need Reverse to be removed (built in E2)? The other way is to treat a payment's files like a draft's, under Record Payment.
+- Once Doc 15 Phase C removes the earlier product's Plans & Pricing and Subscription History screens, should its `plans`, `plan_payment_providers`, `subscriptions` and `invoices` tables be dropped too?
+- Should support cases stay in izSuite's own Tickets (Doc 15 Phase B's default), or come from an outside help desk?
 
 ## Deploying to a server
 
 - Run `php artisan migrate`, then `php artisan db:seed --class=AppCatalogSeeder`. **Never run the full `DatabaseSeeder` on a server:** it adds demo users.
 - The host nginx needs `client_max_body_size` of at least 120M, and the image must be rebuilt for the upload limits.
 - A database that still has `workspaces.staff_id` links and has not yet run migration 000060 would lose them. Check this on any older server.
+- Doc 15 Phase A1: after deploying, every admin is asked to set up two-factor at their next sign-in, so have an authenticator app ready. The new-browser e-mails go through the queue worker.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

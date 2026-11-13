@@ -21,7 +21,9 @@ class PermissionCheckMiddleware
             return $next($request);
         }
 
-        if ($request->routeIs('admin.overview')) {
+        // The Overview, and each admin's own account: their profile and
+        // password, and their two-factor sign-in (Doc 15 section 15.2).
+        if ($request->routeIs('admin.overview', 'admin.profile', 'admin.profile.update', 'admin.profile.password', 'admin.two-factor.*')) {
             return $next($request);
         }
 

@@ -4,17 +4,25 @@ namespace App\Services\Admin;
 
 use App\Models\Admin\Role;
 use App\Models\User\User;
+use App\Repositories\Admin\AdminSignInRepository;
 use App\Repositories\Admin\RoleRepository;
 use App\Repositories\Admin\StaffRepository;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
+/**
+ * The admin panel's staff. A member switched off, or given a new role or
+ * password, has their sessions ended at once (Doc 15 section 15.2).
+ */
 class StaffService
 {
     public function __construct(
         protected StaffRepository $staffRepo,
         protected RoleRepository $roleRepository,
+        protected AdminSessionService $sessions,
+        protected AdminSignInRepository $signIns,
+        protected AdminTwoFactorService $twoFactor,
     ) {}
 
     /**
@@ -85,7 +93,14 @@ class StaffService
             unset($data['password']);
         }
 
+        // A new role or password counts from now: their sessions end.
+        $endSessions = (int) $data['role_id'] !== (int) $user->role_id || isset($data['password']);
+
         $updated = $this->staffRepo->update($user, $data);
+
+        if ($endSessions) {
+            $this->sessions->endAll($updated);
+        }
 
         ActivityLogService::record('updated', "Updated staff member \"{$user->name}\"", $user);
 
@@ -100,9 +115,37 @@ class StaffService
         $user   = $this->staffRepo->toggleStatus($user);
         $status = $user->status === 'active' ? 'activated' : 'deactivated';
 
+        // Switched off, they are signed out wherever they are.
+        if ($user->status !== 'active') {
+            $this->sessions->endAll($user);
+        }
+
         ActivityLogService::record('updated', "Toggled staff \"{$user->name}\" to {$status}", $user);
 
         return $user;
+    }
+
+    /** Why the signed-in admin cannot switch $user off or on, if they cannot: nobody switches themselves off. */
+    public function statusProblem(User $user): ?string
+    {
+        return $user->id === auth()->id() ? 'You cannot switch yourself off.' : null;
+    }
+
+    /** @return Collection<int, \App\Models\Admin\AdminSignIn> $user's latest sign-ins and failed attempts */
+    public function recentSignIns(User $user): Collection
+    {
+        return $this->signIns->latestFor($user);
+    }
+
+    public function twoFactorIsOn(User $user): bool
+    {
+        return $this->twoFactor->isOn($user);
+    }
+
+    /** Resets $member's two-factor sign-in, by $admin, a Super Admin (AdminTwoFactorService::reset). */
+    public function resetTwoFactor(User $admin, User $member): void
+    {
+        $this->twoFactor->reset($admin, $member);
     }
 
     /**

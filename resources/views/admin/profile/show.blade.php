@@ -85,7 +85,7 @@
                         <label for="password" class="form-label text-sm text-[var(--text-muted)]">{{ __('New Password') }}</label>
                         <input type="password" id="password" name="password" autocomplete="new-password" class="form-input @error('password') border-[var(--danger)] @enderror">
                         @error('password')<p class="text-xs text-[var(--danger)]">{{ $message }}</p>@enderror
-                        <p class="text-xs text-[var(--text-muted)]">{{ __('At least 8 characters, with upper and lower case, a number and a symbol.') }}</p>
+                        <p class="text-xs text-[var(--text-muted)]">{{ __('At least :min characters, with upper and lower case, a number and a symbol. Your other sessions end.', ['min' => \App\Support\AdminPassword::MIN]) }}</p>
                     </div>
 
                     <div class="form-group flex flex-col gap-1.5">
@@ -103,6 +103,10 @@
             </div>
         </form>
     </div>
+
+    @include('admin.profile._two-factor')
+
+    @include('admin.partials.sign-ins', ['signIns' => $signIns, 'subtitle' => __('Your latest sign-ins to the admin panel, and the attempts that failed.')])
 
     <div class="card p-6 border border-[var(--danger-light)]">
         <h2 class="text-lg font-semibold text-[var(--danger)] mb-1">{{ __('Delete Account') }}</h2>

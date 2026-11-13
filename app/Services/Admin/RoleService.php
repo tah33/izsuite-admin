@@ -32,13 +32,15 @@ class RoleService
     }
 
     /**
-     * Find a role that may be changed: any but Super Admin, which never is.
+     * Find a role that may be changed: an admin role, but not Super Admin,
+     * which never is. A website account's role is never changed here: renamed,
+     * it would no longer read as one (Role::FRONTEND_SLUGS).
      */
     public function findEditable(int $id): ?Role
     {
         $role = $this->find($id);
 
-        return $role && ! $role->isSuperAdmin() ? $role : null;
+        return $role && ! $role->isSuperAdmin() && ! $role->isFrontend() ? $role : null;
     }
 
     /**
@@ -57,11 +59,12 @@ class RoleService
     }
 
     /**
-     * Update a role.
+     * Update a role. Its slug stays as it was made: renaming a role changes
+     * only what it is called.
      */
     public function update(Role $role, array $data): Role
     {
-        $data['slug']        = Str::slug($data['name']);
+        unset($data['slug']);
         $data['permissions'] = $data['permissions'] ?? [];
 
         $updated = $this->roleRepo->update($role, $data);
