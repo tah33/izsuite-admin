@@ -71,6 +71,8 @@ class SubscriptionOverviewResource extends JsonResource
                 'exp_month' => $this->resource['card']->exp_month,
                 'exp_year'  => $this->resource['card']->exp_year,
             ] : null,
+            // izSuite's credit not used yet, by currency, to come off the next invoices (Doc 15 Phase C2b).
+            'credits'         => collect($this->resource['credits'] ?? [])->map(fn (string $amount, string $currency) => ['currency' => $currency, 'amount' => $amount])->values()->all(),
         ];
     }
 

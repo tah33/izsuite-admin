@@ -53,6 +53,9 @@ class SubscriptionBilling
     /** Grace days a declined saved card is tried again on, besides the last, when the admin has set none (Phase D3). */
     public const RETRY_DAYS     = '1,3';
 
+    /** How an invoice izSuite's credit covers in full is paid (Doc 15 Phase C2b). */
+    public const PAID_WITH_CREDIT = 'izSuite credit';
+
     public function __construct(
         private SubscriptionInvoiceRepository $invoices,
         private SubscriptionPaymentRepository $payments,
@@ -66,6 +69,7 @@ class SubscriptionBilling
         private SubscriptionTaxes $taxes,
         private Notifier $notifier,
         private NotificationAudience $audience,
+        private SubscriptionCredits $credits,
     ) {}
 
     /** $package's price for $cycle - null while izSuite has not announced it. */
@@ -76,18 +80,21 @@ class SubscriptionBilling
 
     /**
      * What $package's $cycle comes to for $workspace if invoiced today: its
-     * price, less an upgrade's $credit, plus the tax on what is left (Phase
-     * D1) - shown before a plan is chosen or changed, and what is invoiced.
+     * price, less an upgrade's $credit and the business's own credit from
+     * izSuite (Doc 15 Phase C2b, `adjustment`), plus the tax on what is left
+     * (Phase D1) - shown before a plan is chosen or changed, and what is
+     * invoiced. $lock holds the business's credit while an invoice takes it.
      *
-     * @return array{currency: string, amount: string, credit: string, tax: array{name: ?string, rate: ?string, amount: string, note: ?string}, total: string}
+     * @return array{currency: string, amount: string, credit: string, adjustment: string, tax: array{name: ?string, rate: ?string, amount: string, note: ?string}, total: string}
      */
-    public function quote(Workspace $workspace, Package $package, string $cycle, string $credit = '0.00'): array
+    public function quote(Workspace $workspace, Package $package, string $cycle, string $credit = '0.00', bool $lock = false): array
     {
-        $amount = (string) $this->price($package, $cycle);
-        $net    = bcsub($amount, $credit, 2);
-        $tax    = $this->taxes->for($workspace, $net, $this->calendar->today($workspace));
+        $amount     = (string) $this->price($package, $cycle);
+        $adjustment = $this->credits->available($workspace, (string) $package->price_currency, bcsub($amount, $credit, 2), $lock);
+        $net        = bcsub(bcsub($amount, $credit, 2), $adjustment, 2);
+        $tax        = $this->taxes->for($workspace, $net, $this->calendar->today($workspace));
 
-        return ['currency' => $package->price_currency, 'amount' => $amount, 'credit' => $credit, 'tax' => $tax, 'total' => bcadd($net, $tax['amount'], 2)];
+        return ['currency' => $package->price_currency, 'amount' => $amount, 'credit' => $credit, 'adjustment' => $adjustment, 'tax' => $tax, 'total' => bcadd($net, $tax['amount'], 2)];
     }
 
     /**
@@ -96,36 +103,51 @@ class SubscriptionBilling
      * after a trial, or a renewal's) is printed on it; otherwise the period
      * starts when the payment is confirmed. Its tax is the one in force
      * today, and it keeps it.
+     *
+     * It takes the business's credit from izSuite off before tax (Doc 15
+     * Phase C2b). One the credit covers in full is paid by it at once: the
+     * receipt goes out in place of the invoice.
      */
     public function issue(Workspace $workspace, Package $package, string $cycle, ?CarbonInterface $periodStart = null, ?CarbonInterface $dueOn = null, string $kind = SubscriptionInvoice::NEW, string $credit = '0.00'): SubscriptionInvoice
     {
         $today   = $this->calendar->today($workspace);
-        $quote   = $this->quote($workspace, $package, $cycle, $credit);
 
-        $invoice = DB::transaction(fn () => $this->invoices->create($workspace, [
-            'number'               => self::INVOICE_PREFIX.str_pad((string) $this->sequences->next('invoice'), 5, '0', STR_PAD_LEFT),
-            'kind'                 => $kind,
-            'package_id'           => $package->id,
-            'package_name'         => $package->name,
-            'cycle'                => $cycle,
-            'period_starts_on'     => $periodStart?->toDateString(),
-            'period_ends_on'       => $periodStart ? $this->periodEnd($periodStart, $cycle)->toDateString() : null,
-            'currency'             => $quote['currency'],
-            'amount'               => $quote['amount'],
-            // An upgrade's credit for the unused part of the paid period (Phase C2b).
-            'credit'               => $credit,
-            'tax_name'             => $quote['tax']['name'],
-            'tax_rate'             => $quote['tax']['rate'],
-            'tax'                  => $quote['tax']['amount'],
-            'tax_note'             => $quote['tax']['note'],
-            'total'                => $quote['total'],
-            'status'               => SubscriptionInvoice::OPEN,
-            'issued_on'            => $today->toDateString(),
-            'due_on'               => ($dueOn ?? $today->addDays($this->dueDays()))->toDateString(),
-            'billed_to'            => $this->billedTo($workspace),
-            'seller'               => $this->seller(),
-            'payment_instructions' => $this->instructions(),
-        ]));
+        $invoice = DB::transaction(function () use ($workspace, $package, $cycle, $periodStart, $dueOn, $kind, $credit, $today) {
+            $quote   = $this->quote($workspace, $package, $cycle, $credit, lock: true);
+            $invoice = $this->invoices->create($workspace, [
+                'number'               => self::INVOICE_PREFIX.str_pad((string) $this->sequences->next('invoice'), 5, '0', STR_PAD_LEFT),
+                'kind'                 => $kind,
+                'package_id'           => $package->id,
+                'package_name'         => $package->name,
+                'cycle'                => $cycle,
+                'period_starts_on'     => $periodStart?->toDateString(),
+                'period_ends_on'       => $periodStart ? $this->periodEnd($periodStart, $cycle)->toDateString() : null,
+                'currency'             => $quote['currency'],
+                'amount'               => $quote['amount'],
+                // An upgrade's credit for the unused part of the paid period (Phase C2b).
+                'credit'               => $credit,
+                'adjustment'           => $quote['adjustment'],
+                'tax_name'             => $quote['tax']['name'],
+                'tax_rate'             => $quote['tax']['rate'],
+                'tax'                  => $quote['tax']['amount'],
+                'tax_note'             => $quote['tax']['note'],
+                'total'                => $quote['total'],
+                'status'               => SubscriptionInvoice::OPEN,
+                'issued_on'            => $today->toDateString(),
+                'due_on'               => ($dueOn ?? $today->addDays($this->dueDays()))->toDateString(),
+                'billed_to'            => $this->billedTo($workspace),
+                'seller'               => $this->seller(),
+                'payment_instructions' => $this->instructions(),
+            ]);
+
+            $this->credits->take($invoice);
+
+            return $invoice;
+        });
+
+        if (bccomp((string) $invoice->total, '0', 2) === 0 && bccomp((string) $invoice->adjustment, '0', 2) > 0) {
+            return $this->confirm($invoice, null, ['paid_with' => self::PAID_WITH_CREDIT, 'reference' => null]);
+        }
 
         $this->send($invoice);
 
@@ -182,7 +204,7 @@ class SubscriptionBilling
             if ($invoice->kind === SubscriptionInvoice::UPGRADE) {
                 if ($subscription?->status === WorkspaceSubscription::ACTIVE) {
                     if (($renewal = $this->invoices->openFor($workspace)) && $renewal->kind === SubscriptionInvoice::RENEWAL) {
-                        $this->invoices->update($renewal, ['status' => SubscriptionInvoice::VOID, 'voided_at' => now()]);
+                        $this->cancelInvoice($renewal);
                     }
 
                     $this->subscriptions->save($workspace, [
@@ -227,7 +249,7 @@ class SubscriptionBilling
         }
 
         DB::transaction(function () use ($invoice) {
-            $this->invoices->update($invoice, ['status' => SubscriptionInvoice::VOID, 'voided_at' => now()]);
+            $this->cancelInvoice($invoice);
 
             // A subscription still waiting for this payment does not start.
             $subscription = $this->subscriptions->for($invoice->workspace);
@@ -238,6 +260,19 @@ class SubscriptionBilling
         });
 
         return $invoice;
+    }
+
+    /**
+     * An open invoice no longer to be paid, and nothing more: cancelled, and
+     * the credit from izSuite it took given back (Doc 15 Phase C2b). void()
+     * does this too, for the subscription waiting for it.
+     */
+    public function cancelInvoice(SubscriptionInvoice $invoice): void
+    {
+        DB::transaction(function () use ($invoice) {
+            $this->invoices->update($invoice, ['status' => SubscriptionInvoice::VOID, 'voided_at' => now()]);
+            $this->credits->giveBack($invoice);
+        });
     }
 
     /** The last day of a period starting on $start: a month or a year on, less a day - 1 Nov to 30 Nov. */

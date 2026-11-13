@@ -23,6 +23,8 @@ use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\StaffController;
+use App\Http\Controllers\Admin\BillingReportController;
+use App\Http\Controllers\Admin\CreditController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\RefundController;
 use App\Http\Controllers\Admin\SubscriptionController;
@@ -132,6 +134,11 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     Route::post('/subscriptions/{id}/undo', [SubscriptionController::class, 'cancelScheduledChange'])->whereNumber('id')->name('subscriptions.undo');
     Route::post('/subscriptions/{id}/resend', [SubscriptionController::class, 'resend'])->whereNumber('id')->name('subscriptions.resend');
     Route::post('/subscriptions/{id}/retry', [SubscriptionController::class, 'retry'])->whereNumber('id')->name('subscriptions.retry');
+    // izSuite's credit to a business, and the billing reports (Doc 15 Phase C2b).
+    Route::post('/subscriptions/{id}/credit', [SubscriptionController::class, 'addCredit'])->whereNumber('id')->name('subscriptions.credit');
+    Route::post('/subscriptions/{id}/credit/remove', [SubscriptionController::class, 'removeCredit'])->whereNumber('id')->name('subscriptions.credit-remove');
+    Route::get('/credits', [CreditController::class, 'index'])->name('credits.index');
+    Route::get('/billing-reports', [BillingReportController::class, 'index'])->name('billing-reports.index');
     Route::resource('payment-methods', PaymentMethodController::class)->except(['show'])->parameters(['payment-methods' => 'id']);
 
     Route::get('languages/{id}/translate', [LanguageController::class, 'translate'])->name('languages.translate');

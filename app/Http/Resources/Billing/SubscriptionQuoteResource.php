@@ -18,6 +18,8 @@ class SubscriptionQuoteResource extends JsonResource
         return [
             'currency' => $this->resource['currency'],
             'amount'   => $this->resource['amount'],
+            // izSuite's credit to the business, taken off before tax (Doc 15 Phase C2b)
+            'adjustment' => $this->resource['adjustment'] ?? '0.00',
             'tax'      => SubscriptionTaxLineResource::of($this->resource['tax']),
             'total'    => $this->resource['total'],
         ];

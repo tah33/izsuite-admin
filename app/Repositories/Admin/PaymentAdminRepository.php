@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Admin;
 
+use App\Models\Billing\SubscriptionCredit;
 use App\Models\Billing\SubscriptionPayment;
 use App\Models\Billing\SubscriptionRefund;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -57,6 +58,23 @@ class PaymentAdminRepository
             ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $this->search($query, $search, fn (Builder $query, string $like) => $query
                 ->orWhere('reference', 'like', $like)
                 ->orWhere('transfer_reference', 'like', $like)
+                ->orWhereHas('invoice', fn (Builder $invoice) => $invoice->where('number', 'like', $like))))
+            ->latest('id')
+            ->paginate(requested_per_page($perPage))
+            ->withQueryString();
+    }
+
+    /**
+     * Admin > Credits (Doc 15 Phase C2b): every movement of izSuite's credit,
+     * newest first, with its business, invoice and admin. $filters: kind, and
+     * search as page() has it.
+     */
+    public function creditsPage(array $filters, int $perPage): LengthAwarePaginator
+    {
+        return SubscriptionCredit::query()
+            ->with(['workspace:id,name,user_id', 'workspace.user:id,first_name,last_name,email', 'invoice:id,number', 'creator:id,first_name,last_name'])
+            ->when($filters['kind'] ?? null, fn (Builder $query, string $kind) => $query->where('kind', $kind))
+            ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $this->search($query, $search, fn (Builder $query, string $like) => $query
                 ->orWhereHas('invoice', fn (Builder $invoice) => $invoice->where('number', 'like', $like))))
             ->latest('id')
             ->paginate(requested_per_page($perPage))

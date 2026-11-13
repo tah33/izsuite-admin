@@ -94,7 +94,10 @@ class SubscriptionChanges
 
             ActivityLogService::record('updated', "Asked to upgrade from {$current} to {$to->name}, {$cycle}; invoice {$invoice->number} issued", $workspace, ['source' => 'api']);
 
-            return "Invoice {$invoice->number} is issued for {$invoice->currency} {$invoice->total}. {$to->name} starts as soon as izSuite confirms your payment.";
+            // izSuite's credit can cover it in full, which pays it at once (Doc 15 Phase C2b).
+            return $invoice->isPaid()
+                ? "Invoice {$invoice->number} is paid with izSuite's credit, and {$to->name} has started."
+                : "Invoice {$invoice->number} is issued for {$invoice->currency} {$invoice->total}. {$to->name} starts as soon as izSuite confirms your payment.";
         }
 
         DB::transaction(function () use ($workspace, $to, $cycle, $open) {

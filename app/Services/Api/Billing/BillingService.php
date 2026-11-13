@@ -14,6 +14,7 @@ use App\Repositories\Billing\WorkspaceSubscriptionRepository;
 use App\Repositories\User\WorkspaceBillingRepository;
 use App\Services\Api\Apps\PublicCatalog;
 use App\Services\Billing\CardPayments;
+use App\Services\Billing\SubscriptionCredits;
 use App\Services\Shared\ActivityLogService;
 use App\Services\User\Workspaces\PlanLimits;
 use App\Support\SettingChanges;
@@ -46,6 +47,7 @@ class BillingService
         protected PublicCatalog $catalog,
         protected PlanLimits $planLimits,
         protected CardPayments $cardPayments,
+        protected SubscriptionCredits $credits,
     ) {}
 
     /**
@@ -84,6 +86,8 @@ class BillingService
             'excess'          => $this->excess($workspace, $user),
             'card_payments'   => $this->cardPayments->available(),
             'card'            => $this->cardPayments->card($workspace),
+            // izSuite's credit not used yet, by currency (Doc 15 Phase C2b).
+            'credits'         => $this->credits->balances($workspace),
         ];
     }
 

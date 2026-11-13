@@ -76,6 +76,16 @@
             <span>{{ __('Refunds') }}</span>
         </a>
 
+        <a href="{{ route('admin.credits.index') }}" class="sidebar-link {{ request()->routeIs('admin.credits.*') ? 'active' : '' }}">
+            <i data-lucide="gift" class="icon"></i>
+            <span>{{ __('Credits') }}</span>
+        </a>
+
+        <a href="{{ route('admin.billing-reports.index') }}" class="sidebar-link {{ request()->routeIs('admin.billing-reports.*') ? 'active' : '' }}">
+            <i data-lucide="bar-chart-3" class="icon"></i>
+            <span>{{ __('Billing Reports') }}</span>
+        </a>
+
         <a href="{{ route('admin.subscription-taxes.index') }}" class="sidebar-link {{ request()->routeIs('admin.subscription-taxes.*') ? 'active' : '' }}">
             <i data-lucide="percent" class="icon"></i>
             <span>{{ __('Subscription Taxes') }}</span>

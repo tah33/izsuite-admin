@@ -99,11 +99,15 @@
 
     {{-- The tax as worked out when issued (Phase D1); a reverse charge adds none and prints its note. --}}
     <table class="totals">
-        @if ((float) $invoice->credit > 0 || $invoice->tax_name)
+        @if ((float) $invoice->credit > 0 || (float) $invoice->adjustment > 0 || $invoice->tax_name)
             <tr><td>Subtotal</td><td>{{ $money($invoice->amount) }}</td></tr>
         @endif
         @if ((float) $invoice->credit > 0)
             <tr><td>Credit for the unused plan</td><td>-{{ $money($invoice->credit) }}</td></tr>
+        @endif
+        {{-- izSuite's credit to the business, taken off before tax (Doc 15 Phase C2b). --}}
+        @if ((float) $invoice->adjustment > 0)
+            <tr><td>Credit from izSuite</td><td>-{{ $money($invoice->adjustment) }}</td></tr>
         @endif
         @if ($invoice->tax_name)
             <tr><td>{{ $invoice->tax_name }} ({{ $invoice->taxPercent() }}%)</td><td>{{ $money($invoice->tax) }}</td></tr>

@@ -16,6 +16,7 @@ use App\Repositories\Billing\WorkspaceSubscriptionRepository;
 use App\Services\Billing\CardPayments;
 use App\Services\Billing\SubscriptionBilling;
 use App\Services\Billing\SubscriptionChanges;
+use App\Services\Billing\SubscriptionCredits;
 use App\Services\Billing\SubscriptionCycle;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\BusinessCalendar;
@@ -51,6 +52,7 @@ class SubscriptionAdminService
         protected BusinessCalendar $calendar,
         protected AdminAuditLogService $audit,
         protected Notifier $notifier,
+        protected SubscriptionCredits $credits,
     ) {}
 
     public function page(array $filters, int $perPage = 15): LengthAwarePaginator
@@ -78,6 +80,8 @@ class SubscriptionAdminService
             'canRetry'     => $this->retryProblem($subscription) === null,
             'activity'     => $this->businesses->adminActivity($workspace),
             'plans'        => $this->packages(),
+            // izSuite's credit not used yet, in the plan's currency (Doc 15 Phase C2b).
+            'credit'       => $this->credits->balance($workspace, (string) $subscription->package?->price_currency),
         ];
     }
 
@@ -93,7 +97,17 @@ class SubscriptionAdminService
         $this->changes->apply($workspace, $to, $cycle);
 
         if ($change['kind'] === SubscriptionChanges::UP) {
-            $invoice = $this->invoices->openFor($workspace);
+            // Just issued: the latest - paid already when izSuite's credit covered it (Doc 15 Phase C2b).
+            $invoice = $this->subscriptions->invoicesFor($workspace, 1)->first();
+
+            if ($invoice->isPaid()) {
+                $this->tellOwner($workspace, "Your plan is now {$to->name}", [
+                    "izSuite has moved {$workspace->name} to {$to->name}, {$cycle}. Invoice {$invoice->number} is paid with izSuite's credit, so the plan has changed already.",
+                    "Why: {$reason}",
+                ]);
+
+                return "Invoice {$invoice->number} is paid with izSuite's credit: {$workspace->name} is on {$to->name} now.";
+            }
 
             $this->tellOwner($workspace, "izSuite is moving your plan to {$to->name}", [
                 "izSuite has started moving {$workspace->name} to {$to->name}, {$cycle}. Invoice {$invoice->number}, for {$invoice->currency} {$invoice->total}, is on its way: the plan changes as soon as it is paid.",
@@ -231,6 +245,61 @@ class SubscriptionAdminService
         ]);
 
         return "{$plan} carries on.";
+    }
+
+    /**
+     * izSuite's credit for the business (Doc 15 Phase C2b), in its plan's
+     * currency: taken off its next invoice before tax - the one after any
+     * waiting now - and what is left off the ones after.
+     */
+    public function addCredit(int $id, User $admin, string $amount, string $reason): string
+    {
+        [$workspace, $currency, $amount] = $this->creditOf($id, $amount);
+        $next     = ($open = $this->invoices->openFor($workspace)) ? "the invoice after {$open->number} (that one is waiting for payment now)" : 'the next invoice';
+
+        $this->audit->withReason($reason);
+        $this->credits->grant($workspace, $currency, $amount, $reason, $admin);
+        $balance  = $this->credits->balance($workspace, $currency);
+
+        ActivityLogService::record('updated', "Gave business \"{$workspace->name}\" a credit of {$currency} {$amount}", $workspace, [
+            'changes' => ['credit' => ['from' => bcsub($balance, $amount, 2), 'to' => $balance]],
+        ], $admin);
+
+        $this->tellOwner($workspace, "izSuite has given you a credit of {$currency} {$amount}", [
+            "izSuite has given {$workspace->name} a credit of {$currency} {$amount}. It comes off {$next}, before tax; what is left comes off the ones after. Your credit is {$currency} {$balance} now.",
+            "Why: {$reason}",
+        ]);
+
+        return "{$workspace->name} has {$currency} {$balance} of credit, to come off {$next}.";
+    }
+
+    /** Takes back $amount of the business's credit not used yet (Doc 15 Phase C2b) - refused beyond what is left. */
+    public function removeCredit(int $id, User $admin, string $amount, string $reason): string
+    {
+        [$workspace, $currency, $amount] = $this->creditOf($id, $amount);
+
+        $this->audit->withReason($reason);
+        $this->credits->remove($workspace, $currency, $amount, $reason, $admin);
+        $balance = $this->credits->balance($workspace, $currency);
+
+        ActivityLogService::record('updated', "Took back {$currency} {$amount} of business \"{$workspace->name}\"'s credit", $workspace, [
+            'changes' => ['credit' => ['from' => bcadd($balance, $amount, 2), 'to' => $balance]],
+        ], $admin);
+
+        $this->tellOwner($workspace, "izSuite has taken back {$currency} {$amount} of your credit", [
+            "izSuite has taken back {$currency} {$amount} of {$workspace->name}'s credit, not used yet. Your credit is {$currency} {$balance} now.",
+            "Why: {$reason}",
+        ]);
+
+        return "{$workspace->name}'s credit is {$currency} {$balance} now.";
+    }
+
+    /** @return array{0: Workspace, 1: string, 2: string} the subscription's business, its plan's currency, and $amount to the cent */
+    private function creditOf(int $id, string $amount): array
+    {
+        $subscription = $this->find($id);
+
+        return [$subscription->workspace, (string) $subscription->package->price_currency, bcadd($amount, '0', 2)];
     }
 
     /** The invoice waiting for payment - else the latest - e-mailed again. */

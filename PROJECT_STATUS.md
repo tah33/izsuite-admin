@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-13
-- **Code:** Doc 15 Phase C2a (payments and refunds) is on `main` in the admin commit right after `9bd9fb5`, and on `nuxt` in the frontend commit right after `d807b88`.
-- **Tests:** 768 backend tests pass (last full run 2026-11-13, on this code, on the second PC).
-- **Next step:** Doc 15 Phase C2b: credit adjustments and the billing reports (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 15 Phase C2b (credits and billing reports) is on `main` in the admin commit right after `c33db1a`, and on `nuxt` in the frontend commit right after `e681985`.
+- **Tests:** 775 backend tests pass (last full run 2026-11-13, on this code, on the second PC).
+- **Next step:** Doc 15 Phase C3: prices in several currencies, and promotions (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 15 Phase C2b.
+   > Read PROJECT_STATUS.md, then start Doc 15 Phase C3.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -40,7 +40,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 12 | Users, Roles, Permissions and Locations | Done, except package change rules (Doc 13) |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
-| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phases A, B, C1 and C2a done (2026-11-13), C2b next** |
+| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phases A, B, C1 and C2 done (2026-11-13), C3 next** |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -314,7 +314,7 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 - Share links that expire. They stay until revoked.
 - Imports beyond contacts and items.
 
-### 3. Doc 15: izSuite System Administration Portal (next: Phase C2b)
+### 3. Doc 15: izSuite System Administration Portal (next: Phase C3)
 
 The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign-in) had grown through Docs 01 to 14, partly from the earlier recruitment product, and was checked against all 27 sections.
 
@@ -585,10 +585,31 @@ B3 was split again on starting it (2026-11-13), as a support session names a sup
 
   Card refunds were not tried on dev, which has no Stripe test keys: the tests fake Stripe's API. The check found long references breaking mid-word and an audit line saying "by Bank transfer"; both fixed. The check's subscription, invoice, payment, refund, numbering, billing details, notices, activity, audit entries, sign-ins and the app's sign-in token were then removed, workspace 1 moved back to Billing Starter with its setup undone, Standard's price emptied again, and the admin's two-factor reset.
 
-**Phase C2b: credit adjustments and the billing reports** (sections 13 and 14):
+**Phase C2b: credit adjustments and the billing reports** (sections 13 and 14) is built, with these defaults. Phase C2 is done.
 
-- **Credits**, and the adjustment from the subscription's page: a credit taken off a business's next invoice, with its reason. One left over carries to the invoice after; an invoice cancelled gives its credit back; an invoice the credit covers in full is paid by it.
-- **Reports**: revenue by month, plan and currency (collected, tax and refunded); open and overdue invoices; failed payments.
+- **izSuite's credit to a business**, the adjustment section 15.13 names:
+  - **Give Credit** on a subscription's page: an amount in the plan's currency and a reason. **Take Back Credit** takes back what is not used yet, never more. Each is its own permission, the audit log keeps the reason, and the owner is told in the bell and by e-mail.
+  - It comes off the business's next invoice, before tax: a renewal, an upgrade or a new subscription's. An invoice waiting now keeps its amount, and the credit comes off the one after. What is left carries on to the invoices after.
+  - An invoice the credit covers in full is paid by it at once. Its receipt goes out in place of the invoice, and it says "Paid with izSuite credit".
+  - An invoice cancelled gives back what it took: by the admin, by a cancellation scheduled, by an upgrade, or by the plan ending.
+  - The invoice shows it as "Credit from izSuite", in the admin, on its PDF and in the app. The subscribe and plan change dialogs show it too, and the app's Subscription page shows the credit left.
+- **Admin > Credits** (sidebar, after Refunds) lists every movement: given, taken off an invoice, given back, taken back - each with its business, amount, invoice, reason and admin.
+- **Admin > Billing Reports** (sidebar, after Credits), for a span of months (the last twelve unless chosen), a currency and a plan:
+  - revenue by month and by plan, by currency: invoices paid, collected, the tax in it, refunded and kept (collected less refunded), with totals. Invoices count in the month they were paid, refunds in the month the provider confirmed them;
+  - invoices open and overdue now, by currency, with the longest overdue listed;
+  - failed card payments by month: tries, businesses and amount, with the latest and why;
+  - credits: given and taken off invoices in the months, and what is left now.
+
+  Amounts never mix currencies, and no business's own transactions show.
+- **Roles** (migration 000133): Billing Administrators get giving and taking back credit, the credits and the reports; Read-Only Administrators the credits and the reports.
+- Table headers over figures now line up with them across the admin (`.data-table thead th.text-end`).
+- Checked in the browser as the seeded admin, on workspace 1 with Standard paid by transfer:
+  - Give Credit gave USD 25.00 ("Billing Starter has USD 25.00 of credit, to come off the next invoice."), and Take Back Credit, its amount filled with what was left, took back USD 5.00;
+  - Change Plan to Premium issued IZS-INV-00002 for USD 9.50: 49.00, less 19.50 for the unused Standard days, less the USD 20.00 credit. Its page and its PDF showed the lines, and Admin > Credits the three movements;
+  - Billing Reports showed November's invoice by month and by plan, the upgrade open and not yet due, and no failed payments;
+  - the app showed the invoice to pay with "Credit from izSuite", and the Subscription page "izSuite credit $3.00, taken off your next invoices before tax."
+
+  The check found the dialog's wording when an invoice is waiting, a wrapping invoice number, and table headers not lining up with their figures; all fixed. The check's subscription, invoices, payment, credits, numbering, billing details, notices, activity, audit entries, sign-ins and the app's token were then removed, workspace 1 moved back to Billing Starter with its setup undone, the plans' prices emptied again, and the admin's two-factor reset.
 
 **Phase C3: prices and promotions** (sections 9 and 17):
 
@@ -706,7 +727,7 @@ Each document goes the same way:
 - An admin form shows its message, then reloads the page 300 ms later, which takes the message with it. Where the page does not change (Resend Invoice), give the form `data-no-reload` and the message stays.
 - The Subscription Invoices buttons ask with the browser's own `confirm()`, which the Claude browser pane cannot answer. Confirm a transfer there with `SubscriptionInvoiceService::confirm()` in tinker instead.
 - Billing's notices in the bell go to the business's members with Manage Subscription (`NotificationAudience`). In a test, set the business up with `SetUpNewWorkspace`, or its owner is no member and nothing is sent.
-- The app reads a business's `setup_completed` from its cached navigation. After changing `setup_completed_at` by hand, call `WorkspaceRepository::bumpNavVersion()`, or the app keeps sending you to Set Up.
+- The app reads a business's `setup_completed` from its cached navigation. After changing `setup_completed_at` by hand, call `WorkspaceRepository::bumpNavVersion()`, or the app keeps sending you to Set Up. Change it with a query (`Workspace::whereKey(1)->update(...)`): it is not fillable, so `$workspace->update()` leaves it as it was, without a word.
 - If `docker` cannot reach its engine (`dockerDesktopLinuxEngine` not found), Docker Desktop has stopped. On the second PC it is installed per user, under `%LOCALAPPDATA%\Programs\DockerDesktop`. Starting it brings the containers back by themselves, but the admin's sign-in is lost with Redis.
 
 ### Checking the app as a limited member
@@ -835,7 +856,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 15: Phase B3, support cases | `1f15b4b` | `9259e26` | 000129 |
 | Doc 15: Phase B4, support sessions | `bab54e5` | `d807b88` | 000130 |
 | Doc 15: Phase C1, subscriptions in the admin | `debb680` and `9bd9fb5` | | 000131 |
-| Doc 15: Phase C2a, payments and refunds | the commit after `9bd9fb5` | the commit after `d807b88` | 000132 |
+| Doc 15: Phase C2a, payments and refunds | `c33db1a` | `e681985` | 000132 |
+| Doc 15: Phase C2b, credits and billing reports | the commit after `c33db1a` | the commit after `e681985` | 000133 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -1040,6 +1062,11 @@ These are easy to undo by mistake.
   - The admin side is `PaymentAdminService` over `PaymentAdminRepository`, behind `PaymentController` and `RefundController`. Refunding goes through `CriticalActionService::confirm()`; the amount is checked first, so a refund that cannot be made never asks for the password.
   - `SubscriptionBilling::refunded()` tells the business: `SubscriptionNoticeMail` kind `refunded`, and the bell's `subscription.refunded`, one notice per refund.
   - Invoices carry `refunded` (`withSum` of the refunds done) in the admin list, the invoice's page and the app's Billing History (`SubscriptionInvoiceResource`).
+- izSuite's credit (Doc 15 Phase C2b, migration 000133) is the ledger `subscription_credits`, worked by `App\Services\Billing\SubscriptionCredits`: `granted` and `returned` add, `used` and `removed` subtract, and the credit in a currency is their sum.
+  - `SubscriptionBilling::quote()` takes the credit off before tax as `adjustment`, up to what is left after an upgrade's credit; `issue()` does it again with the credit locked, keeps it on the invoice (`subscription_invoices.adjustment`) and records it as `used`. A total of zero with an adjustment is confirmed at once, paid with `SubscriptionBilling::PAID_WITH_CREDIT`, and no payment row is made for it.
+  - Every voided invoice goes through `SubscriptionBilling::cancelInvoice()`, which gives its adjustment back: `void()`, an upgrade paid, the cycle ending a plan, and an upgrade left unpaid at the period's end.
+  - `SubscriptionInvoice::net()` is the price less both credits: an upgrade's credit for the unused days counts what was really paid.
+- Admin > Billing Reports is `BillingReportService` over `BillingReportRepository`, behind `BillingReportController`. It groups by month with the database's own words (`DATE_FORMAT` in MySQL, `strftime` in SQLite, for the tests), over the times as stored (UTC).
 - Dev's admin CSS is `public/build`, git-ignored and built only when missing (`docker/entrypoint.sh`), so it goes stale. After adding Tailwind classes to admin views, run `docker exec izsuite-api npm run build`; a server builds it fresh on deploy.
 - The frontend's location pick is `useLocationPick()`. It is shared state behind the `izsuite_location` cookie, and `''` means All Locations. A pick no longer offered (an inactive location, another business's) counts as All Locations. `forNewRecord()` waits for the locations list, so a form opened right after a reload still gets the pick.
 
@@ -1069,6 +1096,8 @@ Each of these is yours to settle.
 - Should a completed payment's files need Reverse to be removed (built in E2)? The other way is to treat a payment's files like a draft's, under Record Payment.
 - Doc 15 Phase C1 removed the earlier product's Plans & Pricing and Subscription History screens. Should its `plans`, `plan_payment_providers`, `subscriptions` and `invoices` tables be dropped too? Only the API's `/plans` still reads `plans`, and the frontend no longer calls it.
 - Should support cases stay in izSuite's own Tickets (Doc 15 Phase B3 kept them there), or come from an outside help desk?
+- izSuite's credit comes off the business's next invoice (Doc 15 Phase C2b). Should it come off an invoice already waiting too, by issuing that one again? Today the waiting invoice keeps its amount.
+- Should the billing reports count months in a time zone of your choosing? Today they use the stored times (UTC).
 - Every refund asks for the admin's password and a reason (Doc 15 Phase C2a), since section 15.25 makes large refunds critical. Should a refund under some amount skip the password, and should large ones need a second admin's approval?
 - Who in a business sees its support cases? Today the owner sees every one, and anyone else only the ones they opened. A business's Administrators could see them all too.
 - Which admin roles open support sessions with edit access? Today only the Super Admin, until a role is given "Support session edit" in Admin > Roles.
@@ -1085,4 +1114,5 @@ Each of these is yours to settle.
 - Doc 15 Phase B4: the scheduler runs `support-sessions:close-expired` every five minutes. A support session's link goes to `FRONTEND_URL`, and its End Session back to the admin panel's own host.
 - Doc 15 Phase C1: migration 000131 changes only the admin roles' permissions; check Admin > Roles after it if the server's roles were edited by hand. The owner's subscription notices go through the queue worker.
 - Doc 15 Phase C2a: migration 000132 adds the refunds, keeps each transfer confirmed so far as a payment, and gives the roles the payments and refunds. Add `refund.created` and `refund.updated` to the Stripe webhook's events (`charge.refund.updated` on an older API version), or a card refund Stripe takes later stays Waiting. The refund e-mails go through the queue worker.
+- Doc 15 Phase C2b: migration 000133 adds izSuite's credit (`subscription_credits`, and `adjustment` on the invoices) and gives the roles the credits and the billing reports. The credit notices go through the queue worker.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

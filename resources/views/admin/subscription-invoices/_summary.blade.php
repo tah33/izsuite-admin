@@ -4,6 +4,7 @@
     $rows   = array_filter([
         __('Subtotal')     => $money($invoice->amount),
         __('Credit for the unused plan') => (float) $invoice->credit > 0 ? '− '.$money($invoice->credit) : null,
+        __('Credit from izSuite') => (float) $invoice->adjustment > 0 ? '− '.$money($invoice->adjustment) : null,
         __('Tax')          => $invoice->tax_name
             ? ($invoice->tax_note ? __(':tax by reverse charge', ['tax' => $invoice->tax_name]) : __(':tax :rate%: :amount', ['tax' => $invoice->tax_name, 'rate' => $invoice->taxPercent(), 'amount' => $money($invoice->tax)]))
             : __('None'),

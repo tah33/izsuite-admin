@@ -34,6 +34,10 @@
             </dd>
         </div>
         <div>
+            <dt class="text-xs text-[var(--text-muted)]">{{ __('izSuite credit') }}</dt>
+            <dd class="font-medium">{{ bccomp($credit, '0', 2) > 0 ? __(':currency :amount, to come off its next invoices', ['currency' => $subscription->package?->price_currency, 'amount' => $credit]) : __('None') }}</dd>
+        </div>
+        <div>
             <dt class="text-xs text-[var(--text-muted)]">{{ __('Owner') }}</dt>
             <dd class="font-medium">{{ $subscription->workspace?->user?->name }} · {{ $subscription->workspace?->user?->email }}</dd>
         </div>

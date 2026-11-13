@@ -969,6 +969,11 @@ input[type="checkbox"]:disabled {
     border-bottom: 1px solid var(--card-border);
 }
 
+/* A header over figures or actions lines up with them: the rule above would outrank the utility. */
+.data-table thead th.text-end {
+    text-align: end;
+}
+
 .data-table tbody td {
     padding: 0.875rem 1rem;
     font-size: 0.875rem;

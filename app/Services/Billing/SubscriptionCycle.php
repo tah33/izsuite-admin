@@ -113,7 +113,7 @@ class SubscriptionCycle
 
         DB::transaction(function () use ($workspace) {
             if ($open = $this->invoices->openFor($workspace)) {
-                $this->invoices->update($open, ['status' => SubscriptionInvoice::VOID, 'voided_at' => now()]);
+                $this->billing->cancelInvoice($open);
             }
 
             $this->subscriptions->save($workspace, [
@@ -224,7 +224,7 @@ class SubscriptionCycle
 
         // Its credit was for days now gone.
         if (($upgrade = $this->invoices->openFor($workspace)) && $upgrade->kind === SubscriptionInvoice::UPGRADE) {
-            $this->invoices->update($upgrade, ['status' => SubscriptionInvoice::VOID, 'voided_at' => now()]);
+            $this->billing->cancelInvoice($upgrade);
         }
 
         if ($to = $subscription->scheduledPackage) {

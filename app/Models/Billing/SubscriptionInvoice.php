@@ -42,6 +42,8 @@ class SubscriptionInvoice extends Model
         'currency',
         'amount',
         'credit',
+        // izSuite's credit taken off it, before tax (Doc 15 Phase C2b).
+        'adjustment',
         // Its tax (Phase D1), as worked out when issued: the rule's name and rate, the amount, a reverse charge's note.
         'tax_name',
         'tax_rate',
@@ -69,6 +71,7 @@ class SubscriptionInvoice extends Model
         'period_ends_on'   => 'date',
         'amount'           => 'decimal:2',
         'credit'           => 'decimal:2',
+        'adjustment'       => 'decimal:2',
         'tax_rate'         => 'decimal:3',
         'tax'              => 'decimal:2',
         'total'            => 'decimal:2',
@@ -118,10 +121,10 @@ class SubscriptionInvoice extends Model
         return $this->status === self::PAID;
     }
 
-    /** What it charges before tax: the price less any upgrade credit - what the tax is worked out on. */
+    /** What it charges before tax: the price less any upgrade credit and izSuite's credit (Doc 15 Phase C2b) - what the tax is worked out on. */
     public function net(): string
     {
-        return bcsub((string) $this->amount, (string) $this->credit, 2);
+        return bcsub(bcsub((string) $this->amount, (string) $this->credit, 2), (string) ($this->adjustment ?? '0'), 2);
     }
 
     /** Its tax rate as people read it, "15" or "7.5" - null without a tax. */

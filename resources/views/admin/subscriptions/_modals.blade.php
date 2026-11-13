@@ -49,6 +49,33 @@
     ])
 @endif
 
+@if($may('admin.subscriptions.credit'))
+    @include('admin.partials.reason-modal', [
+        'id'       => 'subscription-credit-modal',
+        'title'    => __('Give a Credit'),
+        'text'     => __('It comes off :next, before tax; what is left comes off the ones after. The owner is told.', ['next' => $openInvoice ? __('the invoice after :number (that one is waiting for payment now)', ['number' => $openInvoice->number]) : __('the business\'s next invoice')]),
+        'route'    => route('admin.subscriptions.credit', $subscription->id),
+        'button'   => __('Give Credit'),
+        'fields'   => 'admin.subscriptions._credit-field',
+        'currency' => $subscription->package?->price_currency,
+        'most'     => null,
+    ])
+@endif
+
+@if(bccomp($credit, '0', 2) > 0 && $may('admin.subscriptions.credit-remove'))
+    @include('admin.partials.reason-modal', [
+        'id'       => 'subscription-credit-remove-modal',
+        'title'    => __('Take Back Credit'),
+        'text'     => __('Takes back credit not used yet; what an invoice took stays on it. The owner is told.'),
+        'route'    => route('admin.subscriptions.credit-remove', $subscription->id),
+        'button'   => __('Take Back'),
+        'danger'   => true,
+        'fields'   => 'admin.subscriptions._credit-field',
+        'currency' => $subscription->package?->price_currency,
+        'most'     => $credit,
+    ])
+@endif
+
 @if(in_array($state, ['active', 'past_due'], true) && $may('admin.subscriptions.cancel'))
     @include('admin.partials.reason-modal', [
         'id'     => 'subscription-cancel-modal',

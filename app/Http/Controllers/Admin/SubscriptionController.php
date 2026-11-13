@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ChangeSubscriptionPlanRequest;
 use App\Http\Requests\Admin\ExtendSubscriptionRequest;
 use App\Http\Requests\Admin\ListSubscriptionsRequest;
+use App\Http\Requests\Admin\SubscriptionCreditRequest;
 use App\Http\Requests\Admin\SubscriptionReasonRequest;
 use App\Services\Admin\SubscriptionAdminService;
 use Illuminate\Http\Request;
@@ -116,6 +117,29 @@ class SubscriptionController extends Controller
     {
         try {
             return $this->adminSuccess($request, $this->subscriptions->retry($id, $request->user()));
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** izSuite's credit, taken off the business's next invoices (Doc 15 Phase C2b). */
+    public function addCredit(SubscriptionCreditRequest $request, int $id)
+    {
+        try {
+            return $this->adminSuccess($request, $this->subscriptions->addCredit($id, $request->user(), (string) $request->validated('amount'), $request->validated('reason')));
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    public function removeCredit(SubscriptionCreditRequest $request, int $id)
+    {
+        try {
+            return $this->adminSuccess($request, $this->subscriptions->removeCredit($id, $request->user(), (string) $request->validated('amount'), $request->validated('reason')));
 
         } catch (\Throwable $e) {
             report($e);

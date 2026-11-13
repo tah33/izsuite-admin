@@ -33,6 +33,12 @@
             <button type="submit" class="btn btn-secondary"><i data-lucide="refresh-cw" class="w-4 h-4"></i>{{ __('Retry Card') }}</button>
         </form>
     @endif
+    @if($may('admin.subscriptions.credit'))
+        <button type="button" class="btn btn-secondary" data-modal-open="subscription-credit-modal"><i data-lucide="gift" class="w-4 h-4"></i>{{ __('Give Credit') }}</button>
+    @endif
+    @if(bccomp($credit, '0', 2) > 0 && $may('admin.subscriptions.credit-remove'))
+        <button type="button" class="btn btn-secondary" data-modal-open="subscription-credit-remove-modal"><i data-lucide="minus-circle" class="w-4 h-4"></i>{{ __('Take Back Credit') }}</button>
+    @endif
     @if($active && $may('admin.subscriptions.cancel'))
         <button type="button" class="btn btn-danger" data-modal-open="subscription-cancel-modal"><i data-lucide="circle-x" class="w-4 h-4"></i>{{ __('Schedule Cancellation') }}</button>
     @endif

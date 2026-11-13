@@ -34,6 +34,12 @@ class PaymentAdminService
         return $this->payments->refundsPage($filters, $perPage);
     }
 
+    /** Admin > Credits (Doc 15 Phase C2b): each credit given, taken by an invoice, given back or taken back. */
+    public function creditsPage(array $filters, int $perPage = 15): LengthAwarePaginator
+    {
+        return $this->payments->creditsPage($filters, $perPage);
+    }
+
     /** Refunds $amount of payment $id for $reason - a transfer's with the bank's $transferReference. Answers what happened. */
     public function refund(int $id, User $admin, string $amount, string $reason, ?string $password, ?string $transferReference): string
     {

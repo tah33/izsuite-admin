@@ -206,10 +206,16 @@ class SubscriptionService
 
         ActivityLogService::record('created', "{$what} ({$cycle}); invoice {$invoice->number} issued", $workspace, ['source' => 'api']);
 
+        // izSuite's credit can cover the invoice in full, which pays it at once (Doc 15 Phase C2b).
+        $paid         = $invoice->isPaid() ? " It is paid with izSuite's credit." : null;
+
         return [
-            'message'  => $trial
-                ? "Your {$package->trial_days}-day {$package->name} trial has started. Invoice {$invoice->number} is due by {$invoice->due_on->format('j M Y')}."
-                : "Invoice {$invoice->number} is issued. {$package->name} starts as soon as izSuite confirms your bank transfer.",
+            'message'  => match (true) {
+                $trial && $paid => "Your {$package->trial_days}-day {$package->name} trial has started, and invoice {$invoice->number} for the plan after it is paid with izSuite's credit.",
+                $trial          => "Your {$package->trial_days}-day {$package->name} trial has started. Invoice {$invoice->number} is due by {$invoice->due_on->format('j M Y')}.",
+                $paid !== null  => "Invoice {$invoice->number} is issued.{$paid} {$package->name} has started.",
+                default         => "Invoice {$invoice->number} is issued. {$package->name} starts as soon as izSuite confirms your bank transfer.",
+            },
             'overview' => $this->billingService->overview($workspace->fresh(), $user),
         ];
     }
