@@ -54,7 +54,7 @@
     @include('admin.businesses._overview')
     @include('admin.businesses._usage')
     @include('admin.businesses._status')
-    @include('admin.businesses._activity')
+    @include('admin.partials.admin-activity', ['about' => __('this business')])
 
     @if($may('admin.businesses.status'))
         @include('admin.businesses._status-modal')

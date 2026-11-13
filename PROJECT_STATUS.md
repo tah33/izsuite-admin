@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-13
-- **Code:** Doc 15 Phase B1 (businesses and their statuses) is on `main` in the admin commit right after `15e0a32`, and on `nuxt` in the frontend commit right after `b29f546`.
-- **Tests:** 747 backend tests pass (last full run 2026-11-13, on this code, on the second PC).
-- **Next step:** Doc 15 Phase B2: users and support access (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
+- **Code:** Doc 15 Phase B2 (users and their accounts) is on `main` in the admin commit right after `1f6dfb2`, and on `nuxt` in the frontend commit right after `706dd4a`.
+- **Tests:** 756 backend tests pass (last full run 2026-11-13, on this code, on the second PC).
+- **Next step:** Doc 15 Phase B3: support cases and support access (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 15 Phase B2.
+   > Read PROJECT_STATUS.md, then start Doc 15 Phase B3.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -40,7 +40,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 12 | Users, Roles, Permissions and Locations | Done, except package change rules (Doc 13) |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
-| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phase A and Phase B1 done (2026-11-13), B2 next** |
+| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phase A, B1 and B2 done (2026-11-13), B3 next** |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -314,7 +314,7 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 - Share links that expire. They stay until revoked.
 - Imports beyond contacts and items.
 
-### 3. Doc 15: izSuite System Administration Portal (next: Phase B2)
+### 3. Doc 15: izSuite System Administration Portal (next: Phase B3)
 
 The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign-in) had grown through Docs 01 to 14, partly from the earlier recruitment product, and was checked against all 27 sections.
 
@@ -423,7 +423,7 @@ The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign
   - **Suspended** and **Closed:** a panel takes the place of every page, with Contact Support and Your Businesses. The API answers nothing for the business but its navigation and the bell.
   - **Closure Scheduled:** it works as usual, with a banner giving the day. Hourly, `businesses:close-due` closes it on that day, for the reason it was scheduled. Choosing another status before then cancels the closure.
   - The owner sees why and what reactivates it, on the banner or the panel. Anyone else reads "Its owner has the details."
-  - Contact Support opens the website's contact page until B2's support cases.
+  - Contact Support opens the website's contact page until B3's support cases.
 - **Changing a status** asks for:
   - a reason, which the owner sees;
   - what reactivates it, optional, which the owner sees;
@@ -444,16 +444,41 @@ The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign
 
   The check found that the bell was refused while a business was shut, hiding izSuite's notice of it, so it now opens; the app also stopped asking a shut business for its lists. The check's status changes, notices, audit entries, activity and sign-in were then removed, workspace 1's setup (marked done for the check) undone, and the admin's two-factor reset.
 
-**Phase B2: users and support access** (sections 7 and 22):
+B2 was split again on starting it (2026-11-13), as support access is a phase of its own: B2, users and their accounts; B3, support cases and support access.
 
-- **Users:** the list adds two-factor on or off, the number of businesses and security alerts. An admin can:
-  - resend the verification e-mail, to any account or a business's owner;
-  - lock or unlock the account;
-  - sign it out everywhere;
-  - send a single-use password reset link;
-  - reset its two-factor after checking who is asking.
+**Phase B2: users and their accounts** (section 7) is built, with your defaults:
 
-  Nobody ever sees or sets a password.
+- **Admin > Users**, one row per website account:
+  - its name, e-mail and phone; the businesses it owns, with their plans, and how many it is in; its status (Active, Locked or Inactive) with "Email verified" and "Two-factor on" under it; its security alerts; and when it joined and last signed in.
+  - It searches by name, e-mail, phone or a business's name, and filters by plan, status, email verified, two-factor, and "With security alerts".
+  - The row's View button went, as the name opens the page, so the list fits a laptop's width.
+- **Security alerts:** 5 or more failed sign-ins in 7 days, and a phone number another account gives too, as typed. A wrong password or code for an account is now kept against it, with the IP address, without changing what the sign-in answers.
+- **A user's page** adds:
+  - two-factor (on since when) and the open sessions;
+  - the alerts, with the latest failed sign-ins and the accounts sharing the phone number;
+  - "Businesses They Are In": each business, theirs marked Owner, with their role and their place (Active, Invited or Suspended), and the business's status when it is not Active;
+  - the latest admin activity on the account, from the audit log.
+- **Its actions**, each asking for a reason, which the audit log keeps. Nobody sees or sets a password.
+  - **Resend Verification**, for an account not verified yet: a new code by e-mail. No reason needed.
+  - **Send Reset Link:** an e-mail with a link to choose a new password. It works once, for 60 minutes, and opens the website's reset page at the password step. It goes to a locked account too, so its password can change before it is unlocked.
+  - **Sign Out Everywhere:** ends every session.
+  - **Lock** and **Unlock:** a locked account cannot sign in ("This account is locked. Contact izSuite support to unlock it."), and its sessions end. Its businesses keep working for everyone else in them. The user is told by e-mail, without the reason.
+  - **Reset Two-Factor**, for a lost phone and lost recovery codes: how support checked who is asking, then the admin's password and a reason, as a critical action. Its sessions end, and the user is told by e-mail.
+- **Roles:** Support Administrators recover accounts (verification, reset link, signing out, two-factor). Compliance and Security Administrators open Users, and lock, unlock and sign out. A migration added these to the starting roles on dev.
+- Checked in the browser as the seeded admin, with two throwaway accounts sharing a phone number:
+  - five wrong passwords on the website made the alert, and the list's alerts filter found both accounts on MySQL;
+  - the page showed the failed sign-ins with their IP address, and the other account;
+  - Lock refused an empty reason under the field, then locked it;
+  - Send Reset Link reached the mail log, its link opened the website at the password step and dropped the ticket from the address bar, and the new password worked;
+  - signing in while locked gave the locked message; after Unlock it worked;
+  - Sign Out Everywhere sent the website back to its sign-in page;
+  - Reset Two-Factor refused a missing identity check, then reset it;
+  - Resend Verification sent the code. The audit log had all six with their reasons.
+
+  The list was reworked during the check to fit 1366 pixels. The throwaway accounts, their activity, the audit entries and the sign-in were then removed, and the admin's two-factor reset.
+
+**Phase B3: support cases and support access** (section 22):
+
 - **Support sessions replace Login as:**
   - The admin names the support case and a reason.
   - The session is read-only, lasts 1 hour (up to 4) and ends by itself, with a banner throughout: "izSuite support is viewing this business, read-only, until 15:30".
@@ -701,7 +726,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 14: Phase E2, numbers, files and names | the commit after `8e38b43` | `b29f546` | |
 | Doc 15: gap check, and Phase A1, signing in to the admin | `addce5a` | | 000125 |
 | Doc 15: Phase A2, the audit log, roles and critical actions | `15e0a32` | | 000126 |
-| Doc 15: Phase B1, businesses and their statuses | the commit after `15e0a32` | the commit after `b29f546` | 000127 |
+| Doc 15: Phase B1, businesses and their statuses | `1f6dfb2` | `706dd4a` | 000127 |
+| Doc 15: Phase B2, users and their accounts | the commit after `1f6dfb2` | the commit after `706dd4a` | 000128 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -875,6 +901,12 @@ These are easy to undo by mistake.
   - `businesses:close-due` runs hourly (`routes/console.php`). It closes a business still Closure Scheduled whose latest change's `closes_on` is today or past. A date column is compared with `whereDate`, since SQLite keeps it as text with a time.
 - izSuite's notices go through the notification kind `izsuite` (Messages from izSuite, locked on): `izsuite.status` for a status change, `izsuite.message` for Send a Message. The owner's e-mail, `BusinessNoticeMail`, is queued apart from them, as a locked kind never e-mails through `Notifier`.
 - `BusinessRepository`'s "At or past a limit" filter puts HAVING on the counts' aliases, grouped by `workspaces.id` and `packages.id`: SQLite needs a GROUP BY for HAVING, and MySQL's full group-by mode accepts those keys.
+- Support's actions on an account (Doc 15 Phase B2) are `AccountSupportService`, behind `ClientAccountController`; each is its own route, so a role is given them one by one.
+  - A locked account is `users.status` "locked" (`User::LOCKED`). Every check for "active" refuses it already; `AuthService` gives it its own message.
+  - A failed sign-in to a known website account is an activity entry, `login_failed` (`AuthService::FAILED_SIGN_IN`), against the account. `ClientRepository` counts them within `AccountAlerts::DAYS` as a subquery, beside `shared_phone`; `AccountAlerts` turns both into the alerts.
+  - A reset ticket keeps its own end in `password_reset_tokens.expires_at` (migration 000128): 15 minutes when bought with the e-mailed code, 60 for support's link (`PasswordResetService::issueLink`). The website's `reset-password` page reads `email` and `token` from the link and then drops them from the address.
+  - The user's notices are `AccountNoticeMail`, queued, with a button when there is a link.
+- The admin-activity card on a business's and a user's page is `admin/partials/admin-activity`.
 - Dev's admin CSS is `public/build`, git-ignored and built only when missing (`docker/entrypoint.sh`), so it goes stale. After adding Tailwind classes to admin views, run `docker exec izsuite-api npm run build`; a server builds it fresh on deploy.
 - The frontend's location pick is `useLocationPick()`. It is shared state behind the `izsuite_location` cookie, and `''` means All Locations. A pick no longer offered (an inactive location, another business's) counts as All Locations. `forNewRecord()` waits for the locations list, so a form opened right after a reload still gets the pick.
 
@@ -896,7 +928,6 @@ Each of these is yours to settle.
 - Should Workspaces and Users stay at the bottom of the sidebar, or move under Settings? Doc 01 lists only Apps Center and Settings there.
 - Phase B kept the old `user_staff` table. Should it be dropped?
 - May a business require two-factor authentication of its users? Doc 12 does not say, so nothing makes anyone turn it on.
-- Who turns off someone's two-factor authentication when they lose both their phone and their recovery codes? Today nobody can; Doc 15's support tools would be the place.
 - Should View Activity Log keep needing every values and details permission (built in D2)? The other way is to mask them in the log, but masking cannot reach amounts written into an entry's text, such as "Recorded payment PAY-0001 of USD 100.00".
 - Should a business over its plan's limits have a deadline to choose what stays active, after which izSuite chooses (the newest users and locations first)? Doc 13 does not say, so today it stays over, with nothing more added, until the owner chooses.
 - Should internal notes stay editable after a document is issued or recorded? Today they change only with the rest of the form, and comments carry anything later.
@@ -904,7 +935,8 @@ Each of these is yours to settle.
 - Should Managers type document numbers by hand? Manager roles made from now on may, since a Manager holds everything outside Settings. Roles made before may not until it is ticked.
 - Should a completed payment's files need Reverse to be removed (built in E2)? The other way is to treat a payment's files like a draft's, under Record Payment.
 - Once Doc 15 Phase C removes the earlier product's Plans & Pricing and Subscription History screens, should its `plans`, `plan_payment_providers`, `subscriptions` and `invoices` tables be dropped too?
-- Should support cases stay in izSuite's own Tickets (Doc 15 Phase B2's default), or come from an outside help desk?
+- Should support cases stay in izSuite's own Tickets (Doc 15 Phase B3's default), or come from an outside help desk?
+- Should Admin > Users treat phone numbers typed differently ("+880 1711-000000" and "+8801711000000") as the same for its shared-phone alert? Today only the same typing matches.
 
 ## Deploying to a server
 
@@ -913,4 +945,5 @@ Each of these is yours to settle.
 - A database that still has `workspaces.staff_id` links and has not yet run migration 000060 would lose them. Check this on any older server.
 - Doc 15 Phase A1: after deploying, every admin is asked to set up two-factor at their next sign-in, so have an authenticator app ready. The new-browser e-mails go through the queue worker.
 - Doc 15 Phase B1: the scheduler runs `businesses:close-due` hourly, and the owner's status e-mails go through the queue worker.
+- Doc 15 Phase B2: support's account e-mails (the reset link, locking, unlocking, two-factor) go through the queue worker, and the reset link points at `FRONTEND_URL`.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

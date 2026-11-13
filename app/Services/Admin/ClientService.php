@@ -23,9 +23,26 @@ class ClientService
         protected LoginAsService $loginAs,
     ) {}
 
-    public function paginate(string $search, ?string $package, int $perPage = 15): LengthAwarePaginator
+    /** A page of accounts, by ListClientsRequest's filters. */
+    public function paginate(array $filters, int $perPage = 15): LengthAwarePaginator
     {
-        return $this->clientRepository->paginate($search, $package, $perPage);
+        return $this->clientRepository->paginate($filters, $perPage);
+    }
+
+    /**
+     * What a client's page shows besides the account and its businesses (Doc
+     * 15 section 15.7): its recent failed sign-ins, the other accounts that
+     * give its phone number, and the latest admin actions on it.
+     *
+     * @return array{failedSignIns: Collection, sharingPhone: Collection, activity: Collection}
+     */
+    public function security(User $client): array
+    {
+        return [
+            'failedSignIns' => $this->clientRepository->recentFailedSignIns($client),
+            'sharingPhone'  => $this->clientRepository->sharingPhone($client),
+            'activity'      => $this->clientRepository->adminActivity($client),
+        ];
     }
 
     /** Every plan, lowest first, for the filter and each business's plan. */

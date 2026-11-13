@@ -20,11 +20,7 @@ class ClientController extends Controller
     public function index(ListClientsRequest $request)
     {
         try {
-            $clients  = $this->clientService->paginate(
-                trim((string) $request->validated('search')),
-                $request->validated('package'),
-            );
-
+            $clients  = $this->clientService->paginate($request->filters());
             $packages = $this->clientService->packages();
 
             return view('admin.clients.index', compact('clients', 'packages'));
@@ -42,7 +38,7 @@ class ClientController extends Controller
             $totals   = $this->clientService->totals($client);
             $packages = $this->clientService->packages();
 
-            return view('admin.clients.show', compact('client', 'totals', 'packages'));
+            return view('admin.clients.show', [...compact('client', 'totals', 'packages'), ...$this->clientService->security($client)]);
 
         } catch (\Throwable $e) {
             report($e);

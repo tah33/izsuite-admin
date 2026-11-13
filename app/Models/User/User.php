@@ -20,6 +20,15 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    /** An account that signs in. */
+    public const ACTIVE = 'active';
+
+    /** Switched off: a staff member in Admin > Staff. */
+    public const INACTIVE = 'inactive';
+
+    /** Locked by izSuite support (Doc 15 section 15.7) until it is unlocked. */
+    public const LOCKED = 'locked';
+
     /**
      * HasFactory guesses Database\Factories\User\UserFactory from this
      * model's App\Models\User namespace, but the factory lives one level up.
@@ -129,6 +138,12 @@ class User extends Authenticatable
     public function workspaces(): HasMany
     {
         return $this->hasMany(Workspace::class);
+    }
+
+    /** The account's places in businesses, its own among them. */
+    public function memberships(): HasMany
+    {
+        return $this->hasMany(WorkspaceMember::class);
     }
 
     public function userStaff(): HasMany

@@ -44,7 +44,11 @@ class LoginAsService
      */
     public function problem(User $client): ?string
     {
-        if ($client->status !== 'active') {
+        if ($client->status === User::LOCKED) {
+            return 'This user\'s account is locked.';
+        }
+
+        if ($client->status !== User::ACTIVE) {
             return 'This user\'s account is not active.';
         }
 

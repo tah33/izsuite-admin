@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AdminTwoFactorController;
 use App\Http\Controllers\Admin\AppController;
 use App\Http\Controllers\Admin\BusinessController;
 use App\Http\Controllers\Admin\AppCategoryController;
+use App\Http\Controllers\Admin\ClientAccountController;
 use App\Http\Controllers\Admin\ClientController;
 use App\Http\Controllers\Admin\ContactMessageController;
 use App\Http\Controllers\Admin\ContentController;
@@ -72,6 +73,13 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     Route::get('/clients', [ClientController::class, 'index'])->name('clients.index');
     Route::get('/clients/{id}', [ClientController::class, 'show'])->whereNumber('id')->name('clients.show');
     Route::post('/clients/{id}/login-as', [ClientController::class, 'loginAs'])->whereNumber('id')->name('clients.login-as');
+    // Support's actions on a user's account (Doc 15 Phase B2): no password is ever shown or set.
+    Route::post('/clients/{id}/verification', [ClientAccountController::class, 'resendVerification'])->whereNumber('id')->name('clients.verification');
+    Route::post('/clients/{id}/recovery', [ClientAccountController::class, 'sendRecoveryLink'])->whereNumber('id')->name('clients.recovery');
+    Route::post('/clients/{id}/sign-out', [ClientAccountController::class, 'signOut'])->whereNumber('id')->name('clients.sign-out');
+    Route::post('/clients/{id}/lock', [ClientAccountController::class, 'lock'])->whereNumber('id')->name('clients.lock');
+    Route::post('/clients/{id}/unlock', [ClientAccountController::class, 'unlock'])->whereNumber('id')->name('clients.unlock');
+    Route::post('/clients/{id}/two-factor', [ClientAccountController::class, 'resetTwoFactor'])->whereNumber('id')->name('clients.two-factor');
     // Businesses (Doc 15 Phase B1): the list, a business's page, its status, and a message from izSuite.
     Route::get('/businesses', [BusinessController::class, 'index'])->name('businesses.index');
     Route::get('/businesses/{id}', [BusinessController::class, 'show'])->whereNumber('id')->name('businesses.show');

@@ -33,6 +33,9 @@ class AuthService
     /** Role every self-registered account gets. Deliberately not an admin one. */
     private const FRONTEND_ROLE_SLUG          = 'user';
 
+    /** The activity log's action for a failed sign-in to an account. */
+    public const FAILED_SIGN_IN               = 'login_failed';
+
     /**
      * Shared by every way this endpoint can refuse a login: unknown email,
      * wrong password, or an admin account. One wording for all three so none
@@ -149,6 +152,10 @@ class AuthService
         // An unknown email and a wrong password return the identical 401 so the
         // endpoint cannot be used to discover which addresses are registered.
         if (! $user || ! Hash::check($data['password'], $user->password)) {
+            if ($user && ! $user->isAdmin()) {
+                $this->recordFailure($user, 'password');
+            }
+
             abort(401, self::INVALID_CREDENTIALS_MESSAGE);
         }
 
@@ -160,7 +167,11 @@ class AuthService
             abort(401, self::INVALID_CREDENTIALS_MESSAGE);
         }
 
-        if ($user->status !== 'active') {
+        if ($user->status === User::LOCKED) {
+            abort(403, 'This account is locked. Contact izSuite support to unlock it.');
+        }
+
+        if ($user->status !== User::ACTIVE) {
             abort(403, 'Your account is not active. Please contact support.');
         }
 
@@ -198,6 +209,8 @@ class AuthService
         $via = $this->twoFactor->passes($user, $data['code'] ?? null, $data['recovery_code'] ?? null);
 
         if ($via === null) {
+            $this->recordFailure($user, 'two_factor');
+
             if (! $this->challenges->failed($data['challenge'], $challenge)) {
                 throw ValidationException::withMessages(['challenge' => 'Too many wrong codes. Enter your password again.']);
             }
@@ -244,6 +257,20 @@ class AuthService
         ]);
 
         return ['user' => $this->userRepository->loadRole($user), 'token' => $token];
+    }
+
+    /**
+     * A sign-in to $user's account that failed - a wrong password, or a wrong
+     * code - kept against the account, with the IP address. Admin > Users
+     * counts them as a security alert (Doc 15 section 15.7). The answer to the
+     * request stays the same as for an unknown address.
+     */
+    private function recordFailure(User $user, string $reason): void
+    {
+        ActivityLogService::record(self::FAILED_SIGN_IN, $reason === 'password' ? 'A sign-in failed: wrong password' : 'A sign-in failed: wrong code', $user, [
+            'source' => 'api',
+            'reason' => $reason,
+        ]);
     }
 
     /** The account holding the request's token, with its role, for the client. */

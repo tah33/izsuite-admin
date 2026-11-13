@@ -1,7 +1,7 @@
-{{-- What admins did to this business, from the audit log (Doc 15 sections 15.5 and 15.26). --}}
+{{-- What admins did to a business or an account, from the audit log (Doc 15 section 15.26). Expects $activity, and $about: "this business", "this account". --}}
 <div class="card p-6">
     <h2 class="text-lg font-semibold text-[var(--text-primary)] mb-1">{{ __('Admin Activity') }}</h2>
-    <p class="text-sm text-[var(--text-muted)] mb-4">{{ __('The latest admin actions on this business, from the audit log.') }}</p>
+    <p class="text-sm text-[var(--text-muted)] mb-4">{{ __('The latest admin actions on :about, from the audit log.', ['about' => $about]) }}</p>
 
     @if($activity->isEmpty())
         <p class="text-sm text-[var(--text-muted)]">{{ __('None yet.') }}</p>

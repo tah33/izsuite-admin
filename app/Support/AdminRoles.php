@@ -41,19 +41,21 @@ final class AdminRoles
                 'admin.clients.index', 'admin.clients.show', 'admin.workspaces.package.review', 'admin.workspaces.package',
                 'admin.businesses.index', 'admin.businesses.show',
             ]],
-            // Businesses' and users' support: cases, messages, and opening a user's dashboard.
+            // Businesses' and users' support: cases, messages, recovering an account, and opening a user's dashboard.
             'support-administrator' => ['Support Administrator', [
                 'admin.clients.index', 'admin.clients.show', 'admin.clients.login-as',
+                'admin.clients.verification', 'admin.clients.recovery', 'admin.clients.sign-out', 'admin.clients.two-factor',
                 'admin.businesses.index', 'admin.businesses.show', 'admin.businesses.notify',
                 'admin.tickets.index', 'admin.tickets.show', 'admin.tickets.create', 'admin.tickets.reply', 'admin.tickets.update',
                 'admin.departments.index',
                 'admin.contact-messages.index', 'admin.contact-messages.show', 'admin.contact-messages.reply',
             ]],
-            // Audit records, who may do what, and a business's status: restricting, suspending, closing.
+            // Audit records, who may do what, a business's status (restricting, suspending, closing), and locking an account.
             'compliance-and-security-administrator' => ['Compliance and Security Administrator', [
                 'admin.audit-log.index', 'admin.audit-log.show', 'admin.audit-log.export',
                 'admin.staff.index', 'admin.roles.index',
                 'admin.businesses.index', 'admin.businesses.show', 'admin.businesses.status',
+                'admin.clients.index', 'admin.clients.show', 'admin.clients.sign-out', 'admin.clients.lock', 'admin.clients.unlock',
             ]],
             // Lists and details only: no saving, no exports, and not the settings page, which holds keys.
             'read-only-administrator' => ['Read-Only Administrator', [
