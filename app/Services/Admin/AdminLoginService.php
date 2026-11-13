@@ -56,6 +56,7 @@ class AdminLoginService
         protected AdminSignInRepository $signIns,
         protected TwoFactorService $twoFactor,
         protected AdminSessionService $sessions,
+        protected AdminAuditLogService $audit,
     ) {}
 
     /**
@@ -180,7 +181,7 @@ class AdminLoginService
 
         $this->userRepository->touchLastLogin($user);
 
-        ActivityLogService::record('login', 'Logged into the web dashboard');
+        ActivityLogService::record('login', 'Signed in to the admin panel');
 
         if ($newOne) {
             Mail::to($user->email)->queue(new AdminNewSignIn(
@@ -196,7 +197,7 @@ class AdminLoginService
 
     public function signOut(Session $session): void
     {
-        ActivityLogService::record('logout', 'Logged out from the admin panel');
+        ActivityLogService::record('logout', 'Signed out of the admin panel');
 
         $this->sessions->end($session);
     }
@@ -215,16 +216,20 @@ class AdminLoginService
         return hash('sha256', $id);
     }
 
-    /** Keeps an attempt that failed - with the admin it was for, when it was one. */
+    /** Keeps an attempt that failed - with the admin it was for, when it was one - in the sign-ins and the audit log. */
     private function failed(string $email, ?User $user, string $failure): void
     {
+        $email = Str::limit(mb_strtolower(trim($email)), 250, '');
+
         $this->signIns->create([
             'user_id'    => $user?->id,
-            'email'      => Str::limit(mb_strtolower(trim($email)), 250, ''),
+            'email'      => $email,
             'succeeded'  => false,
             'failure'    => $failure,
             'ip_address' => request()->ip(),
             'user_agent' => Str::limit((string) request()->userAgent(), 500, ''),
         ]);
+
+        $this->audit->record('login', 'Failed sign-in: '.mb_strtolower(AdminSignIn::FAILURES[$failure]), null, ['email' => $email], $user, 'failed');
     }
 }

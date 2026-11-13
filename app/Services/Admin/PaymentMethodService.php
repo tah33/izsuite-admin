@@ -3,6 +3,7 @@
 namespace App\Services\Admin;
 
 use App\Models\Billing\PaymentMethod;
+use App\Models\User\User;
 use App\Repositories\Admin\PaymentMethodRepository;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Support\ImageService;
@@ -17,6 +18,7 @@ class PaymentMethodService
     public function __construct(
         protected PaymentMethodRepository $methodRepo,
         protected ImageService $imageService,
+        protected CriticalActionService $criticalActions,
     ) {}
 
     public function getPaginated(string $type, ?string $search = null, int $perPage = 10): LengthAwarePaginator
@@ -60,9 +62,14 @@ class PaymentMethodService
         return $this->methodRepo->delete($method);
     }
 
-    /** A new offline method. An uploaded $data['image'] becomes its logo. */
-    public function createOffline(array $data): PaymentMethod
+    /**
+     * A new offline method. An uploaded $data['image'] becomes its logo.
+     * Switched on, it takes real payments at once: a critical action.
+     */
+    public function createOffline(array $data, User $admin): PaymentMethod
     {
+        $this->confirmIf((bool) ($data['is_active'] ?? false), $admin, $data, "add the payment method \"{$data['name']}\", switched on");
+
         $data['type']       = 'offline';
         $data['slug']       = Str::slug($data['name']);
         $data['sort_order'] = $data['sort_order'] ?? 0;
@@ -74,9 +81,15 @@ class PaymentMethodService
         return $method;
     }
 
-    /** An offline method's details. An uploaded $data['image'] replaces its logo. */
-    public function updateOffline(PaymentMethod $method, array $data): PaymentMethod
+    /**
+     * An offline method's details. An uploaded $data['image'] replaces its
+     * logo. Switched on before or after, it is a critical action: its
+     * instructions tell businesses where to send their money.
+     */
+    public function updateOffline(PaymentMethod $method, array $data, User $admin): PaymentMethod
     {
+        $this->confirmIf($method->takesRealPayments() || (bool) ($data['is_active'] ?? false), $admin, $data, "change the payment method \"{$method->name}\", which takes real payments");
+
         $data['slug']       = Str::slug($data['name']);
         $data['sort_order'] = $data['sort_order'] ?? 0;
 
@@ -92,7 +105,7 @@ class PaymentMethodService
      * apart, a key left blank keeping the one kept. Switched on, the mode it
      * is in needs its secret key and webhook signing secret.
      */
-    public function updateOnline(PaymentMethod $method, array $data): PaymentMethod
+    public function updateOnline(PaymentMethod $method, array $data, User $admin): PaymentMethod
     {
         $kept        = $method->credentials ?? [];
         $credentials = [];
@@ -112,6 +125,10 @@ class PaymentMethodService
             ]);
         }
 
+        // Live before or after - switched on, in live mode - it is a critical action. Checked once the keys are.
+        $liveAfter = (bool) $data['is_active'] && ! $data['is_sandbox'];
+        $this->confirmIf($method->takesRealPayments() || $liveAfter, $admin, $data, "change the live payment gateway {$method->name}");
+
         $updated     = $this->update($method, [
             'is_active'   => $data['is_active'],
             'is_sandbox'  => $data['is_sandbox'],
@@ -129,14 +146,30 @@ class PaymentMethodService
         return $method->type === 'online' ? 'Online gateways cannot be deleted — only deactivated.' : null;
     }
 
-    /** Deletes an offline method, and its logo. */
-    public function deleteOffline(PaymentMethod $method): void
+    /** Deletes an offline method, and its logo. One switched on is a critical action. */
+    public function deleteOffline(PaymentMethod $method, User $admin, array $confirmation): void
     {
+        $this->confirmIf($method->takesRealPayments(), $admin, $confirmation, "delete the payment method \"{$method->name}\", which takes real payments");
+
         $name = $method->name;
         $this->imageService->deletePublic($method->logo_url);
         $this->delete($method);
 
         ActivityLogService::record('deleted', "Deleted offline payment method \"{$name}\"");
+    }
+
+    /**
+     * A critical action (Doc 15 section 15.25) when $critical: $admin's
+     * password again and a reason, from $data's confirm_password and reason,
+     * which are then taken out of it.
+     */
+    private function confirmIf(bool $critical, User $admin, array &$data, string $what): void
+    {
+        if ($critical) {
+            $this->criticalActions->confirm($admin, $data['confirm_password'] ?? null, $data['reason'] ?? null, $what);
+        }
+
+        unset($data['confirm_password'], $data['reason']);
     }
 
     /** $data without its upload: an uploaded image is stored as the logo instead, replacing $oldLogo. */

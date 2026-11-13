@@ -99,9 +99,12 @@ class AdminAppSystemTest extends TestCase
         $crm = $this->app('crm', 'crm', 'full', 'premium');
         $this->actingAs($this->admin);
 
-        // Only Standard ticked: Premium follows.
-        $this->putJson(route('admin.package-access.update'), ['access' => [$crm->id => [$this->packages['standard']->id]]])
-            ->assertOk();
+        // Only Standard ticked: Premium follows. Every plan's apps change, so the password and a reason (Doc 15 section 15.25).
+        $this->putJson(route('admin.package-access.update'), [
+            'access'           => [$crm->id => [$this->packages['standard']->id]],
+            'confirm_password' => 'password',
+            'reason'           => 'CRM moves to Standard',
+        ])->assertOk();
 
         $this->assertSame(['crm' => ['standard', 'premium']], $this->access());
     }

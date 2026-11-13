@@ -24,6 +24,7 @@ class AdminTwoFactorService
         protected TwoFactorService $twoFactor,
         protected UserRepository $userRepository,
         protected AdminSessionService $sessions,
+        protected CriticalActionService $criticalActions,
     ) {}
 
     public function isOn(User $user): bool
@@ -79,12 +80,15 @@ class AdminTwoFactorService
     /**
      * Turns $member's two-factor off and ends their sessions, so they set it
      * up again at their next sign-in: for a lost phone. Only a Super Admin
-     * may, and not for themselves.
+     * may, and not for themselves. It turns a security control off, so it is
+     * a critical action (Doc 15 section 15.25): the password and a reason.
      */
-    public function reset(User $admin, User $member): void
+    public function reset(User $admin, User $member, ?string $password, ?string $reason): void
     {
         abort_unless($admin->isSuperAdmin(), 403, 'Only a Super Admin can reset two-factor sign-in.');
         abort_if($admin->is($member), 403, 'You cannot reset your own two-factor sign-in.');
+
+        $this->criticalActions->confirm($admin, $password, $reason, "reset the two-factor sign-in of {$member->name}");
 
         $this->userRepository->forceUpdate($member, [
             'two_factor_secret'         => null,

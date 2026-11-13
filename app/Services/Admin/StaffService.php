@@ -142,10 +142,10 @@ class StaffService
         return $this->twoFactor->isOn($user);
     }
 
-    /** Resets $member's two-factor sign-in, by $admin, a Super Admin (AdminTwoFactorService::reset). */
-    public function resetTwoFactor(User $admin, User $member): void
+    /** Resets $member's two-factor sign-in, by $admin, a Super Admin, with their password and a reason (AdminTwoFactorService::reset). */
+    public function resetTwoFactor(User $admin, User $member, ?string $password, ?string $reason): void
     {
-        $this->twoFactor->reset($admin, $member);
+        $this->twoFactor->reset($admin, $member, $password, $reason);
     }
 
     /**

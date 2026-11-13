@@ -6,6 +6,7 @@ use App\Models\User\User;
 use App\Repositories\Admin\ClientRepository;
 use App\Repositories\Billing\PackageRepository;
 use App\Services\Api\Auth\LoginAsService;
+use App\Services\Shared\ActivityLogService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -76,6 +77,11 @@ class ClientService
     /** The website link that opens $client's dashboard, signed in as them. */
     public function loginAsLink(User $client, User $admin): string
     {
-        return $this->loginAs->link($client, $admin);
+        $link = $this->loginAs->link($client, $admin);
+
+        // In the admin's audit log (Doc 15 section 15.26); the user's own log says it too, once the link is used.
+        ActivityLogService::record('login_as', "Opened a Login as session for {$client->name}", $client, null, $admin);
+
+        return $link;
     }
 }

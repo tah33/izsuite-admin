@@ -22,12 +22,24 @@ final class SettingChanges
      * the recovery codes.
      */
     private const IGNORED = [
-        'created_at', 'updated_at', 'created_by', 'updated_by', 'nav_version',
+        'created_at', 'updated_at', 'created_by', 'updated_by', 'nav_version', 'sessions_valid_from',
         'password', 'remember_token', 'verification_otp', 'verification_otp_expires_at',
         'two_factor_secret', 'two_factor_recovery_codes', 'two_factor_last_step',
     ];
 
+    /**
+     * Any other secret, by its name: a payment provider's keys, an API key,
+     * the mail server's password, a client secret, a share link's token.
+     */
+    private const SECRET = '/password|secret|token|api_key|credentials|recovery_codes/i';
+
     private const LONGEST = 200;
+
+    /** Whether $setting holds a secret, which no log shows, not even in part. */
+    public static function isSecret(string $setting): bool
+    {
+        return in_array($setting, self::IGNORED, true) || preg_match(self::SECRET, $setting) === 1;
+    }
 
     /**
      * Each key of $after whose value differs from $before's.
@@ -41,7 +53,7 @@ final class SettingChanges
         foreach ($after as $setting => $to) {
             $from = $before[$setting] ?? null;
 
-            if (in_array($setting, self::IGNORED, true) || self::normal($from) === self::normal($to)) {
+            if (self::isSecret($setting) || self::normal($from) === self::normal($to)) {
                 continue;
             }
 

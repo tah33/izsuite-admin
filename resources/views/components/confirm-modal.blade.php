@@ -40,18 +40,23 @@
         <h3 class="confirm-modal-title">{{ $title }}</h3>
         <p class="confirm-modal-message">{{ $message }}</p>
 
-        {{-- Actions --}}
-        <div class="confirm-modal-actions">
-            <button type="button" class="btn btn-secondary" onclick="closeConfirmModal('{{ $id }}')">
-                {{ $cancelText }}
-            </button>
-            <form action="{{ $action }}" method="POST" class="inline">
-                @csrf
-                @method($method)
+        {{-- Fields the action sends, when it has any (a critical action's password and reason), then its buttons. --}}
+        <form action="{{ $action }}" method="POST">
+            @csrf
+            @method($method)
+
+            @if(trim($slot) !== '')
+                <div class="mb-4">{{ $slot }}</div>
+            @endif
+
+            <div class="confirm-modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeConfirmModal('{{ $id }}')">
+                    {{ $cancelText }}
+                </button>
                 <button type="submit" class="btn {{ $confirmClass }}">
                     {{ $confirmText }}
                 </button>
-            </form>
-        </div>
+            </div>
+        </form>
     </div>
 </div>

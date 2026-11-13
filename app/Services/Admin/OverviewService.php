@@ -4,6 +4,7 @@ namespace App\Services\Admin;
 
 use App\Repositories\Admin\ContactMessageRepository;
 use App\Repositories\User\UserRepository;
+use App\Services\Shared\ActivityLogService;
 use Illuminate\Support\Facades\Artisan;
 
 class OverviewService
@@ -29,8 +30,12 @@ class OverviewService
         try {
             Artisan::call('optimize:clear');
         } catch (\Exception $e) {
+            app(AdminAuditLogService::class)->record('cleared', 'Tried to clear the application cache', null, ['error' => $e->getMessage()], null, 'failed');
+
             return 'Failed to clear cache: '.$e->getMessage();
         }
+
+        ActivityLogService::record('cleared', 'Cleared the application cache');
 
         return null;
     }

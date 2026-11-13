@@ -63,7 +63,11 @@
                                             :confirm-text="__('Delete')"
                                             confirm-class="btn-danger"
                                             icon="trash-2"
-                                        />
+                                        >
+                                            @if($method->takesRealPayments())
+                                                @include('admin.partials.critical-confirm', ['impact' => __('It takes real payments now.'), 'id' => 'delete_'.$method->id, 'compact' => true])
+                                            @endif
+                                        </x-confirm-modal>
                                     </div>
                                 </td>
                             </tr>

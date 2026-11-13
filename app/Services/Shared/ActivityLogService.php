@@ -6,6 +6,7 @@ use App\Models\Shared\ActivityLog;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\Shared\ActivityLogRepository;
+use App\Services\Admin\AdminAuditLogService;
 use App\Support\SettingChanges;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
@@ -37,16 +38,27 @@ class ActivityLogService
      * for. An update records what changed - each setting's previous and new
      * value (SettingChanges) - from $subject's last save, unless $properties
      * says it already; a record with a location keeps which.
+     *
+     * What an admin does - or what is done to an admin's account - goes to
+     * the admin panel's own audit log instead (Doc 15 section 15.26), never
+     * into a business's.
      */
     public function log(string $action, string $description, ?Model $subject = null, ?array $properties = null, ?User $actor = null): ?ActivityLog
     {
         $actor ??= auth()->user();
 
-        if ($this->shouldSkipAdminActivity($actor, $subject)) {
+        $changes = $action === 'updated' && $subject && ! isset($properties['changes']) ? SettingChanges::of($subject) : [];
+
+        if ($this->isAdminActivity($actor, $subject)) {
+            app(AdminAuditLogService::class)->record($action, $description, $subject, [
+                ...($properties ?? []),
+                ...($changes ? ['changes' => $changes] : []),
+            ], $actor ?? ($subject instanceof User ? $subject : null));
+
+            $this->markRequestAsActivityLogged();
+
             return null;
         }
-
-        $changes = $action === 'updated' && $subject && ! isset($properties['changes']) ? SettingChanges::of($subject) : [];
 
         $properties = [
             ...($properties ?? []),
@@ -85,7 +97,7 @@ class ActivityLogService
         app(static::class)->markRequestAsActivityLogged();
     }
 
-    private function shouldSkipAdminActivity(?User $actor, ?Model $subject): bool
+    private function isAdminActivity(?User $actor, ?Model $subject): bool
     {
         if ($actor?->isAdmin()) {
             return true;

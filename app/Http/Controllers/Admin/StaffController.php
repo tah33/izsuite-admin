@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ResetStaffTwoFactorRequest;
 use App\Http\Requests\Admin\StoreStaffRequest;
 use App\Http\Requests\Admin\UpdateStaffRequest;
 use App\Services\Admin\StaffService;
@@ -156,7 +157,7 @@ class StaffController extends Controller
      * Turn a member's two-factor sign-in off - a Super Admin only - so they
      * set it up again at their next sign-in: for a lost phone.
      */
-    public function resetTwoFactor(Request $request, int $id)
+    public function resetTwoFactor(ResetStaffTwoFactorRequest $request, int $id)
     {
         try {
             $staffUser = $this->staffService->findEditable($id);
@@ -165,7 +166,7 @@ class StaffController extends Controller
                 abort(404);
             }
 
-            $this->staffService->resetTwoFactor($request->user(), $staffUser);
+            $this->staffService->resetTwoFactor($request->user(), $staffUser, $request->validated('confirm_password'), $request->validated('reason'));
 
             return $this->adminSuccess(
                 $request,

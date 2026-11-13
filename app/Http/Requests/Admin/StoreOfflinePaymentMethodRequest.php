@@ -20,6 +20,9 @@ class StoreOfflinePaymentMethodRequest extends FormRequest
             'image'        => ['nullable', 'image', 'mimes:jpg,jpeg,png,svg,webp', 'max:2048'],
             'is_active'    => ['nullable'],
             'sort_order'   => ['nullable', 'integer', 'min:0'],
+            // Switched on, it takes real payments: the password again and a reason (Doc 15 section 15.25).
+            'confirm_password' => ['nullable', 'string', 'max:255'],
+            'reason'           => ['nullable', 'string', 'max:500'],
         ];
     }
 }

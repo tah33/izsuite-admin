@@ -136,5 +136,10 @@
             <i data-lucide="settings" class="icon"></i>
             <span>{{ __('Settings') }}</span>
         </a>
+
+        <a href="{{ route('admin.audit-log.index') }}" class="sidebar-link {{ request()->routeIs('admin.audit-log.*') ? 'active' : '' }}">
+            <i data-lucide="scroll-text" class="icon"></i>
+            <span>{{ __('Audit Log') }}</span>
+        </a>
     </nav>
 </aside>

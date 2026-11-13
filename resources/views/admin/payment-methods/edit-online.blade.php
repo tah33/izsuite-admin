@@ -89,6 +89,14 @@
                     <input type="text" class="form-input font-mono text-xs" value="{{ route('api.webhooks.stripe') }}" readonly onclick="this.select()" aria-label="{{ __('Webhook address') }}">
                 </div>
 
+                {{-- Live, a gateway takes real payments: changing it is a critical action (Doc 15 section 15.25). --}}
+                @include('admin.partials.critical-confirm', [
+                    'impact'  => $method->takesRealPayments()
+                        ? __(':name takes real card payments now.', ['name' => $method->name])
+                        : __('Saving it switched on in Live mode makes it take real card payments.'),
+                    'compact' => true,
+                ])
+
                 <button type="submit" class="btn btn-primary w-full">
                     <i data-lucide="save" class="w-4 h-4"></i> {{ __('Save Configuration') }}
                 </button>

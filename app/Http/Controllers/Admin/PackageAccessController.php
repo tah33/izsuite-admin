@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\SavePackageAccessRequest;
 use App\Services\Admin\PackageAccessService;
-use Illuminate\Http\Request;
 
 /**
  * Which plan includes which app, as one matrix (Doc 01 section 3).
@@ -34,10 +34,17 @@ class PackageAccessController extends Controller
         }
     }
 
-    public function update(Request $request)
+    public function update(SavePackageAccessRequest $request)
     {
         try {
-            if ($problems = $this->packageAccessService->save((array) $request->input('access', []))) {
+            $problems = $this->packageAccessService->save(
+                (array) $request->validated('access', []),
+                $request->user(),
+                $request->validated('confirm_password'),
+                $request->validated('reason'),
+            );
+
+            if ($problems) {
                 return $this->adminFailure($request, implode(' ', $problems), 422);
             }
 

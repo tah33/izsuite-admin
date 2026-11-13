@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-13
-- **Code:** Doc 15's gap check and Phase A1 (signing in to the admin) are on `main` in the admin commit right after `e619cfd`. The frontend has nothing new since `b29f546` on `nuxt`.
-- **Tests:** 732 backend tests pass (last full run 2026-11-13, on this code, on the second PC).
-- **Next step:** Doc 15 Phase A2: the audit log, the starting admin roles and critical actions (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
+- **Code:** Doc 15 Phase A2 (the audit log, roles and critical actions) is on `main` in the admin commit right after `addce5a`. The frontend has nothing new since `b29f546` on `nuxt`.
+- **Tests:** 741 backend tests pass (last full run 2026-11-13, on this code, on the second PC).
+- **Next step:** Doc 15 Phase B: businesses, users and support access (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 15 Phase A2.
+   > Read PROJECT_STATUS.md, then start Doc 15 Phase B.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -40,7 +40,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 12 | Users, Roles, Permissions and Locations | Done, except package change rules (Doc 13) |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
-| **15** | **izSuite System Administration Portal** | **In progress: gap check and Phase A1 done (2026-11-13), A2 next** |
+| **15** | **izSuite System Administration Portal** | **In progress: gap check and Phase A done (2026-11-13), B next** |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -314,7 +314,7 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 - Share links that expire. They stay until revoked.
 - Imports beyond contacts and items.
 
-### 3. Doc 15: izSuite System Administration Portal (next: Phase A2)
+### 3. Doc 15: izSuite System Administration Portal (next: Phase B)
 
 The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign-in) had grown through Docs 01 to 14, partly from the earlier recruitment product, and was checked against all 27 sections.
 
@@ -341,7 +341,7 @@ The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign
 - **A staff member switched off in Admin > Staff can still sign in.** Neither the sign-in nor the admin pages check the account's status. *Fixed in Phase A1.*
 - **A staff member given a role made in Admin > Roles cannot sign in at all.** Only the roles named Super Admin, Admin and Staff count as admin (`User::isAdmin()` checks the role's slug), so new admin roles do nothing yet. *Fixed in Phase A1.*
 - **The admin sign-in has no rate limit.** Thirty wrong passwords in a row were all answered. *Fixed in Phase A1.*
-- **No admin action is recorded.** The activity log skips anything an admin does (`ActivityLogService::shouldSkipAdminActivity`), so the admin services' 61 log calls write nothing, sign-ins included. The 15 admin entries in the dev database are seeded demo rows. *For Phase A2. Admin sign-ins are kept since A1.*
+- **No admin action is recorded.** The activity log skips anything an admin does (`ActivityLogService::shouldSkipAdminActivity`), so the admin services' 61 log calls write nothing, sign-ins included. The 15 admin entries in the dev database are seeded demo rows. *Fixed in Phase A2.*
 - The sidebar still shows the earlier product's Plans & Pricing and Subscription History. They work per user account and no longer fit, since Doc 13 replaced them. The Overview's figures are that product's too: Pro Users and Monthly Revenue are always 0.
 
 **Missing**, as suggested phases with defaults:
@@ -377,19 +377,37 @@ The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign
 
   The admin's two-factor was then reset and the check's sign-ins removed, so `admin@izsuite.io` sets two-factor up at its next sign-in. The idle end, the throttle, the reset and the e-mail are covered by tests only.
 
-**Phase A2: the audit log, roles and critical actions** (sections 3, 25 and 26), with these defaults:
+**Phase A2: the audit log, roles and critical actions** (sections 3, 25 and 26) is built, with your defaults:
 
-- The last fault fixed: admin actions are recorded, in their own log apart from the businesses' Activity Logs, with sign-ins and sign-outs.
-- The roles of section 3 as starting roles: Super Administrator (one, as now), Product, Billing, Support, Compliance and Security, and Read-Only. Each opens the pages of its area, and Read-Only opens lists and details only. All stay editable.
-- Admin > Audit Log: every admin action with the admin, their role, the action, the record, its previous and new values, the reason, the time, IP address, browser and result. It can be searched by admin, action, record and dates, and exported as CSV by roles allowed to. Nobody can edit it.
-- Critical actions (section 25) say what they will affect, then ask for the password again and a reason:
-  - making a Super Admin;
-  - overriding a business's ownership;
-  - suspending several businesses at once;
-  - changing a live payment provider;
-  - refunds above an amount set in Settings;
-  - changing every plan's apps;
-  - turning off a security control.
+- **The last fault fixed: admin actions are recorded**, in their own audit log, never a business's Activity Log.
+  - Everything the admin services already logged now lands there, with each record's previous and new values.
+  - What was never logged is too: Login as, clearing the cache, the admin's own profile and password, confirming or cancelling a subscription invoice, and each settings value saved.
+  - Sign-ins, sign-outs and failed sign-ins (with the address tried) are there, and so is a page a role does not allow, as refused.
+  - **Secrets are never kept**: payment keys, API keys, the mail password, client secrets and tokens. A settings save names the secrets it changed, without their values.
+- **Admin > Audit Log** (under System): each entry's time, admin and their role then, what was done, the record, the result and the IP address.
+  - It filters by admin, action, kind of record, result, dates and words or a record's ID.
+  - An entry's page adds its previous and new values, the reason, the approval, the browser and a mark of the session.
+  - **Export CSV** gives what the filters pick to roles allowed it, and the export is logged itself.
+  - Nothing in the panel changes or deletes an entry, and the model refuses to.
+- **The starting roles of section 3**, beside Super Admin, Admin and Staff. Each opens the pages of its area, and all stay editable:
+  - Product Administrator: the app catalogue, Package Access, the Menu Builder, the website's pages, FAQs and content, and languages.
+  - Billing Administrator: packages, subscription invoices and taxes, payment methods, currencies, and moving a business's plan.
+  - Support Administrator: users and Login as, tickets and contact messages.
+  - Compliance and Security Administrator: the audit log with its export, and the staff and role lists.
+  - Read-Only Administrator: lists and details only. No forms, no exports, and not Settings, which holds keys.
+
+  A migration made them on dev; a new database gets them from `RoleSeeder`. One edited since is never overwritten.
+- **Critical actions** say what they affect, then ask for the password again and a reason. The audit log keeps the reason and "Password given again".
+  - A wrong password is logged as refused, and five lock the step for ten minutes.
+  - Critical now: changing a payment method that takes real payments (an offline one switched on, or Stripe live) by adding, changing or deleting it; saving Package Access, which changes every plan's apps; and resetting an admin's two-factor.
+  - Not in the panel yet, so nothing to guard: making a Super Admin (Staff never offers it), overriding an ownership, suspending in bulk, and refunds. Each asks the same once built.
+- Checked in the browser as the seeded admin:
+  - Package Access refused a save with no password, then a wrong one ("That password is not right."), and saved with the right one and a reason;
+  - the Audit Log listed the sign-in, two-factor turning on, the refused attempt and the save with "Reason given", and its page showed the reason and "Password given again";
+  - the export gave the refused entry as CSV, and Admin > Roles listed the five roles;
+  - an active Bank Transfer's Delete dialog asked for the password and a reason, and closed unused.
+
+  The check's audit entries and sign-in were then removed, and the admin's two-factor reset again. Dev's admin styles were rebuilt (`npm run build` in the container), because the build dated from July and lacked newer Tailwind classes.
 
 **Phase B: businesses, users and support access** (sections 5, 6, 7 and 22), likely split in two:
 
@@ -662,7 +680,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 14: Phase D, notes, comments and activity | the commit after `4ae5865` | `24085c5` | 000122, 000123 |
 | Doc 14: Phase E1, who and where from | the commit after `4bfb9c7` | `76b3aa3` | 000124 |
 | Doc 14: Phase E2, numbers, files and names | the commit after `8e38b43` | `b29f546` | |
-| Doc 15: gap check, and Phase A1, signing in to the admin | the commit after `e619cfd` | | 000125 |
+| Doc 15: gap check, and Phase A1, signing in to the admin | `addce5a` | | 000125 |
+| Doc 15: Phase A2, the audit log, roles and critical actions | the commit after `addce5a` | | 000126 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -824,7 +843,12 @@ These are easy to undo by mistake.
   Only sessions begun at the sign-in page carry them, so a test's `actingAs` is held to the account's status only. In a test that signs in for real, call `$this->app['auth']->forgetGuards()` before a request that must see a changed account: the guard keeps the user it loaded.
 - Admin sign-ins are `admin_sign_ins` (migration 000125): `succeeded`, `failure` (password, switched_off, two_factor, throttled), IP address, browser, and `device`, a hash of the browser's `izsuite_admin_device` cookie (a random id, kept a year).
 - The two-factor set-up's QR code is drawn by `public/vendor/qrcode/qrcode.min.js`: node-qrcode 1.5.4 (MIT, its licence beside it), bundled with esbuild from the frontend's own copy. To rebuild it: `docker exec izsuite-frontend node_modules/.bin/esbuild node_modules/qrcode/lib/browser.js --bundle --minify --format=iife --global-name=QRCode --outfile=/tmp/qrcode.min.js`, then `docker cp` it over.
-- `PermissionCheckMiddleware` lets every admin open the Overview and their own profile, password and two-factor pages, whatever their role.
+- `PermissionCheckMiddleware` lets every admin open the Overview and their own profile, password and two-factor pages, whatever their role. A refusal is written to the audit log.
+- The admin audit log (Doc 15 Phase A2, migration 000126) is `admin_audit_logs`, written by `AdminAuditLogService::record`. `ActivityLogService::log` sends it whatever an admin does, or whatever is done to an admin's account, so admin services keep calling `ActivityLogService::record` as before. Entries keep `admin_name` and `role_name` as they were. The model throws on update and delete, so cleaning dev test data takes `DB::table('admin_audit_logs')`.
+- `SettingChanges::isSecret()` leaves out any setting whose name holds password, secret, token, api_key, credentials or recovery_codes, for business logs as well as the audit log.
+- A critical action calls `CriticalActionService::confirm($admin, $password, $reason, $what)` before it changes anything. Its fields are `confirm_password` and `reason`, drawn by `admin/partials/critical-confirm.blade.php`, which `<x-confirm-modal>` takes in its slot. On success it puts the reason and approval on the request (`approvedWithPassword`), so every audit entry of that request keeps them.
+- The starting admin roles are `App\Support\AdminRoles`, by route name: made by migration 000126 where roles exist already, and by `RoleSeeder` after the Super Admin, who must hold id 1.
+- Dev's admin CSS is `public/build`, git-ignored and built only when missing (`docker/entrypoint.sh`), so it goes stale. After adding Tailwind classes to admin views, run `docker exec izsuite-api npm run build`; a server builds it fresh on deploy.
 - The frontend's location pick is `useLocationPick()`. It is shared state behind the `izsuite_location` cookie, and `''` means All Locations. A pick no longer offered (an inactive location, another business's) counts as All Locations. `forNewRecord()` waits for the locations list, so a form opened right after a reload still gets the pick.
 
 ## Small things left

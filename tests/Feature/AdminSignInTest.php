@@ -283,7 +283,7 @@ class AdminSignInTest extends TestCase
 
         // Reset as the Super Admin does it: their open session ends.
         $this->travel(1)->seconds();
-        app(AdminTwoFactorService::class)->reset($super, $member);
+        app(AdminTwoFactorService::class)->reset($super, $member, self::PASSWORD, 'Lost their phone');
 
         $this->nextRequest();
         $this->get(route('admin.overview'))->assertRedirect(route('login'))->assertSessionHasErrors(['email' => AdminSessionService::ENDED]);
@@ -304,7 +304,7 @@ class AdminSignInTest extends TestCase
             ->assertForbidden()->assertJsonPath('message', 'Only a Super Admin can reset two-factor sign-in.');
         $this->assertNotNull($other->fresh()->two_factor_confirmed_at);
 
-        $this->actingAs($super)->postJson(route('admin.staff.two-factor.reset', $other->id))->assertOk();
+        $this->actingAs($super)->postJson(route('admin.staff.two-factor.reset', $other->id), ['confirm_password' => self::PASSWORD, 'reason' => 'Lost their phone'])->assertOk();
         $this->assertNull($other->fresh()->two_factor_confirmed_at);
     }
 

@@ -21,9 +21,15 @@ class UpdatePaymentMethodRequest extends FormRequest
             return [];
         }
 
+        // A method that takes real payments needs the password again and a reason (Doc 15 section 15.25).
+        $confirmation = [
+            'confirm_password' => ['nullable', 'string', 'max:255'],
+            'reason'           => ['nullable', 'string', 'max:500'],
+        ];
+
         // Stripe's keys, test and live apart (Doc 13 Phase D2): each by its own prefix. Left blank, the kept one stays.
         if ($method->type === 'online') {
-            $rules = ['is_active' => ['nullable'], 'is_sandbox' => ['nullable'], 'credentials' => ['nullable', 'array']];
+            $rules = ['is_active' => ['nullable'], 'is_sandbox' => ['nullable'], 'credentials' => ['nullable', 'array'], ...$confirmation];
 
             foreach (['test', 'live'] as $mode) {
                 $rules["credentials.{$mode}.publishable_key"] = ['nullable', 'string', 'max:255', "starts_with:pk_{$mode}_"];
@@ -41,6 +47,7 @@ class UpdatePaymentMethodRequest extends FormRequest
             'image'        => ['nullable', 'image', 'mimes:jpg,jpeg,png,svg,webp', 'max:2048'],
             'is_active'    => ['nullable'],
             'sort_order'   => ['nullable', 'integer', 'min:0'],
+            ...$confirmation,
         ];
     }
 

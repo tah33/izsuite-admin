@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\DestroyPaymentMethodRequest;
 use App\Http\Requests\Admin\StoreOfflinePaymentMethodRequest;
 use App\Http\Requests\Admin\UpdatePaymentMethodRequest;
 use App\Services\Admin\PaymentMethodService;
@@ -55,7 +56,7 @@ class PaymentMethodController extends Controller
             $validated              = $request->validated();
             $validated['is_active'] = $request->boolean('is_active');
 
-            $this->methodService->createOffline($validated);
+            $this->methodService->createOffline($validated, $request->user());
 
             return redirect()->route('admin.payment-methods.index', ['tab' => 'offline'])
                 ->with('success', 'Offline method created.');
@@ -102,13 +103,13 @@ class PaymentMethodController extends Controller
             if ($method->type === 'online') {
                 $validated['is_sandbox'] = $request->boolean('is_sandbox');
 
-                $this->methodService->updateOnline($method, $validated);
+                $this->methodService->updateOnline($method, $validated, $request->user());
 
                 return redirect()->route('admin.payment-methods.index', ['tab' => 'online'])
                     ->with('success', "{$method->name} settings saved.");
             }
 
-            $this->methodService->updateOffline($method, $validated);
+            $this->methodService->updateOffline($method, $validated, $request->user());
 
             return redirect()->route('admin.payment-methods.index', ['tab' => 'offline'])
                 ->with('success', 'Offline method updated.');
@@ -120,9 +121,10 @@ class PaymentMethodController extends Controller
     }
 
     /**
-     * Delete offline method only.
+     * Delete offline method only. One switched on needs the password again
+     * and a reason (Doc 15 section 15.25).
      */
-    public function destroy(int $id)
+    public function destroy(DestroyPaymentMethodRequest $request, int $id)
     {
         try {
             $method = $this->methodService->find($id);
@@ -132,7 +134,7 @@ class PaymentMethodController extends Controller
                 return back()->with('error', $problem);
             }
 
-            $this->methodService->deleteOffline($method);
+            $this->methodService->deleteOffline($method, $request->user(), $request->validated());
 
             return redirect()->route('admin.payment-methods.index', ['tab' => 'offline'])
                 ->with('success', 'Offline method deleted.');

@@ -60,6 +60,15 @@ class PaymentMethod extends Model
         return $query->where('is_active', true);
     }
 
+    /**
+     * Whether it takes real payments: switched on, and a gateway in live
+     * mode. Changing one that does is a critical action (Doc 15 section 15.25).
+     */
+    public function takesRealPayments(): bool
+    {
+        return (bool) $this->is_active && ($this->type !== 'online' || ! $this->is_sandbox);
+    }
+
     // ── Accessors ──
 
     /**

@@ -52,7 +52,9 @@
                 :confirm-text="__('Reset')"
                 confirm-class="btn-danger"
                 icon="shield-off"
-            />
+            >
+                @include('admin.partials.critical-confirm', ['impact' => __('Until they set it up again, anyone with their password could sign in and set it up.'), 'id' => 'reset', 'compact' => true])
+            </x-confirm-modal>
         @endif
     </div>
 

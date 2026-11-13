@@ -5,6 +5,7 @@ namespace App\Services\Admin;
 use App\Models\User\User;
 use App\Repositories\Admin\AdminSignInRepository;
 use App\Repositories\User\UserRepository;
+use App\Services\Shared\ActivityLogService;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Support\Facades\Hash;
 
@@ -36,6 +37,8 @@ class ProfileService
     public function update(User $user, array $data): void
     {
         $this->userRepository->update($user, $data);
+
+        ActivityLogService::record('updated', 'Updated their own profile', $user);
     }
 
     /** A new password. Every other session of the account ends; this one goes on. */
@@ -46,6 +49,8 @@ class ProfileService
         ]);
 
         $this->sessions->endAllBut($session, $user);
+
+        ActivityLogService::record('updated', 'Changed their own password, ending their other sessions', $user, ['changes' => []]);
     }
 
     /** Why $user cannot delete their own account, if they cannot. */
@@ -56,6 +61,8 @@ class ProfileService
 
     public function delete(User $user): void
     {
+        ActivityLogService::record('deleted', 'Deleted their own admin account', $user, null, $user);
+
         $this->userRepository->delete($user);
     }
 }

@@ -47,6 +47,14 @@
     </div>
 </div>
 
+{{-- Switched on, a method takes real payments: changing it is a critical action (Doc 15 section 15.25). --}}
+@include('admin.partials.critical-confirm', [
+    'impact' => ($method ?? null)?->takesRealPayments()
+        ? __('This method takes real payments: businesses see its instructions on every invoice they pay by it.')
+        : __('Saving it switched on makes it take real payments: businesses then see its instructions on their invoices.'),
+    'class'  => 'mt-4',
+])
+
 {{-- Summernote JS --}}
 <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-lite.min.js"></script>
 <script>

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminAuditLogController;
 use App\Http\Controllers\Admin\AdminTwoFactorController;
 use App\Http\Controllers\Admin\AppController;
 use App\Http\Controllers\Admin\AppCategoryController;
@@ -49,6 +50,11 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     Route::post('/staff/{id}/two-factor/reset', [StaffController::class, 'resetTwoFactor'])->whereNumber('id')->name('staff.two-factor.reset');
 
     Route::resource('roles', RoleController::class)->except(['show'])->parameters(['roles' => 'id']);
+
+    // The admin panel's audit log (Doc 15 section 15.26): read and exported, never changed.
+    Route::get('/audit-log', [AdminAuditLogController::class, 'index'])->name('audit-log.index');
+    Route::get('/audit-log/export', [AdminAuditLogController::class, 'export'])->name('audit-log.export');
+    Route::get('/audit-log/{id}', [AdminAuditLogController::class, 'show'])->whereNumber('id')->name('audit-log.show');
     Route::resource('pages', PageController::class)->except(['show'])->parameters(['pages' => 'id']);
     Route::resource('apps', AppController::class)->except(['show'])->parameters(['apps' => 'id']);
     Route::post('/apps/{id}/dependencies', [AppController::class, 'storeDependency'])->name('apps.dependencies.store');

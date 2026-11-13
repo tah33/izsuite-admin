@@ -9,6 +9,7 @@ use App\Repositories\Admin\LanguageRepository;
 use App\Repositories\Admin\SettingRepository;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Support\ImageService;
+use App\Support\SettingChanges;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
@@ -178,9 +179,17 @@ class SettingService
             $this->handleBrandingUploads($files, $settings);
         }
 
+        // For the audit log (Doc 15 section 15.26): each value before and after. A secret is named, never shown.
+        $before  = array_combine(array_keys($settings), array_map(fn (string $key) => $this->settingRepo->get($key), array_keys($settings))) ?: [];
+        $text    = fn (mixed $value) => is_scalar($value) || $value === null ? (string) $value : (string) json_encode($value);
+        $secrets = array_values(array_filter(array_keys($settings), fn (string $key) => SettingChanges::isSecret($key) && $text($before[$key] ?? null) !== $text($settings[$key])));
+
         $this->bulkUpdate($settings);
 
-        ActivityLogService::record('updated', "Updated site settings group: $group");
+        ActivityLogService::record('updated', "Updated site settings group: $group", null, [
+            'changes' => SettingChanges::between($before, $settings),
+            ...($secrets ? ['secrets_changed' => $secrets] : []),
+        ]);
     }
 
     /**
