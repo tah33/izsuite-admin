@@ -3,7 +3,12 @@
 
 {{-- izSuite's invoices to businesses for their subscriptions (Doc 13 Phase C1),
      the ones waiting for a bank transfer first. Confirming a payment issues
-     the receipt and starts the plan. --}}
+     the receipt and starts the plan. Each opens its own page (Doc 15 Phase C2a). --}}
+@php
+    $role = auth()->user()->role;
+    $may  = fn (string $route) => (bool) $role?->hasPermission($route);
+@endphp
+
 @section('content')
     <div class="flex flex-wrap items-center gap-3 mb-4">
         <form action="{{ route('admin.subscription-invoices.index') }}" method="GET" class="flex flex-1 max-md:basis-full flex-wrap items-center gap-2 min-w-0">

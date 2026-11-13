@@ -31,6 +31,18 @@ class SubscriptionInvoiceController extends Controller
         }
     }
 
+    /** One invoice with every field Doc 15 section 14 names, its payments and their refunds (Phase C2a). */
+    public function show(int $id)
+    {
+        try {
+            return view('admin.subscription-invoices.show', $this->invoiceService->details($id));
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
     public function confirm(Request $request, int $id)
     {
         try {

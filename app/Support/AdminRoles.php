@@ -34,7 +34,8 @@ final class AdminRoles
             // Packages and prices, subscriptions, platform invoices, payments and taxes.
             'billing-administrator' => ['Billing Administrator', [
                 'admin.packages.index', 'admin.packages.edit',
-                'admin.subscription-invoices.index', 'admin.subscription-invoices.pdf', 'admin.subscription-invoices.confirm', 'admin.subscription-invoices.void',
+                'admin.subscription-invoices.index', 'admin.subscription-invoices.show', 'admin.subscription-invoices.pdf', 'admin.subscription-invoices.confirm', 'admin.subscription-invoices.void',
+                'admin.payments.index', 'admin.payments.refund', 'admin.refunds.index',
                 'admin.subscription-taxes.index', 'admin.subscription-taxes.create', 'admin.subscription-taxes.edit', 'admin.subscription-taxes.destroy',
                 'admin.payment-methods.index', 'admin.payment-methods.create', 'admin.payment-methods.edit', 'admin.payment-methods.destroy',
                 'admin.currencies.index', 'admin.currencies.create', 'admin.currencies.edit', 'admin.currencies.destroy', 'admin.currencies.save-formatting',
@@ -70,7 +71,8 @@ final class AdminRoles
                 'admin.content.index', 'admin.currencies.index', 'admin.departments.index', 'admin.faqs.index', 'admin.languages.index',
                 'admin.menu-items.index', 'admin.package-access.index', 'admin.packages.index', 'admin.pages.index',
                 'admin.payment-methods.index', 'admin.roles.index', 'admin.staff.index',
-                'admin.subscription-invoices.index', 'admin.subscription-invoices.pdf', 'admin.subscription-taxes.index',
+                'admin.subscription-invoices.index', 'admin.subscription-invoices.show', 'admin.subscription-invoices.pdf', 'admin.subscription-taxes.index',
+                'admin.payments.index', 'admin.refunds.index',
                 'admin.subscriptions.index', 'admin.subscriptions.show', 'admin.support-sessions.index', 'admin.tickets.index', 'admin.tickets.show',
             ]],
         ];

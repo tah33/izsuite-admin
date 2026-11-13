@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-13
-- **Code:** Doc 15 Phase C1 (subscriptions in the admin) is on `main` in `debb680` ("doc 15", most of it) and the admin commit right after it (its last fixes and this file). The frontend did not change: `nuxt` is at `d807b88` (Phase B4).
-- **Tests:** 763 backend tests pass (last full run 2026-11-13, on this code, on the second PC).
-- **Next step:** Doc 15 Phase C2: billing records, refunds, credits and reports (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing; Phase C1's Retry Card has only met a faked Stripe.
+- **Code:** Doc 15 Phase C2a (payments and refunds) is on `main` in the admin commit right after `9bd9fb5`, and on `nuxt` in the frontend commit right after `d807b88`.
+- **Tests:** 768 backend tests pass (last full run 2026-11-13, on this code, on the second PC).
+- **Next step:** Doc 15 Phase C2b: credit adjustments and the billing reports (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 15 Phase C2.
+   > Read PROJECT_STATUS.md, then start Doc 15 Phase C2b.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -40,7 +40,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 12 | Users, Roles, Permissions and Locations | Done, except package change rules (Doc 13) |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
-| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phases A, B and C1 done (2026-11-13), C2 next** |
+| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phases A, B, C1 and C2a done (2026-11-13), C2b next** |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -152,7 +152,7 @@ Phase D is split into D1 to D3, with these suggested defaults.
 4. Pay an invoice with Stripe's test card 4242 4242 4242 4242, any future expiry date and any CVC.
 5. For D3, save a card, then run `php artisan subscriptions:advance` on the renewal's due day. Stripe's test card 4000 0000 0000 0341 is declined later, after it is saved, and 4000 0027 6000 3184 asks to be confirmed.
 
-On a server, the Stripe webhook needs two events: `checkout.session.completed` and `payment_intent.succeeded`.
+On a server, the Stripe webhook needs these events: `checkout.session.completed` and `payment_intent.succeeded`, and since Doc 15 Phase C2a `refund.created` and `refund.updated` (`charge.refund.updated` on an older API version).
 
 **Phase D3: automatic renewals and retries** is built, with your defaults:
 
@@ -314,7 +314,7 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 - Share links that expire. They stay until revoked.
 - Imports beyond contacts and items.
 
-### 3. Doc 15: izSuite System Administration Portal (next: Phase C2)
+### 3. Doc 15: izSuite System Administration Portal (next: Phase C2b)
 
 The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign-in) had grown through Docs 01 to 14, partly from the earlier recruitment product, and was checked against all 27 sections.
 
@@ -555,12 +555,40 @@ B3 was split again on starting it (2026-11-13), as a support session names a sup
 
   The check found the plan filter offering Billing Starter, Resend's message lost to the page's reload, a trial paid early not showing that it still runs, and two dialogs' wording; all fixed. A review found the actions handing Doc 13's billing a business loaded without most of its columns, also fixed (see [Things that catch you out](#things-that-catch-you-out)). The check's subscription, invoices and their numbering, billing details, notices, activity, audit entries and sign-ins were then removed, workspace 1 moved back to Billing Starter, the plans' prices emptied again, and the admin's two-factor reset.
 
-**Phase C2: billing records** (section 14):
+**Phase C2: billing records** (section 14) was split on starting it (2026-11-13): C2a, payments and refunds; C2b, credit adjustments and the billing reports.
 
-- Payments, with the failed ones.
-- Refunds, each with a reason. A card refund goes through Stripe and counts once Stripe confirms it; a transfer refund is recorded by hand.
-- Credits, and the adjustment: a credit taken off a business's next invoice, with its reason, from the subscription's page.
-- Reports: revenue by month, plan and currency; open and overdue invoices; failed payments.
+**Phase C2a: payments and refunds** is built, with these defaults:
+
+- **Every payment is kept as one.** A bank transfer izSuite confirms is now a payment too, as a card's always was (provider `transfer`, its reference the invoice's number). Migration 000132 made one for each transfer confirmed before. Payments are never deleted; refunds correct them.
+- **Admin > Payments** (sidebar, after Subscription Invoices) lists every payment, newest first: when, the business, the invoice, how it was paid, the amount, and its status with what of it is refunded. The filters cover status (Paid, Failed for a declined card or one waiting for the cardholder, Processing, Not applied, Refunded), card or bank transfer, and a search by business, BW- ID, owner, invoice number or reference.
+- **An invoice's own page**, from its number in Subscription Invoices, Payments or a subscription's page, shows the fields section 14 names:
+  - who it is billed to (name, address, country, tax ID, e-mail), the business and owner;
+  - the plan, the billing period, and the issue, due and paid dates;
+  - subtotal, any upgrade credit, tax, total, amount paid, refunded and balance;
+  - its payments, each with its refunds.
+
+  Its actions are the PDF and receipt, Confirm Payment and Cancel Invoice while it is open, and links to the subscription and the business. The list shows what is refunded under each total.
+- **Refunding a payment**, from the invoice's page:
+  - how much, up to what is left: its amount less the refunds done or still waiting, so two admins at once never give back more than was paid;
+  - the admin's password again and a reason, as for every critical action (section 15.25 makes large refunds critical; every refund asks for now);
+  - a card payment's refund goes through Stripe and counts once Stripe confirms it, at once or later through its webhook (`refund.updated`). A refund Stripe refuses is kept as Failed, with Stripe's words. A refund made in Stripe's own dashboard, of a payment izSuite knows, is recorded too, without an admin;
+  - a transfer's is recorded at once, with the bank's reference of izSuite's transfer back. Send the money first.
+- A refund changes neither the invoice nor the plan; cancel the subscription separately if it should end. Once a refund is done, the business is told in the bell and by e-mail to the billing e-mail and the owner ("izSuite has refunded USD 5.00"), and its Billing History shows "Refunded" under the invoice's total.
+- **Admin > Refunds** lists every refund: when, the business, the invoice and payment, the amount, where it stands (Refunded, Waiting for the provider, Failed with why), the reason and who made it.
+- **Roles** (migration 000132): Billing Administrators get the payments, the refunds, an invoice's page and refunding; Read-Only Administrators the payments, the refunds and the invoice's page; every role that lists the invoices may open one. Support Administrators see a business's invoices on its subscription's page only.
+- The note on a card payment that could not pay its invoice now says to refund it from its invoice, not in Stripe.
+- Checked in the browser as the seeded admin, on workspace 1 with Standard priced for the check and its first invoice paid by transfer:
+  - Admin > Payments listed the transfer, and its invoice's page showed the billing details, the period, paid and confirmed, and Amount paid and Balance;
+  - the refund dialog refused the refund without the password, under the field, then recorded USD 5.00 with the bank's reference. The page then showed Refunded USD 5.00, with USD 14.50 left to refund;
+  - Admin > Refunds listed it with its reason, reference and admin, and the audit log kept the reason;
+  - the owner had the bell notice and the e-mail, and the app's Billing History showed "Refunded $5.00" under the total.
+
+  Card refunds were not tried on dev, which has no Stripe test keys: the tests fake Stripe's API. The check found long references breaking mid-word and an audit line saying "by Bank transfer"; both fixed. The check's subscription, invoice, payment, refund, numbering, billing details, notices, activity, audit entries, sign-ins and the app's sign-in token were then removed, workspace 1 moved back to Billing Starter with its setup undone, Standard's price emptied again, and the admin's two-factor reset.
+
+**Phase C2b: credit adjustments and the billing reports** (sections 13 and 14):
+
+- **Credits**, and the adjustment from the subscription's page: a credit taken off a business's next invoice, with its reason. One left over carries to the invoice after; an invoice cancelled gives its credit back; an invoice the credit covers in full is paid by it.
+- **Reports**: revenue by month, plan and currency (collected, tax and refunded); open and overdue invoices; failed payments.
 
 **Phase C3: prices and promotions** (sections 9 and 17):
 
@@ -677,6 +705,8 @@ Each document goes the same way:
 - Eloquent's strict mode is off, so a model loaded with a column list (`with('workspace:id,name')`) reads every other column as null, with no error. Load whole models for anything handed on to another service: Doc 13's billing reads a business's `package_id`, for one.
 - An admin form shows its message, then reloads the page 300 ms later, which takes the message with it. Where the page does not change (Resend Invoice), give the form `data-no-reload` and the message stays.
 - The Subscription Invoices buttons ask with the browser's own `confirm()`, which the Claude browser pane cannot answer. Confirm a transfer there with `SubscriptionInvoiceService::confirm()` in tinker instead.
+- Billing's notices in the bell go to the business's members with Manage Subscription (`NotificationAudience`). In a test, set the business up with `SetUpNewWorkspace`, or its owner is no member and nothing is sent.
+- The app reads a business's `setup_completed` from its cached navigation. After changing `setup_completed_at` by hand, call `WorkspaceRepository::bumpNavVersion()`, or the app keeps sending you to Set Up.
 - If `docker` cannot reach its engine (`dockerDesktopLinuxEngine` not found), Docker Desktop has stopped. On the second PC it is installed per user, under `%LOCALAPPDATA%\Programs\DockerDesktop`. Starting it brings the containers back by themselves, but the admin's sign-in is lost with Redis.
 
 ### Checking the app as a limited member
@@ -804,7 +834,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 15: Phase B2, users and their accounts | `ff7538e` | `6b298ec` | 000128 |
 | Doc 15: Phase B3, support cases | `1f15b4b` | `9259e26` | 000129 |
 | Doc 15: Phase B4, support sessions | `bab54e5` | `d807b88` | 000130 |
-| Doc 15: Phase C1, subscriptions in the admin | `debb680` and the commit after it | | 000131 |
+| Doc 15: Phase C1, subscriptions in the admin | `debb680` and `9bd9fb5` | | 000131 |
+| Doc 15: Phase C2a, payments and refunds | the commit after `9bd9fb5` | the commit after `d807b88` | 000132 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -1002,6 +1033,13 @@ These are easy to undo by mistake.
   - `admin/partials/reason-modal` is a dialog asking a reason, with optional fields above it; the users' page uses it too.
   - izSuite's notices about a subscription are `izsuite.subscription` in the bell, with `AccountNoticeMail` to the owner.
   - The trial's extension voids its invoice and issues it again (`SubscriptionBilling::issue`, the credit kept); `SubscriptionBilling::resend()` sends an invoice again, as its receipt once paid.
+- Payments and refunds (Doc 15 Phase C2a, migration 000132):
+  - `SubscriptionBilling::confirm()` keeps a confirmed transfer as a `subscription_payments` row (`SubscriptionPayment::TRANSFER`); a card's is kept by `CardPayments` as before. `SubscriptionPayment::method()` reads "Visa ending 4242" or "Bank transfer"; `notApplied()` is taken but not applied to its invoice.
+  - `subscription_refunds` is worked by `App\Services\Billing\SubscriptionRefunds`. `refund()` holds the refund against the locked payment before asking the provider; `settle()` takes the provider's answer and its notifications once, finding a refund by Stripe's reference, else by `metadata.refund_id`, else keeping one made in Stripe's dashboard by its payment intent. `(provider, reference)` is unique; a transfer's bank reference is `transfer_reference`.
+  - `CardGateway::refund()` and `RefundOutcome`: Stripe's `POST /v1/refunds` with an idempotency key `izsuite-refund-{id}`. `notified()` also answers a `RefundOutcome` for `refund.created`, `refund.updated`, `refund.failed` and `charge.refund.updated`, read back from Stripe.
+  - The admin side is `PaymentAdminService` over `PaymentAdminRepository`, behind `PaymentController` and `RefundController`. Refunding goes through `CriticalActionService::confirm()`; the amount is checked first, so a refund that cannot be made never asks for the password.
+  - `SubscriptionBilling::refunded()` tells the business: `SubscriptionNoticeMail` kind `refunded`, and the bell's `subscription.refunded`, one notice per refund.
+  - Invoices carry `refunded` (`withSum` of the refunds done) in the admin list, the invoice's page and the app's Billing History (`SubscriptionInvoiceResource`).
 - Dev's admin CSS is `public/build`, git-ignored and built only when missing (`docker/entrypoint.sh`), so it goes stale. After adding Tailwind classes to admin views, run `docker exec izsuite-api npm run build`; a server builds it fresh on deploy.
 - The frontend's location pick is `useLocationPick()`. It is shared state behind the `izsuite_location` cookie, and `''` means All Locations. A pick no longer offered (an inactive location, another business's) counts as All Locations. `forNewRecord()` waits for the locations list, so a form opened right after a reload still gets the pick.
 
@@ -1031,6 +1069,7 @@ Each of these is yours to settle.
 - Should a completed payment's files need Reverse to be removed (built in E2)? The other way is to treat a payment's files like a draft's, under Record Payment.
 - Doc 15 Phase C1 removed the earlier product's Plans & Pricing and Subscription History screens. Should its `plans`, `plan_payment_providers`, `subscriptions` and `invoices` tables be dropped too? Only the API's `/plans` still reads `plans`, and the frontend no longer calls it.
 - Should support cases stay in izSuite's own Tickets (Doc 15 Phase B3 kept them there), or come from an outside help desk?
+- Every refund asks for the admin's password and a reason (Doc 15 Phase C2a), since section 15.25 makes large refunds critical. Should a refund under some amount skip the password, and should large ones need a second admin's approval?
 - Who in a business sees its support cases? Today the owner sees every one, and anyone else only the ones they opened. A business's Administrators could see them all too.
 - Which admin roles open support sessions with edit access? Today only the Super Admin, until a role is given "Support session edit" in Admin > Roles.
 - Should Admin > Users treat phone numbers typed differently ("+880 1711-000000" and "+8801711000000") as the same for its shared-phone alert? Today only the same typing matches.
@@ -1045,4 +1084,5 @@ Each of these is yours to settle.
 - Doc 15 Phase B2: support's account e-mails (the reset link, locking, unlocking, two-factor) go through the queue worker, and the reset link points at `FRONTEND_URL`.
 - Doc 15 Phase B4: the scheduler runs `support-sessions:close-expired` every five minutes. A support session's link goes to `FRONTEND_URL`, and its End Session back to the admin panel's own host.
 - Doc 15 Phase C1: migration 000131 changes only the admin roles' permissions; check Admin > Roles after it if the server's roles were edited by hand. The owner's subscription notices go through the queue worker.
+- Doc 15 Phase C2a: migration 000132 adds the refunds, keeps each transfer confirmed so far as a payment, and gives the roles the payments and refunds. Add `refund.created` and `refund.updated` to the Stripe webhook's events (`charge.refund.updated` on an older API version), or a card refund Stripe takes later stays Waiting. The refund e-mails go through the queue worker.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

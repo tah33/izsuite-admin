@@ -66,6 +66,16 @@
             <span>{{ __('Subscription Invoices') }}</span>
         </a>
 
+        <a href="{{ route('admin.payments.index') }}" class="sidebar-link {{ request()->routeIs('admin.payments.*') ? 'active' : '' }}">
+            <i data-lucide="banknote" class="icon"></i>
+            <span>{{ __('Payments') }}</span>
+        </a>
+
+        <a href="{{ route('admin.refunds.index') }}" class="sidebar-link {{ request()->routeIs('admin.refunds.*') ? 'active' : '' }}">
+            <i data-lucide="undo-2" class="icon"></i>
+            <span>{{ __('Refunds') }}</span>
+        </a>
+
         <a href="{{ route('admin.subscription-taxes.index') }}" class="sidebar-link {{ request()->routeIs('admin.subscription-taxes.*') ? 'active' : '' }}">
             <i data-lucide="percent" class="icon"></i>
             <span>{{ __('Subscription Taxes') }}</span>

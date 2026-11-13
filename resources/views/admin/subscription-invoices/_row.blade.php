@@ -4,7 +4,11 @@
 @endphp
 <tr>
     <td class="whitespace-nowrap">
-        <a href="{{ route('admin.subscription-invoices.pdf', $invoice->id) }}" target="_blank" class="font-semibold text-[var(--primary)]">{{ $invoice->number }}</a>
+        @if($may('admin.subscription-invoices.show'))
+            <a href="{{ route('admin.subscription-invoices.show', $invoice->id) }}" class="font-semibold text-[var(--primary)]">{{ $invoice->number }}</a>
+        @else
+            <a href="{{ route('admin.subscription-invoices.pdf', $invoice->id) }}" target="_blank" class="font-semibold text-[var(--primary)]">{{ $invoice->number }}</a>
+        @endif
         @if($invoice->receipt_number)
             <a href="{{ route('admin.subscription-invoices.pdf', ['id' => $invoice->id, 'receipt' => 1]) }}" target="_blank" class="block text-xs text-[var(--text-muted)]">{{ __('Receipt') }} {{ $invoice->receipt_number }}</a>
         @endif
@@ -23,6 +27,9 @@
         {{ $invoice->currency }} {{ number_format((float) $invoice->total, 2) }}
         @if($invoice->tax_name)
             <span class="block text-xs font-normal text-[var(--text-muted)]">{{ $invoice->tax_note ? __(':tax by reverse charge', ['tax' => $invoice->tax_name]) : __('incl. :tax :rate%: :amount', ['tax' => $invoice->tax_name, 'rate' => $invoice->taxPercent(), 'amount' => number_format((float) $invoice->tax, 2)]) }}</span>
+        @endif
+        @if((float) $invoice->refunded > 0)
+            <span class="block text-xs font-normal text-[var(--text-muted)]">{{ __('Refunded :amount', ['amount' => $invoice->currency.' '.number_format((float) $invoice->refunded, 2)]) }}</span>
         @endif
     </td>
     <td class="text-sm whitespace-nowrap">

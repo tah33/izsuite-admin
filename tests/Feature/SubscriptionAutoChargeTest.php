@@ -257,7 +257,8 @@ class SubscriptionAutoChargeTest extends TestCase
             'HTTP_STRIPE_SIGNATURE' => "t={$time},v1=".hash_hmac('sha256', "{$time}.{$payload}", self::SIGNING), 'CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json',
         ], $payload)->assertOk();
 
-        $this->assertSame(['paid', 'succeeded'], [$this->renewal()->status, SubscriptionPayment::sole()->status]);
+        // The card's payment - the first invoice's transfer is a payment too (Doc 15 Phase C2a).
+        $this->assertSame(['paid', 'succeeded'], [$this->renewal()->status, SubscriptionPayment::where('provider', 'stripe')->sole()->status]);
         $this->getJson('/api/v1/subscription')->assertJsonPath('data.last_charge', null);
     }
 }

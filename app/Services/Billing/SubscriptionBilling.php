@@ -6,6 +6,8 @@ use App\Mail\SubscriptionBillingMail;
 use App\Mail\SubscriptionNoticeMail;
 use App\Models\Billing\Package;
 use App\Models\Billing\SubscriptionInvoice;
+use App\Models\Billing\SubscriptionPayment;
+use App\Models\Billing\SubscriptionRefund;
 use App\Models\Billing\WorkspaceSubscription;
 use App\Models\User\User;
 use App\Models\User\Workspace;
@@ -13,6 +15,7 @@ use App\Repositories\Admin\PaymentMethodRepository;
 use App\Repositories\Admin\SettingRepository;
 use App\Repositories\Billing\BillingSequenceRepository;
 use App\Repositories\Billing\SubscriptionInvoiceRepository;
+use App\Repositories\Billing\SubscriptionPaymentRepository;
 use App\Repositories\Billing\WorkspaceSubscriptionRepository;
 use App\Repositories\User\WorkspaceBillingRepository;
 use App\Services\Shared\BusinessCalendar;
@@ -52,6 +55,7 @@ class SubscriptionBilling
 
     public function __construct(
         private SubscriptionInvoiceRepository $invoices,
+        private SubscriptionPaymentRepository $payments,
         private WorkspaceSubscriptionRepository $subscriptions,
         private BillingSequenceRepository $sequences,
         private WorkspaceBillingRepository $billingDetails,
@@ -163,6 +167,15 @@ class SubscriptionBilling
                 'period_starts_on' => $start->toDateString(),
                 'period_ends_on'   => $end->toDateString(),
             ]);
+
+            // A transfer izSuite confirms is a payment too (Doc 15 Phase C2a), to refund like a card's; CardPayments keeps a card's.
+            if ($payment === null) {
+                $this->payments->create([
+                    'workspace_id' => $workspace->id, 'subscription_invoice_id' => $invoice->id, 'provider' => SubscriptionPayment::TRANSFER,
+                    'reference'    => $invoice->number, 'currency' => $invoice->currency, 'amount' => $invoice->total,
+                    'status'       => SubscriptionPayment::SUCCEEDED, 'attempted_on' => $this->calendar->today($workspace)->toDateString(),
+                ]);
+            }
 
             $subscription = $this->subscriptions->for($workspace);
 
@@ -315,6 +328,38 @@ class SubscriptionBilling
             title: $mail->envelope()->subject,
             body: isset($details['invoice']) ? "Invoice {$details['invoice']}, {$details['total']}.".(! empty($details['declined']) ? " {$details['declined']}" : '') : null,
             link: '/settings?tab=subscription',
+        ));
+    }
+
+    /**
+     * A refund confirmed (Doc 15 Phase C2a): by e-mail to the billing e-mail
+     * and the owner, and in the app to those who manage the subscription -
+     * one notice for each refund.
+     */
+    public function refunded(SubscriptionRefund $refund): void
+    {
+        $workspace = $refund->workspace;
+        $amount    = $refund->currency.' '.number_format((float) $refund->amount, 2);
+        $details   = [
+            'plan'     => $refund->invoice?->package_name ?? $workspace->package?->name ?? 'izSuite',
+            'business' => $workspace->name,
+            'amount'   => $amount,
+            'invoice'  => $refund->invoice?->number,
+            'method'   => $refund->payment->method(),
+        ];
+        $mail      = new SubscriptionNoticeMail(SubscriptionNoticeMail::REFUNDED, $details);
+
+        if ($to = $this->recipients($workspace, $refund->invoice?->billed_to['email'] ?? $this->billingDetails->for($workspace)?->email)) {
+            Mail::to($to)->queue($mail);
+        }
+
+        $this->tell($workspace, new Notice(
+            trigger: 'subscription.refunded',
+            key: "subscription.refunded:{$refund->id}",
+            title: $mail->envelope()->subject,
+            body: ($details['invoice'] ? "For invoice {$details['invoice']}, " : '').'back to '.($refund->payment->isTransfer() ? 'your bank account.' : "{$details['method']}."),
+            link: '/settings?tab=subscription',
+            subject: $refund->invoice,
         ));
     }
 

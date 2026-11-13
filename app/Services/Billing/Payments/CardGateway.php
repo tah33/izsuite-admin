@@ -3,6 +3,7 @@
 namespace App\Services\Billing\Payments;
 
 use App\Models\Billing\SubscriptionInvoice;
+use App\Models\Billing\SubscriptionPayment;
 use App\Models\Billing\WorkspaceCard;
 use App\Models\User\Workspace;
 
@@ -48,11 +49,19 @@ interface CardGateway
     public function charge(SubscriptionInvoice $invoice, WorkspaceCard $card, string $key): ChargeResult;
 
     /**
-     * What a notification reports: a finished checkout, or a payment for an
-     * invoice that succeeded - null for one to ignore. Throws
-     * InvalidNotification when it is not the provider's.
+     * Gives back $amount of $payment, a payment taken by the provider (Doc 15
+     * Phase C2a). $key makes a repeat the same refund; $metadata travels with
+     * it, for its notifications. The provider refusing it throws.
      */
-    public function notified(string $payload, ?string $signature): ?CheckoutOutcome;
+    public function refund(SubscriptionPayment $payment, string $amount, string $key, array $metadata): RefundOutcome;
+
+    /**
+     * What a notification reports: a finished checkout, a payment for an
+     * invoice that succeeded, or a refund that moved on (Doc 15 Phase C2a) -
+     * null for one to ignore. Throws InvalidNotification when it is not the
+     * provider's.
+     */
+    public function notified(string $payload, ?string $signature): CheckoutOutcome|RefundOutcome|null;
 
     /** Takes a saved card off its customer at the provider. */
     public function removeCard(string $cardId): void;

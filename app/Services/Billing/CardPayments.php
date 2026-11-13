@@ -15,6 +15,7 @@ use App\Services\Billing\Payments\CardGateway;
 use App\Services\Billing\Payments\CardPaymentError;
 use App\Services\Billing\Payments\ChargeResult;
 use App\Services\Billing\Payments\CheckoutOutcome;
+use App\Services\Billing\Payments\RefundOutcome;
 use App\Services\Shared\ActivityLogService;
 use App\Support\MinorUnits;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -46,6 +47,7 @@ class CardPayments
         private WorkspaceCardRepository $cards,
         private WorkspaceBillingRepository $billingDetails,
         private WorkspaceRepository $workspaces,
+        private SubscriptionRefunds $refunds,
     ) {}
 
     public function available(): bool
@@ -79,10 +81,14 @@ class CardPayments
         return $this->call(fn () => $this->gateway->finished($sessionId));
     }
 
-    /** The provider's notification: the checkout or payment it reports, settled. Throws InvalidNotification. */
+    /** The provider's notification: the checkout, payment or refund (Doc 15 Phase C2a) it reports, settled. Throws InvalidNotification. */
     public function notified(string $payload, ?string $signature): void
     {
-        if ($outcome = $this->gateway->notified($payload, $signature)) {
+        $outcome = $this->gateway->notified($payload, $signature);
+
+        if ($outcome instanceof RefundOutcome) {
+            $this->refunds->settle($outcome);
+        } elseif ($outcome) {
             $this->settle($outcome);
         }
     }
@@ -196,7 +202,7 @@ class CardPayments
                 'amount'                  => $amount,
                 'status'                  => SubscriptionPayment::SUCCEEDED,
                 'card'                    => $label,
-                'note'                    => $why ? "Not applied: {$why} Refund it in Stripe." : null,
+                'note'                    => $why ? "Not applied: {$why} Refund it from its invoice." : null,
             ];
 
             $known ? $this->payments->update($known, $payment) : $this->payments->create([...$payment, 'attempted_on' => $attemptedOn]);

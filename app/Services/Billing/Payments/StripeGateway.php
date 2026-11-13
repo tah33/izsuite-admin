@@ -4,6 +4,7 @@ namespace App\Services\Billing\Payments;
 
 use App\Models\Billing\PaymentMethod;
 use App\Models\Billing\SubscriptionInvoice;
+use App\Models\Billing\SubscriptionPayment;
 use App\Models\Billing\WorkspaceCard;
 use App\Models\User\Workspace;
 use App\Repositories\Admin\PaymentMethodRepository;
@@ -30,6 +31,9 @@ class StripeGateway implements CardGateway
 
     /** The events of a finished checkout; others are acknowledged and left. */
     private const FINISHED  = ['checkout.session.completed', 'checkout.session.async_payment_succeeded'];
+
+    /** The events of a refund made or moving on (Doc 15 Phase C2a) - charge.refund.updated on older API versions. */
+    private const REFUNDS   = ['refund.created', 'refund.updated', 'refund.failed', 'charge.refund.updated'];
 
     public function __construct(
         private PaymentMethodRepository $methods,
@@ -151,7 +155,19 @@ class StripeGateway implements CardGateway
         };
     }
 
-    public function notified(string $payload, ?string $signature): ?CheckoutOutcome
+    public function refund(SubscriptionPayment $payment, string $amount, string $key, array $metadata): RefundOutcome
+    {
+        $response = $this->request(fn (PendingRequest $http) => $http->asForm()->withHeaders(['Idempotency-Key' => $key])->post(self::API.'refunds', [
+            'payment_intent' => $payment->reference,
+            'amount'         => MinorUnits::of($amount, $payment->currency),
+            'reason'         => 'requested_by_customer',
+            'metadata'       => $metadata,
+        ]));
+
+        return self::refundOutcome($this->ensure($response));
+    }
+
+    public function notified(string $payload, ?string $signature): CheckoutOutcome|RefundOutcome|null
     {
         $secret = $this->keys()['webhook_secret'] ?? null;
 
@@ -166,8 +182,33 @@ class StripeGateway implements CardGateway
             ! $id                                                => null,
             in_array($event['type'] ?? null, self::FINISHED, true) => $this->finished($id),
             ($event['type'] ?? null) === 'payment_intent.succeeded' => $this->paid($id),
+            // Read back from Stripe, as a checkout is: the notification only names it.
+            in_array($event['type'] ?? null, self::REFUNDS, true) => self::refundOutcome($this->get('refunds/'.rawurlencode($id), [])),
             default                                              => null,
         };
+    }
+
+    /** Stripe's refund as izSuite keeps it: done, waiting (pending, or the customer to act), or refused - a cancelled one too. */
+    private static function refundOutcome(array $refund): RefundOutcome
+    {
+        $status = match ($refund['status'] ?? null) {
+            'succeeded'            => RefundOutcome::SUCCEEDED,
+            'failed', 'canceled'   => RefundOutcome::FAILED,
+            default                => RefundOutcome::PENDING,
+        };
+        $intent = $refund['payment_intent'] ?? null;
+
+        return new RefundOutcome(
+            reference: (string) ($refund['id'] ?? ''),
+            status: $status,
+            paymentRef: is_array($intent) ? ($intent['id'] ?? null) : $intent,
+            amountMinor: (int) ($refund['amount'] ?? 0),
+            currency: strtoupper((string) ($refund['currency'] ?? '')),
+            refundId: isset($refund['metadata']['refund_id']) ? (int) $refund['metadata']['refund_id'] : null,
+            note: $status !== RefundOutcome::FAILED ? null : (($refund['status'] ?? null) === 'canceled'
+                ? 'The refund was cancelled in Stripe.'
+                : 'Stripe could not refund it: '.str_replace('_', ' ', (string) ($refund['failure_reason'] ?? 'unknown')).'.'),
+        );
     }
 
     /** A payment for an invoice that succeeded - charged without the business there, or on Stripe's page - as a finished checkout. */

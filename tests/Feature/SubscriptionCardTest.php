@@ -239,8 +239,8 @@ class SubscriptionCardTest extends TestCase
         $this->webhook('cs_test_1')->assertOk();
 
         $this->assertSame('void', SubscriptionInvoice::findOrFail($id)->status);
-        $this->assertSame('Not applied: Invoice IZS-INV-00001 was cancelled before it arrived. Refund it in Stripe.', SubscriptionPayment::sole()->note);
-        $this->actingAs($this->admin)->get(route('admin.subscription-invoices.index'))->assertSee('was cancelled before it arrived. Refund it in Stripe.');
+        $this->assertSame('Not applied: Invoice IZS-INV-00001 was cancelled before it arrived. Refund it from its invoice.', SubscriptionPayment::sole()->note);
+        $this->actingAs($this->admin)->get(route('admin.subscription-invoices.index'))->assertSee('was cancelled before it arrived. Refund it from its invoice.');
     }
 
     public function test_the_saved_card_is_added_replaced_and_removed(): void

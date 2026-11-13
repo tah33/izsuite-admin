@@ -42,6 +42,8 @@ class SubscriptionInvoiceResource extends JsonResource
             'paid_on'            => $this->paid_at?->toDateString(),
             'receipt_number'     => $this->receipt_number,
             'transfer_reference' => $this->transfer_reference,
+            // What izSuite has given back of it (Doc 15 Phase C2a), confirmed refunds only
+            'refunded'           => bcadd((string) ($this->refunded ?? '0'), '0', 2),
             ...($this->toPay ? [
                 'amount'               => $this->amount,
                 'tax'                  => SubscriptionTaxLineResource::of(['name' => $this->tax_name, 'rate' => $this->tax_rate, 'amount' => $this->tax, 'note' => $this->tax_note]),

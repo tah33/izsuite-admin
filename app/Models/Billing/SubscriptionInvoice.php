@@ -96,10 +96,16 @@ class SubscriptionInvoice extends Model
         return $this->belongsTo(User::class, 'confirmed_by');
     }
 
-    /** Its card payments and the saved card's attempts (Phases D2 and D3), oldest first. */
+    /** Its payments - a card's, the saved card's attempts (Phases D2 and D3), a transfer izSuite confirmed (Doc 15 Phase C2a) - oldest first. */
     public function payments(): HasMany
     {
         return $this->hasMany(SubscriptionPayment::class, 'subscription_invoice_id')->orderBy('id');
+    }
+
+    /** Its payments' refunds (Doc 15 Phase C2a), oldest first. */
+    public function refunds(): HasMany
+    {
+        return $this->hasMany(SubscriptionRefund::class, 'subscription_invoice_id')->orderBy('id');
     }
 
     public function isOpen(): bool

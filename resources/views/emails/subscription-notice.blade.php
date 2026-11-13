@@ -33,6 +33,17 @@
                                     {{ $details['invoice'] }} ({{ $details['total'] }}) from your Subscription page by then. Otherwise the business goes back to
                                     Billing Starter, the free plan, the day after - everything you recorded is kept.
                                 </p>
+                            @elseif ($kind === 'refunded')
+                                <h2 style="margin:0 0 16px; color:#1a1a2e; font-size:20px; font-weight:600;">izSuite has refunded {{ $details['amount'] }}</h2>
+                                <p style="margin:0 0 28px; color:#51545e; font-size:15px; line-height:1.6;">
+                                    We have given back {{ $details['amount'] }} for {{ $details['business'] }}{{ $details['invoice'] ? ', paid for invoice '.$details['invoice'] : '' }}.
+                                    @if ($details['method'] === 'Bank transfer')
+                                        It was sent to your bank account by transfer, and can take a few days to arrive.
+                                    @else
+                                        It goes back to {{ $details['method'] }}; your bank can take 5 to 10 days to show it.
+                                    @endif
+                                    Your plan is not changed by it.
+                                </p>
                             @elseif ($kind === 'payment_failed')
                                 <h2 style="margin:0 0 16px; color:#1a1a2e; font-size:20px; font-weight:600;">{{ $details['confirm'] ? 'Please confirm your payment' : 'We could not charge your card' }}</h2>
                                 <p style="margin:0 0 16px; color:#51545e; font-size:15px; line-height:1.6;">

@@ -3,8 +3,10 @@
 namespace App\Repositories\Billing;
 
 use App\Models\Billing\SubscriptionInvoice;
+use App\Models\Billing\SubscriptionRefund;
 use App\Models\User\Workspace;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 
 class SubscriptionInvoiceRepository
 {
@@ -59,10 +61,10 @@ class SubscriptionInvoiceRepository
             ->first();
     }
 
-    /** The business's billing history, newest first. */
+    /** The business's billing history, newest first, each with what izSuite has refunded of it (Doc 15 Phase C2a). */
     public function pageFor(Workspace $workspace, int $perPage): LengthAwarePaginator
     {
-        return $workspace->subscriptionInvoices()->latest('issued_on')->latest('id')->paginate($perPage);
+        return $this->withRefunded($workspace->subscriptionInvoices()->getQuery())->latest('issued_on')->latest('id')->paginate($perPage);
     }
 
     /** Any business's invoice, with its business and owner - for the admin. */
@@ -72,12 +74,31 @@ class SubscriptionInvoiceRepository
     }
 
     /**
+     * Any business's invoice for its admin page (Doc 15 Phase C2a): its
+     * business, owner and subscription, who confirmed it, its payments with
+     * their refunds, and what is refunded - null when there is none.
+     */
+    public function findForPage(int $id): ?SubscriptionInvoice
+    {
+        return $this->withRefunded(SubscriptionInvoice::query())
+            ->with(['workspace.user', 'workspace.subscription:id,workspace_id', 'confirmer:id,first_name,last_name', 'payments.refunds.refunder:id,first_name,last_name'])
+            ->find($id);
+    }
+
+    /** Adds `refunded`: the sum of its refunds confirmed. */
+    private function withRefunded(Builder $query): Builder
+    {
+        return $query->withSum(['refunds as refunded' => fn (Builder $refund) => $refund->where('status', SubscriptionRefund::SUCCEEDED)], 'amount');
+    }
+
+    /**
      * Every business's invoices for the admin, the open ones first, then the
      * newest: narrowed to a status, and to a number, business or reference.
      */
     public function adminPage(?string $status, ?string $search, int $perPage): LengthAwarePaginator
     {
-        return SubscriptionInvoice::with(['workspace:id,name,user_id', 'workspace.user:id,first_name,last_name,email', 'confirmer:id,first_name,last_name', 'payments'])
+        return $this->withRefunded(SubscriptionInvoice::query())
+            ->with(['workspace:id,name,user_id', 'workspace.user:id,first_name,last_name,email', 'confirmer:id,first_name,last_name', 'payments'])
             ->when($status, fn ($query) => $query->where('status', $status))
             ->when($search, fn ($query) => $query->where(fn ($query) => $query
                 ->where('number', 'like', "%{$search}%")

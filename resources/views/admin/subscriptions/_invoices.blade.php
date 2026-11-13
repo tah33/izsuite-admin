@@ -18,7 +18,7 @@
                         <th>{{ __('For') }}</th>
                         <th>{{ __('Total') }}</th>
                         <th>{{ __('Status') }}</th>
-                        <th>{{ __('Card Tries') }}</th>
+                        <th>{{ __('Payments') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -26,7 +26,9 @@
                         @php($lastTry = $invoice->payments->sortByDesc('id')->first())
                         <tr>
                             <td class="text-sm">
-                                @if($may('admin.subscription-invoices.pdf'))
+                                @if($may('admin.subscription-invoices.show'))
+                                    <a href="{{ route('admin.subscription-invoices.show', $invoice->id) }}" class="font-medium text-[var(--primary)]">{{ $invoice->number }}</a>
+                                @elseif($may('admin.subscription-invoices.pdf'))
                                     <a href="{{ route('admin.subscription-invoices.pdf', $invoice->id) }}" target="_blank" class="font-medium text-[var(--primary)]">{{ $invoice->number }}</a>
                                 @else
                                     <span class="font-medium">{{ $invoice->number }}</span>
@@ -48,8 +50,11 @@
                             </td>
                             <td class="text-xs">
                                 @if($lastTry)
-                                    <span class="block">{{ trans_choice(':count try|:count tries', $invoice->payments->count()) }}</span>
-                                    <span class="block {{ $lastTry->succeeded() ? 'text-[var(--text-muted)]' : 'text-[var(--danger)]' }}">{{ $lastTry->succeeded() ? __('Taken :date', ['date' => $lastTry->attempted_on?->format('M d')]) : ($lastTry->note ?: __(ucfirst(str_replace('_', ' ', $lastTry->status)))) }}</span>
+                                    {{-- A transfer izSuite confirmed is a payment too (Phase C2a): how each was paid, not only cards. --}}
+                                    @if($invoice->payments->count() > 1)
+                                        <span class="block">{{ trans_choice(':count try|:count tries', $invoice->payments->count()) }}</span>
+                                    @endif
+                                    <span class="block {{ $lastTry->succeeded() && ! $lastTry->notApplied() ? 'text-[var(--text-muted)]' : 'text-[var(--danger)]' }}">{{ $lastTry->succeeded() && ! $lastTry->notApplied() ? __(':method, :date', ['method' => $lastTry->method(), 'date' => $lastTry->attempted_on?->format('M d')]) : ($lastTry->note ?: __(ucfirst(str_replace('_', ' ', $lastTry->status)))) }}</span>
                                 @else
                                     <span class="text-[var(--text-muted)]">{{ __('None') }}</span>
                                 @endif

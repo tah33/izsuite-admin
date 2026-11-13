@@ -12,6 +12,12 @@ class SubscriptionPaymentRepository
         return SubscriptionPayment::where('provider', $provider)->where('reference', $reference)->first();
     }
 
+    /** Locked to the end of the transaction, while a refund of it is held (Doc 15 Phase C2a). */
+    public function lock(int $id): ?SubscriptionPayment
+    {
+        return SubscriptionPayment::whereKey($id)->lockForUpdate()->first();
+    }
+
     public function create(array $data): SubscriptionPayment
     {
         return SubscriptionPayment::create($data);

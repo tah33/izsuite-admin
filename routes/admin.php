@@ -23,6 +23,8 @@ use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\StaffController;
+use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\RefundController;
 use App\Http\Controllers\Admin\SubscriptionController;
 use App\Http\Controllers\Admin\SubscriptionInvoiceController;
 use App\Http\Controllers\Admin\SubscriptionTaxController;
@@ -93,6 +95,11 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     Route::get('/workspaces/{id}/package', [WorkspaceController::class, 'reviewPackage'])->whereNumber('id')->name('workspaces.package.review');
     // izSuite's subscription invoices: confirming a bank transfer issues the receipt and starts the plan (Doc 13 Phase C1).
     Route::get('/subscription-invoices', [SubscriptionInvoiceController::class, 'index'])->name('subscription-invoices.index');
+    Route::get('/subscription-invoices/{id}', [SubscriptionInvoiceController::class, 'show'])->whereNumber('id')->name('subscription-invoices.show');
+    // Payments for izSuite's invoices and their refunds (Doc 15 Phase C2a); a refund needs the admin's password again.
+    Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index');
+    Route::post('/payments/{id}/refund', [PaymentController::class, 'refund'])->whereNumber('id')->middleware('throttle:10,1')->name('payments.refund');
+    Route::get('/refunds', [RefundController::class, 'index'])->name('refunds.index');
     Route::post('/subscription-invoices/{id}/confirm', [SubscriptionInvoiceController::class, 'confirm'])->whereNumber('id')->name('subscription-invoices.confirm');
     Route::post('/subscription-invoices/{id}/void', [SubscriptionInvoiceController::class, 'void'])->whereNumber('id')->name('subscription-invoices.void');
     Route::get('/subscription-invoices/{id}/pdf', [SubscriptionInvoiceController::class, 'pdf'])->whereNumber('id')->name('subscription-invoices.pdf');
