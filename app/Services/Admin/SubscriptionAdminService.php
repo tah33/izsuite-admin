@@ -219,8 +219,8 @@ class SubscriptionAdminService
         if ($what === SubscriptionStatus::DOWNGRADE_SCHEDULED) {
             $this->changes->undo($workspace);
         } else {
-            $this->workspaceSubscriptions->save($workspace, ['cancels_at_period_end' => false]);
-            $this->cycle->renewIfDue($subscription->refresh());
+            // Its renewal, if it is due already, issued now as the cycle would have.
+            $this->cycle->renewIfDue($this->workspaceSubscriptions->save($workspace, ['cancels_at_period_end' => false]));
 
             ActivityLogService::record('updated', "Undid the scheduled end of business \"{$workspace->name}\"'s {$plan} subscription", $workspace, null, $admin);
         }

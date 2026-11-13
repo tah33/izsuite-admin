@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-13
-- **Code:** Doc 15 Phase B4 (support sessions) is on `main` in the admin commit right after `1f15b4b`, and on `nuxt` in the frontend commit right after `9259e26`.
-- **Tests:** 757 backend tests pass (last full run 2026-11-13, on this code, on the second PC). Login as's nine tests went with it.
-- **Next step:** Doc 15 Phase C: subscriptions and billing (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
+- **Code:** Doc 15 Phase C1 (subscriptions in the admin) is on `main` in `debb680` ("doc 15", most of it) and the admin commit right after it (its last fixes and this file). The frontend did not change: `nuxt` is at `d807b88` (Phase B4).
+- **Tests:** 763 backend tests pass (last full run 2026-11-13, on this code, on the second PC).
+- **Next step:** Doc 15 Phase C2: billing records, refunds, credits and reports (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing; Phase C1's Retry Card has only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 15 Phase C.
+   > Read PROJECT_STATUS.md, then start Doc 15 Phase C2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -40,7 +40,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 12 | Users, Roles, Permissions and Locations | Done, except package change rules (Doc 13) |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
-| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phases A and B done (2026-11-13), C next** |
+| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phases A, B and C1 done (2026-11-13), C2 next** |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -314,7 +314,7 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 - Share links that expire. They stay until revoked.
 - Imports beyond contacts and items.
 
-### 3. Doc 15: izSuite System Administration Portal (next: Phase C)
+### 3. Doc 15: izSuite System Administration Portal (next: Phase C2)
 
 The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign-in) had grown through Docs 01 to 14, partly from the earlier recruitment product, and was checked against all 27 sections.
 
@@ -342,7 +342,7 @@ The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign
 - **A staff member given a role made in Admin > Roles cannot sign in at all.** Only the roles named Super Admin, Admin and Staff count as admin (`User::isAdmin()` checks the role's slug), so new admin roles do nothing yet. *Fixed in Phase A1.*
 - **The admin sign-in has no rate limit.** Thirty wrong passwords in a row were all answered. *Fixed in Phase A1.*
 - **No admin action is recorded.** The activity log skips anything an admin does (`ActivityLogService::shouldSkipAdminActivity`), so the admin services' 61 log calls write nothing, sign-ins included. The 15 admin entries in the dev database are seeded demo rows. *Fixed in Phase A2.*
-- The sidebar still shows the earlier product's Plans & Pricing and Subscription History. They work per user account and no longer fit, since Doc 13 replaced them. The Overview's figures are that product's too: Pro Users and Monthly Revenue are always 0.
+- The sidebar still shows the earlier product's Plans & Pricing and Subscription History. They work per user account and no longer fit, since Doc 13 replaced them. *Removed in Phase C1.* The Overview's figures are that product's too: Pro Users and Monthly Revenue are always 0.
 
 **Missing**, as suggested phases with defaults:
 
@@ -527,17 +527,43 @@ B3 was split again on starting it (2026-11-13), as a support session names a sup
 
   The check found My Profile still in Settings' tab row, and a generic log line for the session's sign-out; both fixed. The first link expired before the freshly restarted dev app had built its page (a minute); the second worked. The check's session, case, notices, activity, audit entries and sign-in were then removed, workspace 1's setup undone, and the admin's two-factor reset.
 
-**Phase C: subscriptions and billing** (sections 9, 13, 14 and 17), likely split in two:
+**Phase C: subscriptions and billing** (sections 9, 13, 14 and 17) was split on starting it (2026-11-13): C1, subscriptions in the admin; C2, billing records, refunds, credits and reports; C3, prices in several currencies and promotions. The adjustment, a credit taken off the next invoice, moved from the subscription actions to C2, with the other credits.
 
-- **Admin > Subscriptions**, from `workspace_subscriptions`: business, plan, cycle, currency, status, start, trial end, renewal, cancellation date, provider and last payment.
-  - Statuses as the doc names them: Free, Trialing, Active, Past Due, Grace Period, Cancellation Scheduled, Downgraded and Cancelled. Suspended follows the business's status.
-  - Actions, each with a reason and logged: change plan; extend a trial or grace period; schedule a cancellation; cancel a scheduled change; resend an invoice or notice; retry a failed card payment; and an adjustment, a credit taken off the next invoice.
-- **Billing:**
-  - Payments, with the failed ones.
-  - Refunds, each with a reason. A card refund goes through Stripe and counts once Stripe confirms it; a transfer refund is recorded by hand.
-  - Credits.
-  - Reports: revenue by month, plan and currency; open and overdue invoices; failed payments.
-- The earlier product's Plans & Pricing and Subscription History screens removed. Their tables wait for your decision.
+**Phase C1: subscriptions in the admin** (section 13) is built, with these defaults:
+
+- **The earlier product's Plans & Pricing and Subscription History are gone:** their pages, routes, controllers, services and requests, and its invoice PDF (`InvoicePdfService` and the recruiter PDF views). One Subscriptions link in the sidebar takes their place, and the Overview's Plans card is now Subscriptions. Their tables stay (see [Open decisions](#open-decisions)), and so does the API's `/plans`.
+- **Admin > Subscriptions** lists every business's subscription, newest first:
+  - the business with its BW- ID and owner's e-mail; the plan, cycle and currency; the status; the dates (the trial, the paid period with its renewal or end, the grace, or the first invoice's due day); and how it is paid (the saved card, or bank transfer), with when it was last paid or the invoice waiting;
+  - filters: status, plan, cycle, paid by card or bank transfer, and a search by the business's name or BW- ID, or its owner's name or e-mail.
+- **Statuses** as the doc names them, worked out as the app does: Trial, Awaiting Payment, Active, Past Due (active, its renewal waiting and the card's last try refused, as the app says it), Cancellation Scheduled, Downgrade Scheduled (a move down waiting for the period's end), Grace Period and Cancelled. The business's own status (Suspended and the rest) shows beside it when not Active. A business on Billing Starter has no subscription, so Free is not listed.
+- **A subscription's page**, from the list or the business's new Subscription button: the plan, the dates, what waits for the period's end, how it is paid, the invoice waiting and the owner; the business's latest 12 invoices, each with its card tries; and the admin activity on the business.
+- **Its actions**, each its own permission and offered only where the subscription's state fits:
+  - **Change Plan** (Active), as the business itself would, through Doc 13's plan changes. Up (a higher plan, or monthly to yearly) issues its invoice now and changes the plan once paid; down waits for the paid period's end. Billing Starter is not offered: that is a cancellation.
+  - **Extend Trial** and **Extend Grace**, by 1 to 60 days. The trial's invoice is issued again, due on its new last day, and the old one voided.
+  - **Schedule Cancellation** (Active or Past Due): the plan stays until its paid period ends, then the business moves to Billing Starter and keeps its records. An issued renewal is cancelled.
+  - **Undo Scheduled Change**: a scheduled cancellation (its renewal is issued at once if due) or a move down.
+  - **Resend Invoice**: the invoice waiting, else the latest, as its receipt once paid.
+  - **Retry Card**: the saved card charged again, now, for the invoice it failed on. It shows only when card payments are set up and the card failed on an invoice still waiting; the message says what happened.
+- Every change asks for a reason. The audit log keeps it, and the owner is told it in the bell, as a Message from izSuite, and by e-mail, with a button to their subscription. Resending and retrying change nothing, so they ask for none.
+- **Roles** (migration 000131, roles only): Billing Administrators get the list, the page and every action; Support Administrators the list, the page and Resend Invoice; Read-Only Administrators the list and the page. The old screens' permissions were taken off every role. A role that had Subscription History (in dev, the earlier product's Admin) keeps the list alone; give it more in Admin > Roles if wanted.
+- Checked in the browser as the seeded admin, on workspace 1 with Standard and Premium priced for the check and a Premium trial started as the app does:
+  - the list, its filters, and the trial's page with its invoice;
+  - Extend Trial refused an empty reason under the field, then moved the trial's end to 3 Dec and issued its invoice again, the first one voided;
+  - Resend Invoice kept the page and said "Invoice IZS-INV-00002 is on its way again.";
+  - with the trial's invoice confirmed (Active, paid early): Change Plan to Standard, monthly, scheduled the move for 4 Jan 2027 (Downgrade Scheduled), and Undo took it back; Schedule Cancellation showed "Ends after Jan 03, 2027", and Undo took that back too;
+  - each change kept its reason in the audit log and reached the owner's bell, and the business's page linked to the subscription.
+
+  The check found the plan filter offering Billing Starter, Resend's message lost to the page's reload, a trial paid early not showing that it still runs, and two dialogs' wording; all fixed. A review found the actions handing Doc 13's billing a business loaded without most of its columns, also fixed (see [Things that catch you out](#things-that-catch-you-out)). The check's subscription, invoices and their numbering, billing details, notices, activity, audit entries and sign-ins were then removed, workspace 1 moved back to Billing Starter, the plans' prices emptied again, and the admin's two-factor reset.
+
+**Phase C2: billing records** (section 14):
+
+- Payments, with the failed ones.
+- Refunds, each with a reason. A card refund goes through Stripe and counts once Stripe confirms it; a transfer refund is recorded by hand.
+- Credits, and the adjustment: a credit taken off a business's next invoice, with its reason, from the subscription's page.
+- Reports: revenue by month, plan and currency; open and overdue invoices; failed payments.
+
+**Phase C3: prices and promotions** (sections 9 and 17):
+
 - **Prices** in several currencies per plan, each with start and end dates and kept in history. A business pays in its own currency when the plan has a price in it, else in the plan's first currency. A price change reaches existing subscribers only when the admin applies it, with an e-mail 30 days before.
 - **Promotions:** codes with a percent or fixed discount, the plans, countries and cycles they apply to, dates, a total limit and one per business, and a new-customers-only option. The subscribe dialog shows the discounted price, the tax and what renewals will cost.
 
@@ -648,6 +674,10 @@ Each document goes the same way:
 - Blade: a one-line `@php(...)` in a view that also has a `@php ... @endphp` block further down is read as the start of that block, and everything between them is printed raw. Use the block form in such a view - and keep the word out of its comments, which Blade reads before it strips them.
 - A support session's link works for a minute. Right after `docker restart izsuite-frontend`, the dev app can take longer than that to build the page it opens, so the first link expires; enter again. In the Claude browser pane, Enter in the App's new tab does not open: open the link (`/admin/support-sessions/{id}/open`) in a tab of its own.
 - Nuxt: in a layout, `useRoute()` moves to a new page only once that page has rendered. Where the layout itself decides whether the page renders (the dashboard's status panel), read `useRouter().currentRoute` instead.
+- Eloquent's strict mode is off, so a model loaded with a column list (`with('workspace:id,name')`) reads every other column as null, with no error. Load whole models for anything handed on to another service: Doc 13's billing reads a business's `package_id`, for one.
+- An admin form shows its message, then reloads the page 300 ms later, which takes the message with it. Where the page does not change (Resend Invoice), give the form `data-no-reload` and the message stays.
+- The Subscription Invoices buttons ask with the browser's own `confirm()`, which the Claude browser pane cannot answer. Confirm a transfer there with `SubscriptionInvoiceService::confirm()` in tinker instead.
+- If `docker` cannot reach its engine (`dockerDesktopLinuxEngine` not found), Docker Desktop has stopped. On the second PC it is installed per user, under `%LOCALAPPDATA%\Programs\DockerDesktop`. Starting it brings the containers back by themselves, but the admin's sign-in is lost with Redis.
 
 ### Checking the app as a limited member
 
@@ -773,7 +803,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 15: Phase B1, businesses and their statuses | `1f6dfb2` | `706dd4a` | 000127 |
 | Doc 15: Phase B2, users and their accounts | `ff7538e` | `6b298ec` | 000128 |
 | Doc 15: Phase B3, support cases | `1f15b4b` | `9259e26` | 000129 |
-| Doc 15: Phase B4, support sessions | the commit after `1f15b4b` | the commit after `9259e26` | 000130 |
+| Doc 15: Phase B4, support sessions | `bab54e5` | `d807b88` | 000130 |
+| Doc 15: Phase C1, subscriptions in the admin | `debb680` and the commit after it | | 000131 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -965,6 +996,12 @@ These are easy to undo by mistake.
   - Entries written outside a session's own request - its start, its end - go through `ActivityLogService::recordSupport()`, straight into the business's log.
   - Signing out on a session (`AuthService::logout`) ends it, every token of it. `support-sessions:close-expired` records the end of those past their time, every five minutes.
   - In the frontend, `useAuth().supportSession` comes from the sign-in answer and `/auth/me`. `SupportSessionBanner` shows it; entering one sets the workspace pick cookie to its business.
+- Admin > Subscriptions (Doc 15 Phase C1) is `Admin\SubscriptionController`, `SubscriptionAdminService` and `SubscriptionAdminRepository`. Each change goes through Doc 13's own billing (`SubscriptionChanges`, `SubscriptionBilling`, `SubscriptionCycle`, `CardPayments`), so it does what the business's own would.
+  - `App\Support\SubscriptionStatus` names a subscription's status as the admin shows it: Cancellation Scheduled first, then Past Due, then Downgrade Scheduled, else the stored status. Past Due is active with its renewal open and the card's last try failed or waiting for the cardholder, as the app says it. The repository's status filter follows the same order.
+  - `AdminAuditLogService::withReason($reason)` puts a reason on the request without a password, so every audit entry of that request keeps it, those Doc 13's services write included.
+  - `admin/partials/reason-modal` is a dialog asking a reason, with optional fields above it; the users' page uses it too.
+  - izSuite's notices about a subscription are `izsuite.subscription` in the bell, with `AccountNoticeMail` to the owner.
+  - The trial's extension voids its invoice and issues it again (`SubscriptionBilling::issue`, the credit kept); `SubscriptionBilling::resend()` sends an invoice again, as its receipt once paid.
 - Dev's admin CSS is `public/build`, git-ignored and built only when missing (`docker/entrypoint.sh`), so it goes stale. After adding Tailwind classes to admin views, run `docker exec izsuite-api npm run build`; a server builds it fresh on deploy.
 - The frontend's location pick is `useLocationPick()`. It is shared state behind the `izsuite_location` cookie, and `''` means All Locations. A pick no longer offered (an inactive location, another business's) counts as All Locations. `forNewRecord()` waits for the locations list, so a form opened right after a reload still gets the pick.
 
@@ -992,7 +1029,7 @@ Each of these is yours to settle.
 - May a full-access role delete anyone's comment? Today only its author can, and comments are never edited.
 - Should Managers type document numbers by hand? Manager roles made from now on may, since a Manager holds everything outside Settings. Roles made before may not until it is ticked.
 - Should a completed payment's files need Reverse to be removed (built in E2)? The other way is to treat a payment's files like a draft's, under Record Payment.
-- Once Doc 15 Phase C removes the earlier product's Plans & Pricing and Subscription History screens, should its `plans`, `plan_payment_providers`, `subscriptions` and `invoices` tables be dropped too?
+- Doc 15 Phase C1 removed the earlier product's Plans & Pricing and Subscription History screens. Should its `plans`, `plan_payment_providers`, `subscriptions` and `invoices` tables be dropped too? Only the API's `/plans` still reads `plans`, and the frontend no longer calls it.
 - Should support cases stay in izSuite's own Tickets (Doc 15 Phase B3 kept them there), or come from an outside help desk?
 - Who in a business sees its support cases? Today the owner sees every one, and anyone else only the ones they opened. A business's Administrators could see them all too.
 - Which admin roles open support sessions with edit access? Today only the Super Admin, until a role is given "Support session edit" in Admin > Roles.
@@ -1007,4 +1044,5 @@ Each of these is yours to settle.
 - Doc 15 Phase B1: the scheduler runs `businesses:close-due` hourly, and the owner's status e-mails go through the queue worker.
 - Doc 15 Phase B2: support's account e-mails (the reset link, locking, unlocking, two-factor) go through the queue worker, and the reset link points at `FRONTEND_URL`.
 - Doc 15 Phase B4: the scheduler runs `support-sessions:close-expired` every five minutes. A support session's link goes to `FRONTEND_URL`, and its End Session back to the admin panel's own host.
+- Doc 15 Phase C1: migration 000131 changes only the admin roles' permissions; check Admin > Roles after it if the server's roles were edited by hand. The owner's subscription notices go through the queue worker.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

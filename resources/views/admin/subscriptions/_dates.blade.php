@@ -7,6 +7,10 @@
         {{ $subscription->open_invoice_due_on ? __('First invoice due :date', ['date' => \Illuminate\Support\Carbon::parse($subscription->open_invoice_due_on)->format('M d, Y')]) : __('Waiting for its first payment') }}
         @break
     @case(\App\Models\Billing\WorkspaceSubscription::ACTIVE)
+        {{-- A trial paid before its end: the paid period waits for the trial's last day. --}}
+        @if($subscription->trial_ends_on && $subscription->period_starts_on?->isFuture())
+            <span class="block">{{ __('Trial until :date', ['date' => $subscription->trial_ends_on->format('M d, Y')]) }}</span>
+        @endif
         {{ __('Paid :from to :to', ['from' => $subscription->period_starts_on?->format('M d'), 'to' => $subscription->period_ends_on?->format('M d, Y')]) }}
         <span class="block">{{ $subscription->cancels_at_period_end ? __('Ends after :date', ['date' => $subscription->period_ends_on?->format('M d, Y')]) : __('Renews :date', ['date' => $subscription->period_ends_on?->copy()->addDay()->format('M d, Y')]) }}</span>
         @break

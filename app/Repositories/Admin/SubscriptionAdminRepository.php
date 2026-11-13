@@ -49,11 +49,16 @@ class SubscriptionAdminRepository
             ->withQueryString();
     }
 
-    /** One subscription with its business, owner, plans and facts; null when there is none. */
+    /**
+     * One subscription with its business, owner, plans and facts; null when
+     * there is none. The business and owner come whole: the actions hand them
+     * to Doc 13's billing, which reads their other columns (the plan the
+     * business is on, among them).
+     */
     public function findForPage(int $id): ?WorkspaceSubscription
     {
         return $this->withFacts(WorkspaceSubscription::query()->select('workspace_subscriptions.*'))
-            ->with(['workspace:id,name,user_id,status', 'workspace.user:id,first_name,last_name,email', 'package', 'scheduledPackage:id,name'])
+            ->with(['workspace.user', 'package', 'scheduledPackage:id,name'])
             ->find($id);
     }
 
