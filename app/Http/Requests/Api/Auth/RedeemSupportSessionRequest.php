@@ -5,8 +5,8 @@ namespace App\Http\Requests\Api\Auth;
 use App\Http\Requests\Api\Auth\Concerns\RejectsCredentialsInQueryString;
 use Illuminate\Foundation\Http\FormRequest;
 
-/** The one-time code from the admin panel's "Login as" link - in the body only. */
-class LoginAsRequest extends FormRequest
+/** The one-time code from a support session's link in the admin panel (Doc 15 section 15.22) - in the body only. */
+class RedeemSupportSessionRequest extends FormRequest
 {
     use RejectsCredentialsInQueryString;
 

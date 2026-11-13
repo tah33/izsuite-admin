@@ -10,6 +10,7 @@ use App\Services\Files\FileStorage;
 use App\Services\Shared\ActivityLogService;
 use App\Services\User\Workspaces\PlanLimits;
 use App\Services\User\Workspaces\SetUpNewWorkspace;
+use App\Support\SupportAccess;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -27,7 +28,12 @@ class WorkspaceService
     /** The businesses $user owns, and those they are an active member of - for the top bar to pick from. */
     public function list(User $user): Collection
     {
-        return $this->workspaceRepository->getOpenTo($user);
+        $workspaces = $this->workspaceRepository->getOpenTo($user);
+
+        // A support session sees the one business it is for (Doc 15 section 15.22).
+        $session = SupportAccess::current();
+
+        return $session ? $workspaces->where('id', $session->workspace_id)->values() : $workspaces;
     }
 
     /**

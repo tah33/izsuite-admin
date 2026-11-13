@@ -12,6 +12,7 @@ use App\Http\Middleware\PermissionCheckMiddleware;
 use App\Http\Middleware\ResolveWorkspace;
 use App\Http\Middleware\SetSessionLocale;
 use App\Http\Middleware\SetUserTimezone;
+use App\Http\Middleware\SupportSessionGuard;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -62,6 +63,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->api(append: [
             SetUserTimezone::class,
+            // A support session's requests, held to what it may do (Doc 15 section 15.22).
+            SupportSessionGuard::class,
             LogApiWriteActivity::class,
         ]);
     })

@@ -6,7 +6,7 @@ use App\Models\Admin\Language;
 use App\Models\Shared\ActivityLog;
 use App\Models\User\User;
 use App\Models\User\WorkspaceMember;
-use App\Services\Api\Auth\LoginAsService;
+use App\Support\SupportAccess;
 use App\Services\User\Workspaces\SetUpNewWorkspace;
 use App\Support\DeviceName;
 use App\Support\Permissions;
@@ -131,7 +131,7 @@ class PersonalSettingsTest extends TestCase
         $user    = User::factory()->create();
         $chrome  = $this->signInFrom($user, self::CHROME, '203.0.113.7');
         $firefox = $this->signInFrom($user, self::FIREFOX, '198.51.100.20');
-        $user->createToken(LoginAsService::TOKEN_NAME, ['*'], now()->addHour());
+        $user->createToken(SupportAccess::TOKEN_PREFIX.'1', ['*'], now()->addHour());
         $user->createToken('izsuite-frontend', ['*'], now()->subMinute());
         $other   = User::factory()->create()->createToken('izsuite-frontend');
 

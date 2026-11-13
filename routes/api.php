@@ -51,7 +51,6 @@ use App\Http\Controllers\Api\ItemTransactionController;
 use App\Http\Controllers\Api\LanguageController;
 use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\LocationUserController;
-use App\Http\Controllers\Api\LoginAsController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\NavigationController;
 use App\Http\Controllers\Api\NotificationSettingController;
@@ -95,6 +94,7 @@ use App\Http\Controllers\Api\SubscriptionCardController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\SubscriptionInvoiceController;
 use App\Http\Controllers\Api\SupportCaseController;
+use App\Http\Controllers\Api\SupportSessionController;
 use App\Http\Controllers\Api\SupplierPaymentAttachmentController;
 use App\Http\Controllers\Api\SupplierPaymentController;
 use App\Http\Controllers\Api\TaxRateController;
@@ -141,10 +141,10 @@ Route::prefix('v1')->group(function () {
         Route::post('/login/two-factor', [AuthController::class, 'loginWithCode'])
             ->middleware('throttle:login')
             ->name('api.auth.login.two-factor');
-        // "Login as" from the admin panel: its one-time code, traded for a session as the client.
-        Route::post('/login-as', [LoginAsController::class, 'redeem'])
+        // A support session from the admin panel (Doc 15 section 15.22): its one-time code, traded for a session in the business.
+        Route::post('/support-session', [SupportSessionController::class, 'redeem'])
             ->middleware('throttle:login')
-            ->name('api.auth.login-as');
+            ->name('api.auth.support-session');
         Route::post('/email/verify', [EmailVerificationController::class, 'verify'])
             ->middleware('throttle:verify-email')
             ->name('api.auth.email.verify');

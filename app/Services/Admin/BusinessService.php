@@ -9,6 +9,7 @@ use App\Models\User\Workspace;
 use App\Models\User\WorkspaceStatusChange;
 use App\Repositories\Admin\BusinessRepository;
 use App\Repositories\Billing\PackageRepository;
+use App\Repositories\User\SupportSessionRepository;
 use App\Repositories\User\WorkspaceStatusChangeRepository;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\Notifications\Notice;
@@ -45,6 +46,7 @@ class BusinessService
         protected BusinessStatusService $statuses,
         protected Notifier $notifier,
         protected NotificationAudience $audience,
+        protected SupportSessionRepository $supportSessions,
     ) {}
 
     public function page(array $filters, int $perPage): LengthAwarePaginator
@@ -73,6 +75,9 @@ class BusinessService
             'subscriptionStatus' => self::subscriptionStatus($workspace),
             'statusHistory'      => $this->statusChanges->historyFor($workspace),
             'supportCases'       => $this->businesses->supportCases($workspace),
+            // Support sessions (Doc 15 Phase B4): its recent ones, and the cases one can be for.
+            'supportSessions'    => $this->supportSessions->recentFor($workspace),
+            'openCases'          => $this->supportSessions->casesFor($workspace),
             'activity'           => $this->businesses->adminActivity($workspace),
             'packages'           => $this->packages->allByRank(),
         ];

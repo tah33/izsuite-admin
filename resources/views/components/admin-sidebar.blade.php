@@ -33,6 +33,12 @@
             <span>{{ __('Tickets') }}</span>
         </a>
 
+        {{-- izSuite support's sessions in businesses, for review (Doc 15 Phase B4). --}}
+        <a href="{{ route('admin.support-sessions.index') }}" class="sidebar-link {{ request()->routeIs('admin.support-sessions.*') ? 'active' : '' }}">
+            <i data-lucide="life-buoy" class="icon"></i>
+            <span>{{ __('Support Sessions') }}</span>
+        </a>
+
         <div class="sidebar-section-title">{{ __('App System') }}</div>
 
         <a href="{{ route('admin.app-categories.index') }}" class="sidebar-link {{ request()->routeIs('admin.app-categories.*') ? 'active' : '' }}">

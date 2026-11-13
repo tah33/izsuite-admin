@@ -8,6 +8,7 @@ use App\Models\User\Workspace;
 use App\Repositories\Shared\ActivityLogRepository;
 use App\Services\Admin\AdminAuditLogService;
 use App\Support\SettingChanges;
+use App\Support\SupportAccess;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -60,14 +61,18 @@ class ActivityLogService
             return null;
         }
 
+        // On a support session (Doc 15 section 15.22) it is izSuite support's doing, not the owner's whose account it uses.
+        $support    = SupportAccess::current();
+
         $properties = [
             ...($properties ?? []),
             ...($changes ? ['changes' => $changes] : []),
             ...($subject?->getAttribute('location_id') ? ['location_id' => (int) $subject->getAttribute('location_id')] : []),
+            ...($support ? ['support' => ['session' => $support->id, 'admin' => $support->admin_name]] : []),
         ];
 
         $log   = $this->repo->create([
-            'user_id'      => $this->resolveActorId($actor, $subject),
+            'user_id'      => $support ? null : $this->resolveActorId($actor, $subject),
             'workspace_id' => $this->resolveWorkspaceId($subject),
             'action'       => $action,
             'model_type'   => $subject ? get_class($subject) : null,
@@ -85,6 +90,29 @@ class ActivityLogService
     public static function record(string $action, string $description, ?Model $subject = null, ?array $properties = null, ?User $actor = null): ?ActivityLog
     {
         return app(static::class)->log($action, $description, $subject, $properties, $actor);
+    }
+
+    /**
+     * An entry in $workspace's own Activity Log about izSuite support's
+     * session there (Doc 15 section 15.22) - its start and end, written from
+     * the admin panel or a scheduled job, where log() would send it to the
+     * admin audit log instead. The customer sees who and why.
+     */
+    public static function recordSupport(Workspace $workspace, string $action, string $description, int $sessionId, string $adminName, array $properties = []): ActivityLog
+    {
+        // Named here, so LogApiWriteActivity writes no generic entry for the same request.
+        static::skipForThisRequest();
+
+        return app(ActivityLogRepository::class)->create([
+            'user_id'      => null,
+            'workspace_id' => $workspace->id,
+            'action'       => $action,
+            'model_type'   => Workspace::class,
+            'model_id'     => $workspace->id,
+            'description'  => $description,
+            'properties'   => [...$properties, 'support' => ['session' => $sessionId, 'admin' => $adminName]],
+            'ip_address'   => app()->bound('request') ? app(Request::class)->ip() : null,
+        ]);
     }
 
     /**

@@ -20,7 +20,6 @@
                         <th>{{ __('Status') }}</th>
                         <th>{{ __('Security Alerts') }}</th>
                         <th>{{ __('Joined') }}</th>
-                        <th class="text-end">{{ __('Actions') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -28,7 +27,7 @@
                         @include('admin.clients._row')
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center py-8 text-[var(--text-muted)]">
+                            <td colspan="5" class="text-center py-8 text-[var(--text-muted)]">
                                 <i data-lucide="users" class="w-8 h-8 mx-auto mb-2 opacity-40"></i>
                                 <p>{{ __('No users found.') }}</p>
                             </td>

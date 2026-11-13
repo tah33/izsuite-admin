@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-13
-- **Code:** Doc 15 Phase B3 (support cases) is on `main` in the admin commit right after `ff7538e`, and on `nuxt` in the frontend commit right after `6b298ec`.
-- **Tests:** 762 backend tests pass (last full run 2026-11-13, on this code, on the second PC).
-- **Next step:** Doc 15 Phase B4: support sessions (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
+- **Code:** Doc 15 Phase B4 (support sessions) is on `main` in the admin commit right after `1f15b4b`, and on `nuxt` in the frontend commit right after `9259e26`.
+- **Tests:** 757 backend tests pass (last full run 2026-11-13, on this code, on the second PC). Login as's nine tests went with it.
+- **Next step:** Doc 15 Phase C: subscriptions and billing (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 15 Phase B4.
+   > Read PROJECT_STATUS.md, then start Doc 15 Phase C.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -40,7 +40,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 12 | Users, Roles, Permissions and Locations | Done, except package change rules (Doc 13) |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
-| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phase A, B1, B2 and B3 done (2026-11-13), B4 next** |
+| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phases A and B done (2026-11-13), C next** |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -314,7 +314,7 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 - Share links that expire. They stay until revoked.
 - Imports beyond contacts and items.
 
-### 3. Doc 15: izSuite System Administration Portal (next: Phase B4)
+### 3. Doc 15: izSuite System Administration Portal (next: Phase C)
 
 The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign-in) had grown through Docs 01 to 14, partly from the earlier recruitment product, and was checked against all 27 sections.
 
@@ -323,7 +323,7 @@ The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign
 - A separate admin panel with its own sign-in page and web sessions, ending after 120 minutes idle. Admin roles (`roles`) are apart from the businesses' roles (`workspace_roles`).
 - Admin > Roles: Super Admin may do everything; any other role lists the admin pages it may open, by route. Admin > Staff gives staff a role and can switch them off. (Both have faults; see below.)
 - Admin > Users (the clients): each account's status, verification, sign-up and last sign-in, its businesses with their plans, and totals across them (users, locations, contacts, items, storage). It can be searched and filtered by plan.
-- Login as: a one-time link that opens the user's dashboard for 2 hours, with a Back to admin button. It is logged against the user's account with the admin's name, but outside any business's Activity Log. The user's sessions list shows it as "izSuite support".
+- Login as: a one-time link that opens the user's dashboard for 2 hours, with a Back to admin button. It is logged against the user's account with the admin's name, but outside any business's Activity Log. The user's sessions list shows it as "izSuite support". *Replaced by support sessions in Phase B4.*
 - Moving a business to another plan, after a review of what changes (Doc 13 Phase B2).
 - Packages: the three plans, with name, description, limits (storage, businesses, users, locations), one price currency with monthly and yearly prices ("to be announced" when empty), trial and grace days, branding, and offered or not. Package Access sets which apps each plan includes, checked against the apps' dependencies.
 - The Apps Center catalogue: categories, and apps in families of Lite and full editions, each with its key, icon, descriptions, features, support link, status (Available or Coming Soon), order and dependencies. The Menu Builder adds an app's sidebar pages by family, edition and permission, with no frontend rebuild.
@@ -501,14 +501,31 @@ B3 was split again on starting it (2026-11-13), as a support session names a sup
 
   The check found Support kept behind the panel when opened from the panel's own button, which is fixed (see [Decisions worth knowing](#decisions-worth-knowing)). The check's case, its notices, the status change, activity, audit entries and sign-in were then removed, workspace 1's setup undone, and the admin's two-factor reset.
 
-**Phase B4: support sessions** (section 22):
+**Phase B4: support sessions** (section 22) is built, with your defaults. Phase B is done.
 
-- **Support sessions replace Login as:**
-  - The admin names the support case and a reason.
-  - The session is read-only, lasts 1 hour (up to 4) and ends by itself, with a banner throughout: "izSuite support is viewing this business, read-only, until 15:30".
-  - Edit access needs its own permission and the customer's agreement, noted.
-  - The business's Activity Log shows the session and the sensitive areas it opened: settings, payment account details and users.
-  - Payment details show masked, and nothing an edit session changes is silent: it is logged as izSuite support's.
+- **Support sessions replace Login as**, which is gone: its button, route, service and page.
+- **Opening one**, from a business's page:
+  - **Support Session** opens a read-only one; **With Edit Access** opens one that can make changes. Each is its own permission. Edit access is the Super Admin's until a role is given it.
+  - Either names one of the business's open cases, a reason the business sees, and how long: an hour to four. Edit access also keeps how the customer agreed.
+  - Both are kept with the admin, start and end. The owner is told in the bell and by e-mail; the business's Activity Log and the audit log keep it.
+- **Entering it:** the business's page lists its sessions, live ones first. **Enter in the App** - for the admin who opened it only, as what it does is logged as theirs - opens the business in the app as its owner, through a one-time link that works for a minute.
+- **In the app**, a banner throughout: "izSuite support is viewing this business, read only, until …", with the case, the admin and End Session, which goes back to the business's admin page. The help button, the bell and My Profile do not show.
+- **What a session may do:**
+  - only that business, whatever else its owner has;
+  - never the owner's own account, password, bell or invitations, nor an export;
+  - read only: no change at all ("This support session is read only: nothing can be changed.");
+  - with edit access: changes, but never to the business itself, its subscription and billing, its ownership, or the support cases ("izSuite support cannot change this, even with edit access.");
+  - payment accounts' full details show masked, whatever the access.
+- **The business's Activity Log** shows the session's start (case, reason, until when), the first time it opens Settings, Payment Accounts or Users, everything an edit session changes, and its end - each by "izSuite support (name)".
+- **Ending:** a session ends by itself at its time (its tokens stop then, and a job every five minutes records the end), from the business's page (End), or in the app (End Session, every tab of it).
+- **Admin > Support Sessions** (sidebar, after Tickets) lists every session for review: business, admin, case and reason, access and the customer's agreement, when, and the areas it opened; by state, access, and business or admin. Support, Compliance and Security, and Read-Only Administrators open it.
+- Checked in the browser as the seeded admin, on workspace 1 with an open case:
+  - the dialog refused an empty reason under the field, then opened the session, and the business's page offered Enter in the App;
+  - the link opened the app at the dashboard with the banner, without the help button and bell; saving a contact was refused with the read-only message;
+  - the business's Activity Log showed the start, then Settings and Payment Accounts opened, by "izSuite support (Admin)";
+  - End Session went back to the business's admin page; the session showed ended, its tokens gone, and Admin > Support Sessions listed it with the areas it opened.
+
+  The check found My Profile still in Settings' tab row, and a generic log line for the session's sign-out; both fixed. The first link expired before the freshly restarted dev app had built its page (a minute); the second worked. The check's session, case, notices, activity, audit entries and sign-in were then removed, workspace 1's setup undone, and the admin's two-factor reset.
 
 **Phase C: subscriptions and billing** (sections 9, 13, 14 and 17), likely split in two:
 
@@ -629,6 +646,7 @@ Each document goes the same way:
 - The frontend has no `vue-tsc` or `eslint`, and Pint is not installed despite `pint.json`. So the browser check is what catches frontend mistakes.
 - Dev mail is `MAIL_MAILER=log`, so invitation links are in `/app/storage/logs/laravel.log`.
 - Blade: a one-line `@php(...)` in a view that also has a `@php ... @endphp` block further down is read as the start of that block, and everything between them is printed raw. Use the block form in such a view - and keep the word out of its comments, which Blade reads before it strips them.
+- A support session's link works for a minute. Right after `docker restart izsuite-frontend`, the dev app can take longer than that to build the page it opens, so the first link expires; enter again. In the Claude browser pane, Enter in the App's new tab does not open: open the link (`/admin/support-sessions/{id}/open`) in a tab of its own.
 - Nuxt: in a layout, `useRoute()` moves to a new page only once that page has rendered. Where the layout itself decides whether the page renders (the dashboard's status panel), read `useRouter().currentRoute` instead.
 
 ### Checking the app as a limited member
@@ -754,7 +772,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 15: Phase A2, the audit log, roles and critical actions | `15e0a32` | | 000126 |
 | Doc 15: Phase B1, businesses and their statuses | `1f6dfb2` | `706dd4a` | 000127 |
 | Doc 15: Phase B2, users and their accounts | `ff7538e` | `6b298ec` | 000128 |
-| Doc 15: Phase B3, support cases | the commit after `ff7538e` | the commit after `6b298ec` | 000129 |
+| Doc 15: Phase B3, support cases | `1f15b4b` | `9259e26` | 000129 |
+| Doc 15: Phase B4, support sessions | the commit after `1f15b4b` | the commit after `9259e26` | 000130 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -819,11 +838,11 @@ These are easy to undo by mistake.
 - A user's name, phone, preferred language, personal time zone and profile image are theirs in every business (section 22). Saving copies only the fields they changed onto their record in each business (`workspace_members`), so each Users list shows them. A business's own edit stays until the user changes that field again, and the job title is always the business's.
 - An empty personal language or time zone means each business's own. Times of day follow the personal time zone in the browser (`plugins/regional.client.ts`); document dates never move. The screens are English only, so the language is kept for later.
 - A new account from an invitation takes the invitation's phone, language and time zone.
-- Each sign-in keeps its IP address and browser (`ip_address` and `user_agent` on `personal_access_tokens`), named by `App\Support\DeviceName`. Sign-ins from before E1 show as "Unknown device". Login as sessions are listed too, marked "izSuite support".
+- Each sign-in keeps its IP address and browser (`ip_address` and `user_agent` on `personal_access_tokens`), named by `App\Support\DeviceName`. Sign-ins from before E1 show as "Unknown device". Support sessions in the user's business are listed too, marked "izSuite support".
 - Nobody changes the role they hold, not even its permissions (`RoleService::update`), and the role page shows it read-only. Changing one's own role or locations was already refused.
 - Two-factor authentication is an authenticator app (TOTP: six digits, 30 seconds, one step either side), worked out in `App\Support\Totp` with no package. The secret is kept encrypted, the ten recovery codes only as hashes (`App\Support\RecoveryCodes`), and each code works once (`two_factor_last_step`). The QR code is drawn in the browser by the `qrcode` npm package.
 - Setting it up, new recovery codes and turning it off each need the password (`TwoFactorService`), so an open session cannot switch it on against its owner.
-- With it on, the password step answers with a five-minute challenge instead of a session (`SignInChallenges`, in the cache); `POST /auth/login/two-factor` takes the app's code or a recovery code. Five wrong codes end the challenge. Login as from the admin panel does not ask.
+- With it on, the password step answers with a five-minute challenge instead of a session (`SignInChallenges`, in the cache); `POST /auth/login/two-factor` takes the app's code or a recovery code. Five wrong codes end the challenge. A support session from the admin panel does not ask.
 - The `reset-password` rate limit counts a signed-in request by its user's e-mail. It used to put every request without an e-mail - all password changes - in one bucket shared by everybody.
 
 **Apps and plans (Doc 13)**
@@ -939,6 +958,13 @@ These are easy to undo by mistake.
   - Staff's replies and a case resolved or closed reach its opener through `SupportCaseNotifier`: the bell (`izsuite.case`) and `AccountNoticeMail`.
   - Admin activity on a case keeps `workspace_id` in its properties, so the business's page shows it.
 - The dashboard layout shows Support's pages (`/support...`) whatever the business's status, reading the path from `useRouter().currentRoute`.
+- Support sessions (Doc 15 Phase B4, migration 000130) are `support_sessions`, worked by `App\Services\Shared\SupportSessionService`; what a session may do is `App\Support\SupportAccess`.
+  - A session's API token belongs to the business's owner, named `izsuite-support:{id}`, and expires with the session. The link's one-time code is in the cache for a minute.
+  - `SupportSessionGuard`, in the api group, reads the token through the sanctum guard before each route's auth. It answers 401 for a session ended or past its end, and 403 for what `SupportAccess` closes. It sets the session on the request: `SupportAccess::current()`.
+  - With a session on the request: `ResolveWorkspace` keeps to its business; `WorkspaceAccess::allows()` refuses `SupportAccess::WITHHELD` (the full payment details), so they show masked; `WorkspaceService::list()` gives that business only; and `ActivityLogService::log()` writes the entry with no user and `properties.support` (session, admin), which the log resources show as "izSuite support (name)".
+  - Entries written outside a session's own request - its start, its end - go through `ActivityLogService::recordSupport()`, straight into the business's log.
+  - Signing out on a session (`AuthService::logout`) ends it, every token of it. `support-sessions:close-expired` records the end of those past their time, every five minutes.
+  - In the frontend, `useAuth().supportSession` comes from the sign-in answer and `/auth/me`. `SupportSessionBanner` shows it; entering one sets the workspace pick cookie to its business.
 - Dev's admin CSS is `public/build`, git-ignored and built only when missing (`docker/entrypoint.sh`), so it goes stale. After adding Tailwind classes to admin views, run `docker exec izsuite-api npm run build`; a server builds it fresh on deploy.
 - The frontend's location pick is `useLocationPick()`. It is shared state behind the `izsuite_location` cookie, and `''` means All Locations. A pick no longer offered (an inactive location, another business's) counts as All Locations. `forNewRecord()` waits for the locations list, so a form opened right after a reload still gets the pick.
 
@@ -969,6 +995,7 @@ Each of these is yours to settle.
 - Once Doc 15 Phase C removes the earlier product's Plans & Pricing and Subscription History screens, should its `plans`, `plan_payment_providers`, `subscriptions` and `invoices` tables be dropped too?
 - Should support cases stay in izSuite's own Tickets (Doc 15 Phase B3 kept them there), or come from an outside help desk?
 - Who in a business sees its support cases? Today the owner sees every one, and anyone else only the ones they opened. A business's Administrators could see them all too.
+- Which admin roles open support sessions with edit access? Today only the Super Admin, until a role is given "Support session edit" in Admin > Roles.
 - Should Admin > Users treat phone numbers typed differently ("+880 1711-000000" and "+8801711000000") as the same for its shared-phone alert? Today only the same typing matches.
 
 ## Deploying to a server
@@ -979,4 +1006,5 @@ Each of these is yours to settle.
 - Doc 15 Phase A1: after deploying, every admin is asked to set up two-factor at their next sign-in, so have an authenticator app ready. The new-browser e-mails go through the queue worker.
 - Doc 15 Phase B1: the scheduler runs `businesses:close-due` hourly, and the owner's status e-mails go through the queue worker.
 - Doc 15 Phase B2: support's account e-mails (the reset link, locking, unlocking, two-factor) go through the queue worker, and the reset link points at `FRONTEND_URL`.
+- Doc 15 Phase B4: the scheduler runs `support-sessions:close-expired` every five minutes. A support session's link goes to `FRONTEND_URL`, and its End Session back to the admin panel's own host.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

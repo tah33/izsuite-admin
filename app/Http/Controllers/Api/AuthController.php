@@ -7,13 +7,14 @@ use App\Http\Requests\Api\Auth\ChangePasswordRequest;
 use App\Http\Requests\Api\Auth\LoginRequest;
 use App\Http\Requests\Api\Auth\RegisterRequest;
 use App\Http\Requests\Api\Auth\TwoFactorLoginRequest;
-use App\Http\Resources\Users\LoginAsSessionResource;
+use App\Http\Resources\Users\SupportSessionResource;
 use App\Http\Resources\Users\UserResource;
 use App\Models\User\User;
 use App\Services\Api\Auth\AuthService;
 use App\Services\Api\Auth\EmailVerificationService;
-use App\Services\Api\Auth\LoginAsService;
 use App\Services\Api\Auth\SignInChallenges;
+use App\Services\Shared\SupportSessionService;
+use App\Support\SupportAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Laravel\Sanctum\NewAccessToken;
@@ -22,7 +23,7 @@ class AuthController extends Controller
 {
     public function __construct(
         protected AuthService $authService,
-        protected LoginAsService $loginAsService,
+        protected SupportSessionService $supportSessions,
     ) {}
 
     /**
@@ -108,12 +109,12 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         try {
-            $backUrl = $this->loginAsService->backUrl($request->user());
+            $support = $this->supportSessions->describe($request->user());
 
             return response()->json([
-                'user'     => new UserResource($this->authService->currentUser($request->user())),
-                // Set only on a session from the admin panel's "Login as".
-                'login_as' => $backUrl ? new LoginAsSessionResource($backUrl) : null,
+                'user'            => new UserResource($this->authService->currentUser($request->user())),
+                // Set only on a support session from the admin panel (Doc 15 section 15.22).
+                'support_session' => $support ? new SupportSessionResource($support) : null,
             ]);
 
         } catch (\Throwable $e) {
@@ -123,15 +124,14 @@ class AuthController extends Controller
     }
 
     /**
-     * Revoke the token that made this request.
+     * Revoke the token that made this request - or, on a support session,
+     * end the session (Doc 15 section 15.22), every tab of it.
      */
     public function logout(Request $request): JsonResponse
     {
         try {
-            $this->authService->logout($request->user());
-
             return response()->json([
-                'message' => 'Signed out successfully.',
+                'message' => $this->authService->logout($request->user(), SupportAccess::current($request)),
             ]);
 
         } catch (\Throwable $e) {

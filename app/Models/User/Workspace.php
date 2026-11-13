@@ -422,6 +422,12 @@ class Workspace extends Model
         return $this->hasMany(Ticket::class);
     }
 
+    /** izSuite support's sessions in it (Doc 15 section 15.22). */
+    public function supportSessions(): HasMany
+    {
+        return $this->hasMany(SupportSession::class);
+    }
+
     /** The logo on its documents and pages (Settings > Business). */
     public function logo(): MorphOne
     {

@@ -27,6 +27,7 @@ use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\SubscriptionController;
 use App\Http\Controllers\Admin\SubscriptionInvoiceController;
 use App\Http\Controllers\Admin\SubscriptionTaxController;
+use App\Http\Controllers\Admin\SupportSessionController;
 use App\Http\Controllers\Admin\TicketController;
 use App\Http\Controllers\Admin\WorkspaceController;
 use Illuminate\Support\Facades\Route;
@@ -72,7 +73,6 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     Route::resource('menu-items', MenuItemController::class)->except(['show'])->parameters(['menu-items' => 'id']);
     Route::get('/clients', [ClientController::class, 'index'])->name('clients.index');
     Route::get('/clients/{id}', [ClientController::class, 'show'])->whereNumber('id')->name('clients.show');
-    Route::post('/clients/{id}/login-as', [ClientController::class, 'loginAs'])->whereNumber('id')->name('clients.login-as');
     // Support's actions on a user's account (Doc 15 Phase B2): no password is ever shown or set.
     Route::post('/clients/{id}/verification', [ClientAccountController::class, 'resendVerification'])->whereNumber('id')->name('clients.verification');
     Route::post('/clients/{id}/recovery', [ClientAccountController::class, 'sendRecoveryLink'])->whereNumber('id')->name('clients.recovery');
@@ -85,6 +85,12 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     Route::get('/businesses/{id}', [BusinessController::class, 'show'])->whereNumber('id')->name('businesses.show');
     Route::post('/businesses/{id}/status', [BusinessController::class, 'changeStatus'])->whereNumber('id')->name('businesses.status');
     Route::post('/businesses/{id}/notify', [BusinessController::class, 'notify'])->whereNumber('id')->name('businesses.notify');
+    // Support sessions (Doc 15 Phase B4), in place of Login as: read only, or with edit access - each its own permission.
+    Route::post('/businesses/{id}/support-sessions', [SupportSessionController::class, 'store'])->whereNumber('id')->name('businesses.support-session');
+    Route::post('/businesses/{id}/support-sessions/edit', [SupportSessionController::class, 'storeWithEditAccess'])->whereNumber('id')->name('businesses.support-session-edit');
+    Route::get('/support-sessions', [SupportSessionController::class, 'index'])->name('support-sessions.index');
+    Route::get('/support-sessions/{id}/open', [SupportSessionController::class, 'enter'])->whereNumber('id')->name('support-sessions.open');
+    Route::post('/support-sessions/{id}/end', [SupportSessionController::class, 'end'])->whereNumber('id')->name('support-sessions.end');
     Route::get('/workspaces/{id}/package', [WorkspaceController::class, 'reviewPackage'])->whereNumber('id')->name('workspaces.package.review');
     // izSuite's subscription invoices: confirming a bank transfer issues the receipt and starts the plan (Doc 13 Phase C1).
     Route::get('/subscription-invoices', [SubscriptionInvoiceController::class, 'index'])->name('subscription-invoices.index');

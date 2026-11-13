@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\User\Workspaces\BusinessStatusService;
+use App\Support\SupportAccess;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -39,6 +40,12 @@ class ResolveWorkspace
     public function handle(Request $request, Closure $next, ?string $need = null): Response
     {
         $id = (string) $request->header(self::HEADER, '');
+
+        // A support session is for one business (Doc 15 section 15.22): that one, and no other the owner has.
+        if ($session = SupportAccess::current($request)) {
+            abort_if($id !== '' && $id !== (string) $session->workspace_id, 404, 'Workspace not found.');
+            $id = (string) $session->workspace_id;
+        }
 
         if ($id === '') {
             $workspace = $this->workspaceRepository->oldestForUserWithPackage($request->user());

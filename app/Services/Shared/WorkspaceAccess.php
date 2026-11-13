@@ -8,6 +8,7 @@ use App\Models\User\Workspace;
 use App\Models\User\WorkspaceMember;
 use App\Repositories\User\WorkspaceMemberRepository;
 use App\Support\Permissions;
+use App\Support\SupportAccess;
 use Illuminate\Http\Request;
 
 /**
@@ -49,12 +50,23 @@ class WorkspaceAccess
         return $this->resolved($user, $workspace)['locations'];
     }
 
-    /** Whether $user holds $permissions - any one of them, when several. */
+    /**
+     * Whether $user holds $permissions - any one of them, when several. A
+     * support session never holds what is withheld from it, whatever the
+     * owner's account may (Doc 15 section 15.22): payment accounts' full
+     * details, which then show masked.
+     */
     public function allows(User $user, Workspace $workspace, string|array $permissions): bool
     {
+        $asked = (array) $permissions;
+
+        if (SupportAccess::current() !== null && ($asked = array_values(array_diff($asked, SupportAccess::WITHHELD))) === []) {
+            return false;
+        }
+
         $granted = $this->granted($user, $workspace);
 
-        return in_array(Permissions::ALL, $granted, true) || array_intersect((array) $permissions, $granted) !== [];
+        return in_array(Permissions::ALL, $granted, true) || array_intersect($asked, $granted) !== [];
     }
 
     /** Whether the signed-in user may, in the business the request is for. */

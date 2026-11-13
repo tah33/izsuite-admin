@@ -4,8 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Admin\Role;
 use App\Models\Shared\ActivityLog;
+use App\Models\User\Ticket;
 use App\Models\User\User;
-use App\Services\Api\Auth\LoginAsService;
+use App\Services\Shared\SupportSessionService;
 use App\Support\Totp;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -168,15 +169,20 @@ class TwoFactorTest extends TestCase
         $this->postJson('/api/v1/auth/login', ['email' => $user->email, 'password' => 'password'])->assertOk()->assertJsonMissingPath('action');
     }
 
-    public function test_login_as_from_the_admin_panel_does_not_ask(): void
+    public function test_a_support_session_from_the_admin_panel_does_not_ask(): void
     {
-        $user  = User::factory()->create();
+        $user     = User::factory()->create();
         $this->turnOn($user);
-        $admin = User::factory()->create(['role_id' => Role::SUPER_ADMIN_ID]);
+        $admin    = User::factory()->create(['role_id' => Role::SUPER_ADMIN_ID]);
+        $business = $user->workspaces()->create(['name' => 'Main Business']);
+        $case     = Ticket::create(['workspace_id' => $business->id, 'user_id' => $user->id, 'subject' => 'Help with an invoice', 'status' => Ticket::OPEN]);
 
-        parse_str((string) parse_url(app(LoginAsService::class)->link($user, $admin), PHP_URL_QUERY), $query);
+        $sessions = app(SupportSessionService::class);
+        $session  = $sessions->open($business, $admin, ['ticket_id' => $case->id, 'reason' => 'Looking at the invoice', 'hours' => 1], edit: false);
+        parse_str((string) parse_url($sessions->link($session, $admin), PHP_URL_QUERY), $query);
 
-        $this->postJson('/api/v1/auth/login-as', ['code' => $query['code']])->assertOk()->assertJsonPath('user.two_factor', true);
+        $this->app['auth']->forgetGuards();
+        $this->postJson('/api/v1/auth/support-session', ['code' => $query['code']])->assertOk()->assertJsonPath('user.two_factor', true);
     }
 
     public function test_secrets_never_reach_the_activity_log(): void

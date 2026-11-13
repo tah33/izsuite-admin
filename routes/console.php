@@ -21,3 +21,6 @@ Schedule::command('notifications:usage')->hourly()->withoutOverlapping();
 
 // Businesses closed on their scheduled closing day (Doc 15 Phase B1).
 Schedule::command('businesses:close-due')->hourly()->withoutOverlapping();
+
+// Support sessions past their end, recorded as ended in the business's Activity Log (Doc 15 Phase B4).
+Schedule::command('support-sessions:close-expired')->everyFiveMinutes()->withoutOverlapping();

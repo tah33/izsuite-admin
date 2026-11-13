@@ -4,11 +4,13 @@ namespace App\Services\Api\Auth;
 
 use App\Events\UserRegistered;
 use App\Mail\PasswordChanged;
+use App\Models\User\SupportSession;
 use App\Models\User\User;
 use App\Repositories\Admin\RoleRepository;
 use App\Repositories\User\UserRepository;
 use App\Services\Api\Profile\TwoFactorService;
 use App\Services\Shared\ActivityLogService;
+use App\Services\Shared\SupportSessionService;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
@@ -49,6 +51,7 @@ class AuthService
         protected RoleRepository $roleRepository,
         protected TwoFactorService $twoFactor,
         protected SignInChallenges $challenges,
+        protected SupportSessionService $supportSessions,
     ) {}
 
     /**
@@ -281,15 +284,26 @@ class AuthService
 
     /**
      * Revoke only the token that made the request, leaving the user's other
-     * devices signed in.
+     * devices signed in - or, on a support session ($session), end the
+     * session, every tab of it (Doc 15 section 15.22).
+     *
+     * @return string what to tell the app
      */
-    public function logout(User $user): void
+    public function logout(User $user, ?SupportSession $session = null): string
     {
+        if ($session) {
+            $this->supportSessions->end($session, SupportSession::ENDED_IN_APP);
+
+            return 'The support session has ended.';
+        }
+
         $this->userRepository->revokeCurrentToken($user);
 
         ActivityLogService::record('logout', 'Signed out of the izSuite frontend', $user, [
             'source' => 'api',
         ]);
+
+        return 'Signed out successfully.';
     }
 
     /**

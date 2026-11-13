@@ -37,6 +37,16 @@
                 <i data-lucide="user" class="w-4 h-4"></i>{{ __('Owner\'s Account') }}
             </a>
         @endif
+        @if($may('admin.businesses.support-session'))
+            <button type="button" class="btn btn-secondary" data-modal-open="support-session-modal">
+                <i data-lucide="life-buoy" class="w-4 h-4"></i>{{ __('Support Session') }}
+            </button>
+        @endif
+        @if($may('admin.businesses.support-session-edit'))
+            <button type="button" class="btn btn-secondary" data-modal-open="support-session-edit-modal">
+                <i data-lucide="pencil" class="w-4 h-4"></i>{{ __('With Edit Access') }}
+            </button>
+        @endif
         @if($may('admin.workspaces.package.review'))
             <form action="{{ route('admin.workspaces.package.review', $business->id) }}" method="GET" class="flex items-center gap-2 ms-auto">
                 <div class="w-40">
@@ -55,6 +65,7 @@
     @include('admin.businesses._usage')
     @include('admin.businesses._status')
     @include('admin.businesses._cases')
+    @include('admin.businesses._support-sessions')
     @include('admin.partials.admin-activity', ['about' => __('this business')])
 
     @if($may('admin.businesses.status'))
@@ -62,5 +73,11 @@
     @endif
     @if($may('admin.businesses.notify'))
         @include('admin.businesses._notify-modal')
+    @endif
+    @if($may('admin.businesses.support-session'))
+        @include('admin.businesses._support-session-modal', ['edit' => false])
+    @endif
+    @if($may('admin.businesses.support-session-edit'))
+        @include('admin.businesses._support-session-modal', ['edit' => true])
     @endif
 @endsection
