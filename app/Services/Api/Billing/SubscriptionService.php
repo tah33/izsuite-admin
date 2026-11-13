@@ -91,11 +91,11 @@ class SubscriptionService
      */
     public function quote(Workspace $workspace, string $packageKey, string $cycle): array
     {
-        return $this->billing->quote($workspace, $this->payable($packageKey, $cycle), $cycle);
+        return $this->billing->quote($workspace, $this->payable($workspace, $packageKey, $cycle), $cycle);
     }
 
     /** A paid plan on offer, by its key, with its price for $cycle announced. */
-    private function payable(string $packageKey, string $cycle): Package
+    private function payable(Workspace $workspace, string $packageKey, string $cycle): Package
     {
         $package = $this->packages->findOfferedByKey($packageKey);
 
@@ -103,7 +103,7 @@ class SubscriptionService
             throw ValidationException::withMessages(['package' => 'Choose one of the paid plans on offer.']);
         }
 
-        if ($this->billing->price($package, $cycle) === null) {
+        if ($this->billing->price($package, $cycle, $workspace) === null) {
             throw ValidationException::withMessages(['cycle' => "{$package->name}'s ".($cycle === WorkspaceSubscription::YEARLY ? 'yearly' : 'monthly').' price has not been announced yet.']);
         }
 
@@ -174,7 +174,7 @@ class SubscriptionService
             $this->refuse('Your business already has a subscription. Changing it comes soon.');
         }
 
-        $package      = $this->payable($packageKey, $cycle);
+        $package      = $this->payable($workspace, $packageKey, $cycle);
 
         if (! $this->billingDetails->for($workspace)) {
             throw ValidationException::withMessages(['billing' => 'Add your billing details first: the invoice is made out to them.']);
@@ -201,6 +201,9 @@ class SubscriptionService
 
             return $this->billing->issue($workspace, $package, $cycle, $last->addDay(), $last);
         });
+
+        // The price it pays from now on, its first invoice's (Doc 15 Phase C3a) - kept for its renewals.
+        $this->subscriptions->save($workspace, [...$this->billing->pricePaid($invoice), 'next_price' => null, 'next_price_from' => null]);
 
         $what         = $trial ? "Started a {$package->trial_days}-day trial of {$package->name}" : "Subscribed to {$package->name}";
 

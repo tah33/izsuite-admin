@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\SignsIntoBusinesses;
+use Tests\Concerns\PricesPlans;
 use Tests\TestCase;
 
 /**
@@ -32,6 +33,7 @@ use Tests\TestCase;
  */
 class SubscriptionCardTest extends TestCase
 {
+    use PricesPlans;
     use RefreshDatabase;
     use SignsIntoBusinesses;
 
@@ -57,7 +59,7 @@ class SubscriptionCardTest extends TestCase
         $this->travelTo(Carbon::parse('2026-11-09 10:00:00', 'UTC'));
         $this->fakeStripe();
 
-        Package::where('key', 'standard')->update(['price_monthly' => '19.50', 'price_yearly' => '195.00']);
+        $this->priced('standard', '19.50', '195.00');
 
         $this->admin    = User::factory()->create(['role_id' => Role::SUPER_ADMIN_ID]);
         $this->owner    = $this->signIn();

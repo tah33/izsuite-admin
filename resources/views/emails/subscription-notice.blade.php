@@ -33,6 +33,13 @@
                                     {{ $details['invoice'] }} ({{ $details['total'] }}) from your Subscription page by then. Otherwise the business goes back to
                                     Billing Starter, the free plan, the day after - everything you recorded is kept.
                                 </p>
+                            @elseif ($kind === 'price_change')
+                                <h2 style="margin:0 0 16px; color:#1a1a2e; font-size:20px; font-weight:600;">Your {{ $plan }} price changes from {{ $details['from'] }}</h2>
+                                <p style="margin:0 0 28px; color:#51545e; font-size:15px; line-height:1.6;">
+                                    {{ $details['business'] }} pays {{ $details['was'] }} a {{ $details['per'] }} for {{ $plan }} now. From its first renewal on or after
+                                    {{ $details['from'] }}, it will be {{ $details['now'] }} a {{ $details['per'] }}, before any tax. Until then nothing changes, and the
+                                    invoices already issued keep their amounts. To change or cancel your plan, open your Subscription page.
+                                </p>
                             @elseif ($kind === 'refunded')
                                 <h2 style="margin:0 0 16px; color:#1a1a2e; font-size:20px; font-weight:600;">izSuite has refunded {{ $details['amount'] }}</h2>
                                 <p style="margin:0 0 28px; color:#51545e; font-size:15px; line-height:1.6;">

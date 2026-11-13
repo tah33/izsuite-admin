@@ -42,15 +42,13 @@
                             <td class="text-sm whitespace-nowrap">
                                 @if($package->isFree())
                                     {{ __('Free') }}
-                                @elseif($package->price_monthly === null && $package->price_yearly === null)
+                                @elseif($package->prices->isEmpty())
                                     <span class="text-[var(--text-muted)]">{{ __('Not announced') }}</span>
                                 @else
-                                    @if($package->price_monthly !== null)
-                                        <span class="block">{{ $package->price_currency }} {{ $package->price_monthly }} {{ __('a month') }}</span>
-                                    @endif
-                                    @if($package->price_yearly !== null)
-                                        <span class="block">{{ $package->price_currency }} {{ $package->price_yearly }} {{ __('a year') }}</span>
-                                    @endif
+                                    {{-- The prices in force today, each currency's (Doc 15 Phase C3a). --}}
+                                    @foreach($package->prices as $price)
+                                        <span class="block">{{ $price->currency }} {{ $price->amount }} {{ $price->cycle === 'yearly' ? __('a year') : __('a month') }}</span>
+                                    @endforeach
                                 @endif
                             </td>
                             <td class="text-sm">{{ $package->apps_count }}</td>

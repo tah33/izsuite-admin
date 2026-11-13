@@ -70,20 +70,25 @@ class SubscriptionBillingTest extends TestCase
         Currency::create(['name' => 'US Dollar', 'code' => 'USD', 'symbol' => '$', 'exchange_rate' => 1, 'is_active' => true]);
         Currency::create(['name' => 'Bangladeshi Taka', 'code' => 'BDT', 'symbol' => '৳', 'exchange_rate' => 110, 'is_active' => true]);
 
-        $this->get(route('admin.packages.edit', $standard->id))->assertOk()->assertSee('Price a month')->assertSee('Takes "Powered by izSuite" off documents')->assertSee('Bangladeshi Taka (BDT)');
+        $this->get(route('admin.packages.edit', $standard->id))->assertOk()->assertSee('Main currency')->assertSee('Add Price')->assertSee('Takes "Powered by izSuite" off documents')->assertSee('Bangladeshi Taka (BDT)');
         $this->putJson(route('admin.packages.update', $standard->id), ['name' => 'Standard', 'price_currency' => 'XYZ'])->assertJsonValidationErrors('price_currency');
         $this->get(route('admin.packages.index'))->assertOk()->assertSee('Not announced');
 
         $this->putJson(route('admin.packages.update', $standard->id), [
-            'name' => 'Standard', 'price_currency' => 'usd', 'price_monthly' => '19.50', 'price_yearly' => '195', 'trial_days' => 14, 'grace_days' => 7, 'removes_branding' => '1', 'is_active' => '1',
+            'name' => 'Standard', 'price_currency' => 'usd', 'trial_days' => 14, 'grace_days' => 7, 'removes_branding' => '1', 'is_active' => '1',
         ])->assertOk();
 
+        // Its prices on their own card (Doc 15 Phase C3a), from today.
+        $price = fn (string $cycle, string $amount) => $this->postJson(route('admin.packages.price', $standard->id), ['currency' => 'USD', 'cycle' => $cycle, 'amount' => $amount, 'starts_on' => now()->toDateString()]);
+        $price('monthly', '19.50')->assertOk();
+        $price('yearly', '195')->assertOk();
+
         $standard->refresh();
-        $this->assertSame(['USD', '19.50', '195.00', 14, 7, true], [$standard->price_currency, $standard->price_monthly, $standard->price_yearly, $standard->trial_days, $standard->grace_days, $standard->removes_branding]);
+        $this->assertSame(['USD', 14, 7, true], [$standard->price_currency, $standard->trial_days, $standard->grace_days, $standard->removes_branding]);
         $this->get(route('admin.packages.index'))->assertSee('USD 19.50 a month')->assertSee('USD 195.00 a year');
 
-        $this->putJson(route('admin.packages.update', $standard->id), ['name' => 'Standard', 'price_currency' => 'USD', 'price_monthly' => '-1', 'trial_days' => 0])
-            ->assertJsonValidationErrors(['price_monthly', 'trial_days']);
+        $price('monthly', '-1')->assertJsonValidationErrors(['amount']);
+        $this->putJson(route('admin.packages.update', $standard->id), ['name' => 'Standard', 'price_currency' => 'USD', 'trial_days' => 0])->assertJsonValidationErrors(['trial_days']);
 
         // The website's Pricing page has them.
         $this->app['auth']->forgetGuards();

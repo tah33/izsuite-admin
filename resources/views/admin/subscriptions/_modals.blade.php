@@ -57,7 +57,7 @@
         'route'    => route('admin.subscriptions.credit', $subscription->id),
         'button'   => __('Give Credit'),
         'fields'   => 'admin.subscriptions._credit-field',
-        'currency' => $subscription->package?->price_currency,
+        'currency' => $subscription->paysIn(),
         'most'     => null,
     ])
 @endif
@@ -71,7 +71,7 @@
         'button'   => __('Take Back'),
         'danger'   => true,
         'fields'   => 'admin.subscriptions._credit-field',
-        'currency' => $subscription->package?->price_currency,
+        'currency' => $subscription->paysIn(),
         'most'     => $credit,
     ])
 @endif

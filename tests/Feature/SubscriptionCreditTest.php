@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\SignsIntoBusinesses;
+use Tests\Concerns\PricesPlans;
 use Tests\TestCase;
 
 /**
@@ -35,6 +36,7 @@ use Tests\TestCase;
  */
 class SubscriptionCreditTest extends TestCase
 {
+    use PricesPlans;
     use RefreshDatabase;
     use SignsIntoBusinesses;
 
@@ -55,8 +57,9 @@ class SubscriptionCreditTest extends TestCase
         Http::fake(['*' => Http::response('%PDF-1.7 fake', 200, ['Content-Type' => 'application/pdf'])]);
         $this->travelTo(Carbon::parse('2026-11-09 10:00:00', 'UTC'));
 
-        Package::where('key', 'standard')->update(['price_monthly' => '19.50', 'price_yearly' => '195.00', 'grace_days' => 5]);
-        Package::where('key', 'premium')->update(['price_monthly' => '49.00', 'price_yearly' => '490.00']);
+        Package::where('key', 'standard')->update(['grace_days' => 5]);
+        $this->priced('standard', '19.50', '195.00');
+        $this->priced('premium', '49.00', '490.00');
         PaymentMethod::where('slug', 'bank-transfer')->update(['is_active' => true]);
         // A 10% tax, to show the credit comes off before it.
         SubscriptionTax::create(['country' => 'BD', 'name' => 'VAT', 'rate' => '10', 'starts_on' => '2026-11-01', 'reverse_charge' => false]);

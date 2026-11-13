@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\SignsIntoBusinesses;
+use Tests\Concerns\PricesPlans;
 use Tests\TestCase;
 
 /**
@@ -30,6 +31,7 @@ use Tests\TestCase;
  */
 class SubscriptionCheckoutTest extends TestCase
 {
+    use PricesPlans;
     use RefreshDatabase;
     use SignsIntoBusinesses;
 
@@ -48,8 +50,9 @@ class SubscriptionCheckoutTest extends TestCase
         Http::preventStrayRequests();
         Http::fake(['*/forms/chromium/convert/html' => Http::response('%PDF-1.7 fake', 200, ['Content-Type' => 'application/pdf'])]);
 
-        Package::where('key', 'standard')->update(['price_monthly' => '19.50', 'price_yearly' => '195.00']);
-        Package::where('key', 'premium')->update(['price_monthly' => '49.00', 'trial_days' => 14]);
+        $this->priced('standard', '19.50', '195.00');
+        Package::where('key', 'premium')->update(['trial_days' => 14]);
+        $this->priced('premium', '49.00');
 
         PaymentMethod::create(['type' => 'offline', 'name' => 'Bank Transfer', 'slug' => 'bank-transfer', 'instructions' => '<p>Bank: Example Bank<br>Account: 1234567890</p>', 'is_active' => true]);
         Setting::create(['group' => 'billing', 'key' => 'billing_company_name', 'value' => 'izSuite Ltd']);

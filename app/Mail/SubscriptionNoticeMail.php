@@ -35,6 +35,9 @@ class SubscriptionNoticeMail extends Mailable implements ShouldQueue
     /** izSuite gave money back (Doc 15 Phase C2a): amount, method and, when it had one, the invoice. */
     public const REFUNDED       = 'refunded';
 
+    /** A new price for the plan, from the first renewal on or after a day well ahead (Doc 15 Phase C3a): was, will be, from, cycle. */
+    public const PRICE_CHANGE   = 'price_change';
+
     public function __construct(
         public string $kind,
         public array $details,
@@ -54,6 +57,7 @@ class SubscriptionNoticeMail extends Mailable implements ShouldQueue
                 : "Your {$plan} subscription has ended: {$days} ".($days === 1 ? 'day' : 'days').' left to renew',
             self::PAYMENT_FAILED => ($this->details['confirm'] ?? false) ? "Please confirm your payment for {$plan}" : "We could not charge your card for {$plan}",
             self::REFUNDED       => "izSuite has refunded {$this->details['amount']}",
+            self::PRICE_CHANGE   => "Your {$plan} price changes from {$this->details['from']}",
             default            => "Your {$plan} plan has ended",
         });
     }

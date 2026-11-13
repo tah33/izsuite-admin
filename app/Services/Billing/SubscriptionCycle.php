@@ -53,6 +53,7 @@ class SubscriptionCycle
         private BusinessCalendar $calendar,
         private SyncAppsWithPackage $sync,
         private CardPayments $cards,
+        private PackagePricing $pricing,
     ) {}
 
     /** Moves every running subscription on to its business's today; answers with how many there were. */
@@ -230,8 +231,14 @@ class SubscriptionCycle
         if ($to = $subscription->scheduledPackage) {
             $from         = $subscription->package->name;
 
-            DB::transaction(function () use ($subscription, $workspace, $to) {
-                $this->subscriptions->save($workspace, ['package_id' => $to->id, 'cycle' => $subscription->scheduled_cycle, 'scheduled_package_id' => null, 'scheduled_cycle' => null]);
+            DB::transaction(function () use ($subscription, $workspace, $to, $end) {
+                // The lower plan's price, as its renewal was issued at (Doc 15 Phase C3a), is the one it pays from now.
+                $renewal = $this->invoices->renewalFor($workspace, $end->addDay()->toDateString());
+
+                $this->subscriptions->save($workspace, [
+                    'package_id' => $to->id, 'cycle' => $subscription->scheduled_cycle, 'scheduled_package_id' => null, 'scheduled_cycle' => null,
+                    ...($renewal ? $this->billing->pricePaid($renewal) : ['currency' => null, 'price' => null]), 'next_price' => null, 'next_price_from' => null,
+                ]);
                 $this->sync->changePackage($workspace, $to);
             });
 
@@ -312,15 +319,22 @@ class SubscriptionCycle
         $workspace = $subscription->workspace;
         $end       = $subscription->period_ends_on->toImmutable();
 
-        return $this->invoices->renewalFor($workspace, $end->addDay()->toDateString())
-            ?? $this->billing->issue(
-                $workspace,
-                $subscription->scheduledPackage ?? $subscription->package,
-                $subscription->scheduled_cycle ?? $subscription->cycle,
-                $end->addDay(),
-                $end,
-                SubscriptionInvoice::RENEWAL,
-            );
+        if ($issued = $this->invoices->renewalFor($workspace, $end->addDay()->toDateString())) {
+            return $issued;
+        }
+
+        // On its own plan, the price it pays - or the new one izSuite applied, once its day has come (Doc 15 Phase C3a).
+        $package       = $subscription->scheduledPackage ?? $subscription->package;
+        $cycle         = $subscription->scheduled_cycle ?? $subscription->cycle;
+        [$price, $new] = $this->pricing->renewalPrice($subscription, $package, $cycle, $end->addDay());
+
+        $invoice       = $this->billing->issue($workspace, $package, $cycle, $end->addDay(), $end, SubscriptionInvoice::RENEWAL, '0.00', $price);
+
+        if ($new) {
+            $this->subscriptions->save($workspace, ['price' => (string) $subscription->next_price, 'next_price' => null, 'next_price_from' => null]);
+        }
+
+        return $invoice;
     }
 
     /** A notice, once a day. */

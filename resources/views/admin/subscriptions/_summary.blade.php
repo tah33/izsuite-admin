@@ -3,7 +3,13 @@
     <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-sm">
         <div>
             <dt class="text-xs text-[var(--text-muted)]">{{ __('Plan') }}</dt>
-            <dd class="font-medium">{{ $subscription->package?->name }}, {{ __($subscription->cycle) }} · {{ $subscription->package?->price_currency }}</dd>
+            <dd class="font-medium">
+                {{ $subscription->package?->name }}, {{ __($subscription->cycle) }} · {{ $subscription->paysIn() }}{{ $subscription->price !== null ? ' '.$subscription->price : '' }}
+                {{-- A new price izSuite applied, from its day (Doc 15 Phase C3a). --}}
+                @if($subscription->next_price !== null && $subscription->next_price_from)
+                    <span class="block font-normal text-[var(--text-secondary)]">{{ __(':currency :amount from its first renewal on or after :date', ['currency' => $subscription->paysIn(), 'amount' => $subscription->next_price, 'date' => $subscription->next_price_from->format('M d, Y')]) }}</span>
+                @endif
+            </dd>
         </div>
         <div>
             <dt class="text-xs text-[var(--text-muted)]">{{ __('Dates') }}</dt>
@@ -35,7 +41,7 @@
         </div>
         <div>
             <dt class="text-xs text-[var(--text-muted)]">{{ __('izSuite credit') }}</dt>
-            <dd class="font-medium">{{ bccomp($credit, '0', 2) > 0 ? __(':currency :amount, to come off its next invoices', ['currency' => $subscription->package?->price_currency, 'amount' => $credit]) : __('None') }}</dd>
+            <dd class="font-medium">{{ bccomp($credit, '0', 2) > 0 ? __(':currency :amount, to come off its next invoices', ['currency' => $subscription->paysIn(), 'amount' => $credit]) : __('None') }}</dd>
         </div>
         <div>
             <dt class="text-xs text-[var(--text-muted)]">{{ __('Owner') }}</dt>

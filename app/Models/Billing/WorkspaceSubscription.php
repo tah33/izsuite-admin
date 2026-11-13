@@ -53,9 +53,17 @@ class WorkspaceSubscription extends Model
         'scheduled_package_id',
         'scheduled_cycle',
         'last_notice_on',
+        // What its plan costs it (Doc 15 Phase C3a), kept for its renewals - and a new price izSuite applied, from its day.
+        'currency',
+        'price',
+        'next_price',
+        'next_price_from',
     ];
 
     protected $casts              = [
+        'price'                 => 'decimal:2',
+        'next_price'            => 'decimal:2',
+        'next_price_from'       => 'date',
         'trial_starts_on'       => 'date',
         'trial_ends_on'         => 'date',
         'period_starts_on'      => 'date',
@@ -64,6 +72,12 @@ class WorkspaceSubscription extends Model
         'cancels_at_period_end' => 'boolean',
         'last_notice_on'        => 'date',
     ];
+
+    /** The currency it pays in (Doc 15 Phase C3a): its own, once priced - else its plan's main one. */
+    public function paysIn(): string
+    {
+        return (string) ($this->currency ?: $this->package?->price_currency ?: 'USD');
+    }
 
     public function workspace(): BelongsTo
     {

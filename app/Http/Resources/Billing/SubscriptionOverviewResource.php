@@ -45,6 +45,12 @@ class SubscriptionOverviewResource extends JsonResource
                     'cycle'   => $subscription->scheduled_cycle,
                     'on'      => $subscription->period_ends_on?->copy()->addDay()->toDateString(),
                 ] : null,
+                // What its plan costs it, before credits and tax - and a new price izSuite applied, from its day (Doc 15 Phase C3a).
+                'price'            => $subscription->price !== null ? ['currency' => $subscription->paysIn(), 'amount' => (string) $subscription->price] : null,
+                'next_price'       => $subscription->next_price !== null && $subscription->next_price_from ? [
+                    'amount' => (string) $subscription->next_price,
+                    'from'   => $subscription->next_price_from->toDateString(),
+                ] : null,
             ] : null,
             'open_invoice'    => $this->resource['open_invoice'] ? new SubscriptionInvoiceResource($this->resource['open_invoice'], toPay: true) : null,
             // The saved card's last try for it that did not go through (Phase D3): declined, to confirm, or processing.

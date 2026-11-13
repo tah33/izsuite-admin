@@ -32,9 +32,8 @@ class Package extends Model
         'business_limit',
         'user_limit',
         'location_limit',
+        // Its main currency: what a business pays in when the plan has no price in the business's own (Doc 15 Phase C3a).
         'price_currency',
-        'price_monthly',
-        'price_yearly',
         'trial_days',
         'grace_days',
         'removes_branding',
@@ -47,8 +46,6 @@ class Package extends Model
         'business_limit'   => 'integer',
         'user_limit'       => 'integer',
         'location_limit'   => 'integer',
-        'price_monthly'    => 'decimal:2',
-        'price_yearly'     => 'decimal:2',
         'trial_days'       => 'integer',
         'grace_days'       => 'integer',
         'removes_branding' => 'boolean',
@@ -72,6 +69,12 @@ class Package extends Model
     public function workspaces(): HasMany
     {
         return $this->hasMany(Workspace::class);
+    }
+
+    /** Its prices in each currency and cycle, past, present and to come (Doc 15 Phase C3a). */
+    public function prices(): HasMany
+    {
+        return $this->hasMany(PackagePrice::class);
     }
 
     /** Whether a business on this plan may turn $app on. */

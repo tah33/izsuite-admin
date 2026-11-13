@@ -1,6 +1,11 @@
 @extends('layouts.admin')
 @section('title', __('Edit Plan') . ' — ' . $package->name)
 
+@php
+    $role = auth()->user()->role;
+    $may  = fn (string $route) => (bool) $role?->hasPermission($route);
+@endphp
+
 @section('content')
     <div class="mb-6">
         <div class="flex items-center gap-2 text-sm mb-2 text-[var(--text-muted)]">
@@ -62,4 +67,7 @@
             <a href="{{ route('admin.packages.index') }}" class="btn btn-secondary">{{ __('Cancel') }}</a>
         </div>
     </form>
+
+    {{-- Its own forms, so outside the plan's: Doc 15 Phase C3a. --}}
+    @include('admin.packages.partials.prices')
 @endsection

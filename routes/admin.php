@@ -70,6 +70,10 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     Route::get('/packages', [PackageController::class, 'index'])->name('packages.index');
     Route::get('/packages/{id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
     Route::put('/packages/{id}', [PackageController::class, 'update'])->name('packages.update');
+    // A plan's prices in each currency and cycle, from a day, and applying one to its subscribers (Doc 15 Phase C3a).
+    Route::post('/packages/{id}/prices', [PackageController::class, 'addPrice'])->whereNumber('id')->name('packages.price');
+    Route::post('/packages/{id}/prices/apply', [PackageController::class, 'applyPrice'])->whereNumber('id')->name('packages.price-apply');
+    Route::delete('/packages/{id}/prices/{priceId}', [PackageController::class, 'removePrice'])->whereNumber(['id', 'priceId'])->name('packages.price-remove');
     Route::get('/package-access', [PackageAccessController::class, 'index'])->name('package-access.index');
     Route::put('/package-access', [PackageAccessController::class, 'update'])->name('package-access.update');
     Route::put('/menu-items/reorder', [MenuItemController::class, 'reorder'])->name('menu-items.reorder');

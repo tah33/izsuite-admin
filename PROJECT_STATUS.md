@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-13
-- **Code:** Doc 15 Phase C2b (credits and billing reports) is on `main` in the admin commit right after `c33db1a`, and on `nuxt` in the frontend commit right after `e681985`.
-- **Tests:** 775 backend tests pass (last full run 2026-11-13, on this code, on the second PC).
-- **Next step:** Doc 15 Phase C3: prices in several currencies, and promotions (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 15 Phase C3a (prices in several currencies) is on `main` in the admin commit right after `5b923ed`, and on `nuxt` in the frontend commit right after `d40ee05`.
+- **Tests:** 778 backend tests pass (last full run 2026-11-13, on this code, on the second PC).
+- **Next step:** Doc 15 Phase C3b: promotions (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 15 Phase C3.
+   > Read PROJECT_STATUS.md, then start Doc 15 Phase C3b.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -40,7 +40,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 12 | Users, Roles, Permissions and Locations | Done, except package change rules (Doc 13) |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
-| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phases A, B, C1 and C2 done (2026-11-13), C3 next** |
+| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phases A, B, C1, C2 and C3a done (2026-11-13), C3b next** |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -314,7 +314,7 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 - Share links that expire. They stay until revoked.
 - Imports beyond contacts and items.
 
-### 3. Doc 15: izSuite System Administration Portal (next: Phase C3)
+### 3. Doc 15: izSuite System Administration Portal (next: Phase C3b)
 
 The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign-in) had grown through Docs 01 to 14, partly from the earlier recruitment product, and was checked against all 27 sections.
 
@@ -611,10 +611,31 @@ B3 was split again on starting it (2026-11-13), as a support session names a sup
 
   The check found the dialog's wording when an invoice is waiting, a wrapping invoice number, and table headers not lining up with their figures; all fixed. The check's subscription, invoices, payment, credits, numbering, billing details, notices, activity, audit entries, sign-ins and the app's token were then removed, workspace 1 moved back to Billing Starter with its setup undone, the plans' prices emptied again, and the admin's two-factor reset.
 
-**Phase C3: prices and promotions** (sections 9 and 17):
+**Phase C3: prices and promotions** (sections 8, 9 and 17) was split on starting it (2026-11-13): C3a, prices in several currencies; C3b, promotions.
 
-- **Prices** in several currencies per plan, each with start and end dates and kept in history. A business pays in its own currency when the plan has a price in it, else in the plan's first currency. A price change reaches existing subscribers only when the admin applies it, with an e-mail 30 days before.
-- **Promotions:** codes with a percent or fixed discount, the plans, countries and cycles they apply to, dates, a total limit and one per business, and a new-customers-only option. The subscribe dialog shows the discounted price, the tax and what renewals will cost.
+**Phase C3a: prices in several currencies** is built, with these defaults:
+
+- **A plan's prices** are `package_prices` rows, one per currency and cycle from a start day. A new one ends the one before the day before it starts; a price that has started is history and stays, while one not started yet can be removed. The plan's own currency is now its main one. The prices the plans had before carry over, in force from the start (dated 2000-01-01), and the two price columns on `packages` are gone.
+- **Which price a business pays:** in its own base currency when the plan has a price in it, else in the plan's main currency. The business's own currency is left as it is. The app's Subscription page and its quotes, invoices and plan changes all use it; the website's Pricing page shows each plan's main currency.
+- **Subscribers keep their price** (§15.8: "not silently moved"). A subscription records the price it pays, and a renewal on the same plan and cycle charges it. A move to another plan takes that plan's price then.
+- **A new price reaches subscribers only when applied:** Apply to Subscribers, on the price in force, moves every subscriber renewing on another price of that currency and cycle. It applies from their first renewal on or after a day at least 30 days ahead, and each is told now by e-mail and in the bell. It asks for the password and a reason. Subscribers ending their plan or moving to another are left out.
+- **Admin > Packages:** the list shows each plan's prices in force. A plan's page has a **Prices** card listing every price with its days, status (In force, Starts on a day, Ended) and how many subscribers pay it, move to it or pay another. It also has Add Price (currency, cycle, amount, from), Remove for a price not started yet, and Apply to Subscribers.
+- **The app's Subscription page** shows the price the business pays, before tax, and a new price with its day once izSuite has applied one. Compare Plans shows each plan at today's price.
+- **Roles** (migration 000134): Billing Administrators add, remove and apply prices.
+- Left for later: prices by country rather than currency, by customer type, setup fees, and included or overage usage (they wait for usage charges).
+- Checked in the browser as the seeded admin, on workspace 1 with Standard at USD 19.50 from 1 Nov and a subscriber on it:
+  - the list showed Standard's prices in force, and its Prices card the two prices with "1 pays it";
+  - Add Price USD 24.00 a month from today ended the 19.50 the day before, and showed "1 pays another price" with Apply to Subscribers;
+  - Apply to Subscribers refused it without a reason, then moved the subscriber from 13 Dec 2026, its date filled in 30 days ahead. The card then said "1 moves to it", and the owner had the e-mail and the bell notice;
+  - a yearly price from 1 Jan 2027 ended the yearly one before it on 31 Dec, and Remove took it away and reopened that one;
+  - the subscription's admin page and the app's Subscription page showed "$19.50 a month… From your first renewal on or after 13 Dec 2026: $24.00", and Compare Plans showed Standard at $24.00 for new subscribers.
+
+  The check found the card still offering Apply for a subscriber already moving, and "1 subscribers" in the audit line; both fixed. The browser pane was hidden, so the card was checked from its text rather than screenshots. The check's prices, subscription, invoice, payment, numbering, billing details, notices, activity, audit entries, sign-ins and the app's token were then removed, workspace 1 moved back to Billing Starter with its setup undone, and the admin's two-factor reset.
+
+**Phase C3b: promotions** (section 17):
+
+- Codes with a percent or fixed discount, the plans, countries and cycles they apply to, dates, a total limit and one per business, and a new-customers-only option, each with a status.
+- The subscribe dialog shows the discounted price, the tax and what renewals will cost; the invoice shows the discount (the doc's Discount field).
 
 **Phase D: the dashboard, usage and service health** (sections 4, 18 and 23):
 
@@ -728,6 +749,8 @@ Each document goes the same way:
 - The Subscription Invoices buttons ask with the browser's own `confirm()`, which the Claude browser pane cannot answer. Confirm a transfer there with `SubscriptionInvoiceService::confirm()` in tinker instead.
 - Billing's notices in the bell go to the business's members with Manage Subscription (`NotificationAudience`). In a test, set the business up with `SetUpNewWorkspace`, or its owner is no member and nothing is sent.
 - The app reads a business's `setup_completed` from its cached navigation. After changing `setup_completed_at` by hand, call `WorkspaceRepository::bumpNavVersion()`, or the app keeps sending you to Set Up. Change it with a query (`Workspace::whereKey(1)->update(...)`): it is not fillable, so `$workspace->update()` leaves it as it was, without a word.
+- In the Claude browser pane, navigating to the same address with only a different `#part` does not reload the page: reload it, or a check reads the page as it was.
+- `sed` in Git Bash here does not match a backslash (`Tests\TestCase`) in its pattern; change such lines with PowerShell's `.Replace()` or the edit tool.
 - If `docker` cannot reach its engine (`dockerDesktopLinuxEngine` not found), Docker Desktop has stopped. On the second PC it is installed per user, under `%LOCALAPPDATA%\Programs\DockerDesktop`. Starting it brings the containers back by themselves, but the admin's sign-in is lost with Redis.
 
 ### Checking the app as a limited member
@@ -857,7 +880,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 15: Phase B4, support sessions | `bab54e5` | `d807b88` | 000130 |
 | Doc 15: Phase C1, subscriptions in the admin | `debb680` and `9bd9fb5` | | 000131 |
 | Doc 15: Phase C2a, payments and refunds | `c33db1a` | `e681985` | 000132 |
-| Doc 15: Phase C2b, credits and billing reports | the commit after `c33db1a` | the commit after `e681985` | 000133 |
+| Doc 15: Phase C2b, credits and billing reports | `5b923ed` | `d40ee05` | 000133 |
+| Doc 15: Phase C3a, prices in several currencies | the commit after `5b923ed` | the commit after `d40ee05` | 000134 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -936,7 +960,7 @@ These are easy to undo by mistake.
 - Each edition names the lowest active plan that includes it (`PackageRepository::lowestNames`).
 - Turning apps on and off needs Manage Apps (`settings.apps`); the owner always may. Turning one off shows its impact first (`GET /apps/{app}/deactivation`). The apps that need it can go with it (`with_dependents`), each fully off, the furthest first; without that it is refused, as before.
 - The public Explore Apps and Pricing pages read `GET /catalog`, which needs no sign-in. The hard-coded catalog and price calculator are gone.
-- A plan's prices are on `packages` (`price_currency`, `price_monthly`, `price_yearly`), with `trial_days`, `grace_days` and `removes_branding`. An empty price means not announced, and the plan then says "Price to be announced". Billing Starter is free (0). Migration 000112 set Standard and Premium to remove the branding. Trial and grace days are kept for Phase C and do nothing yet.
+- A plan's prices were on `packages` (`price_currency`, `price_monthly`, `price_yearly`) until Doc 15 Phase C3a moved them to `package_prices` (see below); `packages` keeps `price_currency` as the main currency, with `trial_days`, `grace_days` and `removes_branding`. No price in force means not announced, and the plan then says "Price to be announced". Billing Starter is free (0). Migration 000112 set Standard and Premium to remove the branding. Trial and grace days are kept for Phase C and do nothing yet.
 - "Powered by izSuite" follows the business's plan. A document saves `powered_by` in its business snapshot when it gets its number, and its PDF, print and secure link read that, so a later plan change never alters it; documents numbered before B1 have no such key and keep the branding. Drafts and report PDFs follow the plan as it is.
 - `GET /subscription` and `PUT /subscription/billing-details` need Manage Subscription (`settings.subscription`). Until Phase C the status is Free on Billing Starter and Active on any other plan. Billing details are one `workspace_billing` row per business, and each save goes in the Activity Log.
 - A plan's user limit counts active and invited users, the owner among them. Its location limit counts active locations only (changed in B2): an inactive one is outside it, so turning one back on needs room, as reactivating a suspended user already did.
@@ -1067,6 +1091,11 @@ These are easy to undo by mistake.
   - Every voided invoice goes through `SubscriptionBilling::cancelInvoice()`, which gives its adjustment back: `void()`, an upgrade paid, the cycle ending a plan, and an upgrade left unpaid at the period's end.
   - `SubscriptionInvoice::net()` is the price less both credits: an upgrade's credit for the unused days counts what was really paid.
 - Admin > Billing Reports is `BillingReportService` over `BillingReportRepository`, behind `BillingReportController`. It groups by month with the database's own words (`DATE_FORMAT` in MySQL, `strftime` in SQLite, for the tests), over the times as stored (UTC).
+- Plan prices (Doc 15 Phase C3a, migration 000134) are `package_prices`, worked by `App\Services\Billing\PackagePricing`: `currencyFor()`, `price()` (the catalog's, for a business on a day), `renewalPrice()`, `add()` and `remove()`. `packages.price_currency` is the main currency; `price_monthly` and `price_yearly` are gone.
+  - `SubscriptionBilling::price()` and `quote()` take the business; `quote()` and `issue()` take a renewal's own price (`$price`). `PublicCatalog::packages($workspace)` prices the plans in the business's currency.
+  - A subscription keeps `currency` and `price`, set from its first invoice at subscribing, from an upgrade or first payment confirmed (`SubscriptionBilling::pricePaid()`), and from the renewal when a move down takes effect. `SubscriptionCycle::renewal()` charges `renewalPrice()`. A new price applied is `next_price` from `next_price_from`, taken as `price` when the first renewal on or after that day is issued. `WorkspaceSubscription::paysIn()` is its currency, else its plan's.
+  - Applying a price is `PackageService::applyPrice()`: `CriticalActionService`, then `WorkspaceSubscriptionRepository::payingOther()`, then `SubscriptionNoticeMail` kind `price_change` through `SubscriptionBilling::notice()`.
+  - In the tests, a plan's prices come from `Tests\Concerns\PricesPlans::priced()`.
 - Dev's admin CSS is `public/build`, git-ignored and built only when missing (`docker/entrypoint.sh`), so it goes stale. After adding Tailwind classes to admin views, run `docker exec izsuite-api npm run build`; a server builds it fresh on deploy.
 - The frontend's location pick is `useLocationPick()`. It is shared state behind the `izsuite_location` cookie, and `''` means All Locations. A pick no longer offered (an inactive location, another business's) counts as All Locations. `forNewRecord()` waits for the locations list, so a form opened right after a reload still gets the pick.
 
@@ -1098,6 +1127,8 @@ Each of these is yours to settle.
 - Should support cases stay in izSuite's own Tickets (Doc 15 Phase B3 kept them there), or come from an outside help desk?
 - izSuite's credit comes off the business's next invoice (Doc 15 Phase C2b). Should it come off an invoice already waiting too, by issuing that one again? Today the waiting invoice keeps its amount.
 - Should the billing reports count months in a time zone of your choosing? Today they use the stored times (UTC).
+- A business keeps the currency its subscription is in, even when it changes its own base currency (Doc 15 Phase C3a); a new subscription or plan change takes the new one when the plan has a price in it. Should a change of base currency move a running subscription too?
+- Should plans be priced by country as well as by currency (section 15.9's "country or region")? Today a currency is the region: every business in that currency pays the same.
 - Every refund asks for the admin's password and a reason (Doc 15 Phase C2a), since section 15.25 makes large refunds critical. Should a refund under some amount skip the password, and should large ones need a second admin's approval?
 - Who in a business sees its support cases? Today the owner sees every one, and anyone else only the ones they opened. A business's Administrators could see them all too.
 - Which admin roles open support sessions with edit access? Today only the Super Admin, until a role is given "Support session edit" in Admin > Roles.
@@ -1115,4 +1146,5 @@ Each of these is yours to settle.
 - Doc 15 Phase C1: migration 000131 changes only the admin roles' permissions; check Admin > Roles after it if the server's roles were edited by hand. The owner's subscription notices go through the queue worker.
 - Doc 15 Phase C2a: migration 000132 adds the refunds, keeps each transfer confirmed so far as a payment, and gives the roles the payments and refunds. Add `refund.created` and `refund.updated` to the Stripe webhook's events (`charge.refund.updated` on an older API version), or a card refund Stripe takes later stays Waiting. The refund e-mails go through the queue worker.
 - Doc 15 Phase C2b: migration 000133 adds izSuite's credit (`subscription_credits`, and `adjustment` on the invoices) and gives the roles the credits and the billing reports. The credit notices go through the queue worker.
+- Doc 15 Phase C3a: migration 000134 moves each plan's prices into `package_prices`, in force from the start, records on each subscription the price it pays, and drops the two price columns from `packages`. Look over each plan's Prices card after it. The price-change e-mails go through the queue worker.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

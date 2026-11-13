@@ -43,6 +43,7 @@ class SubscriptionChanges
         private WorkspaceSubscriptionRepository $subscriptions,
         private SubscriptionInvoiceRepository $invoices,
         private BusinessCalendar $calendar,
+        private PackagePricing $pricing,
     ) {}
 
     /**
@@ -55,7 +56,7 @@ class SubscriptionChanges
     {
         $subscription = $this->changeable($workspace);
         $kind         = $this->kind($subscription, $to, $cycle);
-        $amount       = $this->billing->price($to, $cycle)
+        $amount       = $this->billing->price($to, $cycle, $workspace)
             ?? throw ValidationException::withMessages(['cycle' => "{$to->name}'s ".($cycle === WorkspaceSubscription::YEARLY ? 'yearly' : 'monthly').' price has not been announced yet.']);
         $credit       = $kind === self::UP ? $this->credit($workspace, $subscription, $to) : '0.00';
 
@@ -195,7 +196,8 @@ class SubscriptionChanges
         $end    = $subscription->period_ends_on->toImmutable();
         $paid   = $this->invoices->paidFor($workspace, $start->toDateString());
 
-        if (! $paid || $paid->currency !== $to->price_currency) {
+        // The currency the new plan is invoiced in, for this business (Doc 15 Phase C3a).
+        if (! $paid || $paid->currency !== $this->pricing->currencyFor($to, $workspace)) {
             return '0.00';
         }
 

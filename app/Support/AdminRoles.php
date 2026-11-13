@@ -33,7 +33,7 @@ final class AdminRoles
             ]],
             // Packages and prices, subscriptions, platform invoices, payments and taxes.
             'billing-administrator' => ['Billing Administrator', [
-                'admin.packages.index', 'admin.packages.edit',
+                'admin.packages.index', 'admin.packages.edit', 'admin.packages.price', 'admin.packages.price-remove', 'admin.packages.price-apply',
                 'admin.subscription-invoices.index', 'admin.subscription-invoices.show', 'admin.subscription-invoices.pdf', 'admin.subscription-invoices.confirm', 'admin.subscription-invoices.void',
                 'admin.payments.index', 'admin.payments.refund', 'admin.refunds.index', 'admin.credits.index', 'admin.billing-reports.index',
                 'admin.subscription-taxes.index', 'admin.subscription-taxes.create', 'admin.subscription-taxes.edit', 'admin.subscription-taxes.destroy',

@@ -1,11 +1,11 @@
-{{-- What the plan costs and gives (Doc 13 sections 2, 12 and 18): its prices, trial and grace, and whether it takes the branding off --}}
+{{-- What the plan costs and gives (Doc 13 sections 2, 12 and 18): its main currency - its prices are on their own card (Doc 15 Phase C3a) - trial and grace, and whether it takes the branding off --}}
 <div class="divider"></div>
 
 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
     <div>
         {{-- The currencies the admin keeps active (Admin > Currencies); one no longer active stays listed while the plan uses it. --}}
         @php($chosen = old('price_currency', $package->price_currency ?? 'USD'))
-        <label class="form-label" for="price_currency">{{ __('Currency') }}</label>
+        <label class="form-label" for="price_currency">{{ __('Main currency') }}</label>
         <select id="price_currency" name="price_currency" class="form-select" required>
             @unless($currencies->contains('code', $chosen))
                 <option value="{{ $chosen }}" selected>{{ $chosen }}</option>
@@ -18,22 +18,8 @@
             <p class="text-xs mt-1 text-[var(--danger)]">{{ $message }}</p>
         @enderror
     </div>
-    <div>
-        <label class="form-label" for="price_monthly">{{ __('Price a month') }}</label>
-        <input type="number" id="price_monthly" name="price_monthly" min="0" step="0.01" value="{{ old('price_monthly', $package->price_monthly) }}" class="form-input" placeholder="{{ __('Not announced') }}">
-        @error('price_monthly')
-            <p class="text-xs mt-1 text-[var(--danger)]">{{ $message }}</p>
-        @enderror
-    </div>
-    <div>
-        <label class="form-label" for="price_yearly">{{ __('Price a year') }}</label>
-        <input type="number" id="price_yearly" name="price_yearly" min="0" step="0.01" value="{{ old('price_yearly', $package->price_yearly) }}" class="form-input" placeholder="{{ __('Not announced') }}">
-        @error('price_yearly')
-            <p class="text-xs mt-1 text-[var(--danger)]">{{ $message }}</p>
-        @enderror
-    </div>
+    <p class="md:col-span-2 self-end text-xs text-[var(--text-muted)]">{{ __('The Pricing page shows the prices in it, and a business whose own currency the plan has no price in pays in it. The prices are on the Prices card below.') }}</p>
 </div>
-<p class="text-xs -mt-2 mb-4 text-[var(--text-muted)]">{{ __('Shown on the Pricing page and in each business\'s Subscription. Leave a price empty while it is not announced; 0 is free.') }}</p>
 
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
     <div>

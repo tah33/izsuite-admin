@@ -81,7 +81,7 @@ class BillingService
             'open_invoice'    => $open,
             'last_charge'     => $failure,
             'trial_available' => ! $subscription?->trial_starts_on,
-            'packages'        => array_map(fn (array $package) => [...$package, 'current' => $package['key'] === $current?->key], $this->catalog->packages()),
+            'packages'        => array_map(fn (array $package) => [...$package, 'current' => $package['key'] === $current?->key], $this->catalog->packages($workspace)),
             'details'         => $this->billingRepository->for($workspace),
             'excess'          => $this->excess($workspace, $user),
             'card_payments'   => $this->cardPayments->available(),

@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\SignsIntoBusinesses;
+use Tests\Concerns\PricesPlans;
 use Tests\TestCase;
 
 /**
@@ -32,6 +33,7 @@ use Tests\TestCase;
  */
 class SubscriptionAutoChargeTest extends TestCase
 {
+    use PricesPlans;
     use RefreshDatabase;
     use SignsIntoBusinesses;
 
@@ -56,8 +58,10 @@ class SubscriptionAutoChargeTest extends TestCase
         $this->travelTo(Carbon::parse('2026-11-09 10:00:00', 'UTC'));
         $this->fakeStripe();
 
-        Package::where('key', 'standard')->update(['price_monthly' => '19.50', 'price_yearly' => '195.00', 'grace_days' => 5]);
-        Package::where('key', 'premium')->update(['price_monthly' => '49.00', 'price_yearly' => '490.00', 'trial_days' => 14]);
+        Package::where('key', 'standard')->update(['grace_days' => 5]);
+        $this->priced('standard', '19.50', '195.00');
+        Package::where('key', 'premium')->update(['trial_days' => 14]);
+        $this->priced('premium', '49.00', '490.00');
         PaymentMethod::where('slug', 'stripe')->firstOrFail()->update([
             'is_active'   => true, 'is_sandbox' => true,
             'credentials' => ['test' => ['publishable_key' => 'pk_test_123', 'secret_key' => 'sk_test_123', 'webhook_secret' => self::SIGNING]],

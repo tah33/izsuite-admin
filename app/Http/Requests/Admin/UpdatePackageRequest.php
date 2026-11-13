@@ -30,13 +30,13 @@ class UpdatePackageRequest extends FormRequest
      * is no limit. A business already over a lower one keeps what it has - it
      * only cannot add more (Doc 13 section 13.14).
      *
-     * Prices are in the plan's currency; left empty, the price is not yet
-     * announced (section 2). Trial and grace are days - empty, none.
+     * The currency is the plan's main one, for a business whose own it has no
+     * price in; the prices themselves are on the plan's prices card (Doc 15
+     * Phase C3a). Trial and grace are days - empty, none.
      */
     public function rules(): array
     {
         $count = ['nullable', 'integer', 'min:1', 'max:100000'];
-        $price = ['nullable', 'numeric', 'min:0', 'max:9999999999', 'decimal:0,2'];
 
         return [
             'name'             => ['required', 'string', 'max:255'],
@@ -47,8 +47,6 @@ class UpdatePackageRequest extends FormRequest
             'location_limit'   => $count,
             // The plan keeps its own currency whatever the list holds; another must be one of the admin's (Admin > Currencies).
             'price_currency'   => ['required', 'string', 'size:3', 'alpha', Rule::when($this->input('price_currency') !== $this->currentCurrency(), [Rule::exists('currencies', 'code')])],
-            'price_monthly'    => $price,
-            'price_yearly'     => $price,
             'trial_days'       => ['nullable', 'integer', 'min:1', 'max:365'],
             'grace_days'       => ['nullable', 'integer', 'min:1', 'max:90'],
             'removes_branding' => ['boolean'],

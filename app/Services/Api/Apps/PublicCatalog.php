@@ -3,11 +3,14 @@
 namespace App\Services\Api\Apps;
 
 use App\Models\Billing\Package;
+use App\Models\Billing\WorkspaceSubscription;
 use App\Models\Frontend\AppCategory;
 use App\Models\Frontend\Application;
+use App\Models\User\Workspace;
 use App\Repositories\Admin\AppCategoryRepository;
 use App\Repositories\Admin\AppRepository;
 use App\Repositories\Billing\PackageRepository;
+use App\Services\Billing\PackagePricing;
 use Illuminate\Support\Collection;
 
 /**
@@ -22,6 +25,7 @@ class PublicCatalog
         protected AppRepository $apps,
         protected AppCategoryRepository $categories,
         protected PackageRepository $packages,
+        protected PackagePricing $pricing,
     ) {}
 
     /** @return array{categories: list<array>, packages: list<array>} */
@@ -53,11 +57,13 @@ class PublicCatalog
     /**
      * The plans on offer, lowest first: what each costs - prices not yet
      * announced are null - its trial, limits, and the apps it includes. The
-     * Pricing page and a business's Subscription compare them alike.
+     * Pricing page and a business's Subscription compare them alike: the
+     * page in each plan's main currency, a business in the one it pays in
+     * (Doc 15 Phase C3a).
      *
      * @return list<array>
      */
-    public function packages(): array
+    public function packages(?Workspace $workspace = null): array
     {
         return $this->packages->activeWithApps()
             ->map(fn (Package $package) => [
@@ -65,9 +71,9 @@ class PublicCatalog
                 'name'             => $package->name,
                 'description'      => $package->description,
                 'free'             => $package->isFree(),
-                'price_currency'   => $package->price_currency,
-                'price_monthly'    => $package->price_monthly,
-                'price_yearly'     => $package->price_yearly,
+                'price_currency'   => $this->pricing->currencyFor($package, $workspace),
+                'price_monthly'    => $this->pricing->price($package, WorkspaceSubscription::MONTHLY, $workspace)['amount'] ?? null,
+                'price_yearly'     => $this->pricing->price($package, WorkspaceSubscription::YEARLY, $workspace)['amount'] ?? null,
                 'trial_days'       => $package->trial_days,
                 'removes_branding' => $package->removes_branding,
                 'storage_limit_mb' => $package->storage_limit_mb,

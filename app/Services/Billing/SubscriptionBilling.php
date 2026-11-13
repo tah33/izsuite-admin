@@ -70,12 +70,13 @@ class SubscriptionBilling
         private Notifier $notifier,
         private NotificationAudience $audience,
         private SubscriptionCredits $credits,
+        private PackagePricing $pricing,
     ) {}
 
-    /** $package's price for $cycle - null while izSuite has not announced it. */
-    public function price(Package $package, string $cycle): ?string
+    /** $package's price for $cycle, as $workspace pays it today (Doc 15 Phase C3a: its currency's) - null while izSuite has not announced it. */
+    public function price(Package $package, string $cycle, ?Workspace $workspace = null): ?string
     {
-        return $cycle === WorkspaceSubscription::YEARLY ? $package->price_yearly : $package->price_monthly;
+        return $this->pricing->price($package, $cycle, $workspace)['amount'] ?? null;
     }
 
     /**
@@ -84,17 +85,22 @@ class SubscriptionBilling
      * izSuite (Doc 15 Phase C2b, `adjustment`), plus the tax on what is left
      * (Phase D1) - shown before a plan is chosen or changed, and what is
      * invoiced. $lock holds the business's credit while an invoice takes it.
+     * The price is the one the business pays today, in its currency (Doc 15
+     * Phase C3a) - or $price, a renewal's own.
      *
+     * @param  array{currency: string, amount: string}|null  $price
      * @return array{currency: string, amount: string, credit: string, adjustment: string, tax: array{name: ?string, rate: ?string, amount: string, note: ?string}, total: string}
      */
-    public function quote(Workspace $workspace, Package $package, string $cycle, string $credit = '0.00', bool $lock = false): array
+    public function quote(Workspace $workspace, Package $package, string $cycle, string $credit = '0.00', bool $lock = false, ?array $price = null): array
     {
-        $amount     = (string) $this->price($package, $cycle);
-        $adjustment = $this->credits->available($workspace, (string) $package->price_currency, bcsub($amount, $credit, 2), $lock);
+        $price    ??= $this->pricing->price($package, $cycle, $workspace);
+        $currency   = $price['currency'] ?? (string) $package->price_currency;
+        $amount     = $price['amount'] ?? '0.00';
+        $adjustment = $this->credits->available($workspace, $currency, bcsub($amount, $credit, 2), $lock);
         $net        = bcsub(bcsub($amount, $credit, 2), $adjustment, 2);
         $tax        = $this->taxes->for($workspace, $net, $this->calendar->today($workspace));
 
-        return ['currency' => $package->price_currency, 'amount' => $amount, 'credit' => $credit, 'adjustment' => $adjustment, 'tax' => $tax, 'total' => bcadd($net, $tax['amount'], 2)];
+        return ['currency' => $currency, 'amount' => $amount, 'credit' => $credit, 'adjustment' => $adjustment, 'tax' => $tax, 'total' => bcadd($net, $tax['amount'], 2)];
     }
 
     /**
@@ -108,12 +114,12 @@ class SubscriptionBilling
      * Phase C2b). One the credit covers in full is paid by it at once: the
      * receipt goes out in place of the invoice.
      */
-    public function issue(Workspace $workspace, Package $package, string $cycle, ?CarbonInterface $periodStart = null, ?CarbonInterface $dueOn = null, string $kind = SubscriptionInvoice::NEW, string $credit = '0.00'): SubscriptionInvoice
+    public function issue(Workspace $workspace, Package $package, string $cycle, ?CarbonInterface $periodStart = null, ?CarbonInterface $dueOn = null, string $kind = SubscriptionInvoice::NEW, string $credit = '0.00', ?array $price = null): SubscriptionInvoice
     {
         $today   = $this->calendar->today($workspace);
 
-        $invoice = DB::transaction(function () use ($workspace, $package, $cycle, $periodStart, $dueOn, $kind, $credit, $today) {
-            $quote   = $this->quote($workspace, $package, $cycle, $credit, lock: true);
+        $invoice = DB::transaction(function () use ($workspace, $package, $cycle, $periodStart, $dueOn, $kind, $credit, $today, $price) {
+            $quote   = $this->quote($workspace, $package, $cycle, $credit, lock: true, price: $price);
             $invoice = $this->invoices->create($workspace, [
                 'number'               => self::INVOICE_PREFIX.str_pad((string) $this->sequences->next('invoice'), 5, '0', STR_PAD_LEFT),
                 'kind'                 => $kind,
@@ -210,6 +216,8 @@ class SubscriptionBilling
                     $this->subscriptions->save($workspace, [
                         'package_id'            => $invoice->package_id, 'cycle' => $invoice->cycle, 'period_starts_on' => $start->toDateString(), 'period_ends_on' => $end->toDateString(),
                         'cancels_at_period_end' => false, 'scheduled_package_id' => null, 'scheduled_cycle' => null, 'last_notice_on' => null,
+                        // The new plan's price is the one it pays now (Doc 15 Phase C3a); a new price applied to the old plan goes with it.
+                        ...$this->pricePaid($invoice), 'next_price' => null, 'next_price_from' => null,
                     ]);
                     $this->sync->changePackage($workspace, $invoice->package, $admin);
                 }
@@ -228,7 +236,7 @@ class SubscriptionBilling
             }
 
             if ($subscription?->isCurrent() && $subscription->package_id === $invoice->package_id) {
-                $this->subscriptions->save($workspace, ['status' => WorkspaceSubscription::ACTIVE, 'period_starts_on' => $start->toDateString(), 'period_ends_on' => $end->toDateString()]);
+                $this->subscriptions->save($workspace, ['status' => WorkspaceSubscription::ACTIVE, 'period_starts_on' => $start->toDateString(), 'period_ends_on' => $end->toDateString(), ...$this->pricePaid($invoice)]);
 
                 if ($workspace->package_id !== $invoice->package_id) {
                     $this->sync->changePackage($workspace, $invoice->package, $admin);
@@ -260,6 +268,12 @@ class SubscriptionBilling
         });
 
         return $invoice;
+    }
+
+    /** @return array{currency: string, price: string} the price a subscription pays from $invoice on: its plan's, before credits and tax (Doc 15 Phase C3a) */
+    public function pricePaid(SubscriptionInvoice $invoice): array
+    {
+        return ['currency' => $invoice->currency, 'price' => (string) $invoice->amount];
     }
 
     /**

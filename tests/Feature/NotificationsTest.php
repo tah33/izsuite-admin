@@ -24,6 +24,7 @@ use Laravel\Sanctum\Sanctum;
 use RuntimeException;
 use Tests\Concerns\OffersSalesLite;
 use Tests\Concerns\SignsIntoBusinesses;
+use Tests\Concerns\PricesPlans;
 use Tests\TestCase;
 
 /**
@@ -35,6 +36,7 @@ use Tests\TestCase;
 class NotificationsTest extends TestCase
 {
     use OffersSalesLite;
+    use PricesPlans;
     use RefreshDatabase;
     use SignsIntoBusinesses;
 
@@ -98,7 +100,7 @@ class NotificationsTest extends TestCase
         $rahim = $this->member('rahim@example.com', 'sales_user', 'Rahim');
         $salma = $this->member('salma@example.com', 'administrator', 'Salma');
 
-        Package::where('key', 'premium')->update(['price_monthly' => '49.00']);
+        $this->priced('premium', '49.00');
         $this->putJson('/api/v1/subscription/billing-details', ['name' => 'Karim Traders', 'email' => 'accounts@karim.example', 'address' => 'Dhaka', 'country' => 'BD'])->assertOk();
         $id = $this->postJson('/api/v1/subscription', ['package' => 'premium', 'cycle' => 'monthly'])->assertCreated()->json('data.open_invoice.id');
 

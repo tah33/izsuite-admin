@@ -21,9 +21,17 @@ class PackageRepository
     }
 
     /** Every plan, lowest first, with how many apps and businesses it has. */
+    /** Every plan, lowest first, with its counts and the prices in force today (Doc 15 Phase C3a), by currency and cycle. */
     public function allByRankWithCounts(): Collection
     {
-        return Package::withCount(['apps', 'workspaces'])->orderBy('rank')->get();
+        $today = now()->toDateString();
+
+        return Package::withCount(['apps', 'workspaces'])
+            ->with(['prices' => fn ($prices) => $prices->whereDate('starts_on', '<=', $today)
+                ->where(fn ($open) => $open->whereNull('ends_on')->orWhereDate('ends_on', '>=', $today))
+                ->orderBy('currency')->orderBy('cycle')])
+            ->orderBy('rank')
+            ->get();
     }
 
     public function findOrFail(int $id): Package

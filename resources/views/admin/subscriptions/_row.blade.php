@@ -6,7 +6,7 @@
     </td>
     <td class="text-sm">
         {{ $subscription->package?->name }}
-        <span class="block text-xs text-[var(--text-muted)]">{{ __(ucfirst($subscription->cycle)) }} · {{ $subscription->package?->price_currency }}</span>
+        <span class="block text-xs text-[var(--text-muted)]">{{ __(ucfirst($subscription->cycle)) }} · {{ $subscription->price !== null ? $subscription->paysIn().' '.$subscription->price : $subscription->paysIn() }}</span>
         @if($subscription->scheduledPackage)
             <span class="block text-xs text-[var(--warning)]">{{ __('Moving to :plan', ['plan' => $subscription->scheduledPackage->name]) }}</span>
         @endif

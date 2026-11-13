@@ -81,7 +81,7 @@ class SubscriptionAdminService
             'activity'     => $this->businesses->adminActivity($workspace),
             'plans'        => $this->packages(),
             // izSuite's credit not used yet, in the plan's currency (Doc 15 Phase C2b).
-            'credit'       => $this->credits->balance($workspace, (string) $subscription->package?->price_currency),
+            'credit'       => $this->credits->balance($workspace, $subscription->paysIn()),
         ];
     }
 
@@ -299,7 +299,7 @@ class SubscriptionAdminService
     {
         $subscription = $this->find($id);
 
-        return [$subscription->workspace, (string) $subscription->package->price_currency, bcadd($amount, '0', 2)];
+        return [$subscription->workspace, $subscription->paysIn(), bcadd($amount, '0', 2)];
     }
 
     /** The invoice waiting for payment - else the latest - e-mailed again. */
