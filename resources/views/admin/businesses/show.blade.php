@@ -37,6 +37,11 @@
                 <i data-lucide="user" class="w-4 h-4"></i>{{ __('Owner\'s Account') }}
             </a>
         @endif
+        @if($business->subscription && $may('admin.subscriptions.show'))
+            <a href="{{ route('admin.subscriptions.show', $business->subscription->id) }}" class="btn btn-secondary">
+                <i data-lucide="repeat" class="w-4 h-4"></i>{{ __('Subscription') }}
+            </a>
+        @endif
         @if($may('admin.businesses.support-session'))
             <button type="button" class="btn btn-secondary" data-modal-open="support-session-modal">
                 <i data-lucide="life-buoy" class="w-4 h-4"></i>{{ __('Support Session') }}

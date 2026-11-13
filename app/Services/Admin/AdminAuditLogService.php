@@ -65,6 +65,18 @@ class AdminAuditLogService
         ]);
     }
 
+    /**
+     * The rest of this request's entries keep $reason - for a change that
+     * needs one but not the password (Doc 15 section 15.13: every manual
+     * subscription change), made through services that log on their own.
+     */
+    public function withReason(string $reason): void
+    {
+        if (app()->bound('request')) {
+            app(Request::class)->attributes->add([self::REASON => $reason]);
+        }
+    }
+
     /** The rest of this request's entries keep $reason, and that the admin's password was given again. */
     public function approvedWithPassword(string $reason): void
     {

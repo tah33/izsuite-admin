@@ -32,13 +32,13 @@
             </div>
         </a>
 
-        <a href="{{ route('admin.plans.index') }}" class="card flex items-center gap-4 hover:border-transparent transition-all duration-300">
+        <a href="{{ route('admin.subscriptions.index') }}" class="card flex items-center gap-4 hover:border-transparent transition-all duration-300">
             <div class="w-11 h-11 rounded-xl flex items-center justify-center bg-[var(--sidebar-active-bg)] text-[var(--primary)]">
-                <i data-lucide="tag" class="w-5 h-5"></i>
+                <i data-lucide="repeat" class="w-5 h-5"></i>
             </div>
             <div>
-                <p class="font-semibold text-sm text-[var(--text-primary)]">{{ __('Plans') }}</p>
-                <p class="text-xs text-[var(--text-muted)]">{{ __('Pricing') }}</p>
+                <p class="font-semibold text-sm text-[var(--text-primary)]">{{ __('Subscriptions') }}</p>
+                <p class="text-xs text-[var(--text-muted)]">{{ __('Plans and billing') }}</p>
             </div>
         </a>
 

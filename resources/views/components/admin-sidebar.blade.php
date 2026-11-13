@@ -94,14 +94,10 @@
             <span>{{ __('Departments') }}</span>
         </a>
 
-        <a href="{{ route('admin.plans.index') }}" class="sidebar-link {{ request()->routeIs('admin.plans.*') ? 'active' : '' }}">
-            <i data-lucide="tag" class="icon"></i>
-            <span>{{ __('Plans & Pricing') }}</span>
-        </a>
-
+        {{-- Businesses' subscriptions to izSuite's plans (Doc 15 Phase C1); the earlier product's Plans & Pricing and Subscription History are gone. --}}
         <a href="{{ route('admin.subscriptions.index') }}" class="sidebar-link {{ request()->routeIs('admin.subscriptions.*') ? 'active' : '' }}">
-            <i data-lucide="history" class="icon"></i>
-            <span>{{ __('Subscription History') }}</span>
+            <i data-lucide="repeat" class="icon"></i>
+            <span>{{ __('Subscriptions') }}</span>
         </a>
 
         <a href="{{ route('admin.payment-methods.index') }}" class="sidebar-link {{ request()->routeIs('admin.payment-methods.*') ? 'active' : '' }}">

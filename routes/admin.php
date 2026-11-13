@@ -19,7 +19,6 @@ use App\Http\Controllers\Admin\PackageAccessController;
 use App\Http\Controllers\Admin\PackageController;
 use App\Http\Controllers\Admin\PageController;
 use App\Http\Controllers\Admin\PaymentMethodController;
-use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SettingController;
@@ -116,13 +115,16 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     Route::resource('tickets', TicketController::class)->only(['index', 'create', 'store', 'show', 'update'])->parameters(['tickets' => 'id']);
     Route::post('/tickets/{id}/reply', [TicketController::class, 'reply'])->name('tickets.reply');
 
-    Route::get('/subscriptions/create', [SubscriptionController::class, 'create'])->name('subscriptions.create');
-    Route::post('/subscriptions', [SubscriptionController::class, 'store'])->name('subscriptions.store');
-    Route::get('/subscriptions/{id}/invoice', [SubscriptionController::class, 'downloadInvoice'])->name('subscriptions.invoice');
-    Route::patch('/subscriptions/{id}/pause', [SubscriptionController::class, 'pause'])->name('subscriptions.pause');
-    Route::patch('/subscriptions/{id}/resume', [SubscriptionController::class, 'resume'])->name('subscriptions.resume');
+    // Businesses' subscriptions (Doc 15 Phase C1): the list, one with its history, and the actions on it - each its own permission.
     Route::get('/subscriptions', [SubscriptionController::class, 'index'])->name('subscriptions.index');
-    Route::resource('plans', PlanController::class)->except(['show'])->parameters(['plans' => 'id']);
+    Route::get('/subscriptions/{id}', [SubscriptionController::class, 'show'])->whereNumber('id')->name('subscriptions.show');
+    Route::post('/subscriptions/{id}/plan', [SubscriptionController::class, 'changePlan'])->whereNumber('id')->name('subscriptions.plan');
+    Route::post('/subscriptions/{id}/trial', [SubscriptionController::class, 'extendTrial'])->whereNumber('id')->name('subscriptions.trial');
+    Route::post('/subscriptions/{id}/grace', [SubscriptionController::class, 'extendGrace'])->whereNumber('id')->name('subscriptions.grace');
+    Route::post('/subscriptions/{id}/cancel', [SubscriptionController::class, 'scheduleCancellation'])->whereNumber('id')->name('subscriptions.cancel');
+    Route::post('/subscriptions/{id}/undo', [SubscriptionController::class, 'cancelScheduledChange'])->whereNumber('id')->name('subscriptions.undo');
+    Route::post('/subscriptions/{id}/resend', [SubscriptionController::class, 'resend'])->whereNumber('id')->name('subscriptions.resend');
+    Route::post('/subscriptions/{id}/retry', [SubscriptionController::class, 'retry'])->whereNumber('id')->name('subscriptions.retry');
     Route::resource('payment-methods', PaymentMethodController::class)->except(['show'])->parameters(['payment-methods' => 'id']);
 
     Route::get('languages/{id}/translate', [LanguageController::class, 'translate'])->name('languages.translate');

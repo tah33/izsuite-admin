@@ -40,12 +40,15 @@ final class AdminRoles
                 'admin.currencies.index', 'admin.currencies.create', 'admin.currencies.edit', 'admin.currencies.destroy', 'admin.currencies.save-formatting',
                 'admin.clients.index', 'admin.clients.show', 'admin.workspaces.package.review', 'admin.workspaces.package',
                 'admin.businesses.index', 'admin.businesses.show',
+                'admin.subscriptions.index', 'admin.subscriptions.show', 'admin.subscriptions.plan', 'admin.subscriptions.trial', 'admin.subscriptions.grace',
+                'admin.subscriptions.cancel', 'admin.subscriptions.undo', 'admin.subscriptions.resend', 'admin.subscriptions.retry',
             ]],
             // Businesses' and users' support: cases, messages, recovering an account, and read-only support sessions.
             'support-administrator' => ['Support Administrator', [
                 'admin.clients.index', 'admin.clients.show',
                 'admin.clients.verification', 'admin.clients.recovery', 'admin.clients.sign-out', 'admin.clients.two-factor',
                 'admin.businesses.support-session', 'admin.support-sessions.index', 'admin.support-sessions.open', 'admin.support-sessions.end',
+                'admin.subscriptions.index', 'admin.subscriptions.show', 'admin.subscriptions.resend',
                 'admin.businesses.index', 'admin.businesses.show', 'admin.businesses.notify',
                 'admin.tickets.index', 'admin.tickets.show', 'admin.tickets.create', 'admin.tickets.reply', 'admin.tickets.update',
                 'admin.departments.index',
@@ -68,7 +71,7 @@ final class AdminRoles
                 'admin.menu-items.index', 'admin.package-access.index', 'admin.packages.index', 'admin.pages.index',
                 'admin.payment-methods.index', 'admin.roles.index', 'admin.staff.index',
                 'admin.subscription-invoices.index', 'admin.subscription-invoices.pdf', 'admin.subscription-taxes.index',
-                'admin.support-sessions.index', 'admin.tickets.index', 'admin.tickets.show',
+                'admin.subscriptions.index', 'admin.subscriptions.show', 'admin.support-sessions.index', 'admin.tickets.index', 'admin.tickets.show',
             ]],
         ];
     }

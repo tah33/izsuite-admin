@@ -3,32 +3,31 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Admin\StoreSubscriptionRequest;
-use App\Services\Admin\SubscriptionService;
-use App\Services\Invoices\InvoicePdfService;
-use Illuminate\Http\RedirectResponse;
+use App\Http\Requests\Admin\ChangeSubscriptionPlanRequest;
+use App\Http\Requests\Admin\ExtendSubscriptionRequest;
+use App\Http\Requests\Admin\ListSubscriptionsRequest;
+use App\Http\Requests\Admin\SubscriptionReasonRequest;
+use App\Services\Admin\SubscriptionAdminService;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 
+/**
+ * Admin > Subscriptions (Doc 15 section 15.13): businesses' subscriptions to
+ * izSuite's plans, one with its invoices and card tries, and izSuite's
+ * changes to it - each its own permission, and each change with a reason.
+ */
 class SubscriptionController extends Controller
 {
     public function __construct(
-        protected SubscriptionService $subscriptionService,
-        protected InvoicePdfService $invoicePdfService,
+        protected SubscriptionAdminService $subscriptions,
     ) {}
 
-    public function index(Request $request)
+    public function index(ListSubscriptionsRequest $request)
     {
         try {
-            $filters = [
-                'search'        => $request->get('search'),
-                'status'        => $request->get('status'),
-                'billing_cycle' => $request->get('billing_cycle'),
-                'date_from'     => $request->get('date_from'),
-                'date_to'       => $request->get('date_to'),
-            ];
-
-            return view('admin.subscriptions.index', $this->subscriptionService->history($filters));
+            return view('admin.subscriptions.index', [
+                'subscriptions' => $this->subscriptions->page($request->validated()),
+                'packages'      => $this->subscriptions->packages(),
+            ]);
 
         } catch (\Throwable $e) {
             report($e);
@@ -36,10 +35,10 @@ class SubscriptionController extends Controller
         }
     }
 
-    public function create()
+    public function show(int $id)
     {
         try {
-            return view('admin.subscriptions.create', $this->subscriptionService->createFormData());
+            return view('admin.subscriptions.show', $this->subscriptions->details($id));
 
         } catch (\Throwable $e) {
             report($e);
@@ -47,14 +46,10 @@ class SubscriptionController extends Controller
         }
     }
 
-    public function store(StoreSubscriptionRequest $request): RedirectResponse
+    public function changePlan(ChangeSubscriptionPlanRequest $request, int $id)
     {
         try {
-            $this->subscriptionService->subscribe($request->validated());
-
-            return redirect()
-                ->route('admin.subscriptions.index')
-                ->with('success', 'User subscribed to plan successfully.');
+            return $this->adminSuccess($request, $this->subscriptions->changePlan($id, $request->user(), (int) $request->validated('package_id'), $request->validated('cycle'), $request->validated('reason')));
 
         } catch (\Throwable $e) {
             report($e);
@@ -62,23 +57,10 @@ class SubscriptionController extends Controller
         }
     }
 
-    public function pause(int $id): RedirectResponse
+    public function extendTrial(ExtendSubscriptionRequest $request, int $id)
     {
         try {
-            $subscription = $this->subscriptionService->find($id);
-            abort_unless($subscription, 404);
-
-            if ($problem = $this->subscriptionService->pauseProblem($subscription)) {
-                return redirect()
-                    ->route('admin.subscriptions.index')
-                    ->with('error', $problem);
-            }
-
-            $this->subscriptionService->pause($subscription);
-
-            return redirect()
-                ->route('admin.subscriptions.index')
-                ->with('success', 'Subscription paused successfully.');
+            return $this->adminSuccess($request, $this->subscriptions->extendTrial($id, $request->user(), (int) $request->validated('days'), $request->validated('reason')));
 
         } catch (\Throwable $e) {
             report($e);
@@ -86,23 +68,10 @@ class SubscriptionController extends Controller
         }
     }
 
-    public function resume(int $id): RedirectResponse
+    public function extendGrace(ExtendSubscriptionRequest $request, int $id)
     {
         try {
-            $subscription = $this->subscriptionService->find($id);
-            abort_unless($subscription, 404);
-
-            if ($problem = $this->subscriptionService->resumeProblem($subscription)) {
-                return redirect()
-                    ->route('admin.subscriptions.index')
-                    ->with('error', $problem);
-            }
-
-            $this->subscriptionService->resume($subscription);
-
-            return redirect()
-                ->route('admin.subscriptions.index')
-                ->with('success', 'Subscription resumed successfully.');
+            return $this->adminSuccess($request, $this->subscriptions->extendGrace($id, $request->user(), (int) $request->validated('days'), $request->validated('reason')));
 
         } catch (\Throwable $e) {
             report($e);
@@ -110,21 +79,43 @@ class SubscriptionController extends Controller
         }
     }
 
-    public function downloadInvoice(int $id): Response|RedirectResponse
+    public function scheduleCancellation(SubscriptionReasonRequest $request, int $id)
     {
         try {
-            $subscription = $this->subscriptionService->find($id);
-            abort_unless($subscription, 404);
+            return $this->adminSuccess($request, $this->subscriptions->scheduleCancellation($id, $request->user(), $request->validated('reason')));
 
-            $invoice = $this->subscriptionService->latestInvoice($subscription);
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
 
-            if (! $invoice) {
-                return redirect()
-                    ->route('admin.subscriptions.index')
-                    ->with('error', 'No invoice found for this subscription.');
-            }
+    public function cancelScheduledChange(SubscriptionReasonRequest $request, int $id)
+    {
+        try {
+            return $this->adminSuccess($request, $this->subscriptions->cancelScheduledChange($id, $request->user(), $request->validated('reason')));
 
-            return $this->invoicePdfService->download($invoice);
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    public function resend(Request $request, int $id)
+    {
+        try {
+            return $this->adminSuccess($request, $this->subscriptions->resend($id, $request->user()));
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    public function retry(Request $request, int $id)
+    {
+        try {
+            return $this->adminSuccess($request, $this->subscriptions->retry($id, $request->user()));
 
         } catch (\Throwable $e) {
             report($e);

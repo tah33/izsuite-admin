@@ -1,4 +1,5 @@
-{{-- A support action on the account and its reason, which the audit log keeps (Doc 15 section 15.7). Expects $id, $title, $text, $route and $button; $danger for a red button. --}}
+{{-- An admin action and its reason, which the audit log keeps. Expects $id, $title, $text, $route and $button; $danger for
+     a red button; $fields, a view of more fields to show above the reason. --}}
 <div id="{{ $id }}" class="modal-overlay">
     <div class="modal-content">
         <div class="modal-header">
@@ -12,6 +13,9 @@
             @csrf
             <div class="modal-body space-y-4">
                 <p class="text-sm text-[var(--text-secondary)]">{{ $text }}</p>
+                @if(! empty($fields))
+                    @include($fields)
+                @endif
                 <div class="form-group">
                     <label for="{{ $id }}-reason" class="form-label">{{ __('Reason') }}</label>
                     <textarea id="{{ $id }}-reason" name="reason" rows="3" class="form-input" maxlength="500" placeholder="{{ __('Why, for the audit log') }}"></textarea>

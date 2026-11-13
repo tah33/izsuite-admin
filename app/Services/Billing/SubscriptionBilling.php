@@ -318,6 +318,12 @@ class SubscriptionBilling
         ));
     }
 
+    /** The invoice sent again - its receipt, once paid - when izSuite resends it (Doc 15 section 15.13). */
+    public function resend(SubscriptionInvoice $invoice): void
+    {
+        $this->send($invoice, receipt: $invoice->isPaid());
+    }
+
     /** The invoice - or its receipt - by e-mail, to the billing e-mail and the owner; in the app, to those who manage the subscription. */
     private function send(SubscriptionInvoice $invoice, bool $receipt = false): void
     {
