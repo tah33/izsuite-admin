@@ -17,12 +17,6 @@ class ContactMessageRepository
             ->withQueryString();
     }
 
-    /** How many messages nobody has opened yet. */
-    public function countNew(): int
-    {
-        return ContactMessage::where('status', 'new')->count();
-    }
-
     public function find(int $id): ?ContactMessage
     {
         return ContactMessage::with(['user', 'replier'])->find($id);

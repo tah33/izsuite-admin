@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-14
-- **Code:** Doc 15 Phase C3b (promotions) is on `main` in the admin commit right after `e290028`, and on `nuxt` in the frontend commit right after `128f85f`.
-- **Tests:** 783 backend tests pass (last full run 2026-11-14, on this code, on the second PC).
-- **Next step:** Doc 15 Phase D: the dashboard, usage and service health (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 15 Phase D1 (the Overview) is on `main` in the admin commit right after `e49c71e`. It changed nothing in the frontend, which stays at `4bd877b` on `nuxt`.
+- **Tests:** 786 backend tests pass (last full run 2026-11-14, on this code, on the second PC).
+- **Next step:** Doc 15 Phase D2: usage and its history (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 15 Phase D.
+   > Read PROJECT_STATUS.md, then start Doc 15 Phase D2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -40,7 +40,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 12 | Users, Roles, Permissions and Locations | Done, except package change rules (Doc 13) |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
-| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phases A, B and C done (2026-11-14), D next** |
+| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phases A, B, C and D1 done (2026-11-14), D2 next** |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -314,7 +314,7 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 - Share links that expire. They stay until revoked.
 - Imports beyond contacts and items.
 
-### 3. Doc 15: izSuite System Administration Portal (next: Phase D)
+### 3. Doc 15: izSuite System Administration Portal (next: Phase D2)
 
 The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign-in) had grown through Docs 01 to 14, partly from the earlier recruitment product, and was checked against all 27 sections.
 
@@ -652,18 +652,34 @@ B3 was split again on starting it (2026-11-13), as a support session names a sup
 
   The check found the countries hint written for a plain list, where the admin's Select2 box searches; fixed. The browser pane was hidden, so most of it was checked from the page text. The check's promotion, prices, subscription, invoice, numbering, billing details, activity, audit entries, sign-ins and the app's token were then removed, workspace 1's setup undone, and the admin's two-factor reset.
 
-**Phase D: the dashboard, usage and service health** (sections 4, 18 and 23):
+**Phase D: the dashboard, usage and service health** (sections 4, 18 and 23) was split on starting it (2026-11-14): D1, the Overview; D2, usage and its history; D3, service health and incidents.
 
-- **The Overview with real figures:**
-  - businesses: all, active, on each plan, on trial, past due, in grace and suspended;
-  - new sign-ups and active users;
-  - the most activated apps, and storage used;
-  - subscription revenue and failed payments;
-  - failed background jobs, and alerts.
+**Phase D1: the Overview** (section 4) is built, with these defaults:
 
-  It filters by dates, country, plan, subscription status, app and currency, and shows no business's transactions.
+- **Admin > Overview** (the sidebar's Dashboard) has real figures in place of the earlier product's (Pro Users and Monthly Revenue at 0, and a chart of accounts by month).
+- **The businesses now:** all, Active, on a trial, Past Due (as Admin > Subscriptions has it: running, its renewal's card refused), in grace and Suspended, and how many are on each plan, with Open Businesses.
+- **The chosen days** (the last 30, today included, unless chosen):
+  - new businesses, with a chart by day (or by month, from 92 days);
+  - new accounts: website accounts made, an owner's at sign-up or an invited user's;
+  - active users: website accounts that signed in, used the app (a token used) or changed a record a business's Activity Log keeps.
+- **The most activated apps** (the five most businesses have active), and **storage**: what the businesses' files take, and how many use 80% of their plan's storage or more.
+- **Background jobs:** failed in the days, failed ones kept in all, and jobs waiting on the queue now.
+- **Subscription billing**, by currency and never mixed: invoices paid in the days and what they came to (tax included), refunds made in them, revenue (the two apart), and card payments that did not go through (tries, businesses, amount), with Open Billing Reports. It shows only to admins who may open Billing Reports.
+- **Filters** in one row: the days, plan, subscription (as Admin > Businesses), country (the business's) and app (one it has active) pick the businesses every figure counts; the currency picks the billing's. Days are in UTC. Only sums and counts show, never a business's own transactions.
+- No migration, and nothing changes in the frontend.
+- Platform service alerts wait for D3, which makes them.
+- Checked in the browser as the seeded admin, on dev's own data (workspace 1 on Billing Starter, with three apps): the figures, the chart by day and, for 2026, by month, the apps' bars, the billing table empty ("Nothing paid, refunded or refused in these days."), and reversed days refused under the filters ("The last day cannot come before the first.").
+
+  The check found the chart's canvas, drawn while the browser pane was hidden, wider than its card, which made the whole page scroll sideways; its box now clips it. The page only reads, so the check left nothing to remove.
+
+**Phase D2: usage and its history** (section 18):
+
 - **Usage:** each business's users, locations, storage and apps against its limits, with the warning state, as a list to sort and filter. A daily snapshot gives its history.
+
+**Phase D3: service health and incidents** (section 23):
+
 - **Service health:** the database, file storage, the queue (jobs waiting and failed, and retrying a failed one where safe), e-mail delivery (failed notifications and document e-mails), Stripe (its last webhook and failed calls), imports and exports, failed sign-ins, and alerts. Incidents keep notes, the admin responsible and their status. A retry never sends an invoice, payment or e-mail twice.
+- The Overview then shows the platform's alerts too.
 
 **Phase E: the catalogue and packages in depth** (sections 8, 10 and 12):
 
@@ -897,7 +913,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 15: Phase C2a, payments and refunds | `c33db1a` | `e681985` | 000132 |
 | Doc 15: Phase C2b, credits and billing reports | `5b923ed` | `d40ee05` | 000133 |
 | Doc 15: Phase C3a, prices in several currencies | `e290028` | `128f85f` | 000134 |
-| Doc 15: Phase C3b, promotions | the commit after `e290028` | the commit after `128f85f` | 000135 |
+| Doc 15: Phase C3b, promotions | `e49c71e` | `4bd877b` | 000135 |
+| Doc 15: Phase D1, the Overview | the commit after `e49c71e` | | none |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -1112,6 +1129,7 @@ These are easy to undo by mistake.
   - A subscription keeps `currency` and `price`, set from its first invoice at subscribing, from an upgrade or first payment confirmed (`SubscriptionBilling::pricePaid()`), and from the renewal when a move down takes effect. `SubscriptionCycle::renewal()` charges `renewalPrice()`. A new price applied is `next_price` from `next_price_from`, taken as `price` when the first renewal on or after that day is issued. `WorkspaceSubscription::paysIn()` is its currency, else its plan's.
   - Applying a price is `PackageService::applyPrice()`: `CriticalActionService`, then `WorkspaceSubscriptionRepository::payingOther()`, then `SubscriptionNoticeMail` kind `price_change` through `SubscriptionBilling::notice()`.
   - In the tests, a plan's prices come from `Tests\Concerns\PricesPlans::priced()`.
+- Admin > Overview (Doc 15 Phase D1) is `OverviewService::dashboard()` over `App\Repositories\Admin\OverviewRepository`. Its business filters are `BusinessRepository::narrow()`, which Admin > Businesses uses too (with an app filter it does not show yet); Past Due is `SubscriptionAdminRepository::pastDue()`. Website accounts are those with `ClientRepository::ROLE`. Jobs waiting is `Queue::size()` on the default queue: "Queue not reached" when it cannot be asked.
 - Promotion codes (Doc 15 Phase C3b, migration 000135) are `promotions`, checked by `App\Services\Billing\Promotions::forSubscribing()` (refusing on the `code` field) and worked out by `discountOn()`. Only `SubscriptionService::subscribe()` and `quote()` take a code.
   - `SubscriptionBilling::quote()` and `issue()` take a `Promotion`; the quote has `discount`, `promotion` and `renews_at`. The discount comes off first, then credits, then tax on what is left. The invoice keeps `discount`, `promotion_id` and `promotion_code` (the code as it was), and `SubscriptionInvoice::net()` takes the discount off too.
   - A use is an invoice with the promotion that is not void (`PromotionRepository::uses()`). `subscribe()` checks the code before its transaction, then again inside it with the promotion row locked.
@@ -1168,4 +1186,5 @@ Each of these is yours to settle.
 - Doc 15 Phase C2b: migration 000133 adds izSuite's credit (`subscription_credits`, and `adjustment` on the invoices) and gives the roles the credits and the billing reports. The credit notices go through the queue worker.
 - Doc 15 Phase C3a: migration 000134 moves each plan's prices into `package_prices`, in force from the start, records on each subscription the price it pays, and drops the two price columns from `packages`. Look over each plan's Prices card after it. The price-change e-mails go through the queue worker.
 - Doc 15 Phase C3b: migration 000135 adds `promotions`, the invoices' `discount`, `promotion_id` and `promotion_code`, and gives the roles Admin > Promotions. Nothing else changes until a code is added.
+- Doc 15 Phase D1: no migration. The Overview asks the queue for its size, so the web app needs to reach the queue's Redis, as the workers do.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

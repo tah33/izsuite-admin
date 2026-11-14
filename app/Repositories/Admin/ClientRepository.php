@@ -23,8 +23,8 @@ use Illuminate\Pipeline\Pipeline;
  */
 class ClientRepository
 {
-    /** The role every self-registered account gets (see AuthService). */
-    private const ROLE = 'user';
+    /** The role every self-registered account gets (see AuthService): the people Admin > Users lists, and Admin > Overview counts. */
+    public const ROLE = 'user';
 
     /**
      * Newest first, each with the businesses it owns and their plans, how

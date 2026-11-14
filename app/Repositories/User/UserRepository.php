@@ -15,37 +15,6 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 class UserRepository
 {
-    public function getTotalCount(): int
-    {
-        return $this->frontendUsersQuery()->count();
-    }
-
-    public function getActiveCount(): int
-    {
-        return $this->frontendUsersQuery()
-            ->whereNotNull('last_login_at')
-            ->where('last_login_at', '>=', now()->subDays(30))
-            ->count();
-    }
-
-    public function getGrowthHistory(int $months = 6): array
-    {
-        $data = [];
-
-        for ($i = $months - 1; $i >= 0; $i--) {
-            $date   = now()->subMonths($i);
-            $data[] = [
-                'label' => $date->format('M'),
-                'value' => $this->frontendUsersQuery()
-                    ->whereMonth('created_at', $date->month)
-                    ->whereYear('created_at', $date->year)
-                    ->count(),
-            ];
-        }
-
-        return $data;
-    }
-
     public function getPaginated(string $roleSlug, ?string $search = null, int $perPage = 15): LengthAwarePaginator
     {
         return app(Pipeline::class)
@@ -227,15 +196,5 @@ class UserRepository
         $user->save();
 
         return $user;
-    }
-
-    /**
-     * Users that are not platform staff (admins).
-     * Kept generic so OverviewService stats stay valid after the
-     * recruitment backend was removed.
-     */
-    protected function frontendUsersQuery(): Builder
-    {
-        return User::query()->where('role_id', '!=', Role::SUPER_ADMIN_ID);
     }
 }

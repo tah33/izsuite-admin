@@ -3,6 +3,7 @@
 namespace App\Repositories\Admin;
 
 use App\Models\Admin\AdminAuditLog;
+use App\Models\Billing\Package;
 use App\Models\Billing\WorkspaceSubscription;
 use App\Models\Shared\ActivityLog;
 use App\Models\User\BusinessSetting;
@@ -74,6 +75,21 @@ class BusinessRepository
             ->get();
     }
 
+    /**
+     * $query's businesses narrowed by $filters - status, package (key),
+     * country, subscription and app (the ID of an app it has active) - as
+     * Admin > Businesses and Admin > Overview (Doc 15 Phase D1) filter them.
+     */
+    public function narrow(Builder $query, array $filters): Builder
+    {
+        return $query
+            ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('workspaces.status', $status))
+            ->when($filters['package'] ?? null, fn (Builder $query, string $key) => $query->whereIn('workspaces.package_id', Package::query()->select('id')->where('key', $key)))
+            ->when($filters['country'] ?? null, fn (Builder $query, string $country) => $query->whereHas('businessSetting', fn (Builder $setting) => $setting->where('country', $country)))
+            ->when($filters['subscription'] ?? null, fn (Builder $query, string $status) => $this->onSubscription($query, $status))
+            ->when($filters['app'] ?? null, fn (Builder $query, int|string $app) => $query->whereHas('workspaceApps', fn (Builder $apps) => $apps->where('app_id', (int) $app)->where('status', WorkspaceApp::STATUS_ACTIVE)));
+    }
+
     private function query(array $filters): Builder
     {
         $query = $this->withCounts(Workspace::query()->select('workspaces.*'))
@@ -81,7 +97,7 @@ class BusinessRepository
             ->addSelect(['packages.user_limit as plan_user_limit', 'packages.location_limit as plan_location_limit', 'packages.storage_limit_mb as plan_storage_mb'])
             ->with('businessSetting:id,workspace_id,country');
 
-        return $query
+        return $this->narrow($query, $filters)
             ->when($filters['search'] ?? null, function (Builder $query, string $search) {
                 $like = '%'.addcslashes($search, '%_\\').'%';
                 $id   = (int) ltrim(preg_replace('/^BW-?/i', '', $search) ?? '', '0');
@@ -91,10 +107,6 @@ class BusinessRepository
                     ->when($id > 0 && preg_match('/^(BW-?)?\d+$/i', $search), fn (Builder $query) => $query->orWhere('workspaces.id', $id))
                     ->orWhereHas('user', fn (Builder $owner) => $owner->where('email', 'like', $like)->orWhere('first_name', 'like', $like)->orWhere('last_name', 'like', $like)));
             })
-            ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('workspaces.status', $status))
-            ->when($filters['package'] ?? null, fn (Builder $query, string $key) => $query->where('packages.key', $key))
-            ->when($filters['country'] ?? null, fn (Builder $query, string $country) => $query->whereHas('businessSetting', fn (Builder $setting) => $setting->where('country', $country)))
-            ->when($filters['subscription'] ?? null, fn (Builder $query, string $status) => $this->onSubscription($query, $status))
             ->when($filters['from'] ?? null, fn (Builder $query, string $from) => $query->where('workspaces.created_at', '>=', $from.' 00:00:00'))
             ->when($filters['to'] ?? null, fn (Builder $query, string $to) => $query->where('workspaces.created_at', '<=', $to.' 23:59:59'))
             // HAVING reads the counts' aliases; grouped by both keys, as SQLite needs a GROUP BY for it and MySQL's full group-by mode is satisfied.

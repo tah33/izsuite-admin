@@ -101,8 +101,8 @@ class SubscriptionAdminRepository
         };
     }
 
-    /** Its renewal waiting for payment, and its latest card try one that did not go through. */
-    private function pastDue(QueryBuilder $query): QueryBuilder
+    /** Its renewal waiting for payment, and its latest card try one that did not go through - an exists subquery of `workspace_subscriptions`, Admin > Overview's too. */
+    public function pastDue(QueryBuilder $query): QueryBuilder
     {
         return $query->selectRaw('1')
             ->from('subscription_invoices')
