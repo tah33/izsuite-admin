@@ -10,6 +10,7 @@ use App\Repositories\Admin\RoleRepository;
 use App\Repositories\User\UserRepository;
 use App\Services\Api\Profile\TwoFactorService;
 use App\Services\Shared\ActivityLogService;
+use App\Services\Shared\ConsentRecords;
 use App\Services\Shared\SupportSessionService;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Arr;
@@ -52,6 +53,7 @@ class AuthService
         protected TwoFactorService $twoFactor,
         protected SignInChallenges $challenges,
         protected SupportSessionService $supportSessions,
+        protected ConsentRecords $consents,
     ) {}
 
     /**
@@ -83,6 +85,10 @@ class AuthService
                 // cannot say which version of the terms was in force.
                 'terms_accepted_at' => now(),
             ]);
+
+            // Doc 15 Phase G3: what was consented to, kept as records.
+            $this->consents->acceptedTerms($user, 'registration');
+            $this->consents->setMarketing($user, (bool) ($data['marketing'] ?? false), 'registration');
 
             return $user;
         });
@@ -134,6 +140,9 @@ class AuthService
             ...array_filter(Arr::only($data, ['phone', 'language', 'timezone']), fn ($value) => $value !== null && $value !== ''),
         ]);
 
+        $this->consents->acceptedTerms($user, 'invitation');
+        $this->consents->setMarketing($user, (bool) ($data['marketing'] ?? false), 'invitation');
+
         ActivityLogService::record('created', 'Registered an izSuite account from an invitation', $user, ['source' => 'api']);
 
         $token = $this->userRepository->createToken($user, self::DEFAULT_DEVICE_NAME, ['*'], $this->tokenExpiry(false), request()->ip(), request()->userAgent());
@@ -172,6 +181,10 @@ class AuthService
 
         if ($user->status === User::LOCKED) {
             abort(403, 'This account is locked. Contact izSuite support to unlock it.');
+        }
+
+        if ($user->status === User::CLOSED) {
+            abort(403, 'This account is closed, as its holder asked. Contact izSuite support if you need it again.');
         }
 
         if ($user->status !== User::ACTIVE) {

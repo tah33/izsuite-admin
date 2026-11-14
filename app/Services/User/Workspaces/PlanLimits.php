@@ -3,6 +3,7 @@
 namespace App\Services\User\Workspaces;
 
 use App\Models\Billing\Package;
+use App\Models\Billing\PackageVersion;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\Billing\PackageRepository;
@@ -21,7 +22,9 @@ use Illuminate\Http\Exceptions\HttpResponseException;
  * over one - after a downgrade, or a limit lowered - keeps everything; it only
  * cannot add more, until its owner chooses what stays active (OverLimitService).
  * A business's users are its members who are active or invited (Doc 12
- * section 3) - its owner among them; its locations, the active ones.
+ * section 3) - its owner among them; its locations, the active ones. Its
+ * limits are those of the plan's version it is held to, if any (Doc 15
+ * Phase E3b: Workspace::terms()).
  */
 class PlanLimits
 {
@@ -50,10 +53,10 @@ class PlanLimits
 
     public function ensureCanAddUser(Workspace $workspace): void
     {
-        $package = $this->workspaceRepository->packageOf($workspace);
+        $terms = $this->workspaceRepository->termsOf($workspace);
 
-        if ($package?->user_limit !== null && $this->users($workspace) >= $package->user_limit) {
-            $this->refuse($this->reached($package, $package->user_limit, 'user', 'users').' Upgrade the plan to add users.');
+        if ($terms?->user_limit !== null && $this->users($workspace) >= $terms->user_limit) {
+            $this->refuse($this->reached($terms, $terms->user_limit, 'user', 'users').' Upgrade the plan to add users.');
         }
     }
 
@@ -74,10 +77,10 @@ class PlanLimits
     /** A location added - or an inactive one turned on again - needs room under the plan. */
     public function ensureCanAddLocation(Workspace $workspace): void
     {
-        $package = $this->workspaceRepository->packageOf($workspace);
+        $terms = $this->workspaceRepository->termsOf($workspace);
 
-        if ($package?->location_limit !== null && $this->locations($workspace) >= $package->location_limit) {
-            $this->refuse($this->reached($package, $package->location_limit, 'location', 'locations').' Upgrade the plan to add another.');
+        if ($terms?->location_limit !== null && $this->locations($workspace) >= $terms->location_limit) {
+            $this->refuse($this->reached($terms, $terms->location_limit, 'location', 'locations').' Upgrade the plan to add another.');
         }
     }
 
@@ -91,12 +94,12 @@ class PlanLimits
      */
     public function usage(Workspace $workspace): array
     {
-        $package = $this->workspaceRepository->packageOf($workspace);
+        $terms = $this->workspaceRepository->termsOf($workspace);
 
         return [
             'storage'   => $this->storageUsage->summary($workspace),
-            'users'     => self::count($this->users($workspace), $package?->user_limit),
-            'locations' => self::count($this->locations($workspace), $package?->location_limit),
+            'users'     => self::count($this->users($workspace), $terms?->user_limit),
+            'locations' => self::count($this->locations($workspace), $terms?->location_limit),
         ];
     }
 
@@ -130,10 +133,12 @@ class PlanLimits
         return $this->locationRepository->countActiveFor($workspace);
     }
 
-    /** "Billing Starter includes one user." */
-    private function reached(Package $package, int $limit, string $one, string $many): string
+    /** "Billing Starter includes one user." - by the plan's terms the business is held to (Doc 15 Phase E3b). */
+    private function reached(Package|PackageVersion $terms, int $limit, string $one, string $many): string
     {
-        return "{$package->name} includes ".($limit === 1 ? "one {$one}" : "{$limit} {$many}").'.';
+        $plan = $terms instanceof PackageVersion ? $terms->package->name : $terms->name;
+
+        return "{$plan} includes ".($limit === 1 ? "one {$one}" : "{$limit} {$many}").'.';
     }
 
     private function refuse(string $message): never

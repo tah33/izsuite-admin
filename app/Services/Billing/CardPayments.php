@@ -2,10 +2,13 @@
 
 namespace App\Services\Billing;
 
+use App\Models\Admin\ServiceEvent;
 use App\Models\Billing\SubscriptionInvoice;
 use App\Models\Billing\SubscriptionPayment;
 use App\Models\Billing\WorkspaceCard;
 use App\Models\User\Workspace;
+use App\Repositories\Admin\PaymentMethodRepository;
+use App\Repositories\Admin\ServiceEventRepository;
 use App\Repositories\Billing\SubscriptionInvoiceRepository;
 use App\Repositories\Billing\SubscriptionPaymentRepository;
 use App\Repositories\Billing\WorkspaceCardRepository;
@@ -48,11 +51,25 @@ class CardPayments
         private WorkspaceBillingRepository $billingDetails,
         private WorkspaceRepository $workspaces,
         private SubscriptionRefunds $refunds,
+        private ServiceEventRepository $events,
+        private PaymentMethodRepository $methods,
     ) {}
 
-    public function available(): bool
+    /**
+     * Whether cards are taken: the provider switched on with its keys - and,
+     * for $workspace, offered where it is billed (Doc 15 Phase F3b).
+     */
+    public function available(?Workspace $workspace = null): bool
     {
-        return $this->gateway->available();
+        return $this->gateway->available() && ($workspace === null || $this->offeredTo($workspace));
+    }
+
+    /** Whether the provider is offered where $workspace is billed - everywhere until it has a billing country. */
+    public function offeredTo(Workspace $workspace): bool
+    {
+        $method = $this->methods->findOnlineBySlug($this->gateway->name());
+
+        return ! $method || $method->offeredIn($this->billingDetails->for($workspace)?->country);
     }
 
     /** The business's saved card, in the mode payments are taken in - null without one. */
@@ -84,13 +101,22 @@ class CardPayments
     /** The provider's notification: the checkout, payment or refund (Doc 15 Phase C2a) it reports, settled. Throws InvalidNotification. */
     public function notified(string $payload, ?string $signature): void
     {
-        $outcome = $this->gateway->notified($payload, $signature);
+        try {
+            $outcome = $this->gateway->notified($payload, $signature);
 
-        if ($outcome instanceof RefundOutcome) {
-            $this->refunds->settle($outcome);
-        } elseif ($outcome) {
-            $this->settle($outcome);
+            if ($outcome instanceof RefundOutcome) {
+                $this->refunds->settle($outcome);
+            } elseif ($outcome) {
+                $this->settle($outcome);
+            }
+        } catch (\Throwable $e) {
+            // Refused or failed, for Admin > Service Health (Doc 15 Phase D3a) - the provider sends it again.
+            $this->events->record($this->gateway->name(), ServiceEvent::WEBHOOK, false, $e->getMessage());
+
+            throw $e;
         }
+
+        $this->events->record($this->gateway->name(), ServiceEvent::WEBHOOK, true);
     }
 
     /**
@@ -98,7 +124,8 @@ class CardPayments
      * D3), on business day $day - once a day, unless $now: the business asks
      * itself. Taken, the invoice is paid as settle() does; refused, the
      * attempt is kept with why. Null when there is nothing to try: no card,
-     * card payments off, tried today, one still processing, or - unless
+     * card payments off or not offered where the business is billed (Doc 15
+     * Phase F3b), tried today, one still processing, or - unless
      * $now, which answers 502 - the provider not answering.
      */
     public function charge(SubscriptionInvoice $invoice, string $day, bool $now = false): ?SubscriptionPayment
@@ -106,7 +133,7 @@ class CardPayments
         $workspace = $invoice->workspace;
         $card      = $this->card($workspace);
 
-        if (! $card || ! $invoice->isOpen() || ! $this->gateway->available()
+        if (! $card || ! $invoice->isOpen() || ! $this->available($workspace)
             || (! $now && $this->payments->attemptedOn($invoice, $day)) || $this->payments->pendingFor($invoice)) {
             return null;
         }

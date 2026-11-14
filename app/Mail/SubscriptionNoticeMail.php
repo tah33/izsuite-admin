@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\UsesEmailTemplate;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -21,7 +22,7 @@ use Illuminate\Queue\SerializesModels;
  */
 class SubscriptionNoticeMail extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable, SerializesModels, UsesEmailTemplate;
 
     public const TRIAL_ENDING = 'trial_ending';
 
@@ -47,10 +48,10 @@ class SubscriptionNoticeMail extends Mailable implements ShouldQueue
 
     public function envelope(): Envelope
     {
-        $plan = $this->details['plan'];
+        $plan = $this->details['plan'] ?? null;
         $days = $this->details['days_left'] ?? null;
 
-        return new Envelope(subject: match ($this->kind) {
+        return new Envelope(subject: $this->templated()['subject'] ?? match ($this->kind) {
             self::TRIAL_ENDING => $days === 1 ? "Your {$plan} trial ends tomorrow" : "Your {$plan} trial ends in {$days} days",
             self::GRACE        => $days === 0
                 ? "Last day to renew your {$plan} subscription"
@@ -62,15 +63,35 @@ class SubscriptionNoticeMail extends Mailable implements ShouldQueue
         });
     }
 
+    /** In the admin's words when it wrote them (Doc 15 Phase F2), else these. */
     public function content(): Content
     {
+        if ($words = $this->templated()) {
+            return $this->templatedContent($words);
+        }
+
         return new Content(
             view: 'emails.subscription-notice',
             with: [
                 'kind'    => $this->kind,
                 'details' => $this->details,
-                'link'    => rtrim((string) config('app.frontend_url'), '/').'/settings?tab=subscription',
+                'link'    => $this->link(),
             ],
         );
+    }
+
+    protected function templateKey(): string
+    {
+        return "subscription.{$this->kind}";
+    }
+
+    protected function templateVariables(): array
+    {
+        return [...$this->details, 'link' => $this->link()];
+    }
+
+    private function link(): string
+    {
+        return rtrim((string) config('app.frontend_url'), '/').'/settings?tab=subscription';
     }
 }

@@ -72,7 +72,8 @@ class BillingService
         $shown        = $status === WorkspaceSubscription::ACTIVE && $subscribed?->cancels_at_period_end ? 'cancellation_scheduled' : $status;
 
         return [
-            'package'         => $current ? ['key' => $current->key, 'name' => $current->name, 'removes_branding' => $current->removes_branding] : null,
+            // Its branding by the plan's terms it is held to (Doc 15 Phase E3b).
+            'package'         => $current ? ['key' => $current->key, 'name' => $current->name, 'removes_branding' => (bool) $workspace->terms()?->removes_branding] : null,
             // Past due: the renewal's card refused while the paid period still runs.
             'status'          => $shown === WorkspaceSubscription::ACTIVE && $failure && $failure->status !== SubscriptionPayment::PROCESSING
                 && $open->kind === SubscriptionInvoice::RENEWAL ? 'past_due' : $shown,
@@ -84,7 +85,7 @@ class BillingService
             'packages'        => array_map(fn (array $package) => [...$package, 'current' => $package['key'] === $current?->key], $this->catalog->packages($workspace)),
             'details'         => $this->billingRepository->for($workspace),
             'excess'          => $this->excess($workspace, $user),
-            'card_payments'   => $this->cardPayments->available(),
+            'card_payments'   => $this->cardPayments->available($workspace),
             'card'            => $this->cardPayments->card($workspace),
             // izSuite's credit not used yet, by currency (Doc 15 Phase C2b).
             'credits'         => $this->credits->balances($workspace),

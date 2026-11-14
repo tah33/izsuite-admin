@@ -105,4 +105,8 @@
             {{ __('Refused if it is the app\'s own family, if it would go round in a circle, or if the required app is only in a higher plan than this one.') }}
         </p>
     </div>
+
+    @if($app->status !== \App\Models\Frontend\Application::RETIRED && auth()->user()->role?->hasPermission('admin.apps.retire'))
+        @include('admin.apps._retire')
+    @endif
 @endsection

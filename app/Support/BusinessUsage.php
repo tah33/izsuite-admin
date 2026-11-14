@@ -11,13 +11,14 @@ use Illuminate\Support\Str;
  * limit above one, or past any - as the list's filter has it, so a Billing
  * Starter business at its one user is not flagged. Expects the counts
  * BusinessRepository loads: users_count, locations_count and storage_bytes.
+ * The limits are the plan's terms it is held to (Doc 15 Phase E3b).
  */
 final class BusinessUsage
 {
     /** @return list<array{label: string, reached: bool}> */
     public static function of(Workspace $workspace): array
     {
-        $plan  = $workspace->package;
+        $plan  = $workspace->terms();
         $bytes = (int) ($workspace->storage_bytes ?? 0);
         $limit = $plan?->storage_limit_mb ? $plan->storage_limit_mb * 1048576 : null;
 

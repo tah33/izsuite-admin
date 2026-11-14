@@ -20,20 +20,24 @@ final class AdminRoles
     public static function templates(): array
     {
         return [
-            // Apps Center, package features, application availability, the website's words.
+            // Apps Center, package features, application availability, countries and their defaults, the website's words.
             'product-administrator' => ['Product Administrator', [
                 'admin.app-categories.index', 'admin.app-categories.create', 'admin.app-categories.edit', 'admin.app-categories.destroy', 'admin.app-categories.toggle-status',
-                'admin.apps.index', 'admin.apps.create', 'admin.apps.edit', 'admin.apps.destroy', 'admin.apps.dependencies.store', 'admin.apps.dependencies.destroy',
+                'admin.apps.index', 'admin.apps.create', 'admin.apps.edit', 'admin.apps.destroy', 'admin.apps.dependencies.store', 'admin.apps.dependencies.destroy', 'admin.apps.retire',
                 'admin.packages.index', 'admin.package-access.index', 'admin.package-access.update',
                 'admin.menu-items.index', 'admin.menu-items.create', 'admin.menu-items.edit', 'admin.menu-items.destroy', 'admin.menu-items.reorder',
                 'admin.pages.index', 'admin.pages.create', 'admin.pages.edit', 'admin.pages.destroy',
                 'admin.faqs.index', 'admin.faqs.create', 'admin.faqs.edit', 'admin.faqs.destroy',
                 'admin.content.index', 'admin.content.update', 'admin.content.items.store', 'admin.content.items.update', 'admin.content.items.destroy', 'admin.content.items.reorder', 'admin.content.upload-image',
                 'admin.languages.index', 'admin.languages.create', 'admin.languages.edit', 'admin.languages.destroy', 'admin.languages.translate', 'admin.languages.save-translations',
+                'admin.countries.index', 'admin.countries.edit', 'admin.countries.version-remove',
+                'admin.feature-flags.index', 'admin.feature-flags.create', 'admin.feature-flags.edit', 'admin.feature-flags.destroy', 'admin.feature-flags.switch',
+                'admin.announcements.index', 'admin.announcements.create', 'admin.announcements.edit', 'admin.announcements.destroy',
+                'admin.email-templates.index', 'admin.email-templates.edit', 'admin.email-templates.preview', 'admin.email-templates.test', 'admin.email-templates.restore',
             ]],
             // Packages and prices, subscriptions, platform invoices, payments and taxes.
             'billing-administrator' => ['Billing Administrator', [
-                'admin.packages.index', 'admin.packages.edit', 'admin.packages.price', 'admin.packages.price-remove', 'admin.packages.price-apply',
+                'admin.packages.index', 'admin.packages.edit', 'admin.packages.price', 'admin.packages.price-remove', 'admin.packages.price-apply', 'admin.packages.version-remove',
                 'admin.subscription-invoices.index', 'admin.subscription-invoices.show', 'admin.subscription-invoices.pdf', 'admin.subscription-invoices.confirm', 'admin.subscription-invoices.void',
                 'admin.payments.index', 'admin.payments.refund', 'admin.refunds.index', 'admin.credits.index', 'admin.billing-reports.index',
                 'admin.subscription-taxes.index', 'admin.subscription-taxes.create', 'admin.subscription-taxes.edit', 'admin.subscription-taxes.destroy',
@@ -45,7 +49,7 @@ final class AdminRoles
                 'admin.subscriptions.index', 'admin.subscriptions.show', 'admin.subscriptions.plan', 'admin.subscriptions.trial', 'admin.subscriptions.grace',
                 'admin.subscriptions.cancel', 'admin.subscriptions.undo', 'admin.subscriptions.resend', 'admin.subscriptions.retry',
                 'admin.subscriptions.credit', 'admin.subscriptions.credit-remove',
-                'admin.usage.index', 'admin.usage.show',
+                'admin.usage.index', 'admin.usage.show', 'admin.service-health.index', 'admin.incidents.index', 'admin.incidents.show',
             ]],
             // Businesses' and users' support: cases, messages, recovering an account, and read-only support sessions.
             'support-administrator' => ['Support Administrator', [
@@ -53,25 +57,36 @@ final class AdminRoles
                 'admin.clients.verification', 'admin.clients.recovery', 'admin.clients.sign-out', 'admin.clients.two-factor',
                 'admin.businesses.support-session', 'admin.support-sessions.index', 'admin.support-sessions.open', 'admin.support-sessions.end',
                 'admin.subscriptions.index', 'admin.subscriptions.show', 'admin.subscriptions.resend',
-                'admin.businesses.index', 'admin.businesses.show', 'admin.businesses.notify', 'admin.usage.index', 'admin.usage.show',
+                'admin.businesses.index', 'admin.businesses.show', 'admin.businesses.notify', 'admin.usage.index', 'admin.usage.show', 'admin.service-health.index',
+                'admin.incidents.index', 'admin.incidents.show', 'admin.incidents.note',
                 'admin.tickets.index', 'admin.tickets.show', 'admin.tickets.create', 'admin.tickets.reply', 'admin.tickets.update',
                 'admin.departments.index',
                 'admin.contact-messages.index', 'admin.contact-messages.show', 'admin.contact-messages.reply',
+                'admin.announcements.index', 'admin.announcements.create', 'admin.announcements.edit', 'admin.announcements.destroy',
+                'admin.email-templates.index', 'admin.email-templates.preview',
+                'admin.privacy-requests.index', 'admin.privacy-requests.create', 'admin.privacy-requests.show', 'admin.privacy-requests.verify',
             ]],
-            // Audit records and data access reviews, who may do what, a business's status (restricting, suspending, closing), and locking an account.
+            // Audit records and data access reviews, who may do what, a business's status (restricting, suspending, closing), locking an account, privacy requests, legal holds and data retention.
             'compliance-and-security-administrator' => ['Compliance and Security Administrator', [
                 'admin.audit-log.index', 'admin.audit-log.show', 'admin.audit-log.export',
                 'admin.staff.index', 'admin.roles.index',
                 'admin.businesses.index', 'admin.businesses.show', 'admin.businesses.status',
                 'admin.clients.index', 'admin.clients.show', 'admin.clients.sign-out', 'admin.clients.lock', 'admin.clients.unlock',
                 'admin.support-sessions.index',
+                'admin.service-health.index', 'admin.service-health.retry', 'admin.service-health.forget',
+                'admin.incidents.index', 'admin.incidents.show', 'admin.incidents.create', 'admin.incidents.edit', 'admin.incidents.note',
+                'admin.privacy-requests.index', 'admin.privacy-requests.create', 'admin.privacy-requests.show', 'admin.privacy-requests.verify',
+                'admin.privacy-requests.complete', 'admin.privacy-requests.close', 'admin.privacy-requests.reject', 'admin.privacy-requests.export', 'admin.privacy-requests.download',
+                'admin.legal-holds.index', 'admin.legal-holds.create', 'admin.legal-holds.show', 'admin.legal-holds.release',
+                'admin.retention.index', 'admin.retention.update',
             ]],
             // Lists and details only: no saving, no exports, and not the settings page, which holds keys.
             'read-only-administrator' => ['Read-Only Administrator', [
                 'admin.app-categories.index', 'admin.apps.index', 'admin.audit-log.index', 'admin.audit-log.show',
-                'admin.businesses.index', 'admin.businesses.show', 'admin.usage.index', 'admin.usage.show',
+                'admin.businesses.index', 'admin.businesses.show', 'admin.usage.index', 'admin.usage.show', 'admin.service-health.index',
+                'admin.incidents.index', 'admin.incidents.show', 'admin.feature-flags.index', 'admin.announcements.index', 'admin.email-templates.index', 'admin.privacy-requests.index', 'admin.legal-holds.index', 'admin.retention.index',
                 'admin.clients.index', 'admin.clients.show', 'admin.contact-messages.index', 'admin.contact-messages.show',
-                'admin.content.index', 'admin.currencies.index', 'admin.departments.index', 'admin.faqs.index', 'admin.languages.index',
+                'admin.content.index', 'admin.countries.index', 'admin.currencies.index', 'admin.departments.index', 'admin.faqs.index', 'admin.languages.index',
                 'admin.menu-items.index', 'admin.package-access.index', 'admin.packages.index', 'admin.pages.index',
                 'admin.payment-methods.index', 'admin.roles.index', 'admin.staff.index',
                 'admin.subscription-invoices.index', 'admin.subscription-invoices.show', 'admin.subscription-invoices.pdf', 'admin.subscription-taxes.index',

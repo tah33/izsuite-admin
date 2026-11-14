@@ -11,6 +11,7 @@ use App\Models\User\Workspace;
 use App\Models\User\WorkspaceApp;
 use App\Models\User\WorkspaceFile;
 use App\Models\User\WorkspaceMember;
+use App\Repositories\Concerns\JoinsPlanTerms;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -29,6 +30,8 @@ use Illuminate\Support\Facades\Queue;
  */
 class OverviewRepository
 {
+    use JoinsPlanTerms;
+
     public function __construct(
         private BusinessRepository $businesses,
         private SubscriptionAdminRepository $subscriptions,
@@ -120,10 +123,10 @@ class OverviewRepository
 
         return [
             'bytes'      => (int) $this->ofBusinesses(WorkspaceFile::query(), $filters, 'workspace_files.workspace_id')->sum('size'),
-            'near_limit' => $this->matching($filters)
-                ->join('packages', 'packages.id', '=', 'workspaces.package_id')
-                ->whereNotNull('packages.storage_limit_mb')
-                ->where($used, '>=', DB::raw('packages.storage_limit_mb * 1048576 * '.$warnPercent))
+            // By the plan's terms each is held to (Doc 15 Phase E3b).
+            'near_limit' => $this->joinPlanTerms($this->matching($filters), planRequired: true)
+                ->whereRaw(self::term('storage_limit_mb').' is not null')
+                ->where($used, '>=', DB::raw(self::term('storage_limit_mb').' * 1048576 * '.$warnPercent))
                 ->count(),
         ];
     }

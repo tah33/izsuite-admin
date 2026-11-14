@@ -79,6 +79,10 @@
                             <strong>{{ __('Test mode.') }}</strong> {{ __('Only test cards work and no real charges are made. Switch to Live before going live.') }}
                         </div>
                     @endif
+
+                    <div class="mt-4">
+                        @include('admin.payment-methods._countries', ['hint' => __('By the business\'s billing country. Businesses billed elsewhere cannot pay by card, and their saved cards are not charged.')])
+                    </div>
                 </div>
 
                 <div class="card p-6">

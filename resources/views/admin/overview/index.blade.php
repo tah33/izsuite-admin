@@ -8,6 +8,10 @@
         <p class="page-subtitle">{{ __('izSuite at a glance: its businesses as they are now, and the chosen days\' sign-ups, use and billing.') }}</p>
     </div>
 
+    @if($alerts !== null)
+        @include('admin.overview._alerts')
+    @endif
+
     @include('admin.overview._filters')
     @include('admin.overview._businesses')
     @include('admin.overview._period')

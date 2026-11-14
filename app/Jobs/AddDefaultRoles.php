@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Concerns\SafeToRetry;
 use App\Repositories\User\UserRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\User\Workspaces\SetUpNewWorkspace;
@@ -17,7 +18,7 @@ use Illuminate\Foundation\Queue\Queueable;
  * follow - are there. Safe to run twice: a template the business has is not
  * added again, the owner joins once, and nothing is logged again.
  */
-class AddDefaultRoles implements ShouldQueue
+class AddDefaultRoles implements SafeToRetry, ShouldQueue
 {
     use Queueable;
 

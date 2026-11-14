@@ -82,6 +82,15 @@
                                 @else
                                     <span class="badge badge-inactive">{{ __('No') }}</span>
                                 @endif
+                                {{-- On one cycle only, or in some countries only (Doc 15 Phase E3a). --}}
+                                @unless($package->isFree())
+                                    @if(count($package->cycles()) === 1)
+                                        <span class="block text-xs mt-1 text-[var(--text-muted)]">{{ $package->offersCycle('yearly') ? __('Yearly only') : __('Monthly only') }}</span>
+                                    @endif
+                                    @if($package->countries)
+                                        <span class="block text-xs mt-1 text-[var(--text-muted)]">{{ trans_choice('In :count country|In :count countries', count($package->countries)) }}</span>
+                                    @endif
+                                @endunless
                             </td>
                             <td class="text-end">
                                 <a href="{{ route('admin.packages.edit', $package->id) }}" class="btn btn-xs btn-secondary">

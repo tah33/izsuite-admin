@@ -29,6 +29,7 @@ class UserResource extends JsonResource
             'avatar_url'          => $avatarPath ? url($avatarPath) : null,
             'language'            => $this->language,
             'timezone'            => $this->timezone,
+            'marketing'           => (bool) $this->marketing_consent,
             'two_factor'          => $twoFactor,
             'recovery_codes_left' => $twoFactor ? count($this->two_factor_recovery_codes ?? []) : null,
         ];

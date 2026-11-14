@@ -2,13 +2,19 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\Billing\Package;
 use App\Repositories\Billing\PackageRepository;
+use App\Support\Countries;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdatePackageRequest extends FormRequest
 {
-    private ?string $currentCurrency = null;
+    /** The cycles' switches: the form sends each as 0 or 1, so one left out stays as it is. */
+    private const CYCLES = ['offers_monthly', 'offers_yearly'];
+
+    private ?Package $package = null;
 
     public function authorize(): bool
     {
@@ -22,6 +28,7 @@ class UpdatePackageRequest extends FormRequest
             'is_active'        => $this->boolean('is_active'),
             'removes_branding' => $this->boolean('removes_branding'),
             'price_currency'   => strtoupper(trim((string) $this->input('price_currency', $this->currentCurrency()))) ?: $this->currentCurrency(),
+            ...collect(self::CYCLES)->filter(fn (string $field) => $this->has($field))->mapWithKeys(fn (string $field) => [$field => $this->boolean($field)])->all(),
         ]);
     }
 
@@ -33,6 +40,10 @@ class UpdatePackageRequest extends FormRequest
      * The currency is the plan's main one, for a business whose own it has no
      * price in; the prices themselves are on the plan's prices card (Doc 15
      * Phase C3a). Trial and grace are days - empty, none.
+     *
+     * Its reporting and support levels - empty, not shown - the cycles it is
+     * offered on, at least one, and the billing countries it is offered in -
+     * none chosen, every one (Phase E3a).
      */
     public function rules(): array
     {
@@ -50,14 +61,42 @@ class UpdatePackageRequest extends FormRequest
             'trial_days'       => ['nullable', 'integer', 'min:1', 'max:365'],
             'grace_days'       => ['nullable', 'integer', 'min:1', 'max:90'],
             'removes_branding' => ['boolean'],
+            'reporting_level'  => ['nullable', Rule::in(array_keys(Package::REPORTING_LEVELS))],
+            'support_level'    => ['nullable', Rule::in(array_keys(Package::SUPPORT_LEVELS))],
+            'offers_monthly'   => ['sometimes', 'boolean'],
+            'offers_yearly'    => ['sometimes', 'boolean'],
+            'countries'        => ['nullable', 'array'],
+            'countries.*'      => [Rule::in(Countries::codes())],
             'is_active'        => ['boolean'],
+            // The day a change to the limits, branding, levels, trial or grace starts, as the plan's next version (Phase E3b) - empty, today.
+            'effective_on'     => ['nullable', 'date', 'after_or_equal:today'],
         ];
+    }
+
+    /** A paid plan stays offered on one cycle at least - each as sent, or as it is. */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator) {
+                $offered = collect(self::CYCLES)->contains(fn (string $field) => (bool) $this->input($field, $this->package()->{$field} ?? true));
+
+                if (! $this->package()->isFree() && ! $offered) {
+                    $validator->errors()->add('offers_monthly', 'Offer the plan monthly, yearly or both.');
+                }
+            },
+        ];
+    }
+
+    /** The plan being edited. */
+    private function package(): Package
+    {
+        return $this->package ??= app(PackageRepository::class)->findOrFail((int) $this->route('id'));
     }
 
     /** The plan's currency now. */
     private function currentCurrency(): string
     {
-        return $this->currentCurrency ??= app(PackageRepository::class)->findOrFail((int) $this->route('id'))->price_currency;
+        return $this->package()->price_currency;
     }
 
     public function messages(): array
@@ -73,6 +112,8 @@ class UpdatePackageRequest extends FormRequest
                 $messages["{$field}.{$rule}"] = $count;
             }
         }
+
+        $messages['effective_on.after_or_equal'] = 'Choose today or a later day.';
 
         return $messages;
     }

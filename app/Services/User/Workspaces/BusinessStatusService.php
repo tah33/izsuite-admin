@@ -34,8 +34,8 @@ use Illuminate\Validation\ValidationException;
  */
 class BusinessStatusService
 {
-    /** Open whatever the status: each member's own notifications, and the support cases that reach izSuite. */
-    private const ALWAYS_OPEN = ['api.notifications.*', 'api.support-cases.*'];
+    /** Open whatever the status: each member's own notifications, the support cases that reach izSuite, and izSuite's announcements. */
+    private const ALWAYS_OPEN = ['api.notifications.*', 'api.support-cases.*', 'api.announcements.*'];
 
     public function __construct(
         protected WorkspaceRepository $workspaces,
@@ -89,6 +89,32 @@ class BusinessStatusService
             $this->tellOwner($workspace, $change);
             $this->changes->markOwnerNotified($change);
         }
+
+        return $change;
+    }
+
+    /**
+     * Closes $workspace at once, by $admin, for $reason: as its owner's
+     * account closes at their request (Doc 15 Phase G1), who is told of that
+     * instead. Its records are kept.
+     */
+    public function closeNow(Workspace $workspace, string $reason, User $admin): WorkspaceStatusChange
+    {
+        $previous = $workspace->status ?? BusinessStatus::ACTIVE;
+
+        $change = DB::transaction(function () use ($workspace, $reason, $admin, $previous) {
+            $this->workspaces->forceUpdate($workspace, ['status' => BusinessStatus::CLOSED]);
+
+            return $this->changes->create([
+                'workspace_id' => $workspace->id, 'status' => BusinessStatus::CLOSED, 'previous_status' => $previous,
+                'reason'       => $reason, 'effective_on' => today(), 'user_id' => $admin->id, 'admin_name' => $admin->name,
+            ]);
+        });
+
+        ActivityLogService::record('updated', 'Closed business "'.$workspace->name.'": '.$reason, $workspace, [
+            'changes' => ['status' => ['from' => $previous, 'to' => BusinessStatus::CLOSED]],
+            'reason'  => $reason,
+        ], $admin);
 
         return $change;
     }

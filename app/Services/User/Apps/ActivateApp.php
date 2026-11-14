@@ -41,13 +41,30 @@ class ActivateApp
         abort_unless($this->access->allows($by, $workspace, 'settings.apps'), 403, 'Your role does not allow turning apps on or off.');
 
         if (! $app->isAvailable()) {
-            $this->refuse("{$app->name} is not available yet.");
+            $this->refuse(match ($app->status) {
+                Application::UNAVAILABLE => "{$app->name} is temporarily unavailable. Try again later.",
+                Application::DEPRECATED  => "{$app->name} is deprecated: it can no longer be turned on.",
+                Application::RETIRED     => "{$app->name} is retired.",
+                default                  => "{$app->name} is not available yet.",
+            });
         }
 
         abort_unless((bool) $workspace->package?->allows($app), 403, 'Your plan does not include this app.');
 
+        // Doc 15 Phase E2: the countries it is offered in.
+        if (! $app->offeredIn($this->workspaces->countryOf($workspace))) {
+            $this->refuse("{$app->name} is not offered in your business's country.");
+        }
+
         $apps = WorkspaceApps::for($workspace);
         $row  = $apps->row($app->family_key);
+
+        // ...and the apps it cannot be on beside.
+        $conflicts = $apps->active()->filter(fn (WorkspaceApp $other) => $other->app->conflictsWith($app))->map(fn (WorkspaceApp $other) => $other->app->name);
+
+        if ($conflicts->isNotEmpty()) {
+            $this->refuse("{$app->name} cannot be on beside ".$conflicts->implode(', ').'. Turn '.($conflicts->count() > 1 ? 'them' : 'it').' off first.');
+        }
 
         if ($row?->isActive() && $row->app_id === $app->id) {
             return null;

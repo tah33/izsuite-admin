@@ -101,7 +101,7 @@ class PackageRepository
     /** The active plans, lowest first, each with the apps it includes - for the public Pricing page. */
     public function activeWithApps(): Collection
     {
-        return Package::where('is_active', true)->orderBy('rank')->with(['apps' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order')->orderBy('name')])->get();
+        return Package::where('is_active', true)->orderBy('rank')->with(['apps' => fn ($query) => $query->listed()->orderBy('sort_order')->orderBy('name')])->get();
     }
 
     /** The plan's Lite apps that are listed and available. */

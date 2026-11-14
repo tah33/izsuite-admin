@@ -22,6 +22,8 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
@@ -57,6 +59,9 @@ class AdminOverviewTest extends TestCase
 
         $this->seed(RoleSeeder::class);
         $this->travelTo(Carbon::parse(self::NOW, 'UTC'));
+        // The platform's alerts ask the PDF maker and write a probe file (Phase D3a).
+        Http::fake(['*/health' => Http::response(['status' => 'up'])]);
+        Storage::fake((string) config('files.storage'));
         $this->admin = User::factory()->create(['role_id' => Role::SUPER_ADMIN_ID]);
         Package::where('key', 'standard')->update(['storage_limit_mb' => 10]);
         Currency::create(['name' => 'US Dollar', 'code' => 'USD', 'symbol' => '$', 'exchange_rate' => 1, 'is_active' => true]);

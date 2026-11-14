@@ -49,9 +49,7 @@ class PackageController extends Controller
         try {
             $package = $this->packageService->findOrFail($id);
 
-            $this->packageService->update($package, $request->validated());
-
-            return $this->adminSuccess($request, 'Plan updated successfully.', route('admin.packages.index'));
+            return $this->adminSuccess($request, $this->packageService->update($package, $request->validated(), $request->user()), route('admin.packages.index'));
 
         } catch (\Throwable $e) {
             report($e);
@@ -78,6 +76,18 @@ class PackageController extends Controller
     {
         try {
             return $this->adminSuccess($request, $this->packageService->removePrice($id, $priceId, $request->user()));
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** A version of the plan not started yet, taken away (Doc 15 Phase E3b). */
+    public function removeVersion(Request $request, int $id, int $versionId)
+    {
+        try {
+            return $this->adminSuccess($request, $this->packageService->removeVersion($id, $versionId, $request->user()));
 
         } catch (\Throwable $e) {
             report($e);

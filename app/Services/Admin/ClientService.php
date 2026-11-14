@@ -4,6 +4,7 @@ namespace App\Services\Admin;
 
 use App\Models\User\User;
 use App\Repositories\Admin\ClientRepository;
+use App\Repositories\Admin\ConsentRecordRepository;
 use App\Repositories\Billing\PackageRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
@@ -18,6 +19,7 @@ class ClientService
     public function __construct(
         protected ClientRepository $clientRepository,
         protected PackageRepository $packageRepository,
+        protected ConsentRecordRepository $consentRecords,
     ) {}
 
     /** A page of accounts, by ListClientsRequest's filters. */
@@ -29,9 +31,10 @@ class ClientService
     /**
      * What a client's page shows besides the account and its businesses (Doc
      * 15 section 15.7): its recent failed sign-ins, the other accounts that
-     * give its phone number, and the latest admin actions on it.
+     * give its phone number, the latest admin actions on it, and its consent
+     * records (Phase G3).
      *
-     * @return array{failedSignIns: Collection, sharingPhone: Collection, activity: Collection}
+     * @return array{failedSignIns: Collection, sharingPhone: Collection, activity: Collection, consents: Collection}
      */
     public function security(User $client): array
     {
@@ -39,6 +42,8 @@ class ClientService
             'failedSignIns' => $this->clientRepository->recentFailedSignIns($client),
             'sharingPhone'  => $this->clientRepository->sharingPhone($client),
             'activity'      => $this->clientRepository->adminActivity($client),
+            // Its consent records, newest first (Doc 15 Phase G3).
+            'consents'      => $this->consentRecords->forUser($client),
         ];
     }
 

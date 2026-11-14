@@ -23,8 +23,8 @@
                                 · {{ trans_choice(':count contact|:count contacts', $workspace->contacts_count) }}
                                 · {{ trans_choice(':count item|:count items', $workspace->items_count) }}
                                 · {{ \App\Support\Bytes::format((int) $workspace->storage_bytes) }}
-                                @if($workspace->package?->storage_limit_mb !== null)
-                                    {{ __('of') }} {{ \App\Support\Bytes::format($workspace->package->storage_limit_mb * 1024 * 1024) }}
+                                @if($workspace->terms()?->storage_limit_mb !== null)
+                                    {{ __('of') }} {{ \App\Support\Bytes::format($workspace->terms()->storage_limit_mb * 1024 * 1024) }}
                                 @endif
                             </span>
                         </td>

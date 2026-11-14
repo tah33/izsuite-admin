@@ -6,10 +6,13 @@ use App\Events\RecruiterNotificationRequested;
 use App\Listeners\QueueRecruiterNotification;
 use App\Services\Billing\Payments\CardGateway;
 use App\Services\Billing\Payments\StripeGateway;
+use App\Support\CountryDirectory;
+use App\View\Composers\AdminAnnouncementsComposer;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -19,11 +22,17 @@ class AppServiceProvider extends ServiceProvider
     {
         // Card payments go through Stripe (Doc 13 Phase D2); another provider would be bound here.
         $this->app->bind(CardGateway::class, StripeGateway::class);
+
+        // The countries, read once per request or queued job (Doc 15 Phase F3a).
+        $this->app->scoped(CountryDirectory::class);
     }
 
     public function boot(): void
     {
         Event::listen(RecruiterNotificationRequested::class, QueueRecruiterNotification::class);
+
+        // The announcements for izSuite's admins, above every admin page (Doc 15 Phase F1).
+        View::composer('layouts.admin', AdminAnnouncementsComposer::class);
 
         $this->configurePasswordPolicy();
         $this->configureRateLimiters();

@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminAuditLogController;
+use App\Http\Controllers\Admin\AnnouncementController;
+use App\Http\Controllers\Admin\EmailTemplateController;
 use App\Http\Controllers\Admin\AdminTwoFactorController;
 use App\Http\Controllers\Admin\AppController;
 use App\Http\Controllers\Admin\BusinessController;
@@ -9,18 +11,25 @@ use App\Http\Controllers\Admin\ClientAccountController;
 use App\Http\Controllers\Admin\ClientController;
 use App\Http\Controllers\Admin\ContactMessageController;
 use App\Http\Controllers\Admin\ContentController;
+use App\Http\Controllers\Admin\CountryController;
 use App\Http\Controllers\Admin\CurrencyController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\FaqController;
+use App\Http\Controllers\Admin\FeatureFlagController;
+use App\Http\Controllers\Admin\IncidentController;
 use App\Http\Controllers\Admin\LanguageController;
+use App\Http\Controllers\Admin\LegalHoldController;
 use App\Http\Controllers\Admin\MenuItemController;
 use App\Http\Controllers\Admin\OverviewController;
 use App\Http\Controllers\Admin\PackageAccessController;
 use App\Http\Controllers\Admin\PackageController;
 use App\Http\Controllers\Admin\PageController;
 use App\Http\Controllers\Admin\PaymentMethodController;
+use App\Http\Controllers\Admin\PrivacyRequestController;
+use App\Http\Controllers\Admin\RetentionController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\RoleController;
+use App\Http\Controllers\Admin\ServiceHealthController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\BillingReportController;
@@ -65,6 +74,8 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     Route::get('/audit-log/{id}', [AdminAuditLogController::class, 'show'])->whereNumber('id')->name('audit-log.show');
     Route::resource('pages', PageController::class)->except(['show'])->parameters(['pages' => 'id']);
     Route::resource('apps', AppController::class)->except(['show'])->parameters(['apps' => 'id']);
+    // Retired: off for every business, its records kept (Doc 15 Phase E2).
+    Route::post('/apps/{id}/retire', [AppController::class, 'retire'])->whereNumber('id')->name('apps.retire');
     Route::post('/apps/{id}/dependencies', [AppController::class, 'storeDependency'])->name('apps.dependencies.store');
     Route::delete('/apps/{id}/dependencies/{dependencyId}', [AppController::class, 'destroyDependency'])->name('apps.dependencies.destroy');
 
@@ -76,6 +87,7 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     Route::post('/packages/{id}/prices', [PackageController::class, 'addPrice'])->whereNumber('id')->name('packages.price');
     Route::post('/packages/{id}/prices/apply', [PackageController::class, 'applyPrice'])->whereNumber('id')->name('packages.price-apply');
     Route::delete('/packages/{id}/prices/{priceId}', [PackageController::class, 'removePrice'])->whereNumber(['id', 'priceId'])->name('packages.price-remove');
+    Route::delete('/packages/{id}/versions/{versionId}', [PackageController::class, 'removeVersion'])->whereNumber(['id', 'versionId'])->name('packages.version-remove');
     Route::get('/package-access', [PackageAccessController::class, 'index'])->name('package-access.index');
     Route::put('/package-access', [PackageAccessController::class, 'update'])->name('package-access.update');
     Route::put('/menu-items/reorder', [MenuItemController::class, 'reorder'])->name('menu-items.reorder');
@@ -92,6 +104,33 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     // Businesses (Doc 15 Phase B1): the list, a business's page, its status, and a message from izSuite.
     Route::get('/businesses', [BusinessController::class, 'index'])->name('businesses.index');
     Route::get('/businesses/{id}', [BusinessController::class, 'show'])->whereNumber('id')->name('businesses.show');
+    // The services izSuite runs on and uses, what failed, and failed jobs run again where safe (Doc 15 Phase D3a).
+    Route::get('/service-health', [ServiceHealthController::class, 'index'])->name('service-health.index');
+    Route::post('/service-health/jobs/{uuid}/retry', [ServiceHealthController::class, 'retry'])->whereUuid('uuid')->name('service-health.retry');
+    Route::delete('/service-health/jobs/{uuid}', [ServiceHealthController::class, 'forget'])->whereUuid('uuid')->name('service-health.forget');
+    // Feature flags: features on for an audience between days, with an emergency off switch (Doc 15 Phase E1).
+    Route::resource('feature-flags', FeatureFlagController::class)->except(['show'])->parameters(['feature-flags' => 'id'])->whereNumber('id');
+    Route::post('/feature-flags/{id}/switch', [FeatureFlagController::class, 'switch'])->whereNumber('id')->name('feature-flags.switch');
+    // Platform announcements: banners for businesses, or for izSuite's admins, between their days (Doc 15 Phase F1).
+    Route::resource('announcements', AnnouncementController::class)->except(['show'])->parameters(['announcements' => 'id'])->whereNumber('id');
+    Route::post('/announcements/{id}/dismiss', [AnnouncementController::class, 'dismiss'])->whereNumber('id')->name('announcements.dismiss');
+    // The platform's e-mails written per language, with preview, test delivery and version history (Doc 15 Phase F2).
+    Route::prefix('email-templates')->name('email-templates.')->where(['key' => '[a-z_.]+', 'language' => '[A-Za-z_-]{2,10}'])->group(function () {
+        Route::get('/', [EmailTemplateController::class, 'index'])->name('index');
+        Route::get('/{key}/{language}', [EmailTemplateController::class, 'edit'])->name('edit');
+        Route::put('/{key}/{language}', [EmailTemplateController::class, 'update'])->name('update');
+        Route::get('/{key}/{language}/preview', [EmailTemplateController::class, 'preview'])->name('preview');
+        Route::post('/{key}/{language}/test', [EmailTemplateController::class, 'test'])->name('test');
+        Route::post('/{key}/{language}/versions/{version}/restore', [EmailTemplateController::class, 'restore'])->whereNumber('version')->name('restore');
+    });
+    // Incidents: what went wrong with a service, who is on it, and its timeline until resolved (Doc 15 Phase D3b).
+    Route::get('/incidents', [IncidentController::class, 'index'])->name('incidents.index');
+    Route::get('/incidents/create', [IncidentController::class, 'create'])->name('incidents.create');
+    Route::post('/incidents', [IncidentController::class, 'store'])->name('incidents.store');
+    Route::get('/incidents/{id}', [IncidentController::class, 'show'])->whereNumber('id')->name('incidents.show');
+    Route::get('/incidents/{id}/edit', [IncidentController::class, 'edit'])->whereNumber('id')->name('incidents.edit');
+    Route::put('/incidents/{id}', [IncidentController::class, 'update'])->whereNumber('id')->name('incidents.update');
+    Route::post('/incidents/{id}/notes', [IncidentController::class, 'note'])->whereNumber('id')->name('incidents.note');
     // Each business's usage against its plan, and its history (Doc 15 Phase D2).
     Route::get('/usage', [UsageController::class, 'index'])->name('usage.index');
     Route::get('/usage/{id}', [UsageController::class, 'show'])->whereNumber('id')->name('usage.show');
@@ -155,6 +194,37 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     Route::get('languages/{id}/translate', [LanguageController::class, 'translate'])->name('languages.translate');
     Route::put('languages/{id}/translate', [LanguageController::class, 'saveTranslations'])->name('languages.save-translations');
     Route::resource('languages', LanguageController::class)->except(['show'])->parameters(['languages' => 'id']);
+
+    // Privacy requests: data exports, account closures and corrections, each worked once the person asking is checked (Doc 15 Phase G1).
+    Route::prefix('privacy-requests')->name('privacy-requests.')->group(function () {
+        Route::get('/', [PrivacyRequestController::class, 'index'])->name('index');
+        Route::get('/create', [PrivacyRequestController::class, 'create'])->name('create');
+        Route::post('/', [PrivacyRequestController::class, 'store'])->name('store');
+        Route::get('/{id}', [PrivacyRequestController::class, 'show'])->whereNumber('id')->name('show');
+        Route::post('/{id}/verify', [PrivacyRequestController::class, 'verify'])->whereNumber('id')->name('verify');
+        Route::post('/{id}/complete', [PrivacyRequestController::class, 'complete'])->whereNumber('id')->name('complete');
+        Route::post('/{id}/close', [PrivacyRequestController::class, 'close'])->whereNumber('id')->name('close');
+        Route::post('/{id}/reject', [PrivacyRequestController::class, 'reject'])->whereNumber('id')->name('reject');
+        Route::post('/{id}/export', [PrivacyRequestController::class, 'export'])->whereNumber('id')->name('export');
+        Route::get('/{id}/download', [PrivacyRequestController::class, 'download'])->whereNumber('id')->name('download');
+    });
+
+    // Legal holds: a business's records kept from deletion until released (Doc 15 Phase G2).
+    Route::get('legal-holds', [LegalHoldController::class, 'index'])->name('legal-holds.index');
+    Route::get('legal-holds/create', [LegalHoldController::class, 'create'])->name('legal-holds.create');
+    Route::post('legal-holds', [LegalHoldController::class, 'store'])->name('legal-holds.store');
+    Route::get('legal-holds/{id}', [LegalHoldController::class, 'show'])->whereNumber('id')->name('legal-holds.show');
+    Route::post('legal-holds/{id}/release', [LegalHoldController::class, 'release'])->whereNumber('id')->name('legal-holds.release');
+
+    // What is kept, for how long, and what removes it; the days an export lasts (Doc 15 Phase G3).
+    Route::get('retention', [RetentionController::class, 'index'])->name('retention.index');
+    Route::put('retention', [RetentionController::class, 'update'])->name('retention.update');
+
+    // The countries, and the defaults a new business in each takes, by version from a day (Doc 15 Phase F3a).
+    Route::get('countries', [CountryController::class, 'index'])->name('countries.index');
+    Route::get('countries/{id}/edit', [CountryController::class, 'edit'])->whereNumber('id')->name('countries.edit');
+    Route::put('countries/{id}', [CountryController::class, 'update'])->whereNumber('id')->name('countries.update');
+    Route::delete('countries/{id}/versions/{versionId}', [CountryController::class, 'removeVersion'])->whereNumber(['id', 'versionId'])->name('countries.version-remove');
 
     Route::resource('currencies', CurrencyController::class)->except(['show'])->parameters(['currencies' => 'id']);
     Route::post('currencies/formatting', [CurrencyController::class, 'saveFormatting'])->name('currencies.save-formatting');

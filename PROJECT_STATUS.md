@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-14
-- **Code:** Doc 15 Phase D2 (usage and its history) is on `main` in the admin commit right after `5313faf`. Phases D1 and D2 changed nothing in the frontend, which stays at `4bd877b` on `nuxt`.
-- **Tests:** 789 backend tests pass (last full run 2026-11-14, on this code, on the second PC).
-- **Next step:** Doc 15 Phase D3: service health and incidents (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 15 Phases D3a (service health), D3b (incidents), E1 (feature flags), E2 (apps in depth), E3a (plan details), E3b (plan versions), F1 (announcements), F2 (e-mail templates), F3a (countries), F3b (payment methods by country), G1 (privacy requests), G2 (legal holds) and G3 (consent and retention) are built on `main` after `80c94fc`, not committed yet. In the frontend, E1, E2, E3a, F1, F3a and G3 changed something (`useNavigation`; the Apps Center's states; the plans' levels, cycles and countries; the announcement banner; the setup's time zone from the country; the product news checkbox at sign-up and in My Profile), on `nuxt` after `4bd877b`, not committed yet.
+- **Tests:** 843 backend tests pass (last full run 2026-11-14, on the second PC). After it, the admin sidebar's Compliance and System sections moved into a partial (`admin/partials/sidebar-system`) to stay under 200 lines, and the admin page tests pass again.
+- **Next step:** Doc 15 is done, apart from what was suggested to leave. Choose which full app comes first (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 15 Phase D3.
+   > Read PROJECT_STATUS.md, then let's choose the first full app.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -40,7 +40,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 12 | Users, Roles, Permissions and Locations | Done, except package change rules (Doc 13) |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
-| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phases A, B, C, D1 and D2 done (2026-11-14), D3 next** |
+| **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -314,7 +314,7 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 - Share links that expire. They stay until revoked.
 - Imports beyond contacts and items.
 
-### 3. Doc 15: izSuite System Administration Portal (next: Phase D3)
+### 3. Doc 15: izSuite System Administration Portal (done)
 
 The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign-in) had grown through Docs 01 to 14, partly from the earlier recruitment product, and was checked against all 27 sections.
 
@@ -704,51 +704,241 @@ B3 was split again on starting it (2026-11-13), as a support session names a sup
 
   The check found "1 businesses" in the command's line; fixed. The check's snapshots were then removed.
 
-**Phase D3: service health and incidents** (section 23):
+**Phase D3: service health and incidents** (section 23) was split on starting it (2026-11-14): D3a, service health; D3b, incidents.
 
-- **Service health:** the database, file storage, the queue (jobs waiting and failed, and retrying a failed one where safe), e-mail delivery (failed notifications and document e-mails), Stripe (its last webhook and failed calls), imports and exports, failed sign-ins, and alerts. Incidents keep notes, the admin responsible and their status. A retry never sends an invoice, payment or e-mail twice.
-- The Overview then shows the platform's alerts too.
+**Phase D3a: service health** is built, with these defaults:
 
-**Phase E: the catalogue and packages in depth** (sections 8, 10 and 12):
+- **Admin > Service Health**, under System in the sidebar, asks each service afresh on every visit and shows it as OK, Warning, Failing or Not used, with what it found:
+  - **the app**, which answers the page itself;
+  - **the scheduler**, by a heartbeat `health:heartbeat` keeps each minute. Failing after 5 minutes without one;
+  - **background jobs**: waiting now, failed (24 hours, and kept in all), and the workers, by a heartbeat job queued each minute. Failing after 10 minutes without a job run while the scheduler runs; a warning for any job failed in 24 hours;
+  - **the database** (its answer time; a warning from 500 ms), **the cache and sessions**, **file storage** (a probe file written, read back and removed; a warning under 10% of the disk free) and **the PDF maker** (Gotenberg's health address);
+  - **e-mail**: the mailer (a warning while it only writes to the log), and notification and document e-mails that failed;
+  - **card payments**: Not used while Stripe is off; else its mode, the last webhook and how it went, and webhooks refused and calls failed in 24 hours (a warning for either);
+  - **imports and exports**: imports failed, and stuck with no progress for an hour. Exports are made as they are asked, so none wait;
+  - **sign-ins and security**: failed account and admin sign-ins, accounts failing 5 times in 7 days (as Admin > Users has it), locked accounts, and admin actions refused. A warning for repeated failures or refusals;
+  - **text messages and exchange rates**: Not used. izSuite sends none, and businesses enter their own rates.
+- **What failed:** the latest failed jobs, notification and document e-mails, imports, and card payment failures.
+- **Running a failed job again** is offered only for jobs that check before they act, so they never send, add or charge twice: notification and document e-mails (both skip what is sent), a new account's set-up jobs, removing stored files, and the heartbeat. A queued mail may have gone out, and an import is the business's to run again, so neither is retried there; **Forget** takes a job off the list. Both are in the audit log.
+- **Platform Alerts** on the Overview list each service warning or failing, with Open Service Health.
+- Stripe's webhooks taken or refused, and its calls that failed, are kept as `service_events` (migration 000137) for 30 days.
+- **Roles** (migration 000137): Compliance and Security Administrators open Service Health and run again or forget failed jobs. Billing, Support and Read-Only Administrators open it.
+- Checked in the browser as the seeded admin, on dev, with two failed jobs added for the check (a notification e-mail with nothing to send, and a queued mail):
+  - every service read as it is on dev: e-mail warns, as dev only writes it to the log, and card payments, text messages and exchange rates are not used;
+  - Background Jobs warned about the two jobs. The mail had no Run Again, and said why;
+  - Run Again put the e-mail's job back on the queue, which the worker ran, finding nothing to send. Forget, through its dialog, took the mail off. The audit log had both;
+  - the Overview's Platform Alerts then listed only e-mail.
 
-- **Packages:**
-  - their fixed internal code shown;
-  - a reporting level and a support level;
-  - monthly and yearly each offered or not;
-  - the countries a plan is offered in;
-  - changes with an effective date and version history. A subscriber keeps the version they subscribed to.
-- **Apps:**
-  - the statuses Draft, Coming Soon, Published, Temporarily Unavailable, Deprecated and Retired (Available becomes Published);
-  - the countries an app is offered in;
-  - apps it conflicts with;
-  - its release version.
+  The check found the storage probe leaving an empty folder behind; it now writes at the disk's root. The check's failed jobs and audit entries were then removed.
 
-  Retiring an app keeps its data.
-- **Feature flags:**
-  - each with its name, description and audience: internal, chosen businesses, countries, plans, or a percentage of businesses;
-  - its dates, status and the admin responsible, and an emergency off switch;
-  - the code asks `Features::enabled()`, and the frontend gets a business's flags from `/navigation`.
+**Phase D3b: incidents** (section 23) is built, with these defaults:
 
-  Turning a flag off deletes nothing.
+- **An incident** is something wrong with a service. It has:
+  - a title and the service it is about (as Service Health names them), or none;
+  - a severity: Minor, Major, or Critical when businesses cannot work;
+  - when it started (UTC, not in the future) and the admin responsible;
+  - a status: Open, Investigating, Monitoring or Resolved.
+- **Admin > Incidents**, under System after Service Health, lists them, those not resolved first. Filters: status (or not resolved), service, severity and words of the title.
+- **Opening one** (Open Incident, or "Open an incident" beside a service that warns or fails on Service Health, which fills in the service) makes its summary the first note.
+- **Its page** has its details, Edit (title, service, severity, summary, start) and its timeline, newest first:
+  - **Add a Note**: what was found or done, the status it moves to and who is responsible from now (or nobody);
+  - each note shows any status change ("Open → Resolved") and who it made responsible;
+  - resolving stamps the time and how long after it started; moving back from Resolved clears it.
+- **Service Health** lists the incidents not resolved, the most severe first. The Overview's Platform Alerts count and list them.
+- Opening, editing and each note are in the audit log.
+- **Roles** (migration 000138): Compliance and Security Administrators open, edit and add notes. Support Administrators add notes. Billing and Read-Only Administrators look.
+- `incidents` and `incident_notes` (migration 000138). A note keeps the status before and after, and who it made responsible, by name as they were then.
+- Left for later: e-mailing the admin made responsible, and telling businesses about an incident (Phase F's announcements).
+- Checked in the browser as the seeded admin: "Open an incident" beside E-mail on Service Health opened the form with E-mail, Major, now and the admin filled in. Opening it showed its page with the summary as the first note; a note to Resolved stamped it "1 minute after it started" and showed "Open → Resolved"; the list showed it Resolved. The check's incident, notes and audit entries were then removed.
 
-**Phase F: communications, announcements and countries** (sections 19, 20 and 21):
+**Phase E: the catalogue and packages in depth** (sections 8, 10 and 12) was split on starting it (2026-11-14), the self-contained part first: E1, feature flags; E2, apps in depth; E3, packages in depth.
 
-- **E-mail templates** in the admin for the platform's e-mails:
-  - which e-mails: verification, invitation, password reset, security alerts, subscription notices, trial ending, renewal reminders, failed payments, grace, suspension, plan changes, usage limits, app announcements and maintenance;
-  - each per language, with a subject, message, variables, preview, test send, status and version history.
+**Phase E1: feature flags** (section 12) is built, with these defaults:
 
-  Today they are Blade views in the code. Security and billing notices stay ones nobody in a business can turn off.
-- **Announcements:**
-  - a banner in the workspace, for all businesses, chosen plans, countries, apps or businesses, or for admins only;
-  - each with a title, message, dates, priority, a link, and whether it can be dismissed. Emergency and legal ones cannot be.
-- **Countries in the admin** (today a fixed list in the code, `App\Support\Countries`), each with the defaults a new business takes: currency, timezone, date and number formats, address format and payment methods, with effective dates. Tax templates and document terminology wait for country localization.
+- **A flag** is a feature the code asks about by its key: `Features::enabled('new_reports', $workspace)`. Each has:
+  - a key, fixed once made, a name and a description;
+  - its switch, On or Off. Off overrides everything: the emergency switch;
+  - its audience: the businesses it names (by BW- ID) always, then a share (0 to 100%) of the businesses in the plans and countries chosen (none chosen: all). The share is steady: a business in at 10% stays in at 20%;
+  - its days, from and until (UTC, either open), and the admin responsible.
 
-**Phase G: privacy and compliance** (section 24):
+  Internal testing is a flag naming izSuite's own businesses with a share of 0%. Without a business, only a flag for every business is on.
+- **Its state:** Off, Scheduled (on, before its start), Live, or Ended (on, after its end).
+- **Admin > Feature Flags**, under App System after the Menu Builder, lists them with their state, audience, days and the admin responsible.
+  - Switch Off and Switch On act at once.
+  - Add and Edit are there; a flag keeps its key.
+  - Delete is only for a flag that is off. Nothing made while it was on is removed: the code asking for a deleted flag finds it off.
+- **The app gets them:** `/navigation` gives the business's features (`features`, by key), read fresh each time like its logo and status. The frontend asks `useNavigation().feature('new_reports')`.
+- Flags switched on are kept in the cache for 5 minutes; every change in the admin forgets them, so it counts at once.
+- Every change is in the audit log.
+- **Roles** (migration 000139): Product Administrators run flags; Read-Only Administrators see the list.
+- No feature asks for a flag yet: they are ready for the next ones.
+- Checked in the browser as the seeded admin: Add Flag made `browser_check` for BW-000001, off; Switch On made it Live, with "1 business named", and workspace 1's navigation carried it; Switch Off took it out at once; Delete, through its dialog, removed it. The audit log had all four. The check found "From when on" for a flag without a start; it now says "From when switched on". The check's audit entries were then removed.
 
-- Privacy requests (a data export, closing an account, a correction), each with its identity check noted, its status and its audit entries.
-- A business's data exported as a ZIP of CSV files, by a restricted permission, through a link that expires after 7 days.
-- Legal holds that stop a closure or deletion, and consent records: terms accepted and marketing.
-- Retention rules are shown but not enforced until you set them.
+**Phase E2: apps in depth** (section 10) is built, with these defaults:
+
+- **An app's statuses:**
+  - **Draft**: not listed;
+  - **Coming Soon**: listed, cannot be turned on;
+  - **Published**: the old Available, still stored as `available`;
+  - **Temporarily Unavailable** and **Deprecated**: listed, cannot be turned on, and businesses with one on keep it;
+  - **Retired**: not listed, and off for everyone.
+
+  The Listed switch stays as it was: an unlisted app, or a Draft or Retired one, is out of the Apps Center and the website. Apps unlisted before became Drafts.
+- **Where an app is offered:** the countries it names (none: all), by the business's country from its profile. A business elsewhere sees "Not in your country"; one with it on keeps it.
+- **Apps it cannot be on beside:** app families, either way round: neither turns on while the other is on.
+- **Its release version**, shown beside its plan in the Apps Center.
+- **The Apps Center** has four new states, none turned on: Unavailable for now, Deprecated, Not in your country, and "Not with another app" (naming it). An edition on stays on, with a note when it is deprecated or paused. A family with none to turn on is "Not Available" in the status filter. Turning on is refused the same way, each with its reason.
+- **Retire**, on an app's admin page, is a critical action (password and reason). It turns the app off for every business with it on, keeping their records as turning it off does: each logged, its sidebar rebuilt. The app is then Retired and unlisted. The form offers Retired only to an app already retired.
+- **Roles** (migration 000140): Product Administrators retire apps.
+- Left for later: the rest of section 10's record (required permissions, set-up requirements, dashboard parts, quick actions, document types, report definitions and additional charges, which the code now defines), and section 11's Lite-to-Full rules beyond what Doc 13 built.
+- Checked in the browser as the seeded admin and `user@izsuite.io`, with three dev apps changed for the check: Inventory's admin page showed the release, countries and conflicts fields, Temporarily Unavailable and Retire This App. The app's Apps Center then showed Inventory "Unavailable for now" with v1.0.0, CRM "Not in your country", and Expenses Lite still on with its deprecation note. The three apps, workspace 1's setup, the sign-in's token and its activity were then put back.
+
+**Phase E3: packages in depth** (section 8) was split on starting it (2026-11-14): E3a, a plan's details and where it is offered; E3b, its changes with an effective date and version history. A plan's fixed internal code (its key) was already shown on its admin page.
+
+**Phase E3a: plan details** (section 8) is built, with these defaults:
+
+- **A plan's levels:** a reporting level (Basic, Standard or Advanced) and a support level (E-mail, Priority or Dedicated), either left empty to show none. Migration 000141 gave Billing Starter Basic and E-mail, Standard Standard and E-mail, and Premium Advanced and Priority. They are shown with the plan ("Advanced reports", "Priority support") on the Pricing page and as a business compares plans. Nothing in the app is limited by them yet.
+- **Its cycles:** monthly and yearly, each offered or not, one at least. A cycle not offered has no price on the plans, which read "Monthly only" or "Yearly only". Subscribing or moving to it on that cycle is refused. Subscribers already paying on it renew on it.
+- **Where it is offered:** the billing countries it names (none: all), by the country in the business's billing details. Before a business gives them, it sees every plan; at subscribing it must give them.
+  - A business sees the plans offered where it is billed, and its own.
+  - Subscribing or moving to a plan offered elsewhere is refused. One already on it keeps it and renews on it.
+  - The Pricing page shows every plan, naming the countries of one offered in some only.
+- **Billing Starter**, the plan every business starts on and falls back to, is offered everywhere and has no cycles to set.
+- **The admin:** the plan's page has Reports, Support, Paid (Monthly, Yearly) and Offered in; Packages shows "Monthly only" and "In 2 countries" under Offered.
+- The rule lives in `PlanAvailability`, which subscribing, the quote and plan changes ask.
+- Every change is in the audit log, setting by setting.
+- Checked in the browser as the seeded admin and `user@izsuite.io`: Premium's page showed the new fields; Yearly unticked and India chosen saved, and Packages showed "Monthly only" and "In 1 country". The Pricing page then showed Premium "Offered in India", "Monthly only", "Advanced reports" and "Priority support". In the app, Compare Plans on Yearly showed Premium "Monthly only", and with billing details in Bangladesh it left Premium out. Premium, workspace 1's setup, its billing details, the sign-in's token, its activity and the audit entry were then put back.
+
+**Phase E3b: plan versions** (section 8) is built, with these defaults:
+
+- **A plan's terms** are its limits (users, locations, businesses per account, storage), branding, reporting and support levels, trial and grace. Its name, description, currency, cycles, countries and whether it is offered are not versioned: they change at once, as before.
+- **A change to its terms is its next version**, from the day chosen beside Save ("Changed terms start", today unless changed):
+  - today: it starts at once;
+  - a later day: it waits, and starts within the hour after that day begins (UTC), by `plans:advance`, run hourly.
+
+  One version waits at a time: the terms cannot change again until it starts or is removed. Migration 000142 made each plan's terms as they stood its version 1.
+- **As a version starts:**
+  - the plan takes its terms: the Pricing page, new subscribers and the plans compared show them;
+  - a business subscribed to the plan (on a trial, paid or in grace) stays on the version it was on. Existing subscribers are not moved to new limits silently;
+  - every other business on the plan, Billing Starter's among them, has its terms as they stand.
+- **A business held to a version** keeps its limits, storage, branding and grace (`Workspace::terms()`). They count everywhere: adding users and locations, storage, documents' "Powered by izSuite", the usage notices, Settings' Usage and Limits, its own plan among the plans compared, and Admin > Businesses, Usage and the Overview. Moving to another plan gives it that plan's terms as they stand; renewing, or a cycle change on the same plan, keeps its version.
+- **Admin > Packages > a plan > Versions** lists its versions, newest first: Waiting, Current or Earlier, the day each started and who made it, its terms with what changed from the one before in bold, and how many businesses are on it. Earlier versions stay listed for the businesses on them. A waiting version can be removed; a started one cannot.
+- A business's admin page shows "Plan terms: Version 1, from …" while it is held to an earlier version.
+- **Roles** (migration 000142): Billing Administrators remove waiting versions.
+- Left for later: moving a plan's subscribers to its current version, with notice, as Apply to Subscribers does for prices; and versions of which apps a plan includes (Package Access changes count at once, as Doc 13 set).
+- Checked in the browser as the seeded admin: Standard's users set to 10 from 20 Nov made version 2 Waiting, with "10 users" in bold, and the plan unchanged; the date field then said it waits. Removing it through its dialog took it away, and both were audited. Set from today, version 2 started at once: Current, version 1 Earlier, the plan at 10 users, the audit entry with the change. The check's version, Standard's users and the audit entries were then put back.
+
+**Phase F: communications, announcements and countries** (sections 19, 20 and 21) was split on starting it (2026-11-14), the self-contained part first: F1, announcements; F2, e-mail templates; F3, countries, itself split on starting it into F3a, the countries and their defaults, and F3b, payment methods by country.
+
+**Phase F1: announcements** (section 21) is built, with these defaults:
+
+- **An announcement** has a title, a message (up to 1,000 characters), a priority (Information, Important or Emergency), a link (a web address, or a page of the app such as `/settings?tab=subscription`, with its words: "Learn more" when none are given), whether it can be dismissed, and its days, from and until (UTC, either open).
+- **Its audience**, one of: all businesses; those on chosen plans; in chosen countries (from the business's profile); with one of the chosen apps on (either edition); the businesses named by BW- ID; or izSuite's admins only.
+- **Businesses see it** as a banner above every page of their workspace (not the setup wizard), loaded as the business opens and when another is picked: blue, amber or red by priority, the most urgent first, then the newest. A suspended or restricted business still gets it.
+- **Admins-only ones** show above every page of the admin panel.
+- **Dismissing** puts it away for that person only; nothing goes in the business's activity log. An emergency or legal notice is left not dismissible: it stays until it ends or is deleted.
+- **Admin > Announcements**, under Management after Contact Messages, lists them with their priority, state (Scheduled, Live or Ended), audience, days and how many people dismissed them. Add, Edit and Delete; each in the audit log.
+- **Roles** (migration 000143): Product and Support Administrators run announcements; Read-Only Administrators see the list. Every admin may dismiss one for themselves.
+- Left for later: e-mailing an announcement, and showing it on the public website.
+- Checked in the browser as the seeded admin and `user@izsuite.io`: Add Announcement made an Important one for all businesses, linking to Support; an admins-only note showed above the admin pages and went when dismissed. The app's dashboard showed the amber banner with its Contact Support link, and not the admins' note; dismissing it took it away and recorded it. The check found the list's delete dialog broken by quotes in its message, now fixed. The announcements, dismissals, sign-in token, activity, audit entries and workspace 1's setup were then put back.
+
+**Phase F2: e-mail templates** (section 20) is built, with these defaults:
+
+- **An e-mail keeps the words built into the code** until an active template is saved for it. A template is per e-mail and language: a subject (also the e-mail's title), a message (a blank line starts a paragraph), the button's words for an e-mail with a link, and a status: Active (sent in these words) or Draft (kept, previewed and tested, not sent).
+- **Variables** are written in braces, such as `{plan}`; each e-mail fills in its own, and the page lists them with a sample each.
+- **The language** is the e-mail's own (the mailable's locale, else the app's), falling back to English's template, then to the built-in words. Today every e-mail goes out in English, so English templates are the ones sent.
+- **The e-mails written so far** (11): verifying an e-mail address, the account active, the password reset code, the password changed, an invitation to a business, and the subscription notices: trial ending, grace, plan ended, failed payment, refund and price change. Security and billing ones are marked "Always sent: nobody in a business can turn it off" (none can be turned off by a template either).
+- **Admin > E-mail Templates**, under System after Languages, lists them by group (Account, Security, Billing) with each language's state: Built-in, or Active or Draft with its version. Each page has the form, the variables, Preview (the saved version with the samples, in a new tab), Send Me a Test (to the admin's own address) and the version history, where an earlier version can be restored as the newest. Every save, restore and test is in the audit log.
+- **Roles** (migration 000144): Product Administrators write them; Support Administrators see and preview them; Read-Only Administrators see the list.
+- Left for later: the e-mails whose words are built by the code that sends them (business status notices, usage alerts, billing documents, the admin's new sign-in), other channels than e-mail, and e-mailing announcements.
+- Checked in the browser as the seeded admin: the list showed the three groups and four languages, all Built-in; the Trial ending page took a subject and message with variables and saved them as Draft version 1, with its history; Preview showed "Only 3 days left of your Standard trial" with the samples and the See your subscription button. The test send was left to the tests. The check's template and audit entry were then removed.
+
+**Phase F3a: countries** (section 19) is built, with these defaults:
+
+- **The countries are a table now** (migration 000145), started from the list that was in the code: 250 countries and territories (ISO 3166, with Kosovo), each with its name, calling code and the defaults a new business there takes. Each country's version 1 is what the code had, so nothing changed for anyone on the day.
+- **A country's defaults** are:
+  - its currency: the base currency the setup offers, while it is on under Currencies;
+  - its time zone;
+  - its regional settings (date, time and number formats, first day of the week, paper, start of the fiscal year): what Settings recommends;
+  - what its addresses call the region and the postal code;
+  - its address format.
+- **The address format** has a line for each line of the address, naming its parts: `{line1}`, `{line2}`, `{city}`, `{region}`, `{postal}`, `{country}`. A part left empty takes its comma with it, and a line with no parts filled in goes. From now, documents print the business's address and the customer's in each address's own country's format. Every country starts with each part on its own line, as before. The exceptions are the United States ("Springfield, IL 62704"), Canada and Australia ("Ottawa ON K1A 0B1").
+- **The time zone:** in the setup, a business not saved yet that picks its country takes the country's time zone. It keeps the one already set (the owner's or the browser's) when that is one of the country's own. A country with several zones starts with its capital's (New York for the United States). Bouvet Island and Heard Island have none.
+- **Effective dates:**
+  - A change to a country's defaults is its next version, from today or a later day. One version waits at a time, and it can be removed. `countries:advance` starts waiting versions hourly.
+  - Businesses already set up keep their own settings, and documents already issued keep what they printed.
+  - The name and calling code change at once.
+- **Admin > Countries**, under System before Languages, lists the countries with their currency, time zone, date and number formats, and how many businesses are based in each. It searches by name or code. A country's page has its form, a sample address in its format, and its versions with what changed in bold. Every change is in the audit log.
+- **Roles** (migration 000145): Product Administrators edit countries; Read-Only Administrators see the list.
+- **Left for later:**
+  - regions within a country, tax templates, document terminology and mandatory legal rules, which wait for country localization;
+  - adding or removing a country (the list is ISO's);
+  - turning a country off for new businesses.
+- **Checked in the browser** as the seeded admin and `user@izsuite.io`:
+  - The list found Bangladesh with BDT, Asia/Dhaka and the lakh. Its page showed its defaults, the sample address and version 1.
+  - A new date format from today made version 2 Current and version 1 Earlier.
+  - Letter paper from 20 Nov waited as version 3 and locked the date field with a note. Removing it through its dialog worked.
+  - In the setup, picking United Kingdom changed the time zone from Asia/Dhaka to Europe/London and the address labels to County and Postcode. United States gave America/New_York. Nothing was saved there.
+  - The check found the sample address pushing the format field down; it now sits beside it.
+  - Bangladesh's defaults, the check's versions, sign-ins, token, activity and audit entries were then put back.
+
+**Phase F3b: payment methods by country** (sections 15 and 19) is built, with these defaults:
+
+- **Each of izSuite's ways to pay** (card through Stripe, Bank Transfer and other offline methods) is offered in chosen billing countries, as apps and plans are. With none chosen it is offered in every country, as each was before (migration 000146).
+- **A business billed elsewhere:**
+  - An offline method's instructions stay off its new invoices. Invoices already issued keep the instructions they printed.
+  - Card payments are not offered: no Pay by Card, and no saving or paying with a card ("Card payments are not offered where your business is billed").
+  - Its saved card is not charged.
+- **A business without billing details yet** is offered every method.
+- **Admin > Payment Methods** has "Offered in" on an offline method's form and on Stripe's page, and the list shows each method's countries. A country's page says which ways to pay a business billed there is offered.
+- **Checked in the browser** as the seeded admin: Stripe's page took India and Bangladesh while switched off. The list then showed "Offered in Bangladesh, India", and Bangladesh's page listed only Bank Transfer (Stripe being off). Stripe's row and the audit entry were then put back. Paying and invoices were left to the tests.
+
+**Phase G: privacy and compliance** (section 24) was split on starting it (2026-11-14): G1, privacy requests with the data export; G2, legal holds; G3, consent records and retention rules.
+
+**Phase G1: privacy requests** (section 24) is built, with these defaults:
+
+- **A privacy request** is a data export, an account closure or a data correction. It is logged as it came: who asked and their e-mail, how it came (e-mail, a support case, the contact form, phone, other), the day, what they asked, and the account (by e-mail) and business (by BW- ID) it is about. A data export needs the business, with the account its owner or a member; a closure needs the account; a correction needs either. It is due 30 days after it came, and shows Overdue after that.
+- **Nothing is done until the person asking is checked:** the admin writes how (Received, then Identity checked). Then it is carried out (Completed, with what was done) or refused (Rejected, with why). Every step is in the audit log, with how the person was checked.
+- **A data export** is every record of the business as CSV files in a ZIP (33 files: members, contacts, items, sales, purchases, expenses, payments, accounts, taxes, comments, the list of its files, its izSuite invoices, its activity log and more), with a README. Passwords, keys and links are left out, and so are the stored files themselves, which `files.csv` lists. It is built in the background and its link e-mailed to the person asking; the link works for 7 days (the `privacy_export_days` setting), then `privacy:purge-exports` deletes the file. Each download by the link is counted, and each by an admin is in the audit log.
+- **An account closure** closes the account (it can no longer sign in, and its sessions end) and every business it owns. Their records are kept: closing never deletes. A business still subscribed has its subscription cancelled first, in Admin > Subscriptions. A closed account cannot be locked, and the users list shows and filters it as Closed.
+- **A data correction** records what was corrected; ticked, that goes to the person asking. So does a rejection's reason.
+- **Admin > Privacy Requests**, under a new Compliance section, lists them (the open ones first, by due day) with search by name, e-mail or PR- number, and filters by type and status.
+- **Roles** (migration 000147): Compliance and Security Administrators carry them out, the export included; Support Administrators log them and check who is asking; Read-Only Administrators see the list.
+- **Left for later:** a person's own data across businesses (an export is per business), the stored files in an export, and security investigations, which incidents and the audit log cover for now.
+- **Checked in the browser** as the seeded admin:
+  - Logged a data export for `user@izsuite.io` and BW-000001, recorded the identity check, and prepared the export.
+  - The dev queue worker built it: 33 CSV files and the README, `members.csv` without secrets. The e-mailed link downloaded the ZIP; a tampered link was refused, and the download was counted.
+  - The check found the request marked Completed, though its e-mail had failed: the worker had started before the download link's route existed. Now the request says it was sent only once the e-mail is queued, and a failure removes the file and puts it back to Identity checked. A test covers it.
+  - The request, its file and the audit entries were then removed.
+
+**Phase G2: legal holds** (section 24) is built, with these defaults:
+
+- **A legal hold** is placed on a business by its BW- ID, with a reference (a case number, say) and the reason, which only izSuite sees. A business may have several; it is held while any is in force.
+- **While held**, the owner cannot delete the business, and nobody in it can delete its records: contacts, items and their images and files, sales and purchase documents, expenses, their payments' and their own attachments and comments, payment accounts, transfers, locations and exchange rates. The app answers "izSuite is keeping this business's records for now, so they cannot be deleted. Contact izSuite support to know more." without saying why.
+- **What a hold leaves alone:** changing records, voiding or cancelling documents (which keep them), closing the business or its owner's account (which keep everything), and setup and access (members, roles, taxes, terms, categories), so a departing member can still be removed.
+- **Releasing a hold** lets deletions happen again, so it is a critical action: the admin's password and a reason. A released hold stays listed, with who released it and why, even after the business is deleted.
+- **Admin > Legal Holds**, under Compliance, lists them (those in force first) with search by business, BW- ID or reference. A business's admin page says when it is held.
+- **Roles** (migration 000148): Compliance and Security Administrators place and release holds; Read-Only Administrators see the list.
+- **Left for later:** holds on one account or on chosen records, and a hold stopping a retention rule, as none deletes yet.
+- **Checked in the browser** as the seeded admin: a hold on BW-000001 with a reference showed In force, and the business's page said so. Releasing it with the password and a reason marked it Released, with the reason. The hold and its audit entries were then removed. Refused deletions in the app were left to the tests.
+
+**Phase G3: consent records and retention rules** (section 24) is built, with these defaults:
+
+- **Consent records** are kept for each account: accepting the terms (at sign-up, or signing up from an invitation), and giving or withdrawing izSuite's product news by e-mail. Each holds when, how (at sign-up, from an invitation, in their profile), the address and browser it came from, and the account's e-mail then. They are written once and never changed. Accounts that had accepted the terms before have that recorded, on its day (migration 000149).
+- **Product news by e-mail** is off unless ticked: a checkbox at sign-up, "Send me izSuite's product news by e-mail (optional)", and one in My Profile. Only a change is recorded. izSuite sends no product news yet: this is the consent for when it does.
+- **An account's admin page** shows its consent records, newest first, and whether product news is given.
+- **Admin > Data Retention**, under Compliance, lists what izSuite keeps, for how long and what removes it, as the code does it today. Each is marked Enforced or Not yet: a business's records and activity log, closed accounts, privacy request exports, privacy, hold and consent records, the admin audit log, service events, imports, the keys that stop a request running twice, admin sessions and failed jobs. Only the enforced ones delete anything. The days an export's link lasts (1 to 90, 7 by default) are set there.
+- **Roles** (migration 000149): Compliance and Security Administrators see the rules and set the export's days; Read-Only Administrators see them.
+- **Left for later:**
+  - retention periods for the rest, which wait for izSuite's retention policy;
+  - consent for other purposes (cookies, other e-mails);
+  - a product news checkbox on the invitation sign-up form: it records the terms, and product news stays off.
+- **Checked in the browser** as the seeded admin and `user@izsuite.io`:
+  - Data Retention showed the rules marked Enforced and Not yet.
+  - The sign-up page showed the optional checkbox.
+  - Ticking product news in My Profile and saving recorded it.
+  - The account's admin page listed the record but said "not given": its query left the new column out. It now reads it, and the test checks both states.
+  - The record, the choice, the sign-in and its activity were then put back.
 
 **Suggested to leave, unless you say otherwise:**
 
@@ -762,7 +952,7 @@ B3 was split again on starting it (2026-11-13), as a support session names a sup
 
 ### 4. The full apps
 
-After Doc 15, choose which app comes first. Docs 16 to 21 are written. Docs 22 and up must be written before they can be built.
+Doc 15 is done (2026-11-14). Choose which app comes first. Docs 16 to 21 are written. Docs 22 and up must be written before they can be built.
 
 ## How we work
 
@@ -943,7 +1133,20 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 15: Phase C3a, prices in several currencies | `e290028` | `128f85f` | 000134 |
 | Doc 15: Phase C3b, promotions | `e49c71e` | `4bd877b` | 000135 |
 | Doc 15: Phase D1, the Overview | `5313faf` | | none |
-| Doc 15: Phase D2, usage and its history | the commit after `5313faf` | | 000136 |
+| Doc 15: Phase D2, usage and its history | `80c94fc` | | 000136 |
+| Doc 15: Phase D3a, service health | the commit after `80c94fc` | | 000137 |
+| Doc 15: Phase D3b, incidents | the commit after `80c94fc` | | 000138 |
+| Doc 15: Phase E1, feature flags | the commit after `80c94fc` | the commit after `4bd877b` | 000139 |
+| Doc 15: Phase E2, apps in depth | the commit after `80c94fc` | the commit after `4bd877b` | 000140 |
+| Doc 15: Phase E3a, plan details | the commit after `80c94fc` | the commit after `4bd877b` | 000141 |
+| Doc 15: Phase E3b, plan versions | the commit after `80c94fc` | | 000142 |
+| Doc 15: Phase F1, announcements | the commit after `80c94fc` | the commit after `4bd877b` | 000143 |
+| Doc 15: Phase F2, e-mail templates | the commit after `80c94fc` | | 000144 |
+| Doc 15: Phase F3a, countries | the commit after `80c94fc` | the commit after `4bd877b` | 000145 |
+| Doc 15: Phase F3b, payment methods by country | the commit after `80c94fc` | | 000146 |
+| Doc 15: Phase G1, privacy requests | the commit after `80c94fc` | | 000147 |
+| Doc 15: Phase G2, legal holds | the commit after `80c94fc` | | 000148 |
+| Doc 15: Phase G3, consent and retention | the commit after `80c94fc` | the commit after `4bd877b` | 000149 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -1159,6 +1362,37 @@ These are easy to undo by mistake.
   - Applying a price is `PackageService::applyPrice()`: `CriticalActionService`, then `WorkspaceSubscriptionRepository::payingOther()`, then `SubscriptionNoticeMail` kind `price_change` through `SubscriptionBilling::notice()`.
   - In the tests, a plan's prices come from `Tests\Concerns\PricesPlans::priced()`.
 - Admin > Overview (Doc 15 Phase D1) is `OverviewService::dashboard()` over `App\Repositories\Admin\OverviewRepository`. Its business filters are `BusinessRepository::narrow()`, which Admin > Businesses uses too (with an app filter it does not show yet); Past Due is `SubscriptionAdminRepository::pastDue()`. Website accounts are those with `ClientRepository::ROLE`. Jobs waiting is `Queue::size()` on the default queue: "Queue not reached" when it cannot be asked.
+- Admin > Service Health (Doc 15 Phase D3a) is `ServiceHealthService`, over `App\Services\Admin\Health\PlatformChecks` and `ActivityChecks`, which read through `ServiceHealthRepository` and `ServiceEventRepository`. Each check gives an `App\Support\ServiceStatus`.
+  - A queued job may be run again there only when its class implements `App\Jobs\Concerns\SafeToRetry`. Mark a new job so only when running it twice cannot send, add or charge twice.
+  - The heartbeats are in the cache (`Heartbeats`), so clearing the cache forgets them until the next minute.
+  - `StripeGateway` records its failed calls and `CardPayments::notified()` each webhook, as `ServiceEvent`s.
+- An app's statuses (Doc 15 Phase E2) are `Application`'s constants; `PUBLISHED` is stored as `available`. The Apps Center and the website list `Application::listed()` (Listed, and neither Draft nor Retired). `AppsCenter::edition()` and `ActivateApp` decide what can be turned on, the same way. Retiring is `AppService::retire()` with `WorkspaceAppRepository::deactivateEverywhere()`.
+- Feature flags (Doc 15 Phase E1) are `App\Services\Shared\Features` (`Features::enabled()`, `for()`) over `FeatureFlagRepository`, run in the admin by `FeatureFlagAdminService`, which calls `Features::forget()` on every change. The share a business falls in is `Features::bucket()`: crc32 of the key and the business's ID.
+- Where a plan is offered (Doc 15 Phase E3a) is `App\Services\Billing\PlanAvailability::ensure()`, which `SubscriptionService::payable()` (subscribing and the quote) and `SubscriptionChanges::preview()` (and so `apply()`) call. The billing country is `PlanAvailability::countryOf()`, from the billing details. `PublicCatalog::packages($workspace)` leaves out the plans not offered where the business is billed, keeping its own, and nulls the price of a cycle not offered. Renewals do not ask, so a subscriber keeps its plan and cycle.
+  - The plan form sends each cycle's switch as 0 or 1 (a hidden 0 before the box), so a request without them leaves the cycles as they are. `UpdatePackageRequest::after()` keeps one at least.
+- Plan versions (Doc 15 Phase E3b, migration 000142) are `package_versions`, worked by `App\Services\Billing\PlanVersions` (`add()`, `start()`, `startDue()`, `remove()`, `history()`) over `PackageVersionRepository`. `PackageService::update()` splits the form: `PackageVersion::TERMS` go into a version when `PackageVersion::differ()` finds a change, the rest update the plan at once. A version started today updates the plan in one change with the rest of the form, so the audit entry has every setting.
+  - The plan's own columns are always its current version's terms; `applied_at` marks a version started.
+  - `workspaces.package_version_id` holds a business to a version: set only by `PackageVersionRepository::holdSubscribers()` as a newer version starts, cleared by `WorkspaceRepository::setPackage()` when the plan changes. Null means the plan's terms as they stand.
+  - Read a business's terms with `Workspace::terms()` (the held version, else the plan), or `WorkspaceRepository::termsOf()` afresh. In SQL, `App\Repositories\Concerns\JoinsPlanTerms` joins `packages` and the held version (`held`), and `term('user_limit')` reads one. Reading `packages.user_limit` or `$workspace->package->user_limit` for a business's limit is a bug now.
+- Announcements (Doc 15 Phase F1, migration 000143) are `App\Services\Shared\Announcements` (`for()`, `forAdmins()`, `dismiss()`) over `AnnouncementRepository`, run in the admin by `AnnouncementAdminService`. The live ones are read in full and matched to the business in PHP: there are few at a time. The admin panel's banner comes from `App\View\Composers\AdminAnnouncementsComposer` on `layouts.admin`; `admin.announcements.dismiss` is open to every admin in `PermissionCheckMiddleware`. The frontend's banner is `AnnouncementBanner` with `useAnnouncements()`.
+- E-mail templates (Doc 15 Phase F2, migration 000144): the e-mails that can be written are `App\Support\EmailTemplateKinds` (key, name, group, mandatory, variables with samples, the built-in button's words). A mailable joins by using `App\Mail\Concerns\UsesEmailTemplate` and giving `templateKey()` and `templateVariables()`; its `envelope()` and `content()` take `templated()` first and fall back to their own view. The words come from `App\Services\Shared\EmailTemplates::for()` and render in `emails.template`. To add an e-mail: an entry in `EmailTemplateKinds`, then the trait on its mailable.
+- Countries (Doc 15 Phase F3a, migration 000145) are the `countries` table, still read through `App\Support\Countries`: `codes()`, `name()`, `all()` and `codeFor()` as before, and now `find()` and `addressFormat()`.
+  - `App\Support\CountryDirectory` is scoped (once per request or queued job). It keeps the table in the cache (`countries:directory`) until a country changes. Before the table exists it reads `Countries::builtIn()`, the list the table started from, which the older migrations need.
+  - `RegionalDefaults::for()` and `currency()` read the country's defaults. Their old rules are now `builtIn()` and `builtInCurrency()`, kept for the seed.
+  - Versions are `country_versions`, worked by `App\Services\Admin\CountryVersions` as plan versions are. A country's own columns are always its current version's.
+  - Addresses print through `App\Support\AddressFormat::lines()`, from `SalesSnapshots::address()`.
+- Where a way to pay is offered (Doc 15 Phase F3b, migration 000146) is `payment_methods.countries`, read by `PaymentMethod::offeredIn()`: none chosen, or a business without a billing country, means everywhere.
+  - `CardPayments::available($workspace)` and `offeredTo()` gate the overview's `card_payments`, card checkout, saving a card, paying now and the saved card's charges.
+  - `SubscriptionBilling::instructions()` takes only the offline methods offered where the invoice's business is billed.
+  - Refunds are not limited by country.
+- Privacy requests (Doc 15 Phase G1, migration 000147) are `privacy_requests`, worked by `App\Services\Admin\Privacy\PrivacyRequestService` over `PrivacyRequestRepository`.
+  - The export is `BusinessDataExport` over `BusinessExportRepository`: one CSV per table in its `OWN` and `CHILDREN` lists, plus `members`; a column whose name holds password, secret, token, credential or remember is never written. To export a new kind of record, add its table there. It is built by the `BuildPrivacyExport` job and kept on the `local` disk under `privacy-exports/`.
+  - The person asking downloads it through `/privacy-exports/{id}`, a signed link that lasts until the export expires (`URL::temporarySignedRoute`), so it points at the backend's own address (`APP_URL`).
+  - An account closure sets `users.status` to `closed` (`User::CLOSED`) and closes each business it owns through `BusinessStatusService::closeNow()`.
+- Legal holds (Doc 15 Phase G2, migration 000148) are `legal_holds`, worked by `App\Services\Admin\Privacy\LegalHoldService`. The API's deletions it refuses are its `DELETIONS` list of route names, checked in `ResolveWorkspace` after the business's status; `WorkspaceService::delete()` checks it too. A new route that permanently deletes a business's records belongs in that list.
+- Consent records (Doc 15 Phase G3, migration 000149) are `consent_records`, written only by `App\Services\Shared\ConsentRecords` (`acceptedTerms()`, `setMarketing()`). `users.marketing_consent` is the choice as it stands; set it only through `setMarketing()`, so each change is recorded. Sign-up and invitation sign-up call it, and so does the profile when `marketing` is sent.
+- Data retention (Doc 15 Phase G3) is `App\Services\Admin\Privacy\RetentionRules::rules()`: a list written to match the code. When a new prune or deletion is added, add its row there. The export's days are the `privacy_export_days` setting.
+- Incidents (Doc 15 Phase D3b) are `IncidentService` over `IncidentRepository`. `ServiceStatus::NAMES` is the one list of services, for Service Health's checks and an incident's service. Who may be made responsible is `StaffRepository::active()`.
 - Admin > Usage (Doc 15 Phase D2) is `UsageService` over `App\Repositories\Admin\UsageRepository`. The repository works each business's usage out in SQL (subqueries, and `greatest` or `max` by database), so the list sorts and filters by it. `App\Support\UsageState` gives the states in PHP, and the repository's filters ask the same in SQL. `BusinessRepository::search()` is Admin > Businesses' search, shared.
 - Promotion codes (Doc 15 Phase C3b, migration 000135) are `promotions`, checked by `App\Services\Billing\Promotions::forSubscribing()` (refusing on the `code` field) and worked out by `discountOn()`. Only `SubscriptionService::subscribe()` and `quote()` take a code.
   - `SubscriptionBilling::quote()` and `issue()` take a `Promotion`; the quote has `discount`, `promotion` and `renews_at`. The discount comes off first, then credits, then tax on what is left. The invoice keeps `discount`, `promotion_id` and `promotion_code` (the code as it was), and `SubscriptionInvoice::net()` takes the discount off too.
@@ -1218,4 +1452,17 @@ Each of these is yours to settle.
 - Doc 15 Phase C3b: migration 000135 adds `promotions`, the invoices' `discount`, `promotion_id` and `promotion_code`, and gives the roles Admin > Promotions. Nothing else changes until a code is added.
 - Doc 15 Phase D1: no migration. The Overview asks the queue for its size, so the web app needs to reach the queue's Redis, as the workers do.
 - Doc 15 Phase D2: migration 000136 adds `workspace_usage_snapshots` and gives the roles Admin > Usage. The scheduler runs `usage:snapshot` daily at 23:50 UTC; a business's history starts the day it first runs.
+- Doc 15 Phase D3a: migration 000137 adds `service_events` and gives the roles Admin > Service Health. The scheduler runs `health:heartbeat` each minute, and the workers run its job; restart them after deploying (`php artisan queue:restart`). The web app must reach Gotenberg and write to the files' disk, as the checks do both.
+- Doc 15 Phase D3b: migration 000138 adds `incidents` and `incident_notes`, and gives the roles Admin > Incidents.
+- Doc 15 Phase E1: migration 000139 adds `feature_flags` and gives the roles Admin > Feature Flags. Deploy the frontend with it: its navigation type reads `features`.
+- Doc 15 Phase E2: migration 000140 adds an app's countries, conflicts and release version, makes unlisted apps Drafts, and lets Product Administrators retire apps. Deploy the frontend with it, for the Apps Center's new states. `AppCatalogSeeder` only adds apps that are missing, so it leaves statuses set in the admin alone.
+- Doc 15 Phase E3a: migration 000141 adds a plan's reporting and support levels, its cycles and its countries. It gives Billing Starter, Standard and Premium their levels, and every plan both cycles everywhere. Deploy the frontend with it, for the plans' new lines.
+- Doc 15 Phase E3b: migration 000142 adds plan versions, making each plan's terms as they stand its version 1, and lets Billing Administrators remove waiting versions. The scheduler runs `plans:advance` hourly; check the scheduler container picks it up after deploying.
+- Doc 15 Phase F1: migration 000143 adds announcements and gives their pages to Product, Support and Read-Only Administrators. Deploy the frontend with it, for the banner. Rebuild the admin CSS.
+- Doc 15 Phase F2: migration 000144 adds e-mail templates and their versions, and gives their pages to Product, Support and Read-Only Administrators. Nothing changes in what is sent until an admin activates a template. Restart the queue workers (`php artisan queue:restart`), as the e-mails changed.
+- Doc 15 Phase F3a: migration 000145 adds `countries` and `country_versions`, filled from the list in the code, and gives the roles Admin > Countries. Nothing changes until an admin changes a country, except that new documents print United States, Canadian and Australian addresses with the city, region and postal code on one line. The scheduler runs `countries:advance` hourly. Deploy the frontend with it, for the setup's time zone. Rebuild the admin CSS, and restart the queue workers.
+- Doc 15 Phase F3b: migration 000146 adds `payment_methods.countries`, empty for every method, so nothing changes until an admin chooses countries. Restart the queue workers, as the card charges changed.
+- Doc 15 Phase G1: migration 000147 adds `privacy_requests` and gives the roles Admin > Privacy Requests. Restart the queue workers after deploying (`php artisan queue:restart`): a worker started before it does not know the export's link, so the export fails and goes back to Identity checked. The scheduler runs `privacy:purge-exports` hourly. `APP_URL` must be the backend's public address, as the e-mailed link points there. The exports are kept on the `local` disk (`storage/app/private/privacy-exports`), which must persist between deploys for 7 days.
+- Doc 15 Phase G2: migration 000148 adds `legal_holds` and gives the roles Admin > Legal Holds. Nothing changes until a hold is placed.
+- Doc 15 Phase G3: migration 000149 adds `consent_records` and `users.marketing_consent`, records the terms acceptance of each existing account on its day, and gives the roles Admin > Data Retention. Deploy the frontend with it, for the product news checkbox; the API's account now carries `marketing`. Rebuild the admin CSS, and restart the queue workers.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

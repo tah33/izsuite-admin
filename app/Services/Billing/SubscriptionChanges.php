@@ -44,6 +44,7 @@ class SubscriptionChanges
         private SubscriptionInvoiceRepository $invoices,
         private BusinessCalendar $calendar,
         private PackagePricing $pricing,
+        private PlanAvailability $availability,
     ) {}
 
     /**
@@ -56,6 +57,10 @@ class SubscriptionChanges
     {
         $subscription = $this->changeable($workspace);
         $kind         = $this->kind($subscription, $to, $cycle);
+
+        // Offered on that cycle, and where the business is billed (Doc 15 Phase E3a).
+        $this->availability->ensure($to, $cycle, $workspace);
+
         $amount       = $this->billing->price($to, $cycle, $workspace)
             ?? throw ValidationException::withMessages(['cycle' => "{$to->name}'s ".($cycle === WorkspaceSubscription::YEARLY ? 'yearly' : 'monthly').' price has not been announced yet.']);
         $credit       = $kind === self::UP ? $this->credit($workspace, $subscription, $to) : '0.00';

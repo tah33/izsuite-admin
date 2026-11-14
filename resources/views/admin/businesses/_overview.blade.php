@@ -21,6 +21,8 @@
         ],
         __('Plan and Subscription') => [
             __('Plan')         => $business->package?->name,
+            // Held to an earlier version of its plan's terms (Doc 15 Phase E3b).
+            __('Plan terms')   => $business->terms() instanceof \App\Models\Billing\PackageVersion ? __('Version :number, from :date', ['number' => $business->terms()->number, 'date' => $business->terms()->starts_on->format('M d, Y')]) : null,
             __('Subscription') => __(\App\Services\Admin\BusinessService::SUBSCRIPTION_LABELS[$subscriptionStatus]),
             __('Billed')       => $subscriptionStatus !== 'free' ? ucfirst((string) $subscription?->cycle) : null,
             __('Trial ends')   => $subscriptionStatus === 'trialing' ? $subscription?->trial_ends_on?->format('M d, Y') : null,

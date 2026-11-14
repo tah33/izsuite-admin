@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\UsesEmailTemplate;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -20,7 +21,17 @@ use Illuminate\Support\Carbon;
  */
 class PasswordChanged extends Mailable
 {
-    use Queueable, SerializesModels;
+    use Queueable, SerializesModels, UsesEmailTemplate;
+
+    protected function templateKey(): string
+    {
+        return 'account.password_changed';
+    }
+
+    protected function templateVariables(): array
+    {
+        return ['first_name' => $this->firstName, 'email' => $this->email, 'changed_at' => $this->changedAt->format('j M Y, H:i').' UTC'];
+    }
 
     public function __construct(
         public string $firstName,
@@ -31,12 +42,17 @@ class PasswordChanged extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: setting('site_name', config('app.name')).' - '.__('Your password was changed'),
+            subject: $this->templated()['subject'] ?? setting('site_name', config('app.name')).' - '.__('Your password was changed'),
         );
     }
 
+    /** In the admin's words when it wrote them (Doc 15 Phase F2), else these. */
     public function content(): Content
     {
+        if ($words = $this->templated()) {
+            return $this->templatedContent($words);
+        }
+
         return new Content(
             view: 'emails.password-changed',
             with: [

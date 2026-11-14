@@ -101,6 +101,11 @@
             <span>{{ __('Menu Builder') }}</span>
         </a>
 
+        <a href="{{ route('admin.feature-flags.index') }}" class="sidebar-link {{ request()->routeIs('admin.feature-flags.*') ? 'active' : '' }}">
+            <i data-lucide="flag" class="icon"></i>
+            <span>{{ __('Feature Flags') }}</span>
+        </a>
+
         <a href="{{ route('admin.businesses.index') }}" class="sidebar-link {{ request()->routeIs('admin.businesses.*', 'admin.workspaces.*') ? 'active' : '' }}">
             <i data-lucide="building-2" class="icon"></i>
             <span>{{ __('Businesses') }}</span>
@@ -145,6 +150,11 @@
             <span>{{ __('Contact Messages') }}</span>
         </a>
 
+        <a href="{{ route('admin.announcements.index') }}" class="sidebar-link {{ request()->routeIs('admin.announcements.*') ? 'active' : '' }}">
+            <i data-lucide="megaphone" class="icon"></i>
+            <span>{{ __('Announcements') }}</span>
+        </a>
+
         <div class="sidebar-section-title">{{ __('Frontend CMS') }}</div>
 
         <a href="{{ route('admin.content.index', ['context' => 'header-footer']) }}" class="sidebar-link {{ request()->routeIs('admin.content.*') ? 'active' : '' }}">
@@ -157,26 +167,6 @@
             <span>{{ __('Pages') }}</span>
         </a>
 
-        <div class="sidebar-section-title">{{ __('System') }}</div>
-
-        <a href="{{ route('admin.languages.index') }}" class="sidebar-link {{ request()->routeIs('admin.languages.*') ? 'active' : '' }}">
-            <i data-lucide="globe" class="icon"></i>
-            <span>{{ __('Languages') }}</span>
-        </a>
-
-        <a href="{{ route('admin.currencies.index') }}" class="sidebar-link {{ request()->routeIs('admin.currencies.*') ? 'active' : '' }}">
-            <i data-lucide="coins" class="icon"></i>
-            <span>{{ __('Currencies') }}</span>
-        </a>
-
-        <a href="{{ route('admin.settings.index') }}" class="sidebar-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">
-            <i data-lucide="settings" class="icon"></i>
-            <span>{{ __('Settings') }}</span>
-        </a>
-
-        <a href="{{ route('admin.audit-log.index') }}" class="sidebar-link {{ request()->routeIs('admin.audit-log.*') ? 'active' : '' }}">
-            <i data-lucide="scroll-text" class="icon"></i>
-            <span>{{ __('Audit Log') }}</span>
-        </a>
+        @include('admin.partials.sidebar-system')
     </nav>
 </aside>

@@ -36,7 +36,7 @@ class SubscriptionCardService
             $this->refuse('Only an invoice still to be paid can be paid by card.');
         }
 
-        $this->ensureAvailable();
+        $this->ensureAvailable($workspace);
 
         return $this->cards->checkout($invoice);
     }
@@ -44,7 +44,7 @@ class SubscriptionCardService
     /** The provider's page to save a card, or another in its place: its address. */
     public function cardSetup(Workspace $workspace): string
     {
-        $this->ensureAvailable();
+        $this->ensureAvailable($workspace);
 
         return $this->cards->cardSetup($workspace);
     }
@@ -81,7 +81,7 @@ class SubscriptionCardService
             $this->refuse('Only an invoice still to be paid can be paid.');
         }
 
-        $this->ensureAvailable();
+        $this->ensureAvailable($workspace);
 
         if (! $this->cards->card($workspace)) {
             $this->refuse("There is no saved card. Pay by card on Stripe's page, or by bank transfer.");
@@ -121,10 +121,15 @@ class SubscriptionCardService
         ];
     }
 
-    private function ensureAvailable(): void
+    private function ensureAvailable(Workspace $workspace): void
     {
         if (! $this->cards->available()) {
             $this->refuse('Card payments are not available right now. Pay by bank transfer instead.');
+        }
+
+        // Doc 15 Phase F3b: not offered where the business is billed.
+        if (! $this->cards->offeredTo($workspace)) {
+            $this->refuse('Card payments are not offered where your business is billed. Pay as your invoice says instead.');
         }
     }
 }

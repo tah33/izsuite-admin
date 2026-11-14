@@ -34,6 +34,8 @@
     @error('instructions') <span class="form-error">{{ $message }}</span> @enderror
 </div>
 
+@include('admin.payment-methods._countries', ['method' => $method ?? null, 'hint' => __('By the business\'s billing country. Invoices of businesses billed elsewhere leave its instructions out.')])
+
 <div class="grid grid-cols-2 gap-4">
     <div class="form-group">
         <label for="sort_order" class="form-label">{{ __('Sort Order') }}</label>

@@ -138,6 +138,7 @@
 </div>
 
 @include('admin.apps._details')
+@include('admin.apps._catalogue')
 
 <div class="divider"></div>
 
@@ -147,10 +148,11 @@
         <label class="form-label" for="status">{{ __('Status') }}</label>
         <select id="status" name="status" class="form-input" required>
             @foreach(\App\Models\Frontend\Application::STATUSES as $value => $label)
+                @continue($value === 'retired' && ($app->status ?? null) !== 'retired')
                 <option value="{{ $value }}" @selected(old('status', $app->status ?? 'available') === $value)>{{ __($label) }}</option>
             @endforeach
         </select>
-        <p class="text-xs mt-1 text-[var(--text-muted)]">{{ __('Coming Soon is listed in the Apps Center but cannot be turned on yet.') }}</p>
+        <p class="text-xs mt-1 text-[var(--text-muted)]">{{ __('Draft is not listed. Coming Soon, Temporarily Unavailable and Deprecated are listed but cannot be turned on; businesses with one on keep it. Retire takes it off everywhere.') }}</p>
         @error('status')
             <p class="text-xs mt-1 text-[var(--danger)]">{{ $message }}</p>
         @enderror

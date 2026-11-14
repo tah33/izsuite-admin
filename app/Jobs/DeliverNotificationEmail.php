@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Concerns\SafeToRetry;
 use App\Services\Shared\Notifications\Notifier;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -14,7 +15,7 @@ use Throwable;
  * A notification's e-mail (Doc 14 section 15 - Phase B1), tried three
  * times; still failing, its delivery is kept as failed with the reason.
  */
-class DeliverNotificationEmail implements ShouldQueue
+class DeliverNotificationEmail implements SafeToRetry, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 

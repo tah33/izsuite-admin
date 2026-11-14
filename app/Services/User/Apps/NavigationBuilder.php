@@ -12,6 +12,7 @@ use App\Repositories\Admin\MenuItemRepository;
 use App\Repositories\User\WorkspaceFileRepository;
 use App\Services\Files\FileStorage;
 use App\Services\Shared\BusinessCalendar;
+use App\Services\Shared\Features;
 use App\Services\Shared\WorkspaceAccess;
 use App\Services\User\Workspaces\BusinessStatusService;
 use App\Support\Permissions;
@@ -43,6 +44,7 @@ class NavigationBuilder
         private WorkspaceFileRepository $workspaceFiles,
         private FileStorage $fileStorage,
         private BusinessStatusService $statuses,
+        private Features $features,
     ) {}
 
     public function for(?Workspace $workspace, User $user): array
@@ -66,6 +68,9 @@ class NavigationBuilder
             // Its status, read fresh too (Doc 15 section 15.6): null while Active.
             $navigation['workspace']['status'] = $this->statuses->forNavigation($workspace, $user);
         }
+
+        // The features on for it (Doc 15 section 15.12), fresh: a flag switched off counts at once.
+        $navigation['features'] = $workspace ? $this->features->for($workspace) : [];
 
         return $navigation;
     }

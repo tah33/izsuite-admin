@@ -3,7 +3,9 @@
 namespace App\Http\Requests\Admin;
 
 use App\Repositories\Admin\PaymentMethodRepository;
+use App\Support\Countries;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdatePaymentMethodRequest extends FormRequest
 {
@@ -21,10 +23,13 @@ class UpdatePaymentMethodRequest extends FormRequest
             return [];
         }
 
-        // A method that takes real payments needs the password again and a reason (Doc 15 section 15.25).
+        // A method that takes real payments needs the password again and a reason (Doc 15 section 15.25);
+        // either kind names the billing countries it is offered in, none for every country (Phase F3b).
         $confirmation = [
             'confirm_password' => ['nullable', 'string', 'max:255'],
             'reason'           => ['nullable', 'string', 'max:500'],
+            'countries'        => ['nullable', 'array'],
+            'countries.*'      => [Rule::in(Countries::codes())],
         ];
 
         // Stripe's keys, test and live apart (Doc 13 Phase D2): each by its own prefix. Left blank, the kept one stays.

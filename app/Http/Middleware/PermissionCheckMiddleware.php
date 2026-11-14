@@ -23,8 +23,9 @@ class PermissionCheckMiddleware
         }
 
         // The Overview, and each admin's own account: their profile and
-        // password, and their two-factor sign-in (Doc 15 section 15.2).
-        if ($request->routeIs('admin.overview', 'admin.profile', 'admin.profile.update', 'admin.profile.password', 'admin.two-factor.*')) {
+        // password, and their two-factor sign-in (Doc 15 section 15.2) - and
+        // putting away an announcement for themselves (Phase F1).
+        if ($request->routeIs('admin.overview', 'admin.profile', 'admin.profile.update', 'admin.profile.password', 'admin.two-factor.*', 'admin.announcements.dismiss')) {
             return $next($request);
         }
 

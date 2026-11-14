@@ -11,6 +11,7 @@ use App\Repositories\Admin\BusinessRepository;
 use App\Repositories\Billing\PackageRepository;
 use App\Repositories\User\SupportSessionRepository;
 use App\Repositories\User\WorkspaceStatusChangeRepository;
+use App\Services\Admin\Privacy\LegalHoldService;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\Notifications\Notice;
 use App\Services\Shared\Notifications\NotificationAudience;
@@ -47,6 +48,7 @@ class BusinessService
         protected Notifier $notifier,
         protected NotificationAudience $audience,
         protected SupportSessionRepository $supportSessions,
+        protected LegalHoldService $legalHolds,
     ) {}
 
     public function page(array $filters, int $perPage): LengthAwarePaginator
@@ -80,6 +82,8 @@ class BusinessService
             'openCases'          => $this->supportSessions->casesFor($workspace),
             'activity'           => $this->businesses->adminActivity($workspace),
             'packages'           => $this->packages->allByRank(),
+            // Legal holds in force on it (Doc 15 Phase G2).
+            'legalHolds'         => $this->legalHolds->activeFor($workspace),
         ];
     }
 

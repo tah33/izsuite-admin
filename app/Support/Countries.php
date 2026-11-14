@@ -6,12 +6,16 @@ use Illuminate\Support\Str;
 
 /**
  * The world's countries and territories (ISO 3166-1 alpha-2), with their phone
- * calling code and the names their addresses give the region and postal code.
+ * calling code, what their addresses call the region and postal code and how
+ * they write an address, and the defaults a new business there takes.
  *
- * The one list for every country field that stores a code - a contact's
- * addresses, its tax country, the calling code of a phone number - served to
- * the frontend by GET /countries. Countries change rarely enough to live here
- * rather than in a table an admin maintains.
+ * The one list for every country field that stores a code - a business's own
+ * country, a contact's addresses, its tax country, the calling code of a phone
+ * number - served to the frontend by GET /countries. Since Doc 15 Phase F3a
+ * it is the countries table, which Admin > Countries edits (CountryDirectory
+ * keeps it to hand). The lists below are what that table started from
+ * (migration 000145), and what is read before it exists: the older migrations
+ * that turned typed countries into codes.
  *
  * A calling code of the North American Numbering Plan is "1" for all its
  * members: the area code that tells them apart is part of the number. A few
@@ -319,43 +323,83 @@ class Countries
         'viet nam'                 => 'VN',
     ];
 
+    /**
+     * The zone a country's businesses usually keep, where it has several - its
+     * capital's. A country with one has it; Bouvet Island and Heard Island,
+     * none.
+     */
+    private const MAIN_ZONES = [
+        'AR' => 'America/Argentina/Buenos_Aires',
+        'AU' => 'Australia/Sydney',
+        'BR' => 'America/Sao_Paulo',
+        'CA' => 'America/Toronto',
+        'CD' => 'Africa/Kinshasa',
+        'CL' => 'America/Santiago',
+        'CN' => 'Asia/Shanghai',
+        'CY' => 'Asia/Nicosia',
+        'DE' => 'Europe/Berlin',
+        'EC' => 'America/Guayaquil',
+        'ES' => 'Europe/Madrid',
+        'FM' => 'Pacific/Pohnpei',
+        'GL' => 'America/Nuuk',
+        'ID' => 'Asia/Jakarta',
+        'KI' => 'Pacific/Tarawa',
+        'KZ' => 'Asia/Almaty',
+        'MH' => 'Pacific/Majuro',
+        'MN' => 'Asia/Ulaanbaatar',
+        'MX' => 'America/Mexico_City',
+        'MY' => 'Asia/Kuala_Lumpur',
+        'NZ' => 'Pacific/Auckland',
+        'PF' => 'Pacific/Tahiti',
+        'PG' => 'Pacific/Port_Moresby',
+        'PS' => 'Asia/Hebron',
+        'PT' => 'Europe/Lisbon',
+        'RU' => 'Europe/Moscow',
+        'UA' => 'Europe/Kyiv',
+        'US' => 'America/New_York',
+        'UZ' => 'Asia/Tashkent',
+    ];
+
     /** @return list<string> */
     public static function codes(): array
     {
-        return array_keys(self::LIST);
+        return array_keys(self::rows());
     }
 
     public static function name(?string $code): ?string
     {
-        return self::LIST[$code][0] ?? null;
+        return self::rows()[$code ?? '']['name'] ?? null;
+    }
+
+    /**
+     * Country $code as the countries table has it: its name, calling code,
+     * address labels and format, and the defaults a new business there takes
+     * (Country::DEFAULTS), with the time zones it has. Null for a code that
+     * is not one.
+     *
+     * @return ?array<string, mixed>
+     */
+    public static function find(?string $code): ?array
+    {
+        return self::rows()[strtoupper((string) $code)] ?? null;
+    }
+
+    /** How country $code writes an address (AddressFormat): its own, or each part on a line. */
+    public static function addressFormat(?string $code): string
+    {
+        return self::find($code)['address_format'] ?? AddressFormat::DEFAULT;
     }
 
     /**
      * Every country, by name, with what a form needs to show it: its calling
-     * code (null for none) and the labels of its address fields.
+     * code (null for none), the labels of its address fields, and its time
+     * zones with the one its businesses usually keep.
      *
-     * @return list<array{code: string, name: string, calling_code: ?string, region_label: string, postal_label: string}>
+     * @return list<array<string, mixed>>
      */
     public static function all(): array
     {
-        $all = [];
-
-        foreach (self::LIST as $code => [$name, $callingCode]) {
-            [$region, $postal] = self::ADDRESS_LABELS[$code] ?? self::DEFAULT_LABELS;
-
-            $all[] = [
-                'code'         => $code,
-                'name'         => $name,
-                'calling_code' => $callingCode,
-                'region_label' => $region,
-                'postal_label' => $postal,
-            ];
-        }
-
-        // By the name without its accents, so "Åland Islands" sits among the A's.
-        usort($all, fn (array $a, array $b) => strcasecmp(Str::ascii($a['name']), Str::ascii($b['name'])));
-
-        return $all;
+        return array_values(self::rows());
     }
 
     /**
@@ -371,16 +415,76 @@ class Countries
             return null;
         }
 
-        if (strlen($name) === 2 && isset(self::LIST[strtoupper($name)])) {
+        $rows = self::rows();
+
+        if (strlen($name) === 2 && isset($rows[strtoupper($name)])) {
             return strtoupper($name);
         }
 
-        foreach (self::LIST as $code => [$countryName]) {
-            if (mb_strtolower($countryName) === $name) {
+        foreach ($rows as $code => $row) {
+            if (mb_strtolower($row['name']) === $name) {
                 return $code;
             }
         }
 
         return self::ALIASES[$name] ?? null;
+    }
+
+    /**
+     * The list the countries table started from (migration 000145), each
+     * country with the defaults a new business there takes - its usual
+     * currency, time zone and regional settings (RegionalDefaults), and its
+     * address labels and format - and what is read before that table exists.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function builtIn(): array
+    {
+        $rows = [];
+
+        foreach (self::LIST as $code => [$name, $callingCode]) {
+            [$region, $postal] = self::ADDRESS_LABELS[$code] ?? self::DEFAULT_LABELS;
+
+            $rows[] = [
+                'code'           => $code,
+                'name'           => $name,
+                'calling_code'   => $callingCode,
+                'currency'       => RegionalDefaults::builtInCurrency($code),
+                'timezone'       => self::MAIN_ZONES[$code] ?? \DateTimeZone::listIdentifiers(\DateTimeZone::PER_COUNTRY, $code)[0] ?? null,
+                ...RegionalDefaults::builtIn($code),
+                'region_label'   => $region,
+                'postal_label'   => $postal,
+                'address_format' => AddressFormat::builtIn($code),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * $rows - the table's, or the built-in list - by code and in order of
+     * name without accents, so "Åland Islands" sits among the A's, each with
+     * its time zones.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return array<string, array<string, mixed>>
+     */
+    public static function arrange(array $rows): array
+    {
+        usort($rows, fn (array $a, array $b) => strcasecmp(Str::ascii($a['name']), Str::ascii($b['name'])));
+
+        $arranged = [];
+
+        foreach ($rows as $row) {
+            $arranged[$row['code']] = [...$row, 'timezones' => \DateTimeZone::listIdentifiers(\DateTimeZone::PER_COUNTRY, $row['code'])];
+        }
+
+        return $arranged;
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    private static function rows(): array
+    {
+        return app(CountryDirectory::class)->rows();
     }
 }

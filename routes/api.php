@@ -89,6 +89,7 @@ use App\Http\Controllers\Api\SalesRefundController;
 use App\Http\Controllers\Api\SalesSettingController;
 use App\Http\Controllers\Api\SetupController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\StripeWebhookController;
 use App\Http\Controllers\Api\SubscriptionCardController;
 use App\Http\Controllers\Api\SubscriptionController;
@@ -358,6 +359,12 @@ Route::prefix('v1')->group(function () {
         Route::get('/unread', [NotificationController::class, 'unread'])->name('api.notifications.unread');
         Route::post('/read', [NotificationController::class, 'readAll'])->name('api.notifications.read-all');
         Route::post('/{id}/read', [NotificationController::class, 'read'])->whereNumber('id')->name('api.notifications.read');
+    });
+
+    // Platform announcements (Doc 15 section 15.21): izSuite's banners for the business's people, each dismissed for oneself.
+    Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('announcements')->group(function () {
+        Route::get('/', [AnnouncementController::class, 'index'])->name('api.announcements.index');
+        Route::post('/{id}/dismiss', [AnnouncementController::class, 'dismiss'])->whereNumber('id')->name('api.announcements.dismiss');
     });
 
     // Support cases (Doc 15 section 15.22): the business asks izSuite, whatever its status.

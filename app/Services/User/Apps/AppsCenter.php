@@ -6,10 +6,12 @@ use App\Models\Frontend\AppCategory;
 use App\Models\Frontend\Application;
 use App\Models\Frontend\MenuItem;
 use App\Models\User\Workspace;
+use App\Models\User\WorkspaceApp;
 use App\Repositories\Admin\AppCategoryRepository;
 use App\Repositories\Admin\AppRepository;
 use App\Repositories\Admin\MenuItemRepository;
 use App\Repositories\Billing\PackageRepository;
+use App\Repositories\User\WorkspaceRepository;
 use App\Services\Reports\ReportCatalog;
 use App\Support\Permissions;
 use Illuminate\Support\Collection;
@@ -36,6 +38,9 @@ class AppsCenter
     /** @var array<int, string> app id => the lowest plan that includes it */
     private array $lowest = [];
 
+    /** @var array<int, ?string> business id => its country */
+    private array $countries = [];
+
     public function __construct(
         private AppDependencies $dependencies,
         private DeactivateApp $deactivate,
@@ -43,6 +48,7 @@ class AppsCenter
         private AppCategoryRepository $categories,
         private PackageRepository $packages,
         private MenuItemRepository $menu,
+        private WorkspaceRepository $workspaces,
     ) {}
 
     public function for(Workspace $workspace): array
@@ -119,6 +125,12 @@ class AppsCenter
         ];
     }
 
+    /** $workspace's country, from its profile - which apps it is offered (Doc 15 Phase E2). */
+    private function countryOf(Workspace $workspace): ?string
+    {
+        return $this->countries[$workspace->id] ??= $this->workspaces->countryOf($workspace);
+    }
+
     /** The edition that names the family's card: Full, else the only one. */
     private function primary(Collection $editions): Application
     {
@@ -148,30 +160,41 @@ class AppsCenter
 
     private function edition(Workspace $workspace, WorkspaceApps $apps, Application $app, ?Application $on): array
     {
-        $missing = $this->dependencies->missing($apps, $app);
+        $missing   = $this->dependencies->missing($apps, $app);
+        // Apps on that it cannot be on beside (Doc 15 Phase E2): another family naming it, or named by it.
+        $conflicts = $apps->active()->filter(fn (WorkspaceApp $row) => $row->app->conflictsWith($app))->map(fn (WorkspaceApp $row) => $row->app->name)->values();
 
+        // An edition on stays on, whatever its catalog status since (Doc 15 section 15.10).
         $state = match (true) {
-            $app->status === 'coming_soon'                                => 'coming_soon',
             $on?->id === $app->id                                         => 'active',
             $on !== null && $on->edition->rank() > $app->edition->rank() => 'included',
+            $app->status === Application::COMING_SOON                     => 'coming_soon',
+            $app->status === Application::UNAVAILABLE                     => 'unavailable',
+            $app->status === Application::DEPRECATED                      => 'deprecated',
+            ! $app->offeredIn($this->countryOf($workspace))               => 'not_offered',
             ! $workspace->package?->allows($app)                          => 'upgrade_required',
+            $conflicts->isNotEmpty()                                      => 'conflicts',
             $missing->isNotEmpty()                                        => 'needs_apps',
             $on !== null                                                  => 'upgrade',
             default                                                       => 'available',
         };
 
         $result = [
-            'app_key'       => $app->app_key,
-            'name'          => $app->name,
-            'edition'       => $app->edition->value,
-            'edition_label' => $app->editionLabel(),
-            'state'         => $state,
-            'package'       => $this->lowest[$app->id] ?? null,
-            'requires'      => $app->dependencies
+            'app_key'         => $app->app_key,
+            'name'            => $app->name,
+            'edition'         => $app->edition->value,
+            'edition_label'   => $app->editionLabel(),
+            'state'           => $state,
+            // Its catalog status - an edition on that is deprecated says so - and its release.
+            'status'          => $app->status,
+            'release_version' => $app->release_version,
+            'package'         => $this->lowest[$app->id] ?? null,
+            'requires'        => $app->dependencies
                 ->map(fn ($need) => $this->dependencies->familyName($need->requires_family, $need->min_edition))
                 ->values()
                 ->all(),
-            'missing'       => $state === 'needs_apps' ? $missing->all() : [],
+            'missing'         => $state === 'needs_apps' ? $missing->all() : [],
+            'conflicts_with'  => $state === 'conflicts' ? $conflicts->all() : [],
         ];
 
         if ($state === 'upgrade') {

@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Concerns\SafeToRetry;
 use App\Repositories\User\UserRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\User\Workspaces\SetUpNewWorkspace;
@@ -18,7 +19,7 @@ use Illuminate\Foundation\Queue\Queueable;
  * that already has a location of that name keeps it, and nothing is logged
  * again.
  */
-class CreateMainLocation implements ShouldQueue
+class CreateMainLocation implements SafeToRetry, ShouldQueue
 {
     use Queueable;
 

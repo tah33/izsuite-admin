@@ -51,9 +51,14 @@ class AppsCenterResource extends JsonResource
             'name'     => $edition['name'],
             'edition'  => $edition['edition'],
             'state'    => $edition['state'],
+            // Its catalog status and release (Doc 15 Phase E2)
+            'status'          => $edition['status'],
+            'release_version' => $edition['release_version'],
             'package'  => $edition['package'],
             'requires' => $edition['requires'],
             'missing'  => $edition['missing'],
+            // The apps on that it cannot be on beside (Doc 15 Phase E2)
+            'conflicts_with'  => $edition['conflicts_with'],
             ...Arr::only($edition, ['replaces', 'falls_back_to', 'required_by']),
         ];
     }

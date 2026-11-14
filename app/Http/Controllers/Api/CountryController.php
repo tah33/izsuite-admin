@@ -10,8 +10,9 @@ use Illuminate\Http\JsonResponse;
 class CountryController extends Controller
 {
     /**
-     * Every country, by name, with its calling code and the labels of its
-     * address fields - the list every country field picks from.
+     * Every country, by name, with its calling code, the labels of its
+     * address fields and its time zones - the list every country field picks
+     * from (Admin > Countries keeps it).
      */
     public function index(): JsonResponse
     {

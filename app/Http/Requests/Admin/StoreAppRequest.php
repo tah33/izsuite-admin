@@ -5,6 +5,7 @@ namespace App\Http\Requests\Admin;
 use App\Enums\Edition;
 use App\Models\Frontend\Application;
 use App\Repositories\Admin\AppRepository;
+use App\Support\Countries;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -72,7 +73,13 @@ class StoreAppRequest extends FormRequest
             'image'       => ['nullable', 'image', 'mimes:jpg,jpeg,png,svg,webp', 'max:2048'],
             'category_id' => ['required', 'integer', Rule::exists('app_categories', 'id')],
             'icon'        => ['nullable', 'string', 'max:100', 'regex:/^[a-z0-9-]+$/'],
-            'status'      => ['required', Rule::in(array_keys(Application::STATUSES))],
+            // Retired only by Retire (Doc 15 Phase E2), which turns it off everywhere; a retired one may keep it.
+            'status'      => ['required', Rule::in(array_diff(array_keys(Application::STATUSES), $this->isRetired() ? [] : [Application::RETIRED]))],
+            'countries'   => ['nullable', 'array'],
+            'countries.*' => [Rule::in(Countries::codes())],
+            'conflicts'   => ['nullable', 'array'],
+            'conflicts.*' => ['string', Rule::exists('apps', 'family_key')],
+            'release_version' => ['nullable', 'string', 'max:20', 'regex:/^[0-9A-Za-z][0-9A-Za-z.+-]*$/'],
             'is_active'   => ['boolean'],
             'app_key'     => ['required', 'string', 'max:100', 'regex:/^[a-z0-9][a-z0-9_-]*$/', Rule::unique('apps', 'app_key')->ignore($this->route('id'))],
             'family_key'  => ['required', 'string', 'max:100', 'regex:/^[a-z0-9][a-z0-9_-]*$/'],
@@ -86,6 +93,12 @@ class StoreAppRequest extends FormRequest
             ],
             'sort_order'  => ['required', 'integer', 'min:0'],
         ];
+    }
+
+    /** The app being edited is retired already. */
+    private function isRetired(): bool
+    {
+        return $this->route('id') !== null && app(AppRepository::class)->find((int) $this->route('id'))?->status === Application::RETIRED;
     }
 
     public function attributes(): array

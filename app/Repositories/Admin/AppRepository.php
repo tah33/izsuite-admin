@@ -42,7 +42,7 @@ class AppRepository
         ?string $status = null,
         int $perPage = 15,
     ): LengthAwarePaginator {
-        $query = Application::query()->with('category')->where('is_active', true);
+        $query = Application::query()->with('category')->listed();
 
         if (! empty($search)) {
             $query->where(fn ($q) => $q
@@ -118,7 +118,7 @@ class AppRepository
     /** The listed apps, with what each needs turned on first. */
     public function activeWithDependencies(): Collection
     {
-        return Application::with('dependencies')->where('is_active', true)->get();
+        return Application::with('dependencies')->listed()->get();
     }
 
     /**

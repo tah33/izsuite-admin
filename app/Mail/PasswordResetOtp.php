@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\UsesEmailTemplate;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -17,7 +18,17 @@ use Illuminate\Queue\SerializesModels;
  */
 class PasswordResetOtp extends Mailable
 {
-    use Queueable, SerializesModels;
+    use Queueable, SerializesModels, UsesEmailTemplate;
+
+    protected function templateKey(): string
+    {
+        return 'account.password_reset';
+    }
+
+    protected function templateVariables(): array
+    {
+        return ['code' => $this->otp, 'minutes' => $this->expiresInMinutes];
+    }
 
     public function __construct(
         public string $otp,
@@ -27,12 +38,17 @@ class PasswordResetOtp extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: setting('site_name', config('app.name')).' - '.__('Reset your password'),
+            subject: $this->templated()['subject'] ?? setting('site_name', config('app.name')).' - '.__('Reset your password'),
         );
     }
 
+    /** In the admin's words when it wrote them (Doc 15 Phase F2), else these. */
     public function content(): Content
     {
+        if ($words = $this->templated()) {
+            return $this->templatedContent($words);
+        }
+
         return new Content(
             view: 'emails.password-reset-otp',
             with: [

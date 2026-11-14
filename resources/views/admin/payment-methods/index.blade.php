@@ -1,6 +1,11 @@
 @extends('layouts.admin')
 @section('title', __('Payment Methods'))
 
+@php
+    // Where each is offered, by the business's billing country (Doc 15 Phase F3b).
+    $offeredIn = fn ($method) => empty($method->countries) ? __('Every country') : __('Offered in :countries', ['countries' => implode(', ', array_map(fn ($code) => \App\Support\Countries::name($code) ?? $code, $method->countries))]);
+@endphp
+
 @section('content')
     {{-- Tabs, with the page action at the end of the same row. items-end keeps
          the tabs' underline on the divider while the taller button sits above it. --}}
@@ -36,7 +41,10 @@
                         @forelse($offlineMethods as $method)
                             <tr>
                                 <td class="text-sm text-[var(--text-muted)]">{{ $loop->iteration }}</td>
-                                <td class="font-semibold text-[var(--text-primary)]">{{ $method->name }}</td>
+                                <td>
+                                    <span class="font-semibold text-[var(--text-primary)]">{{ $method->name }}</span>
+                                    <span class="block text-xs text-[var(--text-muted)]">{{ $offeredIn($method) }}</span>
+                                </td>
                                 <td class="text-sm text-[var(--text-muted)]">{{ Str::limit($method->description, 50) }}</td>
                                 <td>
                                     @if($method->is_active)
@@ -97,7 +105,7 @@
                             </div>
                             <div>
                                 <h3 class="font-semibold text-[var(--text-primary)]">{{ $gateway->name }}</h3>
-                                <span class="text-xs text-[var(--text-muted)]">{{ $gateway->slug }}</span>
+                                <span class="text-xs text-[var(--text-muted)]">{{ $gateway->slug }} · {{ $offeredIn($gateway) }}</span>
                             </div>
                         </div>
                         @if($gateway->is_active)

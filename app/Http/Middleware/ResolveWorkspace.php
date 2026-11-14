@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Repositories\User\WorkspaceRepository;
+use App\Services\Admin\Privacy\LegalHoldService;
 use App\Services\User\Workspaces\BusinessStatusService;
 use App\Support\SupportAccess;
 use Closure;
@@ -35,6 +36,7 @@ class ResolveWorkspace
     public function __construct(
         protected WorkspaceRepository $workspaceRepository,
         protected BusinessStatusService $statuses,
+        protected LegalHoldService $legalHolds,
     ) {}
 
     public function handle(Request $request, Closure $next, ?string $need = null): Response
@@ -60,6 +62,11 @@ class ResolveWorkspace
         $request->attributes->set('workspace', $workspace);
 
         if ($workspace && ($refusal = $this->statuses->refusal($request, $workspace))) {
+            return $refusal;
+        }
+
+        // A legal hold keeps the business's records from being deleted (Doc 15 Phase G2).
+        if ($workspace && ($refusal = $this->legalHolds->refusal($request, $workspace))) {
             return $refusal;
         }
 

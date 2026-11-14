@@ -15,7 +15,7 @@
     <div class="w-36 shrink-0">
         <select name="status" class="form-select" aria-label="{{ __('Status') }}">
             <option value="">{{ __('Any status') }}</option>
-            @foreach(['active' => __('Active'), 'locked' => __('Locked'), 'inactive' => __('Inactive')] as $value => $label)
+            @foreach(['active' => __('Active'), 'locked' => __('Locked'), 'closed' => __('Closed'), 'inactive' => __('Inactive')] as $value => $label)
                 <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
             @endforeach
         </select>

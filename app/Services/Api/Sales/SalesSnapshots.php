@@ -11,6 +11,7 @@ use App\Models\User\Workspace;
 use App\Repositories\User\BusinessSettingRepository;
 use App\Repositories\User\WorkspaceFileRepository;
 use App\Services\Documents\PaymentDetails;
+use App\Support\AddressFormat;
 use App\Support\Countries;
 
 /**
@@ -49,10 +50,10 @@ class SalesSnapshots
             'name'                => $settings?->business_name ?: $workspace->name,
             'trading_name'        => $settings?->trading_name,
             'registration_number' => $settings?->registration_number,
-            'address'             => array_values(array_filter([
-                $settings?->address_line_1, $settings?->address_line_2, $settings?->city, $settings?->state, $settings?->zip_code,
-                $settings?->country ? Countries::name($settings->country) ?? $settings->country : null,
-            ])),
+            'address'             => $this->address($settings?->country, [
+                'line1' => $settings?->address_line_1, 'line2' => $settings?->address_line_2, 'city' => $settings?->city,
+                'region' => $settings?->state, 'postal' => $settings?->zip_code,
+            ]),
             'phone'               => $settings?->business_contact_number,
             'email'               => $settings?->email,
             'website'             => $settings?->website,
@@ -66,17 +67,16 @@ class SalesSnapshots
             'location_header'     => $location?->document_header,
             'payment_accounts'    => $currency ? $this->paymentDetails->for($workspace, $currency, $location?->id) : [],
             // "Powered by izSuite" as the plan has it now, kept with the document (Doc 13 section 18).
-            'powered_by'          => ! $workspace->package?->removes_branding,
+            'powered_by'          => ! $workspace->terms()?->removes_branding,
         ];
     }
 
     public function customer(Contact $contact): array
     {
-        // The country by name, as it is printed: contacts keep its code.
-        $address = fn (string $side) => array_values(array_filter([
-            $contact->{"{$side}_line1"}, $contact->{"{$side}_line2"}, $contact->{"{$side}_city"},
-            $contact->{"{$side}_state"}, $contact->{"{$side}_postal_code"}, Countries::name($contact->{"{$side}_country"}),
-        ]));
+        $address = fn (string $side) => $this->address($contact->{"{$side}_country"}, [
+            'line1' => $contact->{"{$side}_line1"}, 'line2' => $contact->{"{$side}_line2"}, 'city' => $contact->{"{$side}_city"},
+            'region' => $contact->{"{$side}_state"}, 'postal' => $contact->{"{$side}_postal_code"},
+        ]);
 
         return [
             'number'               => $contact->contact_number,
@@ -115,5 +115,18 @@ class SalesSnapshots
     public function differ(array $before, array $after): bool
     {
         return json_encode(array_intersect_key($before, array_flip(self::COMPARED))) !== json_encode(array_intersect_key($after, array_flip(self::COMPARED)));
+    }
+
+    /**
+     * An address's lines as its country writes them (Doc 15 Phase F3a: the
+     * country's address format), the country printed by name - addresses keep
+     * its code. @return list<string>
+     */
+    private function address(?string $country, array $parts): array
+    {
+        return AddressFormat::lines(Countries::addressFormat($country), [
+            ...$parts,
+            'country' => $country ? Countries::name($country) ?? $country : null,
+        ]);
     }
 }

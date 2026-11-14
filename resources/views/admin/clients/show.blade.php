@@ -24,6 +24,7 @@
     @include('admin.clients._actions')
     @include('admin.clients._details')
     @include('admin.clients._security')
+    @include('admin.clients._consents')
     @include('admin.clients._memberships')
     @include('admin.clients._totals')
     @include('admin.clients._businesses')

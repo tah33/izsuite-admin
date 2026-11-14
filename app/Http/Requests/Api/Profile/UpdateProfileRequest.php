@@ -29,6 +29,8 @@ class UpdateProfileRequest extends FormRequest
     {
         return [
             'first_name' => ['required', 'string', 'max:255'],
+            // Product news by e-mail (Doc 15 Phase G3), recorded as consent when it changes.
+            'marketing'  => ['sometimes', 'boolean'],
             'last_name'  => ['nullable', 'string', 'max:255'],
             'phone'      => ['nullable', 'string', 'max:30'],
             'language'   => ['nullable', 'string', Rule::exists(Language::class, 'code')->where('is_active', true)],

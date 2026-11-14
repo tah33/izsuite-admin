@@ -165,7 +165,7 @@ class SubscriptionBilling
                 'due_on'               => ($dueOn ?? $today->addDays($this->dueDays()))->toDateString(),
                 'billed_to'            => $this->billedTo($workspace),
                 'seller'               => $this->seller(),
-                'payment_instructions' => $this->instructions(),
+                'payment_instructions' => $this->instructions($workspace),
             ]);
 
             $this->credits->take($invoice);
@@ -373,11 +373,17 @@ class SubscriptionBilling
         ];
     }
 
-    /** How to pay: each active offline method's instructions (Bank Transfer), as plain text. */
-    private function instructions(): ?string
+    /**
+     * How to pay: the instructions of each active offline method (Bank
+     * Transfer) offered where $workspace is billed (Doc 15 Phase F3b), as
+     * plain text.
+     */
+    private function instructions(Workspace $workspace): ?string
     {
+        $country = $this->billingDetails->for($workspace)?->country;
+
         $text = $this->paymentMethods->getByType('offline')
-            ->where('is_active', true)
+            ->filter(fn ($method) => $method->is_active && $method->offeredIn($country))
             ->map(fn ($method) => trim($method->name."\n".html_entity_decode(strip_tags(preg_replace('/<(br|\/p|\/div|\/li)\s*\/?>/i', "\n", (string) $method->instructions)))))
             ->filter()
             ->implode("\n\n");

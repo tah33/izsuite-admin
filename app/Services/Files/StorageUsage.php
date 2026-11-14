@@ -27,10 +27,10 @@ class StorageUsage
         return $this->files->usedBytes($workspace);
     }
 
-    /** Null: no limit. */
+    /** Null: no limit. By the plan's terms it is held to (Doc 15 Phase E3b). */
     public function limitBytes(Workspace $workspace): ?int
     {
-        $megabytes = $workspace->package?->storage_limit_mb;
+        $megabytes = $workspace->terms()?->storage_limit_mb;
 
         return $megabytes === null ? null : $megabytes * 1024 * 1024;
     }

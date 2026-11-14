@@ -86,6 +86,8 @@
                                     $statusBadge = [
                                         'available'   => 'badge-trial',
                                         'coming_soon' => 'badge-warning',
+                                        'unavailable' => 'badge-warning',
+                                        'deprecated'  => 'badge-warning',
                                     ][$app->status] ?? 'badge-inactive';
                                 @endphp
                                 <span class="badge {{ $statusBadge }}">{{ __(\App\Models\Frontend\Application::STATUSES[$app->status] ?? ucfirst((string) $app->status)) }}</span>

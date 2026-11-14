@@ -4,16 +4,19 @@ namespace App\Services\Admin;
 
 use App\Mail\SubscriptionNoticeMail;
 use App\Models\Billing\Package;
+use App\Models\Billing\PackageVersion;
 use App\Models\Billing\WorkspaceSubscription;
 use App\Models\User\User;
 use App\Repositories\Admin\CurrencyRepository;
 use App\Repositories\Billing\PackageRepository;
 use App\Repositories\Billing\WorkspaceSubscriptionRepository;
 use App\Services\Billing\PackagePricing;
+use App\Services\Billing\PlanVersions;
 use App\Services\Billing\SubscriptionBilling;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -34,6 +37,7 @@ class PackageService
         protected WorkspaceSubscriptionRepository $subscriptions,
         protected SubscriptionBilling $billing,
         protected CriticalActionService $critical,
+        protected PlanVersions $versions,
     ) {}
 
     /**
@@ -42,7 +46,9 @@ class PackageService
      * and to come, and how many subscribers pay each - to apply a new one to
      * them (Doc 15 Phase C3a).
      *
-     * @return array{package: Package, currencies: Collection, prices: Collection, paid: Collection}
+     * Its versions, with the businesses on each (Phase E3b).
+     *
+     * @return array{package: Package, currencies: Collection, prices: Collection, paid: Collection, versions: \Illuminate\Support\Collection}
      */
     public function editPage(int $id): array
     {
@@ -53,6 +59,7 @@ class PackageService
             'currencies' => $this->currencyRepository->activeByName(),
             'prices'     => $this->pricing->history($package),
             'paid'       => $this->subscriptions->pricesPaid($package),
+            'versions'   => $this->versions->history($package),
         ];
     }
 
@@ -141,12 +148,64 @@ class PackageService
         return $this->packageRepository->findOrFail($id);
     }
 
-    public function update(Package $package, array $data): Package
+    /**
+     * None chosen is every country. Billing Starter, the plan every business
+     * starts on and falls back to, is offered everywhere and has no cycles to
+     * pay on (Doc 15 Phase E3a).
+     *
+     * A change to the limits, branding, levels, trial or grace is the plan's
+     * next version, from effective_on (Phase E3b): started now when that is
+     * today - subscribers stay on the version they are on - else waiting for
+     * its day. The rest of the form counts at once. @return string what happened
+     */
+    public function update(Package $package, array $data, User $admin): string
     {
-        $this->packageRepository->update($package, $data);
+        $data['countries'] = $package->isFree() || empty($data['countries']) ? null : array_values(array_unique($data['countries']));
 
-        ActivityLogService::record('updated', "Updated plan \"{$package->name}\"", $package);
+        if ($package->isFree()) {
+            unset($data['offers_monthly'], $data['offers_yearly']);
+        }
 
-        return $package;
+        $from    = Carbon::parse($data['effective_on'] ?? 'today')->startOfDay();
+        $terms   = array_intersect_key($data, array_flip(PackageVersion::TERMS));
+        $fields  = array_diff_key($data, array_flip([...PackageVersion::TERMS, 'effective_on']));
+
+        [$version, $held] = DB::transaction(function () use ($package, $terms, $fields, $from, $admin) {
+            $version = PackageVersion::differ($terms, $package) ? $this->versions->add($package, $terms, $from, $admin) : null;
+
+            if ($version && $from->lte(Carbon::today())) {
+                return [$version, $this->versions->start($version, $package, $fields)];
+            }
+
+            $this->packageRepository->update($package, $fields);
+
+            return [$version, 0];
+        });
+
+        $started = $version?->applied_at !== null;
+        $what    = match (true) {
+            $version === null => '',
+            $started          => "; its version {$version->number} started",
+            default           => "; its version {$version->number} starts on {$version->starts_on->format('j M Y')}",
+        };
+
+        ActivityLogService::record('updated', "Updated plan \"{$package->name}\"{$what}", $package, $version ? ['version' => $version->number] : null);
+
+        return match (true) {
+            $version === null => 'Plan updated successfully.',
+            $started          => "Plan updated: version {$version->number} has started. ".trans_choice(':count subscriber stays|:count subscribers stay', $held).' on the version before.',
+            default           => "Plan updated: version {$version->number} starts on {$version->starts_on->format('j M Y')}. Until then the plan's terms stay as they are.",
+        };
+    }
+
+    /** A version waiting for its day, removed (Doc 15 Phase E3b). */
+    public function removeVersion(int $id, int $versionId, User $admin): string
+    {
+        $package = $this->packageRepository->findOrFail($id);
+        $version = $this->versions->remove($package, $versionId);
+
+        ActivityLogService::record('deleted', "Removed plan \"{$package->name}\"'s version {$version->number}, due to start on {$version->starts_on->format('j M Y')}", $package, null, $admin);
+
+        return "Version {$version->number} is removed: the plan's terms stay as they are.";
     }
 }

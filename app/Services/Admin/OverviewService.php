@@ -24,7 +24,8 @@ use Illuminate\Support\Facades\Artisan;
  * background jobs; with the apps most activated and the storage used. The
  * filters pick the businesses (plan, country, subscription, app) and the
  * billing's currency. Billing shows only to an admin who may open Billing
- * Reports.
+ * Reports; the platform's alerts (Phase D3a) to one who may open Service
+ * Health.
  */
 class OverviewService
 {
@@ -43,6 +44,8 @@ class OverviewService
         protected PackageRepository $packages,
         protected AppRepository $apps,
         protected CurrencyRepository $currencies,
+        protected ServiceHealthService $health,
+        protected IncidentService $incidents,
     ) {}
 
     /** Everything the page shows for $filters (from, to, package, country, subscription, app, currency). */
@@ -78,6 +81,10 @@ class OverviewService
             'storage'    => [...$this->overview->storage($chosen, (int) config('files.warning_percent', 80)), 'warn_percent' => (int) config('files.warning_percent', 80)],
             'billing'    => $admin->role?->hasPermission('admin.billing-reports.index') ? $this->billing($chosen, $from, $to, $currency) : null,
             'jobs'       => $this->overview->jobs($from, $to),
+            // The platform's alerts (Phase D3a): services warning or failing, to admins who may open Service Health.
+            'alerts'     => $admin->role?->hasPermission('admin.service-health.index') ? $this->health->alerts() : null,
+            // And the incidents not resolved yet (Phase D3b).
+            'incidents'  => $admin->role?->hasPermission('admin.incidents.index') ? $this->incidents->unresolved() : null,
         ];
     }
 

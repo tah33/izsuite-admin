@@ -2,12 +2,14 @@
 
 namespace App\Services\Billing\Payments;
 
+use App\Models\Admin\ServiceEvent;
 use App\Models\Billing\PaymentMethod;
 use App\Models\Billing\SubscriptionInvoice;
 use App\Models\Billing\SubscriptionPayment;
 use App\Models\Billing\WorkspaceCard;
 use App\Models\User\Workspace;
 use App\Repositories\Admin\PaymentMethodRepository;
+use App\Repositories\Admin\ServiceEventRepository;
 use App\Support\MinorUnits;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
@@ -37,6 +39,7 @@ class StripeGateway implements CardGateway
 
     public function __construct(
         private PaymentMethodRepository $methods,
+        private ServiceEventRepository $events,
     ) {}
 
     public function name(): string
@@ -314,14 +317,19 @@ class StripeGateway implements CardGateway
         try {
             return $call(Http::withToken((string) ($this->keys()['secret_key'] ?? ''))->acceptJson()->timeout(20));
         } catch (ConnectionException $e) {
+            // For Admin > Service Health (Doc 15 Phase D3a).
+            $this->events->record(ServiceEvent::STRIPE, ServiceEvent::CALL, false, 'Stripe could not be reached: '.$e->getMessage());
+
             throw new CardPaymentError('Stripe could not be reached: '.$e->getMessage(), 0, $e);
         }
     }
 
-    /** Stripe's answer, refused as CardPaymentError when it failed. */
+    /** Stripe's answer, refused as CardPaymentError when it failed - a card declined is answered before this. */
     private function ensure(Response $response): array
     {
         if ($response->failed()) {
+            $this->events->record(ServiceEvent::STRIPE, ServiceEvent::CALL, false, 'Stripe refused: '.($response->json('error.message') ?? 'status '.$response->status()));
+
             throw new CardPaymentError('Stripe refused: '.($response->json('error.message') ?? 'status '.$response->status()), $response->status());
         }
 

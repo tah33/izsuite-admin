@@ -53,11 +53,15 @@
 
             @include('admin.packages.partials.pricing')
 
+            @include('admin.packages.partials.availability')
+
             <label class="flex items-center gap-3 cursor-pointer">
                 <input type="checkbox" name="is_active" value="1" class="toggle-switch" @checked(old('is_active', $package->is_active))>
                 <span class="form-label mb-0">{{ __('Offered') }}</span>
             </label>
             <p class="text-xs mt-2 text-[var(--text-muted)]">{{ __('Businesses already on a plan keep it even when it is no longer offered.') }}</p>
+
+            @include('admin.packages.partials.version-date')
         </div>
 
         <div class="flex items-center gap-3">
@@ -68,6 +72,7 @@
         </div>
     </form>
 
-    {{-- Its own forms, so outside the plan's: Doc 15 Phase C3a. --}}
+    {{-- Its own forms, so outside the plan's: Doc 15 Phases C3a and E3b. --}}
     @include('admin.packages.partials.prices')
+    @include('admin.packages.partials.versions')
 @endsection

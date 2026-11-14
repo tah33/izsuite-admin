@@ -198,7 +198,7 @@ class SubscriptionCycle
         }
 
         $this->notify($subscription, $today, SubscriptionNoticeMail::PAYMENT_FAILED, [
-            'for' => $for, 'grace_days' => (int) $subscription->package->grace_days, ...$this->invoiceDetails($invoice), ...$this->attemptDetails($attempt),
+            'for' => $for, 'grace_days' => $this->graceDays($subscription), ...$this->invoiceDetails($invoice), ...$this->attemptDetails($attempt),
         ]);
     }
 
@@ -260,7 +260,7 @@ class SubscriptionCycle
             return;
         }
 
-        $graceDays = (int) $subscription->package->grace_days;
+        $graceDays = $this->graceDays($subscription);
 
         if ($graceDays < 1) {
             $this->end($subscription, 'ended');
@@ -363,5 +363,13 @@ class SubscriptionCycle
     private function daysFrom(CarbonImmutable $from, CarbonImmutable $to): int
     {
         return (int) round($from->diffInDays($to, false));
+    }
+
+    /** The grace its plan gives - the version the business is held to, while on the plan (Doc 15 Phase E3b). */
+    private function graceDays(WorkspaceSubscription $subscription): int
+    {
+        $workspace = $subscription->workspace;
+
+        return (int) ($workspace?->package_id === $subscription->package_id ? $workspace->terms()?->grace_days : $subscription->package->grace_days);
     }
 }

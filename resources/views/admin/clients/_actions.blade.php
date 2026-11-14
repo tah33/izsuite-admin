@@ -28,7 +28,7 @@
         <button type="button" class="btn btn-primary" data-modal-open="client-unlock-modal">
             <i data-lucide="lock-open" class="w-4 h-4"></i>{{ __('Unlock') }}
         </button>
-    @elseif(! $locked && $may('admin.clients.lock'))
+    @elseif(! $locked && $client->status !== \App\Models\User\User::CLOSED && $may('admin.clients.lock'))
         <button type="button" class="btn btn-danger" data-modal-open="client-lock-modal">
             <i data-lucide="lock" class="w-4 h-4"></i>{{ __('Lock') }}
         </button>

@@ -73,6 +73,7 @@ class PaymentMethodService
         $data['type']       = 'offline';
         $data['slug']       = Str::slug($data['name']);
         $data['sort_order'] = $data['sort_order'] ?? 0;
+        $data['countries']  = $this->countries($data);
 
         $method = $this->create($this->withLogo($data, null));
 
@@ -92,6 +93,7 @@ class PaymentMethodService
 
         $data['slug']       = Str::slug($data['name']);
         $data['sort_order'] = $data['sort_order'] ?? 0;
+        $data['countries']  = $this->countries($data);
 
         $updated = $this->update($method, $this->withLogo($data, $method->logo_url));
 
@@ -133,11 +135,22 @@ class PaymentMethodService
             'is_active'   => $data['is_active'],
             'is_sandbox'  => $data['is_sandbox'],
             'credentials' => $credentials,
+            'countries'   => $this->countries($data),
         ]);
 
         ActivityLogService::record('updated', "Updated online gateway \"{$method->name}\"", $method);
 
         return $updated;
+    }
+
+    /**
+     * The billing countries $data offers a method in (Doc 15 Phase F3b), each
+     * once - null, every country, when it names none: a form with none chosen
+     * sends none.
+     */
+    private function countries(array $data): ?array
+    {
+        return empty($data['countries']) ? null : array_values(array_unique($data['countries']));
     }
 
     /** Why $method cannot be deleted, if it cannot: a gateway can only be switched off. */

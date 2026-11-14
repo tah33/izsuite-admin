@@ -24,7 +24,7 @@ class ListClientsRequest extends FormRequest
         return [
             'search'     => ['nullable', 'string', 'max:255'],
             'package'    => ['nullable', 'string', 'max:50'],
-            'status'     => ['nullable', Rule::in([User::ACTIVE, User::LOCKED, User::INACTIVE])],
+            'status'     => ['nullable', Rule::in([User::ACTIVE, User::LOCKED, User::CLOSED, User::INACTIVE])],
             'verified'   => ['nullable', Rule::in(['yes', 'no'])],
             'two_factor' => ['nullable', Rule::in(['on', 'off'])],
             'alerts'     => ['nullable', Rule::in(['yes'])],

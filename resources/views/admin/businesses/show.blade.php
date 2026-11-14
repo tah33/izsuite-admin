@@ -19,6 +19,9 @@
             @include('admin.businesses._status-badge', ['status' => $business->status])
         </div>
         <p class="page-subtitle">{{ $business->businessId() }} · {{ __('Signed up :date', ['date' => $business->created_at->format('M d, Y')]) }}</p>
+        @foreach($legalHolds as $hold)
+            <p class="text-sm mt-2 text-[var(--danger)]"><i data-lucide="lock-keyhole" class="w-4 h-4 inline-block me-1"></i>{{ __('Legal hold since :date:reference: nothing of it can be deleted.', ['date' => $hold->placed_at->format('M d, Y'), 'reference' => $hold->reference ? ' ('.$hold->reference.')' : '']) }}</p>
+        @endforeach
     </div>
 
     <div class="flex flex-wrap items-center gap-2 mb-6">

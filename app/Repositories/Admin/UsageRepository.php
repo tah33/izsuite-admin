@@ -6,6 +6,7 @@ use App\Models\User\Workspace;
 use App\Models\User\WorkspaceApp;
 use App\Models\User\WorkspaceMember;
 use App\Models\User\WorkspaceUsageSnapshot;
+use App\Repositories\Concerns\JoinsPlanTerms;
 use App\Services\User\Workspaces\PlanLimits;
 use App\Support\BusinessStatus;
 use App\Support\UsageState;
@@ -20,10 +21,13 @@ use Illuminate\Support\Facades\DB;
  * 15.18 - Phase D2): its users (active or invited, the owner at least),
  * active locations, storage and active apps, worked out in SQL so the list
  * can sort and filter by them - and the daily snapshots that keep their
- * history.
+ * history. Its limits are the plan's terms it is held to (Doc 15 Phase
+ * E3b).
  */
 class UsageRepository
 {
+    use JoinsPlanTerms;
+
     public function __construct(
         private BusinessRepository $businesses,
     ) {}
@@ -89,16 +93,17 @@ class UsageRepository
         $locations = $this->locationsUsed();
         $storage   = $this->storageUsed();
         // The shares to sort by leave a limit of one out, as UsageState does: Billing Starter's one user is no warning.
+        [$userCap, $locationCap, $storageCap] = [self::term('user_limit'), self::term('location_limit'), self::term('storage_limit_mb')];
         $percents  = [
-            "case when packages.user_limit > 1 then {$users} * 100.0 / packages.user_limit end",
-            "case when packages.location_limit > 1 then {$locations} * 100.0 / packages.location_limit end",
-            "case when packages.storage_limit_mb > 0 then {$storage} * 100.0 / (packages.storage_limit_mb * 1048576) end",
+            "case when {$userCap} > 1 then {$users} * 100.0 / {$userCap} end",
+            "case when {$locationCap} > 1 then {$locations} * 100.0 / {$locationCap} end",
+            "case when {$storageCap} > 0 then {$storage} * 100.0 / ({$storageCap} * 1048576) end",
         ];
         $largest   = DB::connection()->getDriverName() === 'sqlite' ? 'max' : 'greatest';
 
-        return $query->select('workspaces.*')
-            ->leftJoin('packages', 'packages.id', '=', 'workspaces.package_id')
-            ->addSelect(['packages.name as plan_name', 'packages.user_limit as user_limit', 'packages.location_limit as location_limit', 'packages.storage_limit_mb as storage_limit_mb'])
+        return $this->joinPlanTerms($query->select('workspaces.*'))
+            ->addSelect(['packages.name as plan_name'])
+            ->selectRaw("{$userCap} as user_limit, {$locationCap} as location_limit, {$storageCap} as storage_limit_mb")
             ->selectRaw("{$users} as users_used, {$locations} as locations_used, {$storage} as storage_bytes")
             ->selectRaw("(select count(*) from workspace_apps where workspace_apps.workspace_id = workspaces.id and workspace_apps.status = '".WorkspaceApp::STATUS_ACTIVE."') as apps_used")
             ->selectRaw('(select count(*) from package_apps where package_apps.package_id = workspaces.package_id) as plan_apps')
@@ -114,12 +119,12 @@ class UsageRepository
             UsageState::FULL    => "({$cap} is not null and ({$used} > {$cap} or ({$cap} > 1 and {$used} >= {$cap})))",
             default             => "({$cap} is not null and {$used} > {$cap})",
         };
-        $bytes   = 'packages.storage_limit_mb * 1048576';
+        $bytes   = self::term('storage_limit_mb').' * 1048576';
         $storage = $this->storageUsed();
         $checks  = [
-            'users'     => $count($this->usersUsed(), 'packages.user_limit'),
-            'locations' => $count($this->locationsUsed(), 'packages.location_limit'),
-            'storage'   => '(packages.storage_limit_mb is not null and '.match ($state) {
+            'users'     => $count($this->usersUsed(), self::term('user_limit')),
+            'locations' => $count($this->locationsUsed(), self::term('location_limit')),
+            'storage'   => '('.self::term('storage_limit_mb').' is not null and '.match ($state) {
                 UsageState::WARNING => "{$storage} * 100 >= {$bytes} * ".UsageState::storageWarning(),
                 UsageState::FULL    => "{$storage} >= {$bytes}",
                 default             => "{$storage} > {$bytes}",

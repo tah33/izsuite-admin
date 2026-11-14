@@ -5,6 +5,7 @@ namespace App\Models\User;
 use App\Enums\FileCollection;
 use App\Models\Admin\Currency;
 use App\Models\Billing\Package;
+use App\Models\Billing\PackageVersion;
 use App\Models\Billing\SubscriptionInvoice;
 use App\Models\Billing\WorkspaceSubscription;
 use App\Models\Concerns\HasFiles;
@@ -200,6 +201,24 @@ class Workspace extends Model
     public function package(): BelongsTo
     {
         return $this->belongsTo(Package::class);
+    }
+
+    /** The version of its plan it stays on (Doc 15 Phase E3b); none, its plan's terms as they stand. */
+    public function packageVersion(): BelongsTo
+    {
+        return $this->belongsTo(PackageVersion::class);
+    }
+
+    /**
+     * The plan terms it is held to - its limits, branding, levels and grace
+     * (Doc 15 Phase E3b): the version of its plan it stayed on as a newer one
+     * started, or else its plan's terms as they stand.
+     */
+    public function terms(): Package|PackageVersion|null
+    {
+        $version = $this->package_version_id ? $this->packageVersion : null;
+
+        return $version && $version->package_id === $this->package_id ? $version : $this->package;
     }
 
     /** Where its izSuite invoices go (Doc 13 section 11). */

@@ -71,7 +71,7 @@ class ClientRepository
      */
     public function findWithBusinessesOrFail(int $id): User
     {
-        return $this->withAlerts($this->clients()->select(['users.id', 'first_name', 'last_name', 'username', 'email', 'phone', 'status', 'timezone', 'currency', 'email_verified_at', 'two_factor_confirmed_at', 'last_login_at', 'users.created_at']))
+        return $this->withAlerts($this->clients()->select(['users.id', 'first_name', 'last_name', 'username', 'email', 'phone', 'status', 'timezone', 'currency', 'email_verified_at', 'two_factor_confirmed_at', 'last_login_at', 'marketing_consent', 'users.created_at']))
             ->withCount(['tokens as sessions_count' => fn ($q) => $q->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))])
             ->with([
                 'workspaces' => fn ($q) => $q
@@ -83,7 +83,7 @@ class ClientRepository
                     ->withSum('businessFiles as storage_bytes', 'size')
                     ->orderBy('id')
                     ->with([
-                        'package:id,name,storage_limit_mb',
+                        'package:id,name,storage_limit_mb', 'packageVersion',
                         'workspaceApps' => fn ($q) => $q->where('status', WorkspaceApp::STATUS_ACTIVE)->with('app:id,name,edition,sort_order'),
                     ]),
                 'memberships' => fn ($q) => $q

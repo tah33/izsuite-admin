@@ -17,6 +17,8 @@ class PaymentMethod extends Model
         'is_active',
         'is_sandbox',
         'sort_order',
+        // Doc 15 Phase F3b: the billing countries it is offered in (none: all).
+        'countries',
     ];
 
     // An online gateway's keys, kept encrypted (Doc 15 section 15): ['test' => [...], 'live' => [...]].
@@ -24,6 +26,7 @@ class PaymentMethod extends Model
         'credentials' => 'encrypted:array',
         'is_active'   => 'boolean',
         'is_sandbox'  => 'boolean',
+        'countries'   => 'array',
     ];
 
     protected $hidden           = ['credentials'];
@@ -58,6 +61,16 @@ class PaymentMethod extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Whether it is offered to a business billed in $country - a code - (Doc
+     * 15 Phase F3b): every country when it names none, and a business with
+     * no billing country yet everywhere.
+     */
+    public function offeredIn(?string $country): bool
+    {
+        return empty($this->countries) || $country === null || in_array($country, $this->countries, true);
     }
 
     /**

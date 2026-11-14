@@ -6,8 +6,10 @@ use App\Models\User\User;
 use App\Repositories\User\UserRepository;
 use App\Repositories\User\WorkspaceMemberRepository;
 use App\Services\Shared\ActivityLogService;
+use App\Services\Shared\ConsentRecords;
 use App\Services\Support\ImageService;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -24,6 +26,7 @@ class ProfileService
         protected UserRepository $userRepository,
         protected WorkspaceMemberRepository $memberRepository,
         protected ImageService $imageService,
+        protected ConsentRecords $consents,
     ) {}
 
     /** The signed-in account, with its role, for the profile page. */
@@ -47,7 +50,12 @@ class ProfileService
     public function update(User $user, array $data): User
     {
         return DB::transaction(function () use ($user, $data) {
-            $updated = $this->userRepository->update($user, $data);
+            // Product news by e-mail is consent, recorded when it changes (Doc 15 Phase G3).
+            if (array_key_exists('marketing', $data)) {
+                $this->consents->setMarketing($user, (bool) $data['marketing'], 'profile');
+            }
+
+            $updated = $this->userRepository->update($user, Arr::except($data, ['marketing']));
             $changed = array_keys(array_diff_key($user->getChanges(), ['updated_at' => true]));
             $details = [];
 

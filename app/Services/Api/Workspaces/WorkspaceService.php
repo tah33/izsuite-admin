@@ -6,6 +6,7 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\WorkspaceFileRepository;
 use App\Repositories\User\WorkspaceRepository;
+use App\Services\Admin\Privacy\LegalHoldService;
 use App\Services\Files\FileStorage;
 use App\Services\Shared\ActivityLogService;
 use App\Services\User\Workspaces\PlanLimits;
@@ -23,6 +24,7 @@ class WorkspaceService
         protected SetUpNewWorkspace $setUpNewWorkspace,
         protected WorkspaceFileRepository $workspaceFileRepository,
         protected PlanLimits $planLimits,
+        protected LegalHoldService $legalHolds,
     ) {}
 
     /** The businesses $user owns, and those they are an active member of - for the top bar to pick from. */
@@ -78,6 +80,9 @@ class WorkspaceService
     public function delete(User $user, int $id): void
     {
         $workspace = $this->findOwned($user, $id);
+
+        // A legal hold keeps everything of the business (Doc 15 Phase G2).
+        abort_if($this->legalHolds->isHeld($workspace), 403, LegalHoldService::REFUSAL);
 
         // The business's own data - locations, settings, users, contacts, items,
         // payment accounts, the rows of its files - goes with it: the database

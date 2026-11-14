@@ -14,6 +14,7 @@ use App\Repositories\Billing\WorkspaceSubscriptionRepository;
 use App\Repositories\User\WorkspaceBillingRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Billing\PackagePricing;
+use App\Services\Billing\PlanAvailability;
 use App\Services\Billing\Promotions;
 use App\Services\Billing\SubscriptionBilling;
 use App\Services\Billing\SubscriptionChanges;
@@ -58,6 +59,7 @@ class SubscriptionService
         protected SyncAppsWithPackage $sync,
         protected Promotions $promotions,
         protected PackagePricing $pricing,
+        protected PlanAvailability $availability,
     ) {}
 
     /** What moving to plan $packageKey, $cycle, would cost and when (Phase C2b, SubscriptionChanges). */
@@ -117,6 +119,9 @@ class SubscriptionService
         if (! $package || $package->isFree()) {
             throw ValidationException::withMessages(['package' => 'Choose one of the paid plans on offer.']);
         }
+
+        // On that cycle, and where the business is billed (Doc 15 Phase E3a).
+        $this->availability->ensure($package, $cycle, $workspace);
 
         if ($this->billing->price($package, $cycle, $workspace) === null) {
             throw ValidationException::withMessages(['cycle' => "{$package->name}'s ".($cycle === WorkspaceSubscription::YEARLY ? 'yearly' : 'monthly').' price has not been announced yet.']);

@@ -14,6 +14,8 @@ use App\Support\BusinessStatus;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
@@ -40,6 +42,9 @@ class AdminUsageTest extends TestCase
 
         $this->seed(RoleSeeder::class);
         $this->travelTo(Carbon::parse('2026-11-14 10:00:00', 'UTC'));
+        // The Overview's alerts ask the PDF maker and write a probe file (Phase D3a).
+        Http::fake(['*/health' => Http::response(['status' => 'up'])]);
+        Storage::fake((string) config('files.storage'));
         $this->admin = User::factory()->create(['role_id' => Role::SUPER_ADMIN_ID]);
 
         Package::where('key', 'standard')->update(['user_limit' => 5, 'location_limit' => 3, 'storage_limit_mb' => 10]);

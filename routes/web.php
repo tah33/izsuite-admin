@@ -13,6 +13,9 @@ Route::get('/welcome', fn () => view('welcome'));
 */
 Route::get('/page/{slug}', [PageController::class, 'show'])->name('page.show');
 
+// A privacy request's data export, by the signed link e-mailed to the person who asked (Doc 15 Phase G1).
+Route::get('/privacy-exports/{id}', [\App\Http\Controllers\PrivacyExportController::class, 'download'])->whereNumber('id')->middleware(['signed', 'throttle:public-documents'])->name('privacy-exports.download');
+
 /*
 |--------------------------------------------------------------------------
 | Secure document links (Doc 06 section 9): a customer opens a sales

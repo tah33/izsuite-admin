@@ -73,6 +73,7 @@ class AccountSupportService
     public function lock(User $client, User $admin, string $reason): void
     {
         abort_if($client->status === User::LOCKED, 422, 'This account is locked already.');
+        abort_if($client->status === User::CLOSED, 422, 'This account is closed, as its holder asked: there is nothing to lock.');
 
         $from = $client->status;
 

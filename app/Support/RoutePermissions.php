@@ -45,6 +45,9 @@ final class RoutePermissions
             'api.notifications.unread'     => self::MEMBER,
             'api.notifications.read'       => self::MEMBER,
             'api.notifications.read-all'   => self::MEMBER,
+            // izSuite's announcements to the business's people (Doc 15 section 15.21).
+            'api.announcements.index'      => self::MEMBER,
+            'api.announcements.dismiss'    => self::MEMBER,
             // Support cases (Doc 15 section 15.22): anyone in the business asks izSuite; the owner sees every case.
             'api.support-cases.index'      => self::MEMBER,
             'api.support-cases.store'      => self::MEMBER,

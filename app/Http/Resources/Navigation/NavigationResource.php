@@ -51,6 +51,9 @@ class NavigationResource extends JsonResource
             // Whether they may use every location (Doc 12 section 20).
             'all_locations' => $this->resource['all_locations'] ?? true,
 
+            // The keys of the features on for the business (Doc 15 section 15.12).
+            'features'      => $this->resource['features'] ?? [],
+
             'menu'      => [
                 'core'   => $this->resource['menu']['core'],
                 'apps'   => array_map(fn (array $entry) => [

@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Concerns\SafeToRetry;
 use App\Repositories\User\UserRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\User\Workspaces\SetUpNewWorkspace;
@@ -17,7 +18,7 @@ use Illuminate\Foundation\Queue\Queueable;
  * account's first workspace is there to hold them. Safe to run twice: a term
  * of a starter's name or days is not added again, and nothing is logged again.
  */
-class AddPaymentTerms implements ShouldQueue
+class AddPaymentTerms implements SafeToRetry, ShouldQueue
 {
     use Queueable;
 

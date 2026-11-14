@@ -11,6 +11,7 @@ use App\Models\User\Ticket;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceApp;
 use App\Models\User\WorkspaceMember;
+use App\Repositories\Concerns\JoinsPlanTerms;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -22,6 +23,8 @@ use Illuminate\Database\Eloquent\Collection;
  */
 class BusinessRepository
 {
+    use JoinsPlanTerms;
+
     /**
      * A page of businesses, newest first. $filters: search (name, ID or the
      * owner's name or e-mail), status, package (key), country, subscription
@@ -108,16 +111,16 @@ class BusinessRepository
 
     private function query(array $filters): Builder
     {
-        $query = $this->withCounts(Workspace::query()->select('workspaces.*'))
-            ->leftJoin('packages', 'packages.id', '=', 'workspaces.package_id')
-            ->addSelect(['packages.user_limit as plan_user_limit', 'packages.location_limit as plan_location_limit', 'packages.storage_limit_mb as plan_storage_mb'])
+        // Its limits by the plan's terms it is held to (Doc 15 Phase E3b).
+        $query = $this->joinPlanTerms($this->withCounts(Workspace::query()->select('workspaces.*')))
+            ->selectRaw(self::term('user_limit').' as plan_user_limit, '.self::term('location_limit').' as plan_location_limit, '.self::term('storage_limit_mb').' as plan_storage_mb')
             ->with('businessSetting:id,workspace_id,country');
 
         return $this->search($this->narrow($query, $filters), $filters['search'] ?? null)
             ->when($filters['from'] ?? null, fn (Builder $query, string $from) => $query->where('workspaces.created_at', '>=', $from.' 00:00:00'))
             ->when($filters['to'] ?? null, fn (Builder $query, string $to) => $query->where('workspaces.created_at', '<=', $to.' 23:59:59'))
             // HAVING reads the counts' aliases; grouped by both keys, as SQLite needs a GROUP BY for it and MySQL's full group-by mode is satisfied.
-            ->when(($filters['limits'] ?? null) === 'reached', fn (Builder $query) => $query->groupBy('workspaces.id', 'packages.id')->havingRaw(
+            ->when(($filters['limits'] ?? null) === 'reached', fn (Builder $query) => $query->groupBy('workspaces.id', 'packages.id', 'held.id')->havingRaw(
                 '(plan_user_limit is not null and (users_count > plan_user_limit or (plan_user_limit > 1 and users_count >= plan_user_limit)))'
                 .' or (plan_location_limit is not null and (locations_count > plan_location_limit or (plan_location_limit > 1 and locations_count >= plan_location_limit)))'
                 .' or (plan_storage_mb is not null and coalesce(storage_bytes, 0) >= plan_storage_mb * 1048576)'
@@ -128,7 +131,7 @@ class BusinessRepository
     private function withCounts(Builder $query): Builder
     {
         return $query
-            ->with(['user:id,first_name,last_name,email,email_verified_at', 'package:id,key,name,user_limit,location_limit,storage_limit_mb', 'subscription'])
+            ->with(['user:id,first_name,last_name,email,email_verified_at', 'package:id,key,name,user_limit,location_limit,storage_limit_mb', 'packageVersion', 'subscription'])
             ->withCount([
                 'members as users_count'       => fn (Builder $members) => $members->whereIn('status', WorkspaceMember::COUNTED),
                 'locations as locations_count' => fn (Builder $locations) => $locations->where('is_active', true),

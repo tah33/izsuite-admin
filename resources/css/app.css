@@ -542,6 +542,11 @@ body {
     color: #991B1B;
 }
 
+.badge-info {
+    background: var(--info-light);
+    color: #093C9A;
+}
+
 .badge-trial {
     background: var(--info-light);
     color: #093C9A;

@@ -42,6 +42,9 @@ class DocumentTemplate extends Model
     /** 1,234,567.89 - 1.234.567,89 - 1 234 567,89 - 12,34,567.89 (lakh). */
     public const NUMBER_FORMATS = ['comma_dot', 'dot_comma', 'space_comma', 'lakh'];
 
+    /** Each number format as a person reads it, for a list to pick from. */
+    public const NUMBER_FORMAT_EXAMPLES = ['comma_dot' => '1,234,567.89', 'dot_comma' => '1.234.567,89', 'space_comma' => '1 234 567,89', 'lakh' => '12,34,567.89 (lakh)'];
+
     /** The languages documents can be written in so far. */
     public const LANGUAGES = ['en'];
 

@@ -29,6 +29,9 @@ class User extends Authenticatable
     /** Locked by izSuite support (Doc 15 section 15.7) until it is unlocked. */
     public const LOCKED = 'locked';
 
+    /** Closed at its holder's request (Doc 15 section 15.24): it signs in no more; its records are kept. */
+    public const CLOSED = 'closed';
+
     /**
      * HasFactory guesses Database\Factories\User\UserFactory from this
      * model's App\Models\User namespace, but the factory lives one level up.
@@ -105,6 +108,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'verification_otp_expires_at' => 'datetime',
             'terms_accepted_at' => 'datetime',
+            'marketing_consent' => 'boolean',
             'password'          => 'hashed',
             'last_login_at'     => 'datetime',
             'preferences'       => 'array',
