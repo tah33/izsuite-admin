@@ -34,6 +34,12 @@ class SubscriptionInvoiceRepository
         return $workspace->subscriptionInvoices()->find($id);
     }
 
+    /** Whether the business has paid izSuite before - no longer a new customer (Doc 15 Phase C3b). */
+    public function hasPaid(Workspace $workspace): bool
+    {
+        return $workspace->subscriptionInvoices()->where('status', SubscriptionInvoice::PAID)->exists();
+    }
+
     /** The invoice the business has still to pay, if any. */
     public function openFor(Workspace $workspace): ?SubscriptionInvoice
     {

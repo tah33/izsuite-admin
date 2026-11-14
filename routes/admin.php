@@ -26,6 +26,7 @@ use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\BillingReportController;
 use App\Http\Controllers\Admin\CreditController;
 use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\PromotionController;
 use App\Http\Controllers\Admin\RefundController;
 use App\Http\Controllers\Admin\SubscriptionController;
 use App\Http\Controllers\Admin\SubscriptionInvoiceController;
@@ -143,6 +144,8 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     Route::post('/subscriptions/{id}/credit/remove', [SubscriptionController::class, 'removeCredit'])->whereNumber('id')->name('subscriptions.credit-remove');
     Route::get('/credits', [CreditController::class, 'index'])->name('credits.index');
     Route::get('/billing-reports', [BillingReportController::class, 'index'])->name('billing-reports.index');
+    // Promotion codes for new subscriptions (Doc 15 Phase C3b).
+    Route::resource('promotions', PromotionController::class)->except(['show'])->parameters(['promotions' => 'id'])->whereNumber('id');
     Route::resource('payment-methods', PaymentMethodController::class)->except(['show'])->parameters(['payment-methods' => 'id']);
 
     Route::get('languages/{id}/translate', [LanguageController::class, 'translate'])->name('languages.translate');

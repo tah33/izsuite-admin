@@ -104,7 +104,10 @@ class SubscriptionTaxTest extends TestCase
         $this->billedTo('BD');
 
         // 15% of 19.50 is 2.925: 2.93.
-        $this->quote()->assertJsonPath('data', ['currency' => 'USD', 'amount' => '19.50', 'adjustment' => '0.00', 'tax' => ['name' => 'VAT', 'rate' => '15.000', 'amount' => '2.93', 'note' => null], 'total' => '22.43']);
+        $this->quote()->assertJsonPath('data', [
+            'currency' => 'USD', 'amount' => '19.50', 'discount' => '0.00', 'promotion' => null, 'adjustment' => '0.00',
+            'tax'      => ['name' => 'VAT', 'rate' => '15.000', 'amount' => '2.93', 'note' => null], 'total' => '22.43', 'renews_at' => '22.43',
+        ]);
 
         $page    = $this->postJson('/api/v1/subscription', ['package' => 'standard', 'cycle' => 'monthly'])->assertCreated()->json('data');
 

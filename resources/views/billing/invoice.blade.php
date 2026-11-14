@@ -99,8 +99,12 @@
 
     {{-- The tax as worked out when issued (Phase D1); a reverse charge adds none and prints its note. --}}
     <table class="totals">
-        @if ((float) $invoice->credit > 0 || (float) $invoice->adjustment > 0 || $invoice->tax_name)
+        @if ((float) $invoice->discount > 0 || (float) $invoice->credit > 0 || (float) $invoice->adjustment > 0 || $invoice->tax_name)
             <tr><td>Subtotal</td><td>{{ $money($invoice->amount) }}</td></tr>
+        @endif
+        {{-- A promotion's discount and its code (Doc 15 Phase C3b). --}}
+        @if ((float) $invoice->discount > 0)
+            <tr><td>Discount ({{ $invoice->promotion_code }})</td><td>-{{ $money($invoice->discount) }}</td></tr>
         @endif
         @if ((float) $invoice->credit > 0)
             <tr><td>Credit for the unused plan</td><td>-{{ $money($invoice->credit) }}</td></tr>
@@ -120,7 +124,11 @@
 
     @if ($receipt)
         <div class="note paid">
-            @if ($invoice->paid_with)
+            @if ($invoice->paid_with === \App\Services\Billing\SubscriptionBilling::PAID_WITH_CREDIT)
+                Paid in full on {{ $day($invoice->paid_at) }} with credit from izSuite. Thank you.
+            @elseif ($invoice->paid_with === \App\Services\Billing\SubscriptionBilling::PAID_WITH_PROMOTION)
+                Nothing was due: code {{ $invoice->promotion_code }} took the whole price off on {{ $day($invoice->paid_at) }}. Thank you.
+            @elseif ($invoice->paid_with)
                 Paid in full on {{ $day($invoice->paid_at) }} by card, {{ $invoice->paid_with }}{{ $invoice->payment_reference ? ', reference '.$invoice->payment_reference : '' }}. Thank you.
             @else
                 Paid in full on {{ $day($invoice->paid_at) }} by bank transfer{{ $invoice->transfer_reference ? ', reference '.$invoice->transfer_reference : '' }}. Thank you.

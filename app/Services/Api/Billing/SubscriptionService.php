@@ -3,6 +3,7 @@
 namespace App\Services\Api\Billing;
 
 use App\Models\Billing\Package;
+use App\Models\Billing\Promotion;
 use App\Models\Billing\SubscriptionInvoice;
 use App\Models\Billing\WorkspaceSubscription;
 use App\Models\User\User;
@@ -12,6 +13,8 @@ use App\Repositories\Billing\SubscriptionInvoiceRepository;
 use App\Repositories\Billing\WorkspaceSubscriptionRepository;
 use App\Repositories\User\WorkspaceBillingRepository;
 use App\Services\Api\Sales\RefusesConflicts;
+use App\Services\Billing\PackagePricing;
+use App\Services\Billing\Promotions;
 use App\Services\Billing\SubscriptionBilling;
 use App\Services\Billing\SubscriptionChanges;
 use App\Services\Billing\SubscriptionCycle;
@@ -53,6 +56,8 @@ class SubscriptionService
         protected WorkspaceBillingRepository $billingDetails,
         protected BusinessCalendar $calendar,
         protected SyncAppsWithPackage $sync,
+        protected Promotions $promotions,
+        protected PackagePricing $pricing,
     ) {}
 
     /** What moving to plan $packageKey, $cycle, would cost and when (Phase C2b, SubscriptionChanges). */
@@ -85,13 +90,23 @@ class SubscriptionService
 
     /**
      * What subscribing to plan $packageKey, $cycle, would come to (Phase D1):
-     * its price and the tax on it, shown before it is chosen.
+     * its price and the tax on it, shown before it is chosen - less promotion
+     * $code's discount, when it holds (Doc 15 Phase C3b), with what renewals
+     * then cost.
      *
-     * @return array{currency: string, amount: string, credit: string, tax: array, total: string}
+     * @return array{currency: string, amount: string, discount: string, promotion: ?string, credit: string, tax: array, total: string, renews_at: string}
      */
-    public function quote(Workspace $workspace, string $packageKey, string $cycle): array
+    public function quote(Workspace $workspace, string $packageKey, string $cycle, ?string $code = null): array
     {
-        return $this->billing->quote($workspace, $this->payable($workspace, $packageKey, $cycle), $cycle);
+        $package = $this->payable($workspace, $packageKey, $cycle);
+
+        return $this->billing->quote($workspace, $package, $cycle, promotion: $this->promotion($code, $workspace, $package, $cycle));
+    }
+
+    /** Promotion $code for subscribing to $package's $cycle - none without a code; refused, on the code field, when it does not hold. */
+    private function promotion(?string $code, Workspace $workspace, Package $package, string $cycle, bool $lock = false): ?Promotion
+    {
+        return filled($code) ? $this->promotions->forSubscribing($code, $workspace, $package, $cycle, $this->pricing->currencyFor($package, $workspace), $lock) : null;
     }
 
     /** A paid plan on offer, by its key, with its price for $cycle announced. */
@@ -165,8 +180,8 @@ class SubscriptionService
         ];
     }
 
-    /** @return array{message: string, overview: array} */
-    public function subscribe(Workspace $workspace, User $user, string $packageKey, string $cycle): array
+    /** @return array{message: string, overview: array} - with promotion $code's discount on its first invoice, when it holds (Doc 15 Phase C3b) */
+    public function subscribe(Workspace $workspace, User $user, string $packageKey, string $cycle, ?string $code = null): array
     {
         $subscription = $this->subscriptions->for($workspace);
 
@@ -180,15 +195,21 @@ class SubscriptionService
             throw ValidationException::withMessages(['billing' => 'Add your billing details first: the invoice is made out to them.']);
         }
 
+        // Checked first, so a code that does not hold is said before anything changes.
+        $this->promotion($code, $workspace, $package, $cycle);
+
         // One trial per business, and only for a plan it is not on already.
         $today        = $this->calendar->today($workspace);
         $trial        = $package->trial_days && ! $subscription?->trial_starts_on && $workspace->package_id !== $package->id;
 
-        $invoice      = DB::transaction(function () use ($workspace, $user, $package, $cycle, $today, $trial) {
+        $invoice      = DB::transaction(function () use ($workspace, $user, $package, $cycle, $today, $trial, $code) {
+            // Held while the invoice takes it: its last use cannot go twice.
+            $promotion = $this->promotion($code, $workspace, $package, $cycle, lock: true);
+
             if (! $trial) {
                 $this->subscriptions->save($workspace, ['package_id' => $package->id, 'cycle' => $cycle, 'status' => WorkspaceSubscription::AWAITING_PAYMENT, 'period_starts_on' => null, 'period_ends_on' => null]);
 
-                return $this->billing->issue($workspace, $package, $cycle);
+                return $this->billing->issue($workspace, $package, $cycle, promotion: $promotion);
             }
 
             $last = $today->addDays($package->trial_days - 1);
@@ -199,7 +220,7 @@ class SubscriptionService
             ]);
             $this->sync->changePackage($workspace, $package, $user);
 
-            return $this->billing->issue($workspace, $package, $cycle, $last->addDay(), $last);
+            return $this->billing->issue($workspace, $package, $cycle, $last->addDay(), $last, promotion: $promotion);
         });
 
         // The price it pays from now on, its first invoice's (Doc 15 Phase C3a) - kept for its renewals.
@@ -207,16 +228,20 @@ class SubscriptionService
 
         $what         = $trial ? "Started a {$package->trial_days}-day trial of {$package->name}" : "Subscribed to {$package->name}";
 
-        ActivityLogService::record('created', "{$what} ({$cycle}); invoice {$invoice->number} issued", $workspace, ['source' => 'api']);
+        ActivityLogService::record('created', "{$what} ({$cycle}); invoice {$invoice->number} issued".($invoice->promotion_code ? " with code {$invoice->promotion_code}" : ''), $workspace, ['source' => 'api']);
 
-        // izSuite's credit can cover the invoice in full, which pays it at once (Doc 15 Phase C2b).
-        $paid         = $invoice->isPaid() ? " It is paid with izSuite's credit." : null;
+        // izSuite's credit (Doc 15 Phase C2b), or a promotion taking the whole price off (Phase C3b), settles the invoice at once.
+        $paid         = match (true) {
+            ! $invoice->isPaid()                                          => null,
+            $invoice->paid_with === SubscriptionBilling::PAID_WITH_CREDIT => "paid with izSuite's credit",
+            default                                                       => "settled by code {$invoice->promotion_code}, with nothing to pay",
+        };
 
         return [
             'message'  => match (true) {
-                $trial && $paid => "Your {$package->trial_days}-day {$package->name} trial has started, and invoice {$invoice->number} for the plan after it is paid with izSuite's credit.",
+                $trial && $paid => "Your {$package->trial_days}-day {$package->name} trial has started, and invoice {$invoice->number} for the plan after it is {$paid}.",
                 $trial          => "Your {$package->trial_days}-day {$package->name} trial has started. Invoice {$invoice->number} is due by {$invoice->due_on->format('j M Y')}.",
-                $paid !== null  => "Invoice {$invoice->number} is issued.{$paid} {$package->name} has started.",
+                $paid !== null  => "Invoice {$invoice->number} is issued and {$paid}. {$package->name} has started.",
                 default         => "Invoice {$invoice->number} is issued. {$package->name} starts as soon as izSuite confirms your bank transfer.",
             },
             'overview' => $this->billingService->overview($workspace->fresh(), $user),

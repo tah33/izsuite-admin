@@ -2,10 +2,10 @@
 
 What is done, what comes next, and how to carry on from another PC.
 
-- **Last updated:** 2026-11-13
-- **Code:** Doc 15 Phase C3a (prices in several currencies) is on `main` in the admin commit right after `5b923ed`, and on `nuxt` in the frontend commit right after `d40ee05`.
-- **Tests:** 778 backend tests pass (last full run 2026-11-13, on this code, on the second PC).
-- **Next step:** Doc 15 Phase C3b: promotions (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Last updated:** 2026-11-14
+- **Code:** Doc 15 Phase C3b (promotions) is on `main` in the admin commit right after `e290028`, and on `nuxt` in the frontend commit right after `128f85f`.
+- **Tests:** 783 backend tests pass (last full run 2026-11-14, on this code, on the second PC).
+- **Next step:** Doc 15 Phase D: the dashboard, usage and service health (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 15 Phase C3b.
+   > Read PROJECT_STATUS.md, then start Doc 15 Phase D.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -40,7 +40,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 12 | Users, Roles, Permissions and Locations | Done, except package change rules (Doc 13) |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
-| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phases A, B, C1, C2 and C3a done (2026-11-13), C3b next** |
+| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phases A, B and C done (2026-11-14), D next** |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -314,7 +314,7 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 - Share links that expire. They stay until revoked.
 - Imports beyond contacts and items.
 
-### 3. Doc 15: izSuite System Administration Portal (next: Phase C3b)
+### 3. Doc 15: izSuite System Administration Portal (next: Phase D)
 
 The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign-in) had grown through Docs 01 to 14, partly from the earlier recruitment product, and was checked against all 27 sections.
 
@@ -632,10 +632,25 @@ B3 was split again on starting it (2026-11-13), as a support session names a sup
 
   The check found the card still offering Apply for a subscriber already moving, and "1 subscribers" in the audit line; both fixed. The browser pane was hidden, so the card was checked from its text rather than screenshots. The check's prices, subscription, invoice, payment, numbering, billing details, notices, activity, audit entries, sign-ins and the app's token were then removed, workspace 1 moved back to Billing Starter with its setup undone, and the admin's two-factor reset.
 
-**Phase C3b: promotions** (section 17):
+**Phase C3b: promotions** (section 17) is built, with these defaults:
 
-- Codes with a percent or fixed discount, the plans, countries and cycles they apply to, dates, a total limit and one per business, and a new-customers-only option, each with a status.
-- The subscribe dialog shows the discounted price, the tax and what renewals will cost; the invoice shows the discount (the doc's Discount field).
+- **A code** is a percent (up to 100) or a fixed amount in one currency, off a new subscription's **first invoice only**, before any credit and tax. Renewals are at the full price: the subscription keeps the plan's whole price as the one it pays.
+- **Where it holds:** the plans, cycles and billing countries it names (none named, all), from and until its days (both included), up to its uses in all and per business (1 by default), and for new customers only (businesses that never paid an invoice) if set. Paused, it takes nothing off. A code is kept in capitals and typed in any case.
+- **A use** is an invoice that took the code, until that invoice is voided (withdrawn, cancelled): the use is given back. The last use is held while an invoice takes it, so it cannot go twice.
+- **Refused,** the business is told why: no such code, not in use, not started (with its day), ended, not for this plan, cycle or country, for prices in another currency, used up, used by this business already, or for new customers.
+- **A code taking the whole price off** settles the first invoice at once, like a credit covering it: paid with "Promotion code", the receipt in place of the invoice, no payment row.
+- **Admin > Promotions** (Billing): a list with search, each code's discount, what it is for, its days, uses (taken / limit, per business) and status (Active, Paused, Not started, Ended, Used up); Add and Edit; Delete only while never taken (taken, it is paused or ended instead, as its invoices name it). The invoice page and PDF show "Discount (CODE)".
+- **The app's subscribe dialog** has "Have a promotion code?": Apply checks it with the price and shows the code's line, the total and what each renewal comes to, or why it is refused; Remove takes it off. The invoice to pay shows the code's line too.
+- **Roles** (migration 000135): Billing Administrators add, edit and delete promotions; Read-Only Administrators see the list.
+- Also fixed: a receipt paid with izSuite's credit printed "by card, izSuite credit"; it now says "with credit from izSuite".
+- Left for later: codes for plan changes and renewals, a discount for several periods, and codes made in bulk or for one business.
+- Checked in the browser as the seeded admin, on workspace 1 billed in Bangladesh with Standard at USD 19.50:
+  - Add Promotion saved "launch20" as LAUNCH20, 20% off Standard, and the list showed it Active, taken 0;
+  - in the app's subscribe dialog, "nope" was refused with "There is no promotion with this code.", and "launch20" showed "Code LAUNCH20 −$3.90", Total $15.60 and "Each renewal after it comes to $19.50";
+  - Subscribe issued IZS-INV-00001 for $15.60; the invoice to pay showed the code's line, and the Subscription page the price as $19.50 a month;
+  - the admin's invoice page showed "Discount − USD 3.90 (LAUNCH20)", the list "taken 1", and Edit "Taken 1 time".
+
+  The check found the countries hint written for a plain list, where the admin's Select2 box searches; fixed. The browser pane was hidden, so most of it was checked from the page text. The check's promotion, prices, subscription, invoice, numbering, billing details, activity, audit entries, sign-ins and the app's token were then removed, workspace 1's setup undone, and the admin's two-factor reset.
 
 **Phase D: the dashboard, usage and service health** (sections 4, 18 and 23):
 
@@ -881,7 +896,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 15: Phase C1, subscriptions in the admin | `debb680` and `9bd9fb5` | | 000131 |
 | Doc 15: Phase C2a, payments and refunds | `c33db1a` | `e681985` | 000132 |
 | Doc 15: Phase C2b, credits and billing reports | `5b923ed` | `d40ee05` | 000133 |
-| Doc 15: Phase C3a, prices in several currencies | the commit after `5b923ed` | the commit after `d40ee05` | 000134 |
+| Doc 15: Phase C3a, prices in several currencies | `e290028` | `128f85f` | 000134 |
+| Doc 15: Phase C3b, promotions | the commit after `e290028` | the commit after `128f85f` | 000135 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -1096,6 +1112,10 @@ These are easy to undo by mistake.
   - A subscription keeps `currency` and `price`, set from its first invoice at subscribing, from an upgrade or first payment confirmed (`SubscriptionBilling::pricePaid()`), and from the renewal when a move down takes effect. `SubscriptionCycle::renewal()` charges `renewalPrice()`. A new price applied is `next_price` from `next_price_from`, taken as `price` when the first renewal on or after that day is issued. `WorkspaceSubscription::paysIn()` is its currency, else its plan's.
   - Applying a price is `PackageService::applyPrice()`: `CriticalActionService`, then `WorkspaceSubscriptionRepository::payingOther()`, then `SubscriptionNoticeMail` kind `price_change` through `SubscriptionBilling::notice()`.
   - In the tests, a plan's prices come from `Tests\Concerns\PricesPlans::priced()`.
+- Promotion codes (Doc 15 Phase C3b, migration 000135) are `promotions`, checked by `App\Services\Billing\Promotions::forSubscribing()` (refusing on the `code` field) and worked out by `discountOn()`. Only `SubscriptionService::subscribe()` and `quote()` take a code.
+  - `SubscriptionBilling::quote()` and `issue()` take a `Promotion`; the quote has `discount`, `promotion` and `renews_at`. The discount comes off first, then credits, then tax on what is left. The invoice keeps `discount`, `promotion_id` and `promotion_code` (the code as it was), and `SubscriptionInvoice::net()` takes the discount off too.
+  - A use is an invoice with the promotion that is not void (`PromotionRepository::uses()`). `subscribe()` checks the code before its transaction, then again inside it with the promotion row locked.
+  - A total of zero with a discount and no credit is confirmed at once, paid with `SubscriptionBilling::PAID_WITH_PROMOTION`; with credit too, it is `PAID_WITH_CREDIT`. The receipt PDF words each.
 - Dev's admin CSS is `public/build`, git-ignored and built only when missing (`docker/entrypoint.sh`), so it goes stale. After adding Tailwind classes to admin views, run `docker exec izsuite-api npm run build`; a server builds it fresh on deploy.
 - The frontend's location pick is `useLocationPick()`. It is shared state behind the `izsuite_location` cookie, and `''` means All Locations. A pick no longer offered (an inactive location, another business's) counts as All Locations. `forNewRecord()` waits for the locations list, so a form opened right after a reload still gets the pick.
 
@@ -1147,4 +1167,5 @@ Each of these is yours to settle.
 - Doc 15 Phase C2a: migration 000132 adds the refunds, keeps each transfer confirmed so far as a payment, and gives the roles the payments and refunds. Add `refund.created` and `refund.updated` to the Stripe webhook's events (`charge.refund.updated` on an older API version), or a card refund Stripe takes later stays Waiting. The refund e-mails go through the queue worker.
 - Doc 15 Phase C2b: migration 000133 adds izSuite's credit (`subscription_credits`, and `adjustment` on the invoices) and gives the roles the credits and the billing reports. The credit notices go through the queue worker.
 - Doc 15 Phase C3a: migration 000134 moves each plan's prices into `package_prices`, in force from the start, records on each subscription the price it pays, and drops the two price columns from `packages`. Look over each plan's Prices card after it. The price-change e-mails go through the queue worker.
+- Doc 15 Phase C3b: migration 000135 adds `promotions`, the invoices' `discount`, `promotion_id` and `promotion_code`, and gives the roles Admin > Promotions. Nothing else changes until a code is added.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

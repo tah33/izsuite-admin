@@ -19,6 +19,8 @@ class SubscribeRequest extends FormRequest
         return [
             'package' => ['required', 'string', 'max:50'],
             'cycle'   => ['required', Rule::in(WorkspaceSubscription::CYCLES)],
+            // A promotion code (Doc 15 Phase C3b), in any case.
+            'code'    => ['nullable', 'string', 'max:40'],
         ];
     }
 }

@@ -5,6 +5,7 @@ namespace App\Services\Billing;
 use App\Mail\SubscriptionBillingMail;
 use App\Mail\SubscriptionNoticeMail;
 use App\Models\Billing\Package;
+use App\Models\Billing\Promotion;
 use App\Models\Billing\SubscriptionInvoice;
 use App\Models\Billing\SubscriptionPayment;
 use App\Models\Billing\SubscriptionRefund;
@@ -56,6 +57,9 @@ class SubscriptionBilling
     /** How an invoice izSuite's credit covers in full is paid (Doc 15 Phase C2b). */
     public const PAID_WITH_CREDIT = 'izSuite credit';
 
+    /** How a first invoice a promotion takes the whole price off is settled (Doc 15 Phase C3b). */
+    public const PAID_WITH_PROMOTION = 'Promotion code';
+
     public function __construct(
         private SubscriptionInvoiceRepository $invoices,
         private SubscriptionPaymentRepository $payments,
@@ -71,6 +75,7 @@ class SubscriptionBilling
         private NotificationAudience $audience,
         private SubscriptionCredits $credits,
         private PackagePricing $pricing,
+        private Promotions $promotions,
     ) {}
 
     /** $package's price for $cycle, as $workspace pays it today (Doc 15 Phase C3a: its currency's) - null while izSuite has not announced it. */
@@ -88,19 +93,31 @@ class SubscriptionBilling
      * The price is the one the business pays today, in its currency (Doc 15
      * Phase C3a) - or $price, a renewal's own.
      *
+     * A promotion (Doc 15 Phase C3b) takes its discount off the price
+     * first. `renews_at` is what a renewal comes to: the price and its tax.
+     *
      * @param  array{currency: string, amount: string}|null  $price
-     * @return array{currency: string, amount: string, credit: string, adjustment: string, tax: array{name: ?string, rate: ?string, amount: string, note: ?string}, total: string}
+     * @return array{currency: string, amount: string, discount: string, promotion: ?string, credit: string, adjustment: string, tax: array{name: ?string, rate: ?string, amount: string, note: ?string}, total: string, renews_at: string}
      */
-    public function quote(Workspace $workspace, Package $package, string $cycle, string $credit = '0.00', bool $lock = false, ?array $price = null): array
+    public function quote(Workspace $workspace, Package $package, string $cycle, string $credit = '0.00', bool $lock = false, ?array $price = null, ?Promotion $promotion = null): array
     {
         $price    ??= $this->pricing->price($package, $cycle, $workspace);
+        $today      = $this->calendar->today($workspace);
         $currency   = $price['currency'] ?? (string) $package->price_currency;
         $amount     = $price['amount'] ?? '0.00';
-        $adjustment = $this->credits->available($workspace, $currency, bcsub($amount, $credit, 2), $lock);
-        $net        = bcsub(bcsub($amount, $credit, 2), $adjustment, 2);
-        $tax        = $this->taxes->for($workspace, $net, $this->calendar->today($workspace));
+        $discount   = $promotion ? $this->promotions->discountOn($promotion, $amount, $currency) : '0.00';
+        // What credits can come off: the price less the discount and an upgrade's credit - never below nothing.
+        $before     = bcsub(bcsub($amount, $discount, 2), $credit, 2);
+        $before     = bccomp($before, '0', 2) > 0 ? $before : '0.00';
+        $adjustment = $this->credits->available($workspace, $currency, $before, $lock);
+        $net        = bcsub($before, $adjustment, 2);
+        $tax        = $this->taxes->for($workspace, $net, $today);
 
-        return ['currency' => $currency, 'amount' => $amount, 'credit' => $credit, 'adjustment' => $adjustment, 'tax' => $tax, 'total' => bcadd($net, $tax['amount'], 2)];
+        return [
+            'currency'   => $currency, 'amount' => $amount, 'discount' => $discount, 'promotion' => $promotion?->code, 'credit' => $credit, 'adjustment' => $adjustment,
+            'tax'        => $tax, 'total' => bcadd($net, $tax['amount'], 2),
+            'renews_at'  => bcadd($amount, $this->taxes->for($workspace, $amount, $today)['amount'], 2),
+        ];
     }
 
     /**
@@ -112,14 +129,15 @@ class SubscriptionBilling
      *
      * It takes the business's credit from izSuite off before tax (Doc 15
      * Phase C2b). One the credit covers in full is paid by it at once: the
-     * receipt goes out in place of the invoice.
+     * receipt goes out in place of the invoice. So is a first invoice a
+     * promotion takes the whole price off (Phase C3b).
      */
-    public function issue(Workspace $workspace, Package $package, string $cycle, ?CarbonInterface $periodStart = null, ?CarbonInterface $dueOn = null, string $kind = SubscriptionInvoice::NEW, string $credit = '0.00', ?array $price = null): SubscriptionInvoice
+    public function issue(Workspace $workspace, Package $package, string $cycle, ?CarbonInterface $periodStart = null, ?CarbonInterface $dueOn = null, string $kind = SubscriptionInvoice::NEW, string $credit = '0.00', ?array $price = null, ?Promotion $promotion = null): SubscriptionInvoice
     {
         $today   = $this->calendar->today($workspace);
 
-        $invoice = DB::transaction(function () use ($workspace, $package, $cycle, $periodStart, $dueOn, $kind, $credit, $today, $price) {
-            $quote   = $this->quote($workspace, $package, $cycle, $credit, lock: true, price: $price);
+        $invoice = DB::transaction(function () use ($workspace, $package, $cycle, $periodStart, $dueOn, $kind, $credit, $today, $price, $promotion) {
+            $quote   = $this->quote($workspace, $package, $cycle, $credit, lock: true, price: $price, promotion: $promotion);
             $invoice = $this->invoices->create($workspace, [
                 'number'               => self::INVOICE_PREFIX.str_pad((string) $this->sequences->next('invoice'), 5, '0', STR_PAD_LEFT),
                 'kind'                 => $kind,
@@ -130,6 +148,10 @@ class SubscriptionBilling
                 'period_ends_on'       => $periodStart ? $this->periodEnd($periodStart, $cycle)->toDateString() : null,
                 'currency'             => $quote['currency'],
                 'amount'               => $quote['amount'],
+                // A promotion's discount, and its code as it was (Doc 15 Phase C3b).
+                'discount'             => $quote['discount'],
+                'promotion_id'         => $promotion?->id,
+                'promotion_code'       => $promotion?->code,
                 // An upgrade's credit for the unused part of the paid period (Phase C2b).
                 'credit'               => $credit,
                 'adjustment'           => $quote['adjustment'],
@@ -151,8 +173,15 @@ class SubscriptionBilling
             return $invoice;
         });
 
-        if (bccomp((string) $invoice->total, '0', 2) === 0 && bccomp((string) $invoice->adjustment, '0', 2) > 0) {
-            return $this->confirm($invoice, null, ['paid_with' => self::PAID_WITH_CREDIT, 'reference' => null]);
+        // Nothing left to pay: izSuite's credit, or else a promotion (Doc 15 Phase C3b), took it all.
+        $covered = match (true) {
+            bccomp((string) $invoice->adjustment, '0', 2) > 0 => self::PAID_WITH_CREDIT,
+            bccomp((string) $invoice->discount, '0', 2) > 0   => self::PAID_WITH_PROMOTION,
+            default                                            => null,
+        };
+
+        if ($covered && bccomp((string) $invoice->total, '0', 2) === 0) {
+            return $this->confirm($invoice, null, ['paid_with' => $covered, 'reference' => null]);
         }
 
         $this->send($invoice);

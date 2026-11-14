@@ -3,6 +3,7 @@
     $billed = $invoice->billed_to ?? [];
     $rows   = array_filter([
         __('Subtotal')     => $money($invoice->amount),
+        __('Discount')     => (float) $invoice->discount > 0 ? '− '.$money($invoice->discount).' ('.$invoice->promotion_code.')' : null,
         __('Credit for the unused plan') => (float) $invoice->credit > 0 ? '− '.$money($invoice->credit) : null,
         __('Credit from izSuite') => (float) $invoice->adjustment > 0 ? '− '.$money($invoice->adjustment) : null,
         __('Tax')          => $invoice->tax_name

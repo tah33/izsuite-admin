@@ -81,6 +81,11 @@
             <span>{{ __('Credits') }}</span>
         </a>
 
+        <a href="{{ route('admin.promotions.index') }}" class="sidebar-link {{ request()->routeIs('admin.promotions.*') ? 'active' : '' }}">
+            <i data-lucide="ticket-percent" class="icon"></i>
+            <span>{{ __('Promotions') }}</span>
+        </a>
+
         <a href="{{ route('admin.billing-reports.index') }}" class="sidebar-link {{ request()->routeIs('admin.billing-reports.*') ? 'active' : '' }}">
             <i data-lucide="bar-chart-3" class="icon"></i>
             <span>{{ __('Billing Reports') }}</span>

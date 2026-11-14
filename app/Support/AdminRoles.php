@@ -37,6 +37,7 @@ final class AdminRoles
                 'admin.subscription-invoices.index', 'admin.subscription-invoices.show', 'admin.subscription-invoices.pdf', 'admin.subscription-invoices.confirm', 'admin.subscription-invoices.void',
                 'admin.payments.index', 'admin.payments.refund', 'admin.refunds.index', 'admin.credits.index', 'admin.billing-reports.index',
                 'admin.subscription-taxes.index', 'admin.subscription-taxes.create', 'admin.subscription-taxes.edit', 'admin.subscription-taxes.destroy',
+                'admin.promotions.index', 'admin.promotions.create', 'admin.promotions.edit', 'admin.promotions.destroy',
                 'admin.payment-methods.index', 'admin.payment-methods.create', 'admin.payment-methods.edit', 'admin.payment-methods.destroy',
                 'admin.currencies.index', 'admin.currencies.create', 'admin.currencies.edit', 'admin.currencies.destroy', 'admin.currencies.save-formatting',
                 'admin.clients.index', 'admin.clients.show', 'admin.workspaces.package.review', 'admin.workspaces.package',
@@ -73,7 +74,7 @@ final class AdminRoles
                 'admin.menu-items.index', 'admin.package-access.index', 'admin.packages.index', 'admin.pages.index',
                 'admin.payment-methods.index', 'admin.roles.index', 'admin.staff.index',
                 'admin.subscription-invoices.index', 'admin.subscription-invoices.show', 'admin.subscription-invoices.pdf', 'admin.subscription-taxes.index',
-                'admin.payments.index', 'admin.refunds.index', 'admin.credits.index', 'admin.billing-reports.index',
+                'admin.payments.index', 'admin.refunds.index', 'admin.credits.index', 'admin.billing-reports.index', 'admin.promotions.index',
                 'admin.subscriptions.index', 'admin.subscriptions.show', 'admin.support-sessions.index', 'admin.tickets.index', 'admin.tickets.show',
             ]],
         ];

@@ -46,6 +46,9 @@ class SubscriptionInvoiceResource extends JsonResource
             'refunded'           => bcadd((string) ($this->refunded ?? '0'), '0', 2),
             ...($this->toPay ? [
                 'amount'               => $this->amount,
+                // A promotion's discount and code (Doc 15 Phase C3b)
+                'discount'             => $this->discount,
+                'promotion_code'       => $this->promotion_code,
                 // izSuite's credit taken off it, before tax (Doc 15 Phase C2b)
                 'adjustment'           => $this->adjustment,
                 'tax'                  => SubscriptionTaxLineResource::of(['name' => $this->tax_name, 'rate' => $this->tax_rate, 'amount' => $this->tax, 'note' => $this->tax_note]),

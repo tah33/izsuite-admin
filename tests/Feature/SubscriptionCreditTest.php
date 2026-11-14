@@ -124,6 +124,7 @@ class SubscriptionCreditTest extends TestCase
         $covered = $this->renewal();
         $this->assertSame(['19.50', '19.50', '0.00', '0.00', SubscriptionInvoice::PAID, 'izSuite credit'], [$covered->amount, $covered->adjustment, $covered->tax, $covered->total, $covered->status, $covered->paid_with]);
         $this->assertNotNull($covered->receipt_number);
+        $this->assertStringContainsString('with credit from izSuite. Thank you.', view('billing.invoice', ['invoice' => $covered, 'receipt' => true, 'logo' => null])->render());
         Mail::assertQueued(SubscriptionBillingMail::class, fn (SubscriptionBillingMail $mail) => $mail->invoice->is($covered) && $mail->receipt);
         Mail::assertNotQueued(SubscriptionBillingMail::class, fn (SubscriptionBillingMail $mail) => $mail->invoice->is($covered) && ! $mail->receipt);
         $this->assertSame('5.50', $this->credit());

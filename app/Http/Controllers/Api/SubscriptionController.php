@@ -38,7 +38,7 @@ class SubscriptionController extends Controller
     public function subscribe(SubscribeRequest $request): JsonResponse
     {
         try {
-            $result = $this->subscriptionService->subscribe($this->currentWorkspace($request), $request->user(), $request->validated('package'), $request->validated('cycle'));
+            $result = $this->subscriptionService->subscribe($this->currentWorkspace($request), $request->user(), $request->validated('package'), $request->validated('cycle'), $request->validated('code'));
 
             return response()->json([
                 'message' => $result['message'],
@@ -56,7 +56,7 @@ class SubscriptionController extends Controller
     {
         try {
             return response()->json([
-                'data' => new SubscriptionQuoteResource($this->subscriptionService->quote($this->currentWorkspace($request), $request->validated('package'), $request->validated('cycle'))),
+                'data' => new SubscriptionQuoteResource($this->subscriptionService->quote($this->currentWorkspace($request), $request->validated('package'), $request->validated('cycle'), $request->validated('code'))),
             ]);
 
         } catch (\Throwable $e) {

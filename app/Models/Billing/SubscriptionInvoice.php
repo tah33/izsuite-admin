@@ -41,6 +41,10 @@ class SubscriptionInvoice extends Model
         'period_ends_on',
         'currency',
         'amount',
+        // A promotion's discount off the price, and its code as it was (Doc 15 Phase C3b).
+        'discount',
+        'promotion_id',
+        'promotion_code',
         'credit',
         // izSuite's credit taken off it, before tax (Doc 15 Phase C2b).
         'adjustment',
@@ -70,6 +74,7 @@ class SubscriptionInvoice extends Model
         'period_starts_on' => 'date',
         'period_ends_on'   => 'date',
         'amount'           => 'decimal:2',
+        'discount'         => 'decimal:2',
         'credit'           => 'decimal:2',
         'adjustment'       => 'decimal:2',
         'tax_rate'         => 'decimal:3',
@@ -121,10 +126,12 @@ class SubscriptionInvoice extends Model
         return $this->status === self::PAID;
     }
 
-    /** What it charges before tax: the price less any upgrade credit and izSuite's credit (Doc 15 Phase C2b) - what the tax is worked out on. */
+    /** What it charges before tax: the price less a promotion's discount (Phase C3b), any upgrade credit and izSuite's credit (Doc 15 Phase C2b) - what the tax is worked out on. */
     public function net(): string
     {
-        return bcsub(bcsub((string) $this->amount, (string) $this->credit, 2), (string) ($this->adjustment ?? '0'), 2);
+        $less = bcadd(bcadd((string) ($this->discount ?? '0'), (string) $this->credit, 2), (string) ($this->adjustment ?? '0'), 2);
+
+        return bcsub((string) $this->amount, $less, 2);
     }
 
     /** Its tax rate as people read it, "15" or "7.5" - null without a tax. */
