@@ -9,7 +9,12 @@
         </div>
         <div>
             <dt class="text-[var(--text-muted)]">{{ __(':percent% of their plan\'s storage or more', ['percent' => $storage['warn_percent']]) }}</dt>
-            <dd class="text-lg font-semibold {{ $storage['near_limit'] > 0 ? 'text-[var(--warning)]' : 'text-[var(--text-primary)]' }}">{{ trans_choice(':count business|:count businesses', $storage['near_limit']) }}</dd>
+            <dd class="text-lg font-semibold {{ $storage['near_limit'] > 0 ? 'text-[var(--warning)]' : 'text-[var(--text-primary)]' }}">
+                {{ trans_choice(':count business|:count businesses', $storage['near_limit']) }}
+                @if(auth()->user()->role?->hasPermission('admin.usage.index'))
+                    <a href="{{ route('admin.usage.index', ['state' => 'warning', 'limit' => 'storage', 'sort' => 'storage']) }}" class="block text-xs font-medium text-[var(--primary)]">{{ __('Open Usage') }}</a>
+                @endif
+            </dd>
         </div>
         <div>
             <dt class="text-[var(--text-muted)]">{{ __('Jobs failed in these days') }}</dt>

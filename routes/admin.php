@@ -33,6 +33,7 @@ use App\Http\Controllers\Admin\SubscriptionInvoiceController;
 use App\Http\Controllers\Admin\SubscriptionTaxController;
 use App\Http\Controllers\Admin\SupportSessionController;
 use App\Http\Controllers\Admin\TicketController;
+use App\Http\Controllers\Admin\UsageController;
 use App\Http\Controllers\Admin\WorkspaceController;
 use Illuminate\Support\Facades\Route;
 
@@ -91,6 +92,9 @@ Route::middleware(['auth', 'admin', 'permission'])->prefix('admin')->name('admin
     // Businesses (Doc 15 Phase B1): the list, a business's page, its status, and a message from izSuite.
     Route::get('/businesses', [BusinessController::class, 'index'])->name('businesses.index');
     Route::get('/businesses/{id}', [BusinessController::class, 'show'])->whereNumber('id')->name('businesses.show');
+    // Each business's usage against its plan, and its history (Doc 15 Phase D2).
+    Route::get('/usage', [UsageController::class, 'index'])->name('usage.index');
+    Route::get('/usage/{id}', [UsageController::class, 'show'])->whereNumber('id')->name('usage.show');
     Route::post('/businesses/{id}/status', [BusinessController::class, 'changeStatus'])->whereNumber('id')->name('businesses.status');
     Route::post('/businesses/{id}/notify', [BusinessController::class, 'notify'])->whereNumber('id')->name('businesses.notify');
     // Support sessions (Doc 15 Phase B4), in place of Login as: read only, or with edit access - each its own permission.

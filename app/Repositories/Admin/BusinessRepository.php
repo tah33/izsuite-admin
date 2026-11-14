@@ -90,6 +90,22 @@ class BusinessRepository
             ->when($filters['app'] ?? null, fn (Builder $query, int|string $app) => $query->whereHas('workspaceApps', fn (Builder $apps) => $apps->where('app_id', (int) $app)->where('status', WorkspaceApp::STATUS_ACTIVE)));
     }
 
+    /** $query's businesses whose name, BW- ID, or owner's name or e-mail has $search - Admin > Businesses' search, and Admin > Usage's (Doc 15 Phase D2). */
+    public function search(Builder $query, ?string $search): Builder
+    {
+        if (blank($search)) {
+            return $query;
+        }
+
+        $like = '%'.addcslashes($search, '%_\\').'%';
+        $id   = (int) ltrim(preg_replace('/^BW-?/i', '', $search) ?? '', '0');
+
+        return $query->where(fn (Builder $query) => $query
+            ->where('workspaces.name', 'like', $like)
+            ->when($id > 0 && preg_match('/^(BW-?)?\d+$/i', $search), fn (Builder $query) => $query->orWhere('workspaces.id', $id))
+            ->orWhereHas('user', fn (Builder $owner) => $owner->where('email', 'like', $like)->orWhere('first_name', 'like', $like)->orWhere('last_name', 'like', $like)));
+    }
+
     private function query(array $filters): Builder
     {
         $query = $this->withCounts(Workspace::query()->select('workspaces.*'))
@@ -97,16 +113,7 @@ class BusinessRepository
             ->addSelect(['packages.user_limit as plan_user_limit', 'packages.location_limit as plan_location_limit', 'packages.storage_limit_mb as plan_storage_mb'])
             ->with('businessSetting:id,workspace_id,country');
 
-        return $this->narrow($query, $filters)
-            ->when($filters['search'] ?? null, function (Builder $query, string $search) {
-                $like = '%'.addcslashes($search, '%_\\').'%';
-                $id   = (int) ltrim(preg_replace('/^BW-?/i', '', $search) ?? '', '0');
-
-                $query->where(fn (Builder $query) => $query
-                    ->where('workspaces.name', 'like', $like)
-                    ->when($id > 0 && preg_match('/^(BW-?)?\d+$/i', $search), fn (Builder $query) => $query->orWhere('workspaces.id', $id))
-                    ->orWhereHas('user', fn (Builder $owner) => $owner->where('email', 'like', $like)->orWhere('first_name', 'like', $like)->orWhere('last_name', 'like', $like)));
-            })
+        return $this->search($this->narrow($query, $filters), $filters['search'] ?? null)
             ->when($filters['from'] ?? null, fn (Builder $query, string $from) => $query->where('workspaces.created_at', '>=', $from.' 00:00:00'))
             ->when($filters['to'] ?? null, fn (Builder $query, string $to) => $query->where('workspaces.created_at', '<=', $to.' 23:59:59'))
             // HAVING reads the counts' aliases; grouped by both keys, as SQLite needs a GROUP BY for it and MySQL's full group-by mode is satisfied.

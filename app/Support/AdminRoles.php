@@ -45,6 +45,7 @@ final class AdminRoles
                 'admin.subscriptions.index', 'admin.subscriptions.show', 'admin.subscriptions.plan', 'admin.subscriptions.trial', 'admin.subscriptions.grace',
                 'admin.subscriptions.cancel', 'admin.subscriptions.undo', 'admin.subscriptions.resend', 'admin.subscriptions.retry',
                 'admin.subscriptions.credit', 'admin.subscriptions.credit-remove',
+                'admin.usage.index', 'admin.usage.show',
             ]],
             // Businesses' and users' support: cases, messages, recovering an account, and read-only support sessions.
             'support-administrator' => ['Support Administrator', [
@@ -52,7 +53,7 @@ final class AdminRoles
                 'admin.clients.verification', 'admin.clients.recovery', 'admin.clients.sign-out', 'admin.clients.two-factor',
                 'admin.businesses.support-session', 'admin.support-sessions.index', 'admin.support-sessions.open', 'admin.support-sessions.end',
                 'admin.subscriptions.index', 'admin.subscriptions.show', 'admin.subscriptions.resend',
-                'admin.businesses.index', 'admin.businesses.show', 'admin.businesses.notify',
+                'admin.businesses.index', 'admin.businesses.show', 'admin.businesses.notify', 'admin.usage.index', 'admin.usage.show',
                 'admin.tickets.index', 'admin.tickets.show', 'admin.tickets.create', 'admin.tickets.reply', 'admin.tickets.update',
                 'admin.departments.index',
                 'admin.contact-messages.index', 'admin.contact-messages.show', 'admin.contact-messages.reply',
@@ -68,7 +69,7 @@ final class AdminRoles
             // Lists and details only: no saving, no exports, and not the settings page, which holds keys.
             'read-only-administrator' => ['Read-Only Administrator', [
                 'admin.app-categories.index', 'admin.apps.index', 'admin.audit-log.index', 'admin.audit-log.show',
-                'admin.businesses.index', 'admin.businesses.show',
+                'admin.businesses.index', 'admin.businesses.show', 'admin.usage.index', 'admin.usage.show',
                 'admin.clients.index', 'admin.clients.show', 'admin.contact-messages.index', 'admin.contact-messages.show',
                 'admin.content.index', 'admin.currencies.index', 'admin.departments.index', 'admin.faqs.index', 'admin.languages.index',
                 'admin.menu-items.index', 'admin.package-access.index', 'admin.packages.index', 'admin.pages.index',

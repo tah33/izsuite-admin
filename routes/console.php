@@ -22,5 +22,8 @@ Schedule::command('notifications:usage')->hourly()->withoutOverlapping();
 // Businesses closed on their scheduled closing day (Doc 15 Phase B1).
 Schedule::command('businesses:close-due')->hourly()->withoutOverlapping();
 
+// Each business's usage today, for Admin > Usage's history (Doc 15 Phase D2), late in the UTC day.
+Schedule::command('usage:snapshot')->dailyAt('23:50')->timezone('UTC')->withoutOverlapping();
+
 // Support sessions past their end, recorded as ended in the business's Activity Log (Doc 15 Phase B4).
 Schedule::command('support-sessions:close-expired')->everyFiveMinutes()->withoutOverlapping();

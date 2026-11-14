@@ -1,6 +1,11 @@
 {{-- A business's usage against its plan, what it holds, and the apps it has on (Doc 15 section 15.5). --}}
 <div class="card p-6 mb-6">
-    <h2 class="text-lg font-semibold text-[var(--text-primary)] mb-4">{{ __('Usage and Apps') }}</h2>
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-[var(--text-primary)]">{{ __('Usage and Apps') }}</h2>
+        @if($may('admin.usage.show'))
+            <a href="{{ route('admin.usage.show', $business->id) }}" class="text-sm font-medium text-[var(--primary)]">{{ __('Usage History') }}</a>
+        @endif
+    </div>
 
     <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-5">
         @foreach(\App\Support\BusinessUsage::of($business) as $line)

@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-14
-- **Code:** Doc 15 Phase D1 (the Overview) is on `main` in the admin commit right after `e49c71e`. It changed nothing in the frontend, which stays at `4bd877b` on `nuxt`.
-- **Tests:** 786 backend tests pass (last full run 2026-11-14, on this code, on the second PC).
-- **Next step:** Doc 15 Phase D2: usage and its history (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 15 Phase D2 (usage and its history) is on `main` in the admin commit right after `5313faf`. Phases D1 and D2 changed nothing in the frontend, which stays at `4bd877b` on `nuxt`.
+- **Tests:** 789 backend tests pass (last full run 2026-11-14, on this code, on the second PC).
+- **Next step:** Doc 15 Phase D3: service health and incidents (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 15 Phase D2.
+   > Read PROJECT_STATUS.md, then start Doc 15 Phase D3.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -40,7 +40,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 12 | Users, Roles, Permissions and Locations | Done, except package change rules (Doc 13) |
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
-| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phases A, B, C and D1 done (2026-11-14), D2 next** |
+| **15** | **izSuite System Administration Portal** | **In progress: gap check, Phases A, B, C, D1 and D2 done (2026-11-14), D3 next** |
 | 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -314,7 +314,7 @@ The gap check was done on 2026-11-09. Much of Doc 14 came with the earlier docs.
 - Share links that expire. They stay until revoked.
 - Imports beyond contacts and items.
 
-### 3. Doc 15: izSuite System Administration Portal (next: Phase D2)
+### 3. Doc 15: izSuite System Administration Portal (next: Phase D3)
 
 The gap check was done on 2026-11-13. The admin panel (`/admin`, Blade, web sign-in) had grown through Docs 01 to 14, partly from the earlier recruitment product, and was checked against all 27 sections.
 
@@ -672,9 +672,37 @@ B3 was split again on starting it (2026-11-13), as a support session names a sup
 
   The check found the chart's canvas, drawn while the browser pane was hidden, wider than its card, which made the whole page scroll sideways; its box now clips it. The page only reads, so the check left nothing to remove.
 
-**Phase D2: usage and its history** (section 18):
+**Phase D2: usage and its history** (section 18) is built, with these defaults:
 
-- **Usage:** each business's users, locations, storage and apps against its limits, with the warning state, as a list to sort and filter. A daily snapshot gives its history.
+- **Admin > Usage**, after Businesses in the sidebar, has one row per business:
+  - its users (active or invited, the owner at least), active locations and storage, each with its plan's limit, the share used and a bar;
+  - its apps on, and how many its plan includes;
+  - where it stands.
+- **States:**
+  - OK;
+  - Nearing its limit, from 80% (storage: Settings' warning share);
+  - At its limit;
+  - Past its limit, after a move to a lower plan.
+
+  A limit of one at one, such as Billing Starter's one user and location, is OK, as in Admin > Businesses. A row takes the worst of its three.
+- **Filters:** words (name, BW- ID or the owner), plan, state (nearing or past, at or past, past) and the limit it looks at (users, locations or storage; else any).
+- **Order:** closest to a limit (the default), share of users, locations or storage, most storage, or newest. The shares it sorts by leave a limit of one out, so Billing Starter's businesses do not crowd the top.
+- **A business's Usage page**, from the list or Usage History on its Admin > Businesses page:
+  - each limit now, and its apps;
+  - its history for the chosen days (the last 90 unless chosen): a chart of users, locations and apps, with storage in MB on its own axis, and the days its plan or usage changed.
+- **Snapshots:** `usage:snapshot` keeps each business's usage once a day, at 23:50 UTC, in `workspace_usage_snapshots` (migration 000136), with its plan and that plan's limits then.
+  - Closed businesses are left out.
+  - Run again the same day, it overwrites that day's.
+  - Nothing is deleted, and no limit removes a business's data.
+- The Overview's storage figure links to Admin > Usage, filtered to businesses nearing a storage limit.
+- **Roles** (migration 000136): Billing, Support and Read-Only Administrators open Admin > Usage.
+- Left for later: API, automation, AI and messaging usage, other metered services and additional charges. They wait for those services (Doc 13's usage charges).
+- Checked in the browser as the seeded admin, on workspace 1 (Billing Starter), with today's snapshot and four earlier days added for the check:
+  - the list, where 1 of 1 user and location show full but OK;
+  - the business's page, with its limits, the chart, and the days it changed (Nov 12, unchanged, left out);
+  - the links from the business page and the Overview.
+
+  The check found "1 businesses" in the command's line; fixed. The check's snapshots were then removed.
 
 **Phase D3: service health and incidents** (section 23):
 
@@ -914,7 +942,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 15: Phase C2b, credits and billing reports | `5b923ed` | `d40ee05` | 000133 |
 | Doc 15: Phase C3a, prices in several currencies | `e290028` | `128f85f` | 000134 |
 | Doc 15: Phase C3b, promotions | `e49c71e` | `4bd877b` | 000135 |
-| Doc 15: Phase D1, the Overview | the commit after `e49c71e` | | none |
+| Doc 15: Phase D1, the Overview | `5313faf` | | none |
+| Doc 15: Phase D2, usage and its history | the commit after `5313faf` | | 000136 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -1130,6 +1159,7 @@ These are easy to undo by mistake.
   - Applying a price is `PackageService::applyPrice()`: `CriticalActionService`, then `WorkspaceSubscriptionRepository::payingOther()`, then `SubscriptionNoticeMail` kind `price_change` through `SubscriptionBilling::notice()`.
   - In the tests, a plan's prices come from `Tests\Concerns\PricesPlans::priced()`.
 - Admin > Overview (Doc 15 Phase D1) is `OverviewService::dashboard()` over `App\Repositories\Admin\OverviewRepository`. Its business filters are `BusinessRepository::narrow()`, which Admin > Businesses uses too (with an app filter it does not show yet); Past Due is `SubscriptionAdminRepository::pastDue()`. Website accounts are those with `ClientRepository::ROLE`. Jobs waiting is `Queue::size()` on the default queue: "Queue not reached" when it cannot be asked.
+- Admin > Usage (Doc 15 Phase D2) is `UsageService` over `App\Repositories\Admin\UsageRepository`. The repository works each business's usage out in SQL (subqueries, and `greatest` or `max` by database), so the list sorts and filters by it. `App\Support\UsageState` gives the states in PHP, and the repository's filters ask the same in SQL. `BusinessRepository::search()` is Admin > Businesses' search, shared.
 - Promotion codes (Doc 15 Phase C3b, migration 000135) are `promotions`, checked by `App\Services\Billing\Promotions::forSubscribing()` (refusing on the `code` field) and worked out by `discountOn()`. Only `SubscriptionService::subscribe()` and `quote()` take a code.
   - `SubscriptionBilling::quote()` and `issue()` take a `Promotion`; the quote has `discount`, `promotion` and `renews_at`. The discount comes off first, then credits, then tax on what is left. The invoice keeps `discount`, `promotion_id` and `promotion_code` (the code as it was), and `SubscriptionInvoice::net()` takes the discount off too.
   - A use is an invoice with the promotion that is not void (`PromotionRepository::uses()`). `subscribe()` checks the code before its transaction, then again inside it with the promotion row locked.
@@ -1187,4 +1217,5 @@ Each of these is yours to settle.
 - Doc 15 Phase C3a: migration 000134 moves each plan's prices into `package_prices`, in force from the start, records on each subscription the price it pays, and drops the two price columns from `packages`. Look over each plan's Prices card after it. The price-change e-mails go through the queue worker.
 - Doc 15 Phase C3b: migration 000135 adds `promotions`, the invoices' `discount`, `promotion_id` and `promotion_code`, and gives the roles Admin > Promotions. Nothing else changes until a code is added.
 - Doc 15 Phase D1: no migration. The Overview asks the queue for its size, so the web app needs to reach the queue's Redis, as the workers do.
+- Doc 15 Phase D2: migration 000136 adds `workspace_usage_snapshots` and gives the roles Admin > Usage. The scheduler runs `usage:snapshot` daily at 23:50 UTC; a business's history starts the day it first runs.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

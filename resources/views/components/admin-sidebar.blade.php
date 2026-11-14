@@ -106,6 +106,11 @@
             <span>{{ __('Businesses') }}</span>
         </a>
 
+        <a href="{{ route('admin.usage.index') }}" class="sidebar-link {{ request()->routeIs('admin.usage.*') ? 'active' : '' }}">
+            <i data-lucide="gauge" class="icon"></i>
+            <span>{{ __('Usage') }}</span>
+        </a>
+
         <a href="{{ route('admin.clients.index') }}" class="sidebar-link {{ request()->routeIs('admin.clients.*') ? 'active' : '' }}">
             <i data-lucide="users" class="icon"></i>
             <span>{{ __('Users') }}</span>
