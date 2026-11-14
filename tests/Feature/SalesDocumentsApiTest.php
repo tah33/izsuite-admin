@@ -139,7 +139,8 @@ class SalesDocumentsApiTest extends TestCase
         $this->getJson("/api/v1/sales/invoices/{$id}")->assertOk();
         $this->getJson("/api/v1/sales/quotations/{$id}")->assertNotFound()->assertJsonPath('message', 'Quotation not found.');
         $this->getJson("/api/v1/sales/invoices/{$id}", $this->pick($other))->assertNotFound();
-        $this->getJson('/api/v1/sales/orders')->assertNotFound();
+        // A kind still to come (Doc 16 Phase E).
+        $this->getJson('/api/v1/sales/returns')->assertNotFound();
     }
 
     public function test_a_draft_is_changed_with_its_totals_worked_out_again_and_deleted(): void

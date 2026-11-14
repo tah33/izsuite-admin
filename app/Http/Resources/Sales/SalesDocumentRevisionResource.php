@@ -23,6 +23,8 @@ class SalesDocumentRevisionResource extends JsonResource
         return [
             'revision'   => $this->revision,
             'changed_by' => $this->creator?->name,
+            // Why an amended sales order was changed (Doc 16 Phase B).
+            'reason'     => $this->reason,
             'changed_at' => $this->created_at?->toIso8601String(),
             'snapshot'   => $this->whenHas('snapshot', fn (array $snapshot) => [
                 ...$this->hideValues('sales', $snapshot, ['discount_value', 'subtotal', 'discount_total', 'tax_total', 'grand_total']),

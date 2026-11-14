@@ -16,6 +16,7 @@ use App\Services\Documents\DocumentNumbers;
 use App\Services\Documents\DocumentTemplates;
 use App\Services\Sales\SalesCalculator;
 use App\Services\Sales\SalesDocumentRules;
+use App\Services\Sales\SalesOrderProgress;
 use App\Services\Shared\ActivityLogService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -58,7 +59,56 @@ class SalesDocumentFlow
         protected ExchangeRateService $exchangeRateService,
         protected SalesCalculator $salesCalculator,
         protected LocationRepository $locationRepository,
+        protected SalesOrderProgress $salesOrderProgress,
+        protected SalesOrderInvoicing $salesOrderInvoicing,
     ) {}
+
+    /**
+     * A draft sales order confirmed (Doc 16 section 16.9): numbered - the next
+     * number, or one typed - with its business and customer kept as they are
+     * now, and its terms locked: from here it changes only by Amend. Its
+     * delivery status starts as Not Delivered, or Not Required when every line
+     * is a service, and nothing is invoiced yet.
+     */
+    public function confirm(Workspace $workspace, DocumentType $type, int $id, User $user, ?string $number = null): SalesDocument
+    {
+        $document = $this->allowed($workspace, $type, $id, 'confirm', 'Only a draft sales order can be confirmed.');
+
+        $this->checkReady($workspace, $document);
+
+        $typed = $this->documentNumbers->typed($document->type, $number, fn (string $taken) => $this->salesDocumentRepository->numberTaken($workspace, $document->type, $taken));
+
+        $this->salesDocumentRepository->loadLineItems($document);
+
+        DB::transaction(fn () => $this->salesDocumentRepository->update($document, [
+            ...$this->numbered($workspace, $document, $typed),
+            'status'          => SalesDocumentStatus::Confirmed,
+            'confirmed_at'    => now(),
+            'confirmed_by'    => $user->id,
+            'delivery_status' => $this->salesOrderProgress->deliveryStatus($document),
+            'invoice_status'  => $this->salesOrderProgress->invoiceStatus($document),
+            'updated_by'      => $user->id,
+        ]));
+
+        return $this->logged($document, 'Confirmed '.$this->salesDocumentService->describe($document));
+    }
+
+    /** A confirmed sales order put on hold, with an optional reason: nothing more is done on it until it is resumed. */
+    public function hold(Workspace $workspace, DocumentType $type, int $id, User $user, ?string $reason): SalesDocument
+    {
+        return $this->move($workspace, $type, $id, $user, 'hold', SalesDocumentStatus::OnHold, $reason, 'Only a confirmed sales order can be put on hold.', 'Put %s on hold');
+    }
+
+    public function resume(Workspace $workspace, DocumentType $type, int $id, User $user): SalesDocument
+    {
+        return $this->move($workspace, $type, $id, $user, 'resume', SalesDocumentStatus::Confirmed, null, 'Only a sales order on hold can be resumed.', 'Resumed %s');
+    }
+
+    /** A confirmed sales order closed: done with, whatever is left undelivered or uninvoiced. */
+    public function complete(Workspace $workspace, DocumentType $type, int $id, User $user): SalesDocument
+    {
+        return $this->move($workspace, $type, $id, $user, 'complete', SalesDocumentStatus::Completed, null, 'Only a confirmed sales order can be completed.', 'Completed %s');
+    }
 
     /**
      * A credit note is issued against its invoice - see CreditNoteService. An
@@ -75,6 +125,8 @@ class SalesDocumentFlow
         $document = $this->allowed($workspace, $type, $id, 'issue', 'Only a draft invoice can be issued.');
 
         $this->checkReady($workspace, $document);
+        // One made from a sales order still fits what the order has left (Doc 16 Phase B2).
+        $this->salesOrderInvoicing->checkIssue($workspace, $document);
 
         $current = $this->rateToIssueAt($workspace, $document, $rate);
         $typed   = $this->documentNumbers->typed($document->type, $number, fn (string $taken) => $this->salesDocumentRepository->numberTaken($workspace, $document->type, $taken));
@@ -91,6 +143,8 @@ class SalesDocumentFlow
             'balance_due'    => $document->grand_total,
             'updated_by'     => $user->id,
         ]));
+
+        $this->refreshOrder($document);
 
         return $this->logged($document, 'Issued '.$this->salesDocumentService->describe($document));
     }
@@ -121,8 +175,17 @@ class SalesDocumentFlow
         return $this->move($workspace, $type, $id, $user, 'reject', SalesDocumentStatus::Rejected, $reason, 'Only a sent quotation that has not expired can be rejected.', 'Marked %s as rejected');
     }
 
+    /**
+     * A sales order with invoices still drafted or issued is not cancelled:
+     * "Cancelling an order does not silently cancel an existing delivery,
+     * invoice or payment" (Doc 16 section 16.9) - they are voided or deleted first.
+     */
     public function cancel(Workspace $workspace, DocumentType $type, int $id, User $user, ?string $reason): SalesDocument
     {
+        if ($type === DocumentType::SalesOrder && $this->salesDocumentRepository->hasOpenInvoicesFrom($this->salesDocumentService->find($workspace, $type, $id))) {
+            $this->refuse('Cancelling the order leaves its invoices as they are. Void or delete them first.');
+        }
+
         return $this->move($workspace, $type, $id, $user, 'cancel', SalesDocumentStatus::Cancelled, $reason, 'This cannot be cancelled. A draft is deleted instead.', 'Cancelled %s');
     }
 
@@ -155,7 +218,19 @@ class SalesDocumentFlow
             $this->documentLinkRepository->revokeFor($document);
         });
 
+        $this->refreshOrder($document);
+
         return $this->logged($document, 'Voided '.$this->salesDocumentService->describe($document));
+    }
+
+    /** The sales order an invoice was made from, its invoiced quantities counted again (Doc 16 Phase B2). */
+    private function refreshOrder(SalesDocument $document): void
+    {
+        $order = $this->salesOrderInvoicing->orderOf($document);
+
+        if ($order) {
+            $this->salesOrderInvoicing->refresh($this->salesDocumentRepository->loadLineItems($order));
+        }
     }
 
     /** A status change with nothing more to it than the status and an optional reason. */

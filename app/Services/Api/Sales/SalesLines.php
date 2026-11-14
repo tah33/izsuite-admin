@@ -44,6 +44,10 @@ class SalesLines
             $discount = isset($line['discount_value']) && $line['discount_value'] !== '' && ($line['discount_type'] ?? null);
 
             return [
+                // A sales order's line as it was, for SalesDocumentRepository::syncLines (Doc 16 Phase B); never saved as such.
+                ...(isset($line['id']) ? ['id' => (int) $line['id']] : []),
+                // The line of its source it was made from - SalesDocumentService keeps only its source's (Phase B2).
+                'source_line_id' => isset($line['source_line_id']) ? (int) $line['source_line_id'] : null,
                 'position'       => $index + 1,
                 'item_id'        => $item?->id,
                 'name'           => $line['name'] ?? '',

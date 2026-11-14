@@ -19,6 +19,8 @@ class SalesSetting extends Model
         'proforma_validity',
         'line_discounts',
         'document_discounts',
+        // The full Sales app's (Doc 16 Phase B): its orders invoice what was ordered or what was delivered.
+        'invoice_policy',
         'notes',
         'terms',
     ];
@@ -29,6 +31,7 @@ class SalesSetting extends Model
         'proforma_validity'  => 30,
         'line_discounts'     => true,
         'document_discounts' => true,
+        'invoice_policy'     => 'ordered',
     ];
 
     protected $casts = [

@@ -3,10 +3,12 @@
 namespace App\Http\Resources\Items;
 
 use App\Services\Shared\EditConflicts;
+use App\Enums\Edition;
 use App\Http\Resources\Concerns\HidesValues;
 use App\Models\User\ItemComponent;
 use App\Models\User\TaxRate;
 use App\Services\Files\FileStorage;
+use App\Services\User\Apps\WorkspaceApps;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -61,6 +63,8 @@ class ItemResource extends JsonResource
             'sales_tax_id'          => $this->sales_tax_id,
             'sales_tax'             => $this->taxShown($this->salesTax),
             'sales_description'     => $this->sales_description,
+            // The full Sales app's (Doc 16 Phase B2): what its sales orders' invoices bill.
+            'invoice_policy'        => $this->when(WorkspaceApps::requestHas('sales', Edition::Full), fn () => $this->invoice_policy),
             'purchase_price'        => $this->purchase_price,
             'purchase_tax_id'       => $this->purchase_tax_id,
             'purchase_tax'          => $this->taxShown($this->purchaseTax),

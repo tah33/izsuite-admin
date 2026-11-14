@@ -69,7 +69,7 @@ class DocumentRenderer
             'customer'  => $customer,
             'shipTo'    => $shipping && $customer ? ($customer['shipping_address'] ?? $customer['billing_address'] ?? null) : null,
             'partyLabel' => match ($document->type) {
-                DocumentType::Invoice, DocumentType::Proforma => 'Bill To',
+                DocumentType::Invoice, DocumentType::Proforma, DocumentType::SalesOrder => 'Bill To',
                 DocumentType::CreditNote                       => 'Credit To',
                 default                                        => 'Prepared For',
             },

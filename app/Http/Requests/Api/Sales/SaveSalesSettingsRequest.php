@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api\Sales;
 
 use App\Models\User\Contact;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class SaveSalesSettingsRequest extends FormRequest
 {
@@ -25,6 +26,8 @@ class SaveSalesSettingsRequest extends FormRequest
             'proforma_validity'  => ['required', 'integer', 'min:1', 'max:365'],
             'line_discounts'     => ['required', 'boolean'],
             'document_discounts' => ['required', 'boolean'],
+            // The full Sales app's (Doc 16 Phase B); Sales Lite's form leaves it as it is.
+            'invoice_policy'     => ['sometimes', Rule::in(['ordered', 'delivered'])],
             'notes'              => ['nullable', 'string', 'max:5000'],
             'terms'              => ['nullable', 'string', 'max:10000'],
         ];

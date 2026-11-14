@@ -7,6 +7,7 @@ use App\Http\Middleware\EnsureAppActive;
 use App\Http\Middleware\EnsureIdempotent;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureRole;
+use App\Http\Middleware\EnsureSalesKindEdition;
 use App\Http\Middleware\LogApiWriteActivity;
 use App\Http\Middleware\PermissionCheckMiddleware;
 use App\Http\Middleware\ResolveWorkspace;
@@ -51,6 +52,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'workspace'  => ResolveWorkspace::class,
             'app'        => EnsureAppActive::class,
             'access'     => EnsurePermission::class,
+            // A sales order is the full Sales app's: on Sales Lite it is only read (Doc 16 Phase B).
+            'sales.kind' => EnsureSalesKindEdition::class,
             // A create sent twice makes one record (Doc 14 Phase A).
             'idempotent' => EnsureIdempotent::class,
         ]);

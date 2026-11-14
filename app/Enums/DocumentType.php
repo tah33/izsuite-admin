@@ -4,12 +4,14 @@ namespace App\Enums;
 
 /**
  * The kinds of document a business numbers (Doc 11 section 21), each with its
- * own run of numbers: Sales Lite's, Purchases Lite's and Expenses Lite's.
+ * own run of numbers: Sales Lite's, Purchases Lite's and Expenses Lite's, and
+ * the full Sales app's sales orders (Doc 16 Phase B).
  */
 enum DocumentType: string
 {
     case Quotation = 'quotation';
     case Proforma = 'proforma';
+    case SalesOrder = 'sales_order';
     case Invoice = 'invoice';
     case CreditNote = 'credit_note';
     case CustomerReceipt = 'customer_receipt';
@@ -23,6 +25,7 @@ enum DocumentType: string
         return match ($this) {
             self::Quotation       => 'Quotation',
             self::Proforma        => 'Proforma Invoice',
+            self::SalesOrder      => 'Sales Order',
             self::Invoice         => 'Invoice',
             self::CreditNote      => 'Credit Note',
             self::CustomerReceipt => 'Customer Payment Receipt',
@@ -39,6 +42,7 @@ enum DocumentType: string
         return match ($this) {
             self::Quotation       => 'quotations',
             self::Proforma        => 'proforma invoices',
+            self::SalesOrder      => 'sales orders',
             self::Invoice         => 'invoices',
             self::CreditNote      => 'credit notes',
             self::CustomerReceipt => 'customer payment receipts',
@@ -49,12 +53,13 @@ enum DocumentType: string
         };
     }
 
-    /** The prefix a business starts with: QUO-00001, INV-00001, PUR-00001, SPV-00001, EXP-00001, EPV-00001. */
+    /** The prefix a business starts with: QUO-00001, SO-00001, INV-00001, PUR-00001, SPV-00001, EXP-00001, EPV-00001. */
     public function defaultPrefix(): string
     {
         return match ($this) {
             self::Quotation       => 'QUO-',
             self::Proforma        => 'PRO-',
+            self::SalesOrder      => 'SO-',
             self::Invoice         => 'INV-',
             self::CreditNote      => 'CN-',
             self::CustomerReceipt => 'RCT-',
@@ -75,16 +80,27 @@ enum DocumentType: string
         };
     }
 
-    /** The sales documents Sales Lite makes, by the part of their address that names them: /sales/invoices. */
+    /**
+     * The edition of its app that makes it: a sales order needs the full Sales
+     * app (Doc 16), the rest their Lite apps. Its settings show with that
+     * edition, and on Sales Lite its records are only read.
+     */
+    public function edition(): Edition
+    {
+        return $this === self::SalesOrder ? Edition::Full : Edition::Lite;
+    }
+
+    /** The sales documents, by the part of their address that names them: /sales/invoices. Sales orders are the full Sales app's. */
     public const KINDS = [
         'quotations'   => self::Quotation,
         'proformas'    => self::Proforma,
+        'orders'       => self::SalesOrder,
         'invoices'     => self::Invoice,
         'credit-notes' => self::CreditNote,
     ];
 
     /** The kinds the sales document form makes and changes. A credit note is made from its invoice instead. */
-    public const FORM_KINDS = ['quotations', 'proformas', 'invoices'];
+    public const FORM_KINDS = ['quotations', 'proformas', 'orders', 'invoices'];
 
     public static function fromKind(string $kind): ?self
     {

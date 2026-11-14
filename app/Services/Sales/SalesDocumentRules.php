@@ -55,7 +55,10 @@ final class SalesDocumentRules
     public function actions(SalesDocument $document, string $today): array
     {
         $status  = $this->status($document, $today);
-        $convert = $document->type === DocumentType::Quotation ? ['convert_to_proforma', 'convert_to_invoice'] : ['convert_to_invoice'];
+        // To a sales order only with the full Sales app, which the API checks (Doc 16 Phase B).
+        $convert = $document->type === DocumentType::Quotation
+            ? ['convert_to_proforma', 'convert_to_sales_order', 'convert_to_invoice']
+            : ['convert_to_sales_order', 'convert_to_invoice'];
         $answer  = $document->type === DocumentType::Quotation ? ['accept', 'reject'] : [];
 
         if ($document->type === DocumentType::Invoice) {
@@ -64,6 +67,10 @@ final class SalesDocumentRules
                 'issued' => $this->invoiceActions($document),
                 default  => [],
             };
+        }
+
+        if ($document->type === DocumentType::SalesOrder) {
+            return $this->orderActions($document);
         }
 
         // A credit note refunds what it has left, and is voided only before
@@ -105,7 +112,11 @@ final class SalesDocumentRules
     public function delivery(SalesDocument $document, string $today): array
     {
         $status = $this->status($document, $today);
-        $email  = $document->type->isOffer() ? in_array($status, ['draft', 'sent', 'accepted', 'converted'], true) : $status === 'issued';
+        $email  = match (true) {
+            $document->type->isOffer()                     => in_array($status, ['draft', 'sent', 'accepted', 'converted'], true),
+            $document->type === DocumentType::SalesOrder => in_array($status, ['confirmed', 'on_hold', 'completed'], true),
+            default                                        => $status === 'issued',
+        };
 
         return array_values(array_filter([
             $email ? 'email' : null,
@@ -117,6 +128,26 @@ final class SalesDocumentRules
     public function delivers(SalesDocument $document, string $way, string $today): bool
     {
         return in_array($way, $this->delivery($document, $today), true);
+    }
+
+    /**
+     * A sales order's (Doc 16 section 16.9): a draft is changed, confirmed or
+     * deleted. Confirming locks it: a confirmed one is amended with a reason,
+     * held, completed or cancelled, and invoices (Phase B2) and a proforma
+     * invoice made from it; a
+     * held one is amended, resumed or cancelled. Any can be duplicated. It is
+     * e-mailed and shared once confirmed (delivery()).
+     *
+     * @return list<string>
+     */
+    private function orderActions(SalesDocument $order): array
+    {
+        return match ($order->status) {
+            SalesDocumentStatus::Draft     => ['edit', 'confirm', 'duplicate', 'delete'],
+            SalesDocumentStatus::Confirmed => ['create_invoice', 'amend', 'hold', 'complete', 'create_proforma', 'duplicate', 'cancel'],
+            SalesDocumentStatus::OnHold    => ['amend', 'resume', 'duplicate', 'cancel'],
+            default                        => ['duplicate'],
+        };
     }
 
     /** What is still left to credit on an invoice: its total less its issued credit notes. */

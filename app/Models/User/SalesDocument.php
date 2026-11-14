@@ -64,6 +64,9 @@ class SalesDocument extends Model
         'revision',
         'status',
         'payment_status',
+        // A sales order's, beside its status (Doc 16 Phase B): see SalesOrderProgress.
+        'delivery_status',
+        'invoice_status',
         'contact_id',
         'location_id',
         'document_date',
@@ -112,8 +115,12 @@ class SalesDocument extends Model
         'template_snapshot',
         'source_id',
         'status_reason',
+        // An invoice billing beyond what its sales order had left: why (Doc 16 Phase B2).
+        'over_invoice_reason',
         'reason',
         'issued_at',
+        'confirmed_at',
+        'confirmed_by',
         'created_by',
         'updated_by',
     ];
@@ -155,6 +162,8 @@ class SalesDocument extends Model
         'template_snapshot' => 'array',
         'source_id'         => 'integer',
         'issued_at'         => 'datetime',
+        'confirmed_at'      => 'datetime',
+        'confirmed_by'      => 'integer',
     ];
 
     public function isDraft(): bool

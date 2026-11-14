@@ -3,6 +3,10 @@
 namespace App\Services\Shared;
 
 use App\Enums\DocumentType;
+use App\Enums\Edition;
+use App\Models\User\Workspace;
+use App\Services\User\Apps\WorkspaceApps;
+use Illuminate\Http\Request;
 
 /**
  * The actions a record offers (Doc 12 section 13), less those the signed-in
@@ -19,32 +23,61 @@ class AllowedActions
         protected WorkspaceAccess $access,
     ) {}
 
-    /** A sales document's actions, by its kind. */
+    /**
+     * A sales document's actions, by its kind. On Sales Lite a sales order -
+     * the full Sales app's (Doc 16 Phase B) - offers none, as it is only read,
+     * and nothing converts to one.
+     */
     public function sales(DocumentType $type, array $actions): array
     {
         $kind = $type->permissionGroup();
 
+        if (! $this->fullSales()) {
+            $actions = $type->edition() === Edition::Full ? [] : array_values(array_diff($actions, ['convert_to_sales_order']));
+        }
+
         return $this->keep($actions, [
-            'edit'                => "{$kind}.edit",
-            'accept'              => "{$kind}.edit",
-            'reject'              => "{$kind}.edit",
-            'issue'               => "{$kind}.issue",
-            'send'                => "{$kind}.send",
-            'cancel'              => "{$kind}.cancel",
-            'void'                => "{$kind}.void",
-            'delete'              => "{$kind}.delete",
-            'convert_to_proforma' => 'sales.proformas.create',
-            'convert_to_invoice'  => 'sales.invoices.create',
-            'record_payment'      => 'sales.payments.record',
-            'credit_note'         => 'sales.credit_notes.create',
-            'refund'              => $type === DocumentType::Invoice ? ['sales.credit_notes.create', 'sales.refunds.record'] : 'sales.refunds.record',
+            'edit'                   => "{$kind}.edit",
+            'accept'                 => "{$kind}.edit",
+            'reject'                 => "{$kind}.edit",
+            'issue'                  => "{$kind}.issue",
+            'send'                   => "{$kind}.send",
+            'cancel'                 => "{$kind}.cancel",
+            'void'                   => "{$kind}.void",
+            'delete'                 => "{$kind}.delete",
+            'confirm'                => "{$kind}.confirm",
+            'hold'                   => "{$kind}.confirm",
+            'resume'                 => "{$kind}.confirm",
+            'complete'               => "{$kind}.confirm",
+            'amend'                  => "{$kind}.amend",
+            'duplicate'              => "{$kind}.create",
+            'convert_to_proforma'    => 'sales.proformas.create',
+            'convert_to_sales_order' => 'sales.orders.create',
+            'convert_to_invoice'     => 'sales.invoices.create',
+            'create_proforma'        => 'sales.proformas.create',
+            'create_invoice'         => 'sales.invoices.create',
+            'record_payment'         => 'sales.payments.record',
+            'credit_note'            => 'sales.credit_notes.create',
+            'refund'                 => $type === DocumentType::Invoice ? ['sales.credit_notes.create', 'sales.refunds.record'] : 'sales.refunds.record',
         ]);
     }
 
-    /** How a sales document reaches its customer - e-mail, reminder, a link: its kind's Send or Share. */
+    /** How a sales document reaches its customer - e-mail, reminder, a link: its kind's Send or Share - none for an order on Sales Lite. */
     public function delivery(DocumentType $type, array $ways): array
     {
+        if ($type->edition() === Edition::Full && ! $this->fullSales()) {
+            return [];
+        }
+
         return $this->access->can("{$type->permissionGroup()}.send") ? $ways : [];
+    }
+
+    /** Whether the business the request is for has the full Sales app on. */
+    private function fullSales(): bool
+    {
+        $workspace = app(Request::class)->attributes->get('workspace');
+
+        return $workspace instanceof Workspace && WorkspaceApps::for($workspace)->has('sales', Edition::Full);
     }
 
     /** A purchase's or an expense's actions - $group "purchases.purchases" or "expenses.expenses". */

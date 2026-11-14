@@ -44,7 +44,11 @@ class DocumentSheet
             ['Date', $format->date($document->document_date)],
             $document->due_date ? ['Due Date', $format->date($document->due_date)] : null,
             $document->expiry_date ? ['Valid Until', $format->date($document->expiry_date)] : null,
+            // A sales order's terms for its invoices (Doc 16 Phase B).
+            $document->type === DocumentType::SalesOrder && $document->payment_terms !== null ? ['Payment Terms', $document->payment_terms === 0 ? 'Due on Receipt' : "{$document->payment_terms} days"] : null,
             $document->type === DocumentType::CreditNote && $document->source ? ['Invoice', (string) $document->source->number] : null,
+            // An invoice made from a sales order names it (Doc 16 Phase B2).
+            $document->type === DocumentType::Invoice && $document->source?->type === DocumentType::SalesOrder ? ['Order', (string) $document->source->number] : null,
             in_array('references', $visible, true) && $document->customer_reference ? ['Your Reference', $document->customer_reference] : null,
             in_array('references', $visible, true) && $document->sales_reference ? ['Our Reference', $document->sales_reference] : null,
             in_array('location', $visible, true) && $document->location ? ['Location', $document->location->name] : null,

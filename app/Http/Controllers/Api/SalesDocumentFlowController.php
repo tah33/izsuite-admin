@@ -103,6 +103,59 @@ class SalesDocumentFlowController extends Controller
         }
     }
 
+    /** A draft sales order confirmed, numbered then - by the next number or one typed (Doc 16 section 16.9). */
+    public function confirm(IssueSalesDocumentRequest $request, string $kind, int $id): JsonResponse
+    {
+        try {
+            $document = $this->salesDocumentFlow->confirm($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user(), $request->validated('number'));
+
+            return $this->answer($request, $document, "Sales order {$document->number} confirmed.");
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    public function hold(SalesStatusRequest $request, string $kind, int $id): JsonResponse
+    {
+        try {
+            $document = $this->salesDocumentFlow->hold($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user(), $request->validated('reason'));
+
+            return $this->answer($request, $document, "Sales order {$document->number} is on hold.");
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    public function resume(Request $request, string $kind, int $id): JsonResponse
+    {
+        try {
+            $document = $this->salesDocumentFlow->resume($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user());
+
+            return $this->answer($request, $document, "Sales order {$document->number} is confirmed again.");
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    public function complete(Request $request, string $kind, int $id): JsonResponse
+    {
+        try {
+            $document = $this->salesDocumentFlow->complete($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user());
+
+            return $this->answer($request, $document, "Sales order {$document->number} completed.");
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
     /** The answer for every change, which each action catches around. */
     private function answer(Request $request, SalesDocument $document, string $message): JsonResponse
     {

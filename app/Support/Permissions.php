@@ -67,6 +67,11 @@ final class Permissions
 
         'sales.quotations'   => ['Quotations', 'sales', [...self::DRAFTS, 'send' => 'Send or Share', 'cancel' => 'Cancel', 'delete' => 'Delete Draft']],
         'sales.proformas'    => ['Proforma Invoices', 'sales', [...self::DRAFTS, 'send' => 'Send or Share', 'cancel' => 'Cancel', 'delete' => 'Delete Draft']],
+        // The full Sales app's (Doc 16 Phase B): a fourth element names the edition it shows with.
+        'sales.orders'       => ['Sales Orders', 'sales', [
+            ...self::DRAFTS, 'confirm' => 'Confirm, Hold or Complete', 'amend' => 'Edit Confirmed Orders', 'send' => 'Send or Share', 'cancel' => 'Cancel', 'delete' => 'Delete Draft',
+            'invoice_beyond' => 'Invoice Beyond the Order',
+        ], 'full'],
         'sales.invoices'     => ['Invoices', 'sales', [...self::DRAFTS, 'issue' => 'Issue', 'send' => 'Send or Share', 'void' => 'Void', 'delete' => 'Delete Draft']],
         'sales.payments'     => ['Customer Payments', 'sales', self::PAYMENTS],
         'sales.credit_notes' => ['Credit Notes', 'sales', [...self::DRAFTS, 'issue' => 'Issue', 'send' => 'Send or Share', 'void' => 'Void', 'delete' => 'Delete Draft']],
@@ -90,7 +95,7 @@ final class Permissions
 
     /** The groups whose records carry their app's values: anything but viewing one needs them. */
     private const VALUED = [
-        'sales.quotations', 'sales.proformas', 'sales.invoices', 'sales.payments', 'sales.credit_notes', 'sales.refunds',
+        'sales.quotations', 'sales.proformas', 'sales.orders', 'sales.invoices', 'sales.payments', 'sales.credit_notes', 'sales.refunds',
         'purchases.purchases', 'purchases.payments',
         'expenses.expenses', 'expenses.payments',
     ];
@@ -117,6 +122,9 @@ final class Permissions
 
         'sales.quotations.create'    => ['contacts.view', 'items.view'],
         'sales.proformas.create'     => ['contacts.view', 'items.view'],
+        'sales.orders.create'        => ['contacts.view', 'items.view'],
+        'sales.orders.amend'         => ['sales.orders.edit'],
+        'sales.orders.invoice_beyond' => ['sales.invoices.create'],
         'sales.invoices.create'      => ['contacts.view', 'items.view'],
         'sales.credit_notes.create'  => ['sales.invoices.view'],
         'sales.payments.record'      => ['sales.invoices.view', 'payment_accounts.view'],
@@ -158,15 +166,29 @@ final class Permissions
     {
         $keys = [];
 
-        foreach (self::GROUPS as $group => [, $family, $actions]) {
-            if ($family === null || $families === null || in_array($family, $families, true)) {
-                foreach (array_keys($actions) as $action) {
+        foreach (self::GROUPS as $group => $definition) {
+            if (self::offered($definition, $families)) {
+                foreach (array_keys($definition[2]) as $action) {
                     $keys[] = "{$group}.{$action}";
                 }
             }
         }
 
         return $keys;
+    }
+
+    /**
+     * Whether a group counts among $families' (null: every app's): the Core
+     * Workspace's always, an app's while it is on - and a full edition's
+     * group only with "{family}:full" among them (WorkspaceApps::permissionFamilies).
+     */
+    private static function offered(array $definition, ?array $families): bool
+    {
+        $family  = $definition[1];
+        $edition = $definition[3] ?? null;
+
+        return $family === null || $families === null
+            || (in_array($family, $families, true) && ($edition === null || in_array("{$family}:{$edition}", $families, true)));
     }
 
     public static function exists(string $permission): bool
@@ -240,6 +262,7 @@ final class Permissions
                 'dashboard.view', 'contacts.view', 'contacts.create', 'contacts.edit', 'items.view', 'documents.view',
                 ...self::actionsOf('sales.quotations', ['view', 'create', 'edit', 'send', 'cancel', 'delete']),
                 ...self::actionsOf('sales.proformas', ['view', 'create', 'edit', 'send', 'cancel', 'delete']),
+                ...self::actionsOf('sales.orders', ['view', 'create', 'edit', 'confirm', 'send', 'cancel', 'delete']),
                 ...self::actionsOf('sales.invoices', ['view', 'create', 'edit', 'issue', 'send', 'delete']),
                 'sales.payments.view', 'sales.payments.record', 'sales.credit_notes.view',
             ],
@@ -285,8 +308,10 @@ final class Permissions
     {
         $groups = [];
 
-        foreach (self::GROUPS as $group => [$label, $family, $actions]) {
-            if ($family !== null && ! in_array($family, $families, true)) {
+        foreach (self::GROUPS as $group => $definition) {
+            [$label, $family, $actions] = $definition;
+
+            if (! self::offered($definition, $families)) {
                 continue;
             }
 
@@ -337,7 +362,7 @@ final class Permissions
             $needs[] = "{$group}.view";
         }
 
-        if (in_array($action, ['issue', 'record'], true) && isset($actions['edit'])) {
+        if (in_array($action, ['issue', 'record', 'confirm'], true) && isset($actions['edit'])) {
             $needs[] = "{$group}.edit";
         }
 

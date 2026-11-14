@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\DocumentType;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Sales\AmendSalesOrderRequest;
 use App\Http\Requests\Api\Sales\ListSalesDocumentsRequest;
 use App\Http\Requests\Api\Sales\SaveSalesDocumentRequest;
 use App\Http\Resources\Sales\SalesDocumentListResource;
@@ -86,6 +87,26 @@ class SalesDocumentController extends Controller
 
             return response()->json([
                 'message' => ucfirst($this->noun($type)).' saved.',
+                'data'    => new SalesDocumentResource($document, $this->salesDocumentService->today($workspace)),
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** A confirmed sales order changed, with the reason kept (Doc 16 section 16.9). */
+    public function amend(AmendSalesOrderRequest $request, string $kind, int $id): JsonResponse
+    {
+        try {
+            $workspace = $this->currentWorkspace($request);
+            $type      = DocumentType::fromKind($kind);
+            $data      = $request->validated();
+            $document  = $this->salesDocumentService->amend($workspace, $type, $id, $request->user(), $data, $data['reason']);
+
+            return response()->json([
+                'message' => "Sales order {$document->number} amended.",
                 'data'    => new SalesDocumentResource($document, $this->salesDocumentService->today($workspace)),
             ]);
 

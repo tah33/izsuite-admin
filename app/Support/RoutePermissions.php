@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Enums\DocumentType;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -268,6 +269,14 @@ final class RoutePermissions
             'api.sales.void'                => 'sales.{kind}.void',
             'api.sales.destroy'             => 'sales.{kind}.delete',
             'api.sales.convert'             => 'sales.{to}.create',
+            // A sales order's (Doc 16 Phase B): confirming, holding, resuming and completing come under Confirm.
+            'api.sales.confirm'             => 'sales.{kind}.confirm',
+            'api.sales.hold'                => 'sales.{kind}.confirm',
+            'api.sales.resume'              => 'sales.{kind}.confirm',
+            'api.sales.complete'            => 'sales.{kind}.confirm',
+            'api.sales.amend'               => 'sales.{kind}.amend',
+            'api.sales.duplicate'           => 'sales.{kind}.create',
+            'api.sales.invoice'             => 'sales.invoices.create',
             // Comments and the activity timeline (Doc 14 Phase D): whoever may view it. Only its author deletes a comment (RecordCommentService).
             'api.sales.activity'            => 'sales.{kind}.view',
             'api.sales.comments.index'      => 'sales.{kind}.view',
@@ -378,9 +387,12 @@ final class RoutePermissions
 
     private static function fill(string $permission, Request $request): string
     {
+        $to = DocumentType::tryFrom((string) $request->input('to'));
+
         return strtr($permission, [
             '{kind}' => str_replace('-', '_', (string) $request->route('kind')),
-            '{to}'   => Str::plural((string) $request->input('to')),
+            // A sales order's kind is "orders": sales.orders.create.
+            '{to}'   => $to ? str_replace('-', '_', $to->kind()) : Str::plural((string) $request->input('to')),
         ]);
     }
 }

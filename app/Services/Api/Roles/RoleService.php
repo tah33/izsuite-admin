@@ -203,7 +203,7 @@ class RoleService
     /** @return list<string> the app families on now */
     private function families(Workspace $workspace): array
     {
-        return WorkspaceApps::for($workspace)->active()->keys()->all();
+        return WorkspaceApps::for($workspace)->permissionFamilies();
     }
 
     /** @return list<string> */

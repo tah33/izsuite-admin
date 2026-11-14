@@ -9,7 +9,8 @@ use App\Services\User\Apps\WorkspaceApps;
 
 /**
  * The kinds of document a business has settings for - numbering, templates -
- * which are those of the apps it has on. Every kind has a template (Doc 11
+ * which are those of the apps it has on - a sales order's with the full Sales
+ * app (Doc 16 Phase B). Every kind has a template (Doc 11
  * section 20).
  */
 class DocumentTypes
@@ -19,7 +20,7 @@ class DocumentTypes
     {
         $apps = WorkspaceApps::for($workspace);
 
-        return array_values(array_filter(DocumentType::cases(), fn (DocumentType $type) => $apps->has($type->family(), Edition::Lite)));
+        return array_values(array_filter(DocumentType::cases(), fn (DocumentType $type) => $apps->has($type->family(), $type->edition())));
     }
 
     /** The document type named in the address - 404 for one that is not, or whose app is off. */

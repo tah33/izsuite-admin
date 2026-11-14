@@ -612,8 +612,8 @@ Route::prefix('v1')->group(function () {
         Route::put('/credit-notes/{id}', [CreditNoteController::class, 'update'])->whereNumber('id')->name('api.sales.credit-notes.update');
         Route::post('/credit-notes/{id}/refunds', [SalesRefundController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.sales.credit-notes.refunds.store');
 
-        // Every kind.
-        Route::prefix('{kind}')->where(['kind' => implode('|', array_keys(DocumentType::KINDS))])->group(function () {
+        // Every kind. Sales orders (Doc 16 Phase B) are the full Sales app's: on Sales Lite they are only read (sales.kind).
+        Route::prefix('{kind}')->where(['kind' => implode('|', array_keys(DocumentType::KINDS))])->middleware('sales.kind')->group(function () {
             Route::get('/', [SalesDocumentController::class, 'index'])->name('api.sales.index');
             Route::get('/{id}', [SalesDocumentController::class, 'show'])->whereNumber('id')->name('api.sales.show');
             Route::delete('/{id}', [SalesDocumentController::class, 'destroy'])->whereNumber('id')->name('api.sales.destroy');
@@ -623,7 +623,8 @@ Route::prefix('v1')->group(function () {
             Route::post('/{id}/link', [SalesLinkController::class, 'store'])->whereNumber('id')->name('api.sales.link.store');
             Route::delete('/{id}/link', [SalesLinkController::class, 'destroy'])->whereNumber('id')->name('api.sales.link.destroy');
 
-            foreach (['issue', 'send', 'accept', 'reject', 'cancel', 'void'] as $action) {
+            // confirm, hold, resume and complete are a sales order's.
+            foreach (['issue', 'send', 'accept', 'reject', 'cancel', 'void', 'confirm', 'hold', 'resume', 'complete'] as $action) {
                 Route::post("/{id}/{$action}", [SalesDocumentFlowController::class, $action])->whereNumber('id')->name("api.sales.{$action}");
             }
 
@@ -640,11 +641,16 @@ Route::prefix('v1')->group(function () {
         });
 
         // The kinds the sales document form makes and changes - a credit note is made from its invoice.
-        Route::prefix('{kind}')->where(['kind' => implode('|', DocumentType::FORM_KINDS)])->group(function () {
+        Route::prefix('{kind}')->where(['kind' => implode('|', DocumentType::FORM_KINDS)])->middleware('sales.kind')->group(function () {
             Route::post('/', [SalesDocumentController::class, 'store'])->middleware('idempotent')->name('api.sales.store');
             Route::get('/defaults', [SalesFormController::class, 'defaults'])->name('api.sales.defaults');
             Route::put('/{id}', [SalesDocumentController::class, 'update'])->whereNumber('id')->name('api.sales.update');
+            // A confirmed sales order changed, with a reason (Doc 16 section 16.9).
+            Route::put('/{id}/amend', [SalesDocumentController::class, 'amend'])->whereNumber('id')->name('api.sales.amend');
             Route::post('/{id}/convert', [SalesConversionController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.sales.convert');
+            Route::post('/{id}/duplicate', [SalesConversionController::class, 'duplicate'])->whereNumber('id')->middleware('idempotent')->name('api.sales.duplicate');
+            // A sales order's lines invoiced, some or all (Doc 16 Phase B2).
+            Route::post('/{id}/invoice', [SalesConversionController::class, 'invoice'])->whereNumber('id')->middleware('idempotent')->name('api.sales.invoice');
             Route::get('/{id}/revisions', [SalesDocumentRevisionController::class, 'index'])->whereNumber('id')->name('api.sales.revisions.index');
             Route::get('/{id}/revisions/{revision}', [SalesDocumentRevisionController::class, 'show'])->whereNumber(['id', 'revision'])->name('api.sales.revisions.show');
         });

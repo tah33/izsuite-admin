@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-14
-- **Code:** Doc 15 is done and pushed: `main` at `b2856cd`, `nuxt` at `4a3bbd0` (2026-11-14). Doc 16's gap check and Phase A are committed in the next commit of each, not pushed yet.
-- **Tests:** 848 backend tests pass (last full run 2026-11-14, on the second PC). After it, the Sales Overview test also checks the amount received and its salesperson filter, and passes.
-- **Next step:** Doc 16 Phase B: sales orders (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 16's gap check and Phase A are pushed: `main` at `b2d436d`, `nuxt` at `2c105da` (2026-11-14). Phase B (B1 and B2) is committed in the next commit of each, not pushed yet.
+- **Tests:** 857 backend tests pass (last full run 2026-11-14, on the second PC).
+- **Next step:** Doc 16 Phase C: deliveries (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 16 Phase B.
+   > Read PROJECT_STATUS.md, then start Doc 16 Phase C.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -41,7 +41,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
-| **16** | **Sales** | **In progress: gap check and Phase A done (2026-11-14), Phase B next** |
+| **16** | **Sales** | **In progress: gap check and Phases A and B done (2026-11-14), Phase C next** |
 | 17 to 21 | CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -951,7 +951,7 @@ B3 was split again on starting it (2026-11-13), as a support session names a sup
 - IP allow-listing and a separate domain for the admin panel. These are server decisions.
 - Deleting a business for good. Closed keeps its data.
 
-### 4. Doc 16: Sales (next: Phase B)
+### 4. Doc 16: Sales (next: Phase C)
 
 The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replaces Sales Lite (Doc 08) when a business turns it on, keeping and extending its records.
 
@@ -1082,6 +1082,38 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
   - On Sales Lite again, the menu, New Sale and the form went back to Doc 08's, and the quotation kept its details.
   - The business, its Sales row, the member, the team, the customer, the quotation, the sign-ins and the activity were then put back.
 
+**Phase B: sales orders** was split on starting it (2026-11-14): B1, sales orders themselves; B2, invoicing from them. Both are built, with these defaults.
+
+**Phase B1: sales orders** (sections 16.5 and 16.9) is built:
+
+- **A sales order** is a new kind of sales document (SO-), with its own numbering and template in Settings on full Sales only. It is made from New Sale (Quotation, Proforma Invoice, Sales Order, Invoice), or from a quotation or proforma ("Convert to Sales Order"), which is then marked converted.
+- **Every conversion now links each new line to the line it came from** (`source_line_id`), and an edit keeps those links.
+- **Its form** is a quotation's, with payment terms for its invoices (the customer's to start) and a "Customer PO Reference"; it has no expiry.
+- **Its statuses:** Draft; Confirmed, numbered then with the business and customer kept as they are; On Hold and back; Completed; or Cancelled with a reason. A draft is deleted instead. Beside it, a delivery status (No Delivery Needed when every line is a service, else Not Delivered until deliveries come in Phase C) and an invoice status.
+- **Confirming locks it.** A confirmed or held order changes only by Amend, with "Edit Confirmed Orders" and a reason: the version before is kept as a revision with that reason, which Earlier Versions shows. Its customer and currency stay, and a line keeps at least what was delivered or invoiced of it.
+- **Also:** Duplicate (a new draft dated today), Create Proforma Invoice (a linked draft; the order stays as it is), the PDF (Bill To, its payment terms), e-mail and the secure link. Its page shows each line's ordered, delivered, invoiced, returned and credited quantities, and its History what was made from it.
+- **Permissions**, on full Sales only: View, Create Draft, Edit Draft, Confirm (also Hold, Resume and Complete), Edit Confirmed Orders, Send or Share, Cancel, Delete Draft, and (B2) Invoice Beyond the Order. Its amounts need View Sales Values. The Sales User template includes all but Edit Confirmed Orders and Invoice Beyond the Order, for a business set up with full Sales on.
+- **The Overview** adds Confirmed Order Value, Orders to Deliver and Orders to Invoice, with the quotations under "Quotations and Orders - Not sales".
+- **Back on Sales Lite**, the orders list, its menu entry and its settings hide, and an order opened from a link (its invoice, the Documents page) is read-only.
+
+**Phase B2: invoicing from orders** (sections 16.11 and 16.12) is built:
+
+- **Settings → Sales** says whether orders invoice their ordered quantities (the default) or their delivered ones; an item may have its own. A service always invoices what was ordered.
+- **A confirmed order's Create Invoice** lists each line with what is left: ordered (or delivered), less what issued invoices billed and what draft invoices hold. It makes a draft invoice of what is chosen, linked to the order and its lines, with its customer, currency, terms, addresses and people. An order can have several invoices; the invoice's PDF names the order.
+- **Invoicing beyond what is left** needs "Invoice Beyond the Order" and a reason, which the invoice keeps and its form shows. Issuing checks again: an invoice raised in its form beyond the order, without a reason, is refused.
+- **The order's lines** count what issued invoices billed and their issued credit notes credited, worked out again whenever one is issued or voided, and its invoice status follows: Not Invoiced, Partially Invoiced or Invoiced.
+- **An order with draft or issued invoices is not cancelled**, as cancelling leaves them as they are: they are voided or deleted first. Direct invoices stay. An order is never converted to an invoice whole.
+- **Left for later:** completing an order by itself once delivered and invoiced (Complete is by hand), and the delivered policy's quantities, which wait for deliveries (Phase C).
+- **Checked in the browser** as `user@izsuite.io` with full Sales switched on by hand, and as a throwaway member who handles orders and makes invoices:
+  - A draft order made through the API without a location was refused on confirming, "Choose the location first", and kept as a draft. With one, Confirm Order numbered it SO-00001: Confirmed, Not Delivered, Not Invoiced, with Create Invoice as its main button.
+  - Create Invoice of 2 of 4 chairs made a draft invoice; issued as INV-00001 ("Made From Sales Order SO-00001"), the order read Partially Invoiced, 2 left.
+  - 3 more asked for a reason and then made a draft; its form showed the reason and kept the lines' links on saving.
+  - Amend to 5 chairs, with a reason, made revision 1, and Earlier Versions showed the reason. Hold, Resume, the Overview's order figures, the list's statuses, Settings → Sales and the item form's policy all showed as above.
+  - Cancel was refused while the order had invoices. The order's History did not list them: it now does ("Made From It").
+  - The member saw Sales Orders and Invoices, and on the order Create Invoice, Hold, Complete and Duplicate only; invoicing beyond was refused for want of the permission.
+  - Back on Sales Lite, the order opened with Preview only, and the orders list sent to the Apps Center.
+  - The business, its Sales row, the member, the customer, the items, the documents, the sign-ins and the activity were then put back.
+
 After Doc 16 come Docs 17 to 21 (CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## How we work
@@ -1134,6 +1166,7 @@ Each document goes the same way:
 - A model attribute cast to an enum (a sales document's `status`) matches nothing in a loaded collection's `->where('status', ...)` or `->whereIn('status', [...->value])`: compare the enum itself (`in_array($document->status, [...], true)`). Queries compare as strings and are fine.
 - The dev MySQL caches `information_schema` table figures for a day, AUTO_INCREMENT included. To read them as they are, start with `SET SESSION information_schema_stats_expiry = 0`, or take them from the phase's backup.
 - A full-only Sales page needs the dev business on full Sales, which its plan (Billing Starter) does not allow from the Apps Center. Point its `workspace_apps` Sales row at the full app (`app_id` 2) with a query and bump `nav_version`; put back `app_id` 1 afterwards.
+- While the Claude desktop window is minimized, the browser pane cannot be clicked or screenshotted. `form_input`, `get_page_text` and `javascript_tool` still work: fill fields with `form_input`, and click buttons from a script. An ActionMenu item needs a `mousedown` before its `click`.
 
 ### Checking the app as a limited member
 
@@ -1280,7 +1313,9 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 15: Phase G1, privacy requests | the commit after `80c94fc` | | 000147 |
 | Doc 15: Phase G2, legal holds | the commit after `80c94fc` | | 000148 |
 | Doc 15: Phase G3, consent and retention | the commit after `80c94fc` | the commit after `4bd877b` | 000149 |
-| Doc 16: gap check, and Phase A, Sales takes over from Sales Lite | the commit after `b2856cd` | the commit after `4a3bbd0` | 000150 |
+| Doc 16: gap check, and Phase A, Sales takes over from Sales Lite | `b2d436d` | `2c105da` | 000150 |
+| Doc 16: Phase B1, sales orders | the commit after `b2d436d` | the commit after `2c105da` | 000151 |
+| Doc 16: Phase B2, invoicing from orders | the commit after `b2d436d` | the commit after `2c105da` | 000152 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -1540,6 +1575,12 @@ These are easy to undo by mistake.
   - `SalesSnapshots::customerOf()` is the customer with the document's own addresses. The customer snapshot taken on sending or issuing, the API's `customer` and the PDF all use it.
 - Sales teams (Doc 16 Phase A) are `sales_teams` and `sales_team_members` (`SalesTeamRepository`). The owner counts as a member (`isMember()`, `activeMemberIds()`) whether or not the business has a `workspace_members` row for them; a business made in a test has none. `GET /sales/salespeople` gives the people and switched-on teams to choose from: the sales form, the Overview's filters and the teams card use it, so it is open to the sales drafting permissions, View Sales Values and Manage Sales Settings.
 - The frontend's `useActiveRoute()` treats a menu link with a query (`/contacts?role=customer`) as current only with that query, and then the plain link to the same page (`/contacts`) is not.
+- Sales orders (Doc 16 Phase B, migrations 000151 and 000152) are `sales_documents` of type `sales_order`, kind `orders`, with statuses `confirmed`, `on_hold` and `completed`, and `delivery_status`, `invoice_status`, `confirmed_at` and `confirmed_by` beside them. `DocumentType::edition()` says a kind needs full Sales: `DocumentTypes` shows its numbering and template only then, and the `sales.kind` middleware (`EnsureSalesKindEdition`) lets Sales Lite only read them.
+  - `SalesDocumentRules::orderActions()` lists an order's actions; `AllowedActions::sales()` drops them all on Sales Lite, and `convert_to_sales_order` from quotations and proformas. Confirm, hold, resume and complete are `SalesDocumentFlow`'s; Amend is `SalesDocumentService::amend()` (`PUT /sales/orders/{id}/amend`, checked by `SalesOrderAmendments`); Duplicate, Create Proforma and Create Invoice are `SalesConversionService`'s.
+  - An order's lines keep their ids through edits (`SalesDocumentRepository::syncLines`; the form sends each line's `id`), as invoice lines link to them. Every other document's lines are replaced on saving, keeping only `source_line_id` links to its own source's lines (`SalesDocumentService::sourceLinks`).
+  - `SalesOrderInvoicing` works out what each line has left (`lines()`), checks invoicing beyond (`check()`, and `checkIssue()` before an invoice from an order is issued) and counts an order's invoiced and credited quantities again from its issued invoices and their issued credit notes (`refresh()`, after each issue and void). `SalesOrderProgress` gives the delivery and invoice statuses: a line needs delivering unless its item is a service.
+- A permission group for a full edition only has a fourth element, `'full'` (`Permissions::GROUPS['sales.orders']`). It counts with "{family}:full" among the families (`WorkspaceApps::permissionFamilies()`, which roles and new businesses use). `WorkspaceApps::requestHas('sales', Edition::Full)` is the check for a response that shows a full-only field (the invoice policy on items and Settings → Sales).
+- A Nuxt page for several kinds sets `minEdition` per route: `minEdition: route => (route.params.kind === 'orders' ? 'full' : 'lite')` (`middleware/app-access.global.ts`). The order's own page has none, so it opens read-only on Sales Lite.
 
 ## Small things left
 
@@ -1551,6 +1592,8 @@ These are easy to undo by mistake.
 - Country localization shows as none.
 - The full Sales menu's Sales Orders item (there since Doc 13) needs no permission, so even a limited member sees it and its placeholder page. Doc 16 Phase B gives it the orders' view permission.
 - On Contacts opened from Sales → Customers, picking another role in the filter leaves Customers highlighted, as the address keeps `role=customer`.
+- A sales order line typed in without an item counts as goods to deliver; one of a service item does not.
+- A role holds the sales order permissions only once granted: roles made before Doc 16 Phase B, or from a template while the business was on Sales Lite, have none. Grant them in Settings → Users & Roles after turning Sales on.
 
 ## Open decisions
 
@@ -1608,4 +1651,5 @@ Each of these is yours to settle.
 - Doc 15 Phase G2: migration 000148 adds `legal_holds` and gives the roles Admin > Legal Holds. Nothing changes until a hold is placed.
 - Doc 15 Phase G3: migration 000149 adds `consent_records` and `users.marketing_consent`, records the terms acceptance of each existing account on its day, and gives the roles Admin > Data Retention. Deploy the frontend with it, for the product news checkbox; the API's account now carries `marketing`. Rebuild the admin CSS, and restart the queue workers.
 - Doc 16 Phase A: migration 000150 adds `sales_teams`, `sales_team_members` and the documents' salesperson, team, addresses and delivery columns, and puts Overview and Customers in the full Sales menu. Deploy the frontend with it. Restart the queue workers, as the PDFs changed. A business on Sales Lite sees no change.
+- Doc 16 Phase B: migration 000151 adds the sales order columns, each line's delivered, invoiced, returned and credited quantities, a revision's reason, and gives the Sales Orders menu item the orders' View; 000152 adds the invoice policy (Settings → Sales and items) and an invoice's over-invoice reason. Deploy the frontend with it (the old `pages/sales/orders.vue` is gone). Restart the queue workers, as the PDFs changed. Existing roles need the sales order permissions granted.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

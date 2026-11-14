@@ -44,6 +44,7 @@ class CreditNoteService
         protected DocumentNumbers $documentNumbers,
         protected DocumentTemplates $documentTemplates,
         protected DocumentLinkRepository $documentLinkRepository,
+        protected SalesOrderInvoicing $salesOrderInvoicing,
     ) {}
 
     /**
@@ -171,6 +172,7 @@ class CreditNoteService
         });
 
         ActivityLogService::record('updated', "Issued credit note {$note->number} for invoice {$invoice->number}", $note, ['source' => 'api', 'status' => 'issued']);
+        $this->refreshOrder($invoice);
 
         // Read again: the settlement wrote what it applied through its own copy.
         return $this->salesDocumentRepository->loadShown($note->refresh());
@@ -204,8 +206,19 @@ class CreditNoteService
         });
 
         ActivityLogService::record('updated', "Voided credit note {$note->number}", $note, ['source' => 'api', 'status' => 'void']);
+        $this->refreshOrder($invoice);
 
         return $this->salesDocumentRepository->loadShown($note);
+    }
+
+    /** The sales order $invoice was made from, what its credit notes credited counted again (Doc 16 Phase B2). */
+    private function refreshOrder(SalesDocument $invoice): void
+    {
+        $order = $this->salesOrderInvoicing->orderOf($invoice);
+
+        if ($order) {
+            $this->salesOrderInvoicing->refresh($this->salesDocumentRepository->loadLineItems($order));
+        }
     }
 
     /** Its rows and totals, refused if they credit more than is left. */

@@ -136,6 +136,8 @@ class SaveSalesDocumentRequest extends FormRequest
             'internal_notes'         => ['nullable', 'string', 'max:5000'],
             'terms'                  => ['nullable', 'string', 'max:10000'],
             'payment_instructions'   => ['nullable', 'string', 'max:5000'],
+            // An invoice made from a sales order, billing beyond what it has left: why (Doc 16 Phase B2).
+            'over_invoice_reason'    => ['sometimes', 'nullable', 'string', 'max:500'],
             // The full Sales app's (Doc 16 Phase A); sent only from its form.
             'salesperson_id'         => ['sometimes', 'nullable', 'integer'],
             'sales_team_id'          => ['sometimes', 'nullable', 'integer'],
@@ -145,6 +147,10 @@ class SaveSalesDocumentRequest extends FormRequest
             ...$this->addressRules('billing_address'),
             ...$this->addressRules('shipping_address'),
             'lines'                  => $draft ? ['nullable', 'array', 'max:200'] : ['required', 'array', 'min:1', 'max:200'],
+            // A sales order's line as it was, changed in place (Doc 16 Phase B): one of another document is a new line.
+            'lines.*.id'             => ['nullable', 'integer'],
+            // The line of its source a line was made from, kept through edits - an invoice's sales order line (Phase B2).
+            'lines.*.source_line_id' => ['nullable', 'integer'],
             'lines.*.item_id'        => ['nullable', 'integer'],
             'lines.*.name'           => [$must(), 'string', 'max:255'],
             'lines.*.description'    => ['nullable', 'string', 'max:5000'],

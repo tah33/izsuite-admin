@@ -61,7 +61,7 @@ class SetUpNewWorkspace
      */
     public function addRoles(Workspace $workspace, User $owner, string $source): void
     {
-        $families = WorkspaceApps::for($workspace)->active()->keys()->all();
+        $families = WorkspaceApps::for($workspace)->permissionFamilies();
 
         $added = $this->roles->addTemplates($workspace, fn (string $template) => [
             'name'        => Permissions::TEMPLATES[$template][0],

@@ -4,9 +4,12 @@ namespace App\Http\Resources\Sales;
 
 use App\Services\Shared\EditConflicts;
 use App\Enums\DocumentType;
+use App\Enums\SalesDocumentStatus;
 use App\Http\Resources\Concerns\HidesValues;
 use App\Http\Resources\Contacts\ContactResource;
 use App\Models\User\SalesDocument;
+use App\Models\User\SalesDocumentLine;
+use App\Services\Api\Sales\SalesOrderInvoicing;
 use App\Services\Api\Sales\SalesSnapshots;
 use App\Services\Documents\DocumentLinks;
 use App\Services\Shared\AllowedActions;
@@ -59,6 +62,10 @@ class SalesDocumentResource extends JsonResource
             'revision'             => $this->revision,
             'status'               => $rules->status($this->resource, $this->today),
             'payment_status'       => $this->payment_status,
+            // A sales order's, beside its status (Doc 16 Phase B).
+            'delivery_status'      => $this->delivery_status,
+            'invoice_status'       => $this->invoice_status,
+            'confirmed_at'         => $this->confirmed_at?->toIso8601String(),
             'overdue'              => $rules->overdue($this->resource, $this->today),
             'actions'              => app(AllowedActions::class)->sales($this->type, $rules->actions($this->resource, $this->today)),
             'contact_id'           => $this->contact_id,
@@ -87,7 +94,10 @@ class SalesDocumentResource extends JsonResource
             'shipping_terms'         => $this->shipping_terms,
             'discount_type'        => $this->discount_type,
             'discount_value'       => $this->discount_value,
+            'progress'             => $this->type === DocumentType::SalesOrder ? $this->progress($request) : null,
             'lines'                => SalesDocumentLineResource::collection($this->lines),
+            // An invoice made from a sales order, billing beyond what it had left: why (Doc 16 Phase B2).
+            'over_invoice_reason'  => $this->when($this->type === DocumentType::Invoice, fn () => $this->over_invoice_reason),
             'subtotal'             => $this->subtotal,
             'discount_total'       => $this->discount_total,
             'tax_total'            => $this->tax_total,
@@ -131,6 +141,28 @@ class SalesDocumentResource extends JsonResource
             'exchange_rate_date'   => $this->exchange_rate_date,
             'exchange_rate_source' => $this->exchange_rate_source,
         ], self::VALUES);
+    }
+
+    /**
+     * A sales order's lines: what was delivered, invoiced, returned and
+     * credited of each (Doc 16 section 16.28) - and, while it is confirmed,
+     * what draft invoices hold of it and what is left to invoice (Phase B2).
+     */
+    private function progress(Request $request): array
+    {
+        $invoicing = $this->status === SalesDocumentStatus::Confirmed
+            ? app(SalesOrderInvoicing::class)->lines($request->attributes->get('workspace'), $this->resource)
+            : [];
+
+        return $this->lines->map(fn (SalesDocumentLine $line) => [
+            'line_id'   => $line->id,
+            'delivered' => $line->delivered_quantity,
+            'invoiced'  => $line->invoiced_quantity,
+            'returned'  => $line->returned_quantity,
+            'credited'  => $line->credited_quantity,
+            'drafted'   => $invoicing[$line->id]['drafted'] ?? null,
+            'left'      => $invoicing[$line->id]['left'] ?? null,
+        ])->all();
     }
 
     /** The customer as kept - their tax details hidden from a user without View Tax Information. */

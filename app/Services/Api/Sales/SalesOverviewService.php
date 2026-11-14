@@ -23,7 +23,9 @@ use Illuminate\Support\Collection;
  * invoices, without tax, as the Dashboard counts them.
  *
  * Amounts are in the base currency, or in the currency chosen when one is.
- * The order figures come with sales orders (Phase B).
+ * Sales orders (Phase B) are counted apart too: those confirmed in the period,
+ * and of those still open - confirmed or on hold - the ones with something
+ * left to deliver or to invoice, as of the period's end.
  */
 class SalesOverviewService
 {
@@ -65,6 +67,9 @@ class SalesOverviewService
         $owed     = $this->outstanding->rows($workspace, $asOf, $filters);
         $overdue  = array_filter($owed, fn (array $row) => $row['days_overdue'] > 0);
         $owedSum  = fn (array $rows) => Decimal::sum(array_column($rows, $currency ? 'outstanding' : 'base_outstanding'));
+        $orders   = $this->sales->orders($workspace, $to, $filters);
+        $open     = $orders->filter(fn (SalesDocument $order) => in_array($order->status, [SalesDocumentStatus::Confirmed, SalesDocumentStatus::OnHold], true));
+        $figure   = fn (Collection $documents) => ['count' => $documents->count(), 'value' => $total($documents, 'grand_total')];
 
         return [
             'from'                => $from,
@@ -72,6 +77,9 @@ class SalesOverviewService
             'currency'            => $currency ?? $workspace->base_currency,
             'quotations'          => ['count' => $offers->count(), 'value' => $total($offers, 'grand_total')],
             'accepted_quotations' => ['count' => $won->count(), 'value' => $total($won, 'grand_total')],
+            'confirmed_orders'    => $figure($orders->filter(fn (SalesDocument $order) => $order->document_date >= $from)),
+            'orders_to_deliver'   => $figure($open->filter(fn (SalesDocument $order) => in_array($order->delivery_status, ['not_delivered', 'partially_delivered'], true))),
+            'orders_to_invoice'   => $figure($open->filter(fn (SalesDocument $order) => $order->invoice_status !== 'invoiced')),
             'sales'               => ['count' => $invoices->count(), 'value' => $total($invoices, 'net_total')],
             'received'            => bcsub($moved(SalesPayment::PAYMENT), $moved(SalesPayment::REFUND), 2),
             'outstanding'         => ['count' => count($owed), 'value' => $owedSum($owed)],

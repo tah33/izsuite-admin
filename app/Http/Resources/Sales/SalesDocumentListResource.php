@@ -40,6 +40,9 @@ class SalesDocumentListResource extends JsonResource
             'revision'       => $this->revision,
             'status'         => $rules->status($this->resource, $this->today),
             'payment_status' => $this->payment_status,
+            // A sales order's, beside its status (Doc 16 Phase B).
+            'delivery_status' => $this->when($this->type === DocumentType::SalesOrder, fn () => $this->delivery_status),
+            'invoice_status'  => $this->when($this->type === DocumentType::SalesOrder, fn () => $this->invoice_status),
             'overdue'        => $rules->overdue($this->resource, $this->today),
             'document_date'  => $this->document_date,
             'due_date'       => $this->due_date,

@@ -77,6 +77,8 @@ class Item extends Model
         'sale_price',
         'sales_tax_id',
         'sales_description',
+        // What its sales orders invoice - ordered or delivered quantities - null for the business's (Doc 16 Phase B).
+        'invoice_policy',
         'purchase_price',
         'purchase_tax_id',
         'purchase_description',

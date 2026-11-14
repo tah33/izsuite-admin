@@ -15,7 +15,7 @@ use App\Support\SettingChanges;
  */
 class SalesSettingService
 {
-    private const FIELDS = ['payment_terms', 'quotation_validity', 'proforma_validity', 'line_discounts', 'document_discounts', 'notes', 'terms'];
+    private const FIELDS = ['payment_terms', 'quotation_validity', 'proforma_validity', 'line_discounts', 'document_discounts', 'notes', 'terms', 'invoice_policy'];
 
     public function __construct(
         protected SalesSettingRepository $salesSettingRepository,

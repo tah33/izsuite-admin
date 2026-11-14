@@ -198,6 +198,7 @@ class AppCatalogSeeder extends Seeder
         '/sales/invoices'     => 'sales.invoices.view',
         '/sales/quotations'   => 'sales.quotations.view',
         '/sales/proformas'    => 'sales.proformas.view',
+        '/sales/orders'       => 'sales.orders.view',
         '/sales/credit-notes' => 'sales.credit_notes.view',
         '/sales/payments'     => 'sales.payments.view',
         '/sales/overview'     => 'sales.values.view',

@@ -16,6 +16,10 @@ class SalesOverviewResource extends JsonResource
             'currency'            => $this->resource['currency'],
             'quotations'          => $this->resource['quotations'],
             'accepted_quotations' => $this->resource['accepted_quotations'],
+            // Sales orders, apart from sales too (Doc 16 Phase B).
+            'confirmed_orders'    => $this->resource['confirmed_orders'],
+            'orders_to_deliver'   => $this->resource['orders_to_deliver'],
+            'orders_to_invoice'   => $this->resource['orders_to_invoice'],
             'sales'               => $this->resource['sales'],
             'received'            => $this->resource['received'],
             'outstanding'         => $this->resource['outstanding'],

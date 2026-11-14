@@ -17,7 +17,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * as they were (Doc 04 sections 11, 14 and 15). A combo's warranty is a list
  * instead: one entry for each component with a warranty, its name added. A
  * credit note's line points at the invoice line it credits (source_line_id),
- * whose tax it reverses.
+ * whose tax it reverses; a converted document's line at the one it came from
+ * (Doc 16 Phase B). A sales order's line counts what was delivered, invoiced,
+ * returned and credited of its quantity, the ordered one (section 16.28).
  */
 class SalesDocumentLine extends Model
 {
@@ -28,6 +30,10 @@ class SalesDocumentLine extends Model
         'name',
         'description',
         'quantity',
+        'delivered_quantity',
+        'invoiced_quantity',
+        'returned_quantity',
+        'credited_quantity',
         'unit',
         'unit_price',
         'discount_type',
@@ -49,6 +55,10 @@ class SalesDocumentLine extends Model
         'position'        => 'integer',
         'item_id'         => 'integer',
         'quantity'        => 'decimal:3',
+        'delivered_quantity' => 'decimal:3',
+        'invoiced_quantity'  => 'decimal:3',
+        'returned_quantity'  => 'decimal:3',
+        'credited_quantity'  => 'decimal:3',
         'unit_price'      => 'decimal:2',
         'discount_value'  => 'decimal:4',
         'discount_amount' => 'decimal:2',
