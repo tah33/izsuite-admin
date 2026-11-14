@@ -95,7 +95,7 @@ class SalesOrdersTest extends TestCase
             ->assertJsonPath('data.payment_terms', 30)
             ->assertJsonPath('data.expiry_date', null)
             ->assertJsonPath('data.grand_total', '335.50')
-            ->assertJsonPath('data.actions', ['edit', 'confirm', 'duplicate', 'delete']);
+            ->assertJsonPath('data.actions', ['edit', 'confirm', 'record_advance', 'duplicate', 'delete']);
 
         $this->postJson("/api/v1/sales/orders/{$id}/confirm")->assertOk()
             ->assertJsonPath('message', 'Sales order SO-00001 confirmed.')
@@ -103,7 +103,7 @@ class SalesOrdersTest extends TestCase
             ->assertJsonPath('data.delivery_status', 'not_delivered')
             ->assertJsonPath('data.invoice_status', 'not_invoiced')
             ->assertJsonPath('data.customer.name', 'Uddin Traders')
-            ->assertJsonPath('data.actions', ['create_invoice', 'amend', 'hold', 'complete', 'create_proforma', 'duplicate', 'cancel'])
+            ->assertJsonPath('data.actions', ['create_invoice', 'create_deposit', 'create_delivery', 'record_advance', 'amend', 'hold', 'complete', 'create_proforma', 'duplicate', 'cancel'])
             ->assertJsonPath('data.delivery', ['email', 'share'])
             ->assertJsonPath('data.progress.0.invoiced', '0.000');
 
@@ -214,7 +214,7 @@ class SalesOrdersTest extends TestCase
         $this->postJson("/api/v1/sales/orders/{$id}/hold", ['reason' => 'Waiting for the deposit.'])->assertOk()
             ->assertJsonPath('data.status', 'on_hold')
             ->assertJsonPath('data.status_reason', 'Waiting for the deposit.')
-            ->assertJsonPath('data.actions', ['amend', 'resume', 'duplicate', 'cancel']);
+            ->assertJsonPath('data.actions', ['amend', 'resume', 'record_advance', 'duplicate', 'cancel']);
         $this->postJson("/api/v1/sales/orders/{$id}/complete")->assertStatus(409);
         $this->postJson("/api/v1/sales/orders/{$id}/resume")->assertOk()->assertJsonPath('data.status', 'confirmed');
         $this->postJson("/api/v1/sales/orders/{$id}/complete")->assertOk()

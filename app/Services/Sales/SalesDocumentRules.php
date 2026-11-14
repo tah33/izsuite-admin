@@ -73,14 +73,17 @@ final class SalesDocumentRules
             return $this->orderActions($document);
         }
 
-        // A credit note refunds what it has left, and is voided only before
-        // any of it was refunded (Doc 08 section 15).
+        // A credit note refunds what it has left - or, in the full Sales app,
+        // applies it to the customer's other invoices (Doc 16 Phase D1) - and
+        // is voided only before any of it was refunded or applied (Doc 08
+        // section 15).
         if ($document->type === DocumentType::CreditNote) {
             return match ($status) {
                 'draft'  => ['edit', 'issue', 'delete'],
                 'issued' => array_values(array_filter([
                     $this->positive($this->refundable($document)) ? 'refund' : null,
-                    Decimal::isZero((string) $document->refunded_amount) ? 'void' : null,
+                    $this->positive((string) $document->balance_due) ? 'apply_credit' : null,
+                    Decimal::isZero((string) $document->refunded_amount) && Decimal::isZero((string) $document->allocated_amount) ? 'void' : null,
                 ])),
                 default  => [],
             };
@@ -133,8 +136,8 @@ final class SalesDocumentRules
     /**
      * A sales order's (Doc 16 section 16.9): a draft is changed, confirmed or
      * deleted. Confirming locks it: a confirmed one is amended with a reason,
-     * held, completed or cancelled, and invoices (Phase B2) and a proforma
-     * invoice made from it; a
+     * held, completed or cancelled, and invoices (Phase B2), deliveries (Phase
+     * C) and a proforma invoice made from it; a
      * held one is amended, resumed or cancelled. Any can be duplicated. It is
      * e-mailed and shared once confirmed (delivery()).
      *
@@ -142,12 +145,19 @@ final class SalesDocumentRules
      */
     private function orderActions(SalesDocument $order): array
     {
-        return match ($order->status) {
-            SalesDocumentStatus::Draft     => ['edit', 'confirm', 'duplicate', 'delete'],
-            SalesDocumentStatus::Confirmed => ['create_invoice', 'amend', 'hold', 'complete', 'create_proforma', 'duplicate', 'cancel'],
-            SalesDocumentStatus::OnHold    => ['amend', 'resume', 'duplicate', 'cancel'],
+        $actions = match ($order->status) {
+            SalesDocumentStatus::Draft     => ['edit', 'confirm', 'record_advance', 'duplicate', 'delete'],
+            SalesDocumentStatus::Confirmed => ['create_invoice', 'create_deposit', 'create_delivery', 'record_advance', 'amend', 'hold', 'complete', 'create_proforma', 'create_return', 'duplicate', 'cancel'],
+            SalesDocumentStatus::OnHold    => ['amend', 'resume', 'record_advance', 'duplicate', 'cancel'],
+            // Goods delivered on a completed order can still come back (Doc 16 Phase E).
+            SalesDocumentStatus::Completed => ['create_return', 'duplicate'],
             default                        => ['duplicate'],
         };
+
+        // Something comes back only once something went out.
+        $delivered = in_array($order->delivery_status, ['partially_delivered', 'delivered', 'partially_returned', 'returned'], true);
+
+        return $delivered ? $actions : array_values(array_diff($actions, ['create_return']));
     }
 
     /** What is still left to credit on an invoice: its total less its issued credit notes. */
@@ -180,11 +190,13 @@ final class SalesDocumentRules
     {
         $creditable = $this->positive($this->creditable($invoice));
         $cash       = bcsub((string) $invoice->amount_paid, (string) $invoice->refunded_amount, 2);
-        $settledBy  = Decimal::sum([$invoice->amount_paid, $invoice->withholding_amount, $invoice->credited_amount]);
+        $settledBy  = Decimal::sum([$invoice->amount_paid, $invoice->withholding_amount, $invoice->credited_amount, $invoice->allocated_amount]);
         $leftOver   = bcsub(bcsub($settledBy, (string) $invoice->refunded_amount, 2), (string) $invoice->grand_total, 2);
 
         return array_values(array_filter([
             $this->positive((string) $invoice->balance_due) ? 'record_payment' : null,
+            // Advances and other credit notes of the customer (Doc 16 Phase D1).
+            $this->positive((string) $invoice->balance_due) ? 'apply_credit' : null,
             $creditable ? 'credit_note' : null,
             $this->positive($cash) && ($creditable || $this->positive($leftOver)) ? 'refund' : null,
             Decimal::isZero($settledBy) ? 'void' : null,

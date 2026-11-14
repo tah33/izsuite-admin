@@ -17,6 +17,8 @@ use App\Repositories\User\LocationRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Services\Shared\BusinessCalendar;
 use Illuminate\Foundation\Http\FormRequest;
+use App\Models\User\PriceList;
+use App\Models\User\PriceListRule;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -151,12 +153,23 @@ class SaveSalesDocumentRequest extends FormRequest
             'lines.*.id'             => ['nullable', 'integer'],
             // The line of its source a line was made from, kept through edits - an invoice's sales order line (Phase B2).
             'lines.*.source_line_id' => ['nullable', 'integer'],
+            // A deduction of a deposit invoice (Doc 16 Phase D2): the one line whose price is negative.
+            'lines.*.deposit_invoice_id' => ['nullable', 'integer'],
+            // Why the discount goes past what the user's role gives (Doc 16 Phase F2).
+            'discount_reason'            => ['nullable', 'string', 'max:500'],
+            // The price list and rule that priced it (Doc 16 Phase F1): the business's own.
+            'lines.*.price_list_id'      => ['nullable', 'integer', Rule::exists(PriceList::class, 'id')->where('workspace_id', $workspace?->id)],
+            'lines.*.price_list_rule_id' => ['nullable', 'integer', Rule::exists(PriceListRule::class, 'id')->whereIn('price_list_id', PriceList::query()->where('workspace_id', $workspace?->id)->pluck('id')->all())],
             'lines.*.item_id'        => ['nullable', 'integer'],
             'lines.*.name'           => [$must(), 'string', 'max:255'],
             'lines.*.description'    => ['nullable', 'string', 'max:5000'],
             'lines.*.quantity'       => [$must(), 'numeric', 'decimal:0,3', 'gt:0', 'max:999999999.999'],
             'lines.*.unit'           => ['nullable', 'string', 'max:20'],
-            'lines.*.unit_price'     => [$must(), 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999999.99'],
+            'lines.*.unit_price'     => [$must(), 'numeric', 'decimal:0,2', 'min:-9999999999999.99', 'max:9999999999999.99', function (string $attribute, mixed $value, \Closure $fail) {
+                if (is_numeric($value) && $value < 0 && ! $this->input(str_replace('unit_price', 'deposit_invoice_id', $attribute))) {
+                    $fail('A price cannot be negative. Returns and reductions are credit notes.');
+                }
+            }],
             'lines.*.discount_type'  => ['nullable', Rule::in(['percent', 'amount'])],
             'lines.*.discount_value' => ['nullable', 'numeric', 'decimal:0,4', 'min:0', 'max:9999999999999.99'],
             'lines.*.tax_rate_id'    => ['nullable', 'integer'],

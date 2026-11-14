@@ -27,6 +27,8 @@ class SaveRoleRequest extends FormRequest
             'name'          => ['required', 'string', 'max:100', Rule::unique('workspace_roles', 'name')->where('workspace_id', $workspace?->id)->ignore($this->route('id'))],
             'description'   => ['nullable', 'string', 'max:255'],
             'full_access'   => ['sometimes', 'boolean'],
+            // The largest discount it gives, as a percentage (Doc 16 Phase F2).
+            'max_discount'  => ['nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:100'],
             'permissions'   => ['present', 'array'],
             'permissions.*' => ['string', Rule::in(Permissions::keys())],
         ];

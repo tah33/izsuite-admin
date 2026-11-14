@@ -43,6 +43,8 @@ class RecordPaymentRequest extends FormRequest
             'notes'              => ['nullable', 'string', 'max:2000'],
             'withholding_tax_id' => ['nullable', 'integer', Rule::exists(WithholdingTax::class, 'id')->where('workspace_id', $workspace?->id)],
             'withholding_amount' => ['nullable', 'required_with:withholding_tax_id', 'numeric', 'decimal:0,2', 'gt:0', 'max:9999999999999.99'],
+            // The user's yes to keeping what is over the balance as the customer's advance (Doc 16 section 16.16).
+            'keep_as_advance'    => ['sometimes', 'boolean'],
         ];
     }
 

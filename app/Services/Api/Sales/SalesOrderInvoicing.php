@@ -37,6 +37,7 @@ class SalesOrderInvoicing
         protected SalesSettingRepository $salesSettingRepository,
         protected SalesOrderProgress $salesOrderProgress,
         protected WorkspaceAccess $access,
+        protected SalesOrderDeposits $salesOrderDeposits,
     ) {}
 
     /**
@@ -97,6 +98,9 @@ class SalesOrderInvoicing
      */
     public function checkIssue(Workspace $workspace, SalesDocument $invoice): void
     {
+        // Its deposits' deductions, still within what each has left (Doc 16 Phase D2).
+        $this->salesOrderDeposits->checkIssue($invoice);
+
         $order = $this->orderOf($invoice);
 
         if (! $order) {
@@ -121,6 +125,12 @@ class SalesOrderInvoicing
 
         if ($beyond && (blank($invoice->over_invoice_reason) || ! $this->access->can(self::BEYOND))) {
             $this->refuse("This invoice bills more than {$order->number} has left to invoice. Lower it, or say why in its form - invoicing beyond the order needs \"Invoice Beyond the Order\".");
+        }
+
+        // An order with deposits: what its invoices bill in all - deposits, and the rest net of
+        // what they deduct - stays within its total too (Doc 16 section 16.14).
+        if ($this->salesOrderDeposits->billsPast($order, $invoice) && (blank($invoice->over_invoice_reason) || ! $this->access->can(self::BEYOND))) {
+            $this->refuse("With its deposits, {$order->number}'s invoices would bill more than its total. Deduct more of the deposits, or say why in its form - billing beyond the order needs \"Invoice Beyond the Order\".");
         }
     }
 

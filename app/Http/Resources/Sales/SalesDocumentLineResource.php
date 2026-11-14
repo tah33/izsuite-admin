@@ -24,6 +24,12 @@ class SalesDocumentLineResource extends JsonResource
         return $this->hideValues('sales', [
             'id'              => $this->id,
             'source_line_id'  => $this->source_line_id,
+            // The deposit invoice it deducts (Doc 16 Phase D2).
+            'deposit_invoice_id' => $this->deposit_invoice_id,
+            // The price list and rule that priced it, kept as they were (Doc 16 Phase F1).
+            'price_list_id'      => $this->price_list_id,
+            'price_list_rule_id' => $this->price_list_rule_id,
+            'price_list'         => $this->price_list_id ? $this->priceList?->name : null,
             'item_id'         => $this->item_id,
             'name'            => $this->name,
             'description'     => $this->description,

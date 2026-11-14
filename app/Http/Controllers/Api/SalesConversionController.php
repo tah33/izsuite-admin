@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Enums\DocumentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Sales\ConvertSalesDocumentRequest;
+use App\Http\Requests\Api\Sales\CreateDepositRequest;
 use App\Http\Requests\Api\Sales\InvoiceSalesOrderRequest;
 use App\Http\Resources\Sales\SalesDocumentResource;
 use App\Services\Api\Sales\SalesConversionService;
@@ -70,6 +71,24 @@ class SalesConversionController extends Controller
 
             return response()->json([
                 'message' => $this->made(DocumentType::Invoice, DocumentType::SalesOrder, $document->source?->number),
+                'data'    => new SalesDocumentResource($document, $this->salesConversionService->today($workspace)),
+            ], 201);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** A draft deposit invoice of a confirmed sales order (Doc 16 Phase D2). */
+    public function deposit(CreateDepositRequest $request, string $kind, int $id): JsonResponse
+    {
+        try {
+            $workspace = $this->currentWorkspace($request);
+            $document  = $this->salesConversionService->depositOrder($workspace, $id, $request->validated(), $request->user());
+
+            return response()->json([
+                'message' => "Draft deposit invoice made from sales order {$document->source?->number}.",
                 'data'    => new SalesDocumentResource($document, $this->salesConversionService->today($workspace)),
             ], 201);
 

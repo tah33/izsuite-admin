@@ -92,7 +92,8 @@ class OutstandingInvoicesReport extends Report
                 'currency'         => $invoice->currency,
                 'total'            => (string) $invoice->grand_total,
                 'payments'         => Decimal::round(Decimal::of($invoice->paid_by)),
-                'credit_notes'     => Decimal::round(bcsub(Decimal::of($invoice->credited_by), Decimal::of($invoice->refunded_by), 2)),
+                // Its credit notes' credit kept on it, and - Doc 16 Phase D1 - the advances and other credit notes applied to it.
+                'credit_notes'     => Decimal::round(Decimal::sum([bcsub(bcsub(Decimal::of($invoice->credited_by), Decimal::of($invoice->refunded_by), 2), Decimal::of($invoice->given_by), 2), Decimal::of($invoice->allocated_by)])),
                 'withholding'      => Decimal::round(Decimal::of($invoice->withheld_by)),
                 'outstanding'      => $owed,
                 'base_outstanding' => $this->figures->base($owed, $invoice->exchange_rate),

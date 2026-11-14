@@ -4,6 +4,7 @@ namespace App\Services\Api\Sales;
 
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesPayment;
+use App\Repositories\User\SalesAllocationRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Repositories\User\SalesPaymentRepository;
 use App\Support\Decimal;
@@ -15,10 +16,13 @@ use App\Support\Decimal;
  * made the change:
  *
  * - its completed payments, in cash and in tax withheld, come off first;
+ * - then the advances and other invoices' credit notes applied to it (Doc 16
+ *   Phase D1), as much as each allocation says;
  * - then its issued credit notes, in the order they were issued: each takes
  *   off what is still owed, up to what it has not refunded, and keeps the rest
  *   available - which in Sales Lite can only be refunded (section 25: no
- *   carrying credit to other invoices);
+ *   carrying credit to other invoices), and in the full Sales app can also
+ *   be applied to the customer's other invoices, which leaves it less;
  * - money refunded out of a credit note was paid back, so it no longer covers
  *   anything.
  *
@@ -32,6 +36,7 @@ class InvoiceSettlement
     public function __construct(
         protected SalesDocumentRepository $salesDocumentRepository,
         protected SalesPaymentRepository $salesPaymentRepository,
+        protected SalesAllocationRepository $salesAllocationRepository,
     ) {}
 
     public function settle(SalesDocument $invoice): void
@@ -42,22 +47,25 @@ class InvoiceSettlement
         $payments  = $moves->where('kind', SalesPayment::PAYMENT)->where('sales_document_id', $invoice->id);
         $paid      = Decimal::sum($payments->pluck('applied_amount'));
         $withheld  = Decimal::sum($payments->pluck('withholding_amount'));
-        $remaining = bcsub(bcsub((string) $invoice->grand_total, $paid, 2), $withheld, 2);
+        $allocated = $this->salesAllocationRepository->sumTo($invoice);
+        $remaining = bcsub(bcsub(bcsub((string) $invoice->grand_total, $paid, 2), $withheld, 2), $allocated, 2);
 
         $credited = $refunded = $applied = '0.00';
 
         foreach ($notes as $note) {
             $noteRefunded = Decimal::sum($moves->where('kind', SalesPayment::REFUND)->where('sales_document_id', $note->id)->pluck('applied_amount'));
-            $capacity     = bcsub((string) $note->grand_total, $noteRefunded, 2);
+            $noteOut      = $this->salesAllocationRepository->sumFromNote($note);
+            $capacity     = Decimal::max(bcsub(bcsub((string) $note->grand_total, $noteRefunded, 2), $noteOut, 2), '0.00');
             $noteApplied  = Decimal::min($capacity, bccomp($remaining, '0', 2) > 0 ? $remaining : '0.00');
             $available    = bcsub($capacity, $noteApplied, 2);
             $remaining    = bcsub($remaining, $noteApplied, 2);
 
             $this->salesDocumentRepository->update($note, [
                 'applied_amount'  => $noteApplied,
-                'refunded_amount' => $noteRefunded,
-                'balance_due'     => $available,
-                'payment_status'  => $this->creditStatus($noteApplied, $noteRefunded, $available),
+                'refunded_amount'  => $noteRefunded,
+                'allocated_amount' => $noteOut,
+                'balance_due'      => $available,
+                'payment_status'   => $this->creditStatus(bcadd($noteApplied, $noteOut, 2), $noteRefunded, $available),
             ]);
 
             $credited = bcadd($credited, (string) $note->grand_total, 2);
@@ -72,8 +80,9 @@ class InvoiceSettlement
             'withholding_amount' => $withheld,
             'credited_amount'    => $credited,
             'refunded_amount'    => $refunded,
+            'allocated_amount'   => $allocated,
             'balance_due'        => $balance,
-            'payment_status'     => $this->paymentStatus($balance, $paid, Decimal::sum([$withheld, $applied]), $refunded),
+            'payment_status'     => $this->paymentStatus($balance, $paid, Decimal::sum([$withheld, $applied, $allocated]), $refunded),
         ]);
     }
 

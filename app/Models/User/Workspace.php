@@ -331,6 +331,22 @@ class Workspace extends Model
         return $this->hasMany(SalesDocument::class);
     }
 
+    /** Its sales orders' delivery notes (Doc 16 Phase C). */
+    public function salesDeliveries(): HasMany
+    {
+        return $this->hasMany(SalesDelivery::class);
+    }
+
+    public function customerAdvances(): HasMany
+    {
+        return $this->hasMany(CustomerAdvance::class);
+    }
+
+    public function salesAllocations(): HasMany
+    {
+        return $this->hasMany(SalesAllocation::class);
+    }
+
     /** Settings > Purchases - none until they are first saved. */
     public function purchaseSetting(): HasOne
     {

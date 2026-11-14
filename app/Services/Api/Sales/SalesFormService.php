@@ -3,6 +3,7 @@
 namespace App\Services\Api\Sales;
 
 use App\Enums\DocumentType;
+use App\Enums\Edition;
 use App\Models\User\TaxRate;
 use App\Models\User\Workspace;
 use App\Repositories\User\ContactRepository;
@@ -10,6 +11,7 @@ use App\Repositories\User\SalesSettingRepository;
 use App\Repositories\User\TaxRateRepository;
 use App\Services\Api\BusinessSetup\ExchangeRateService;
 use App\Services\Shared\LocationAccess;
+use App\Services\User\Apps\WorkspaceApps;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Arr;
 
@@ -70,6 +72,9 @@ class SalesFormService
             'tax_rounding'       => $workspace->tax_rounding,
             'taxes_enabled'      => $taxes,
             'line_discounts'     => $settings->line_discounts,
+            // What this user may price and discount (Doc 16 Phase F2): the largest discount - null for no limit - and whether a price is typed by hand.
+            'max_discount'       => app(SalesPricingChecks::class)->limit($workspace),
+            'prices_by_hand'     => ! WorkspaceApps::for($workspace)->has('sales', Edition::Full) || app(\App\Services\Shared\WorkspaceAccess::class)->can(SalesPricingChecks::OVERRIDE),
             'document_discounts' => $settings->document_discounts,
             'default_tax_id'     => $default && $this->inEffect($default, $date) ? $default->id : null,
             'customer_treatment' => $treatment?->value,

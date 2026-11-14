@@ -12,6 +12,7 @@ use App\Models\User\SalesDocumentLine;
 use App\Models\User\SalesDocumentRevision;
 use App\Models\User\TaxRate;
 use App\Models\User\Workspace;
+use App\Support\Decimal;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -215,6 +216,52 @@ class SalesDocumentRepository
             ->pluck('total', 'source_line_id')
             ->map(fn ($total) => (string) $total)
             ->all();
+    }
+
+    /**
+     * A sales order's invoices, deposits included, oldest first - void ones
+     * only when asked (Doc 16 Phase D2): what it has billed.
+     */
+    public function invoicesOfOrder(SalesDocument $order, bool $withVoid = false): Collection
+    {
+        return SalesDocument::query()
+            ->where('type', DocumentType::Invoice->value)
+            ->where('source_id', $order->id)
+            ->when(! $withVoid, fn (Builder $query) => $query->where('status', '!=', SalesDocumentStatus::Void->value))
+            ->orderBy('id')
+            ->get(['id', 'number', 'status', 'is_deposit', 'currency', 'price_tax_mode', 'grand_total', 'tax_total']);
+    }
+
+    /** A document's total as stored, however much of it was loaded. */
+    public function grandTotalOf(SalesDocument $document): string
+    {
+        return (string) (SalesDocument::query()->whereKey($document->id)->value('grand_total') ?? '0');
+    }
+
+    /** A sales order's issued deposit invoices, oldest first, with their lines: what its later invoices deduct. */
+    public function depositsOfOrder(SalesDocument $order): Collection
+    {
+        return SalesDocument::query()
+            ->where('type', DocumentType::Invoice->value)
+            ->where('source_id', $order->id)
+            ->where('is_deposit', true)
+            ->where('status', SalesDocumentStatus::Issued->value)
+            ->with('lines')
+            ->orderBy('document_date')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /** What invoices not void deduct of a deposit invoice - $exceptId's lines aside. */
+    public function deductedOf(SalesDocument $deposit, ?int $exceptId = null): string
+    {
+        $amounts = SalesDocumentLine::query()
+            ->where('deposit_invoice_id', $deposit->id)
+            ->when($exceptId, fn (Builder $query, int $id) => $query->where('sales_document_id', '!=', $id))
+            ->whereHas('document', fn (Builder $query) => $query->where('status', '!=', SalesDocumentStatus::Void->value))
+            ->pluck('amount');
+
+        return Decimal::sum($amounts->map(fn ($amount) => bcsub('0', (string) $amount, 2)));
     }
 
     /**

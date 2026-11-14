@@ -9,6 +9,7 @@ use App\Enums\SalesDocumentStatus;
 use App\Models\User\Expense;
 use App\Models\User\ExpensePayment;
 use App\Models\User\Purchase;
+use App\Models\User\SalesDelivery;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesPayment;
 use App\Models\User\SupplierPayment;
@@ -53,7 +54,8 @@ class DocumentRenderer
         $format   = DocumentFormat::of($template);
         $business = $document->business_snapshot ?? $this->salesSnapshots->business($workspace, $document->location, $document->type->isPaidFrom() ? $document->currency : null);
         $customer = $document->customer_snapshot ?? ($document->contact ? $this->salesSnapshots->customerOf($document) : null);
-        $label    = $document->type->label();
+        // A sales order's deposit invoice says so (Doc 16 Phase D2).
+        $label    = $document->is_deposit ? 'Deposit Invoice' : $document->type->label();
         // Where it goes, once the document says how or when (Doc 16 Phase A): its own address, else the customer's.
         $shipping = $document->shipping_address || $document->shipping_method || $document->shipping_terms || $document->expected_delivery_date;
 
@@ -88,6 +90,63 @@ class DocumentRenderer
             $this->footer($template, $business),
             $template['paper_size'],
             $this->filename($label, $document->number, $document->id),
+        );
+    }
+
+    /**
+     * A sales order's delivery note (Doc 16 Phase C), in the order's template,
+     * with its business and customer as the order kept them. It goes to its
+     * own address, else the order's shipping address, else the customer's.
+     */
+    public function delivery(Workspace $workspace, SalesDelivery $delivery): RenderedDocument
+    {
+        $order    = $delivery->order;
+        $template = $this->documentTemplates->settingsFor($workspace, DocumentType::SalesOrder, $order->template_snapshot);
+        $format   = DocumentFormat::of($template);
+        $business = $order->business_snapshot ?? $this->salesSnapshots->business($workspace, $order->location);
+        $customer = $order->customer_snapshot ?? ($order->contact ? $this->salesSnapshots->customerOf($order) : null);
+        $label    = DocumentType::Delivery->label();
+
+        $data = [
+            'title'      => $delivery->number ? "{$label} {$delivery->number}" : "Draft {$label}",
+            'number'     => $delivery->number,
+            'stamp'      => match ($delivery->status) {
+                SalesDelivery::DRAFT     => 'Draft',
+                SalesDelivery::CANCELLED => 'Cancelled',
+                default                  => null,
+            },
+            'label'      => $label,
+            'template'   => $template,
+            'business'   => $business,
+            'logo'       => $this->image($workspace, $template['show_logo'] ? ($business['logo_file_id'] ?? null) : null),
+            'customer'   => $customer,
+            'partyLabel' => 'Customer',
+            'shipTo'     => $delivery->shipping_address
+                ? $this->salesSnapshots->addressLines($delivery->shipping_address)
+                : ($customer['shipping_address'] ?? $customer['billing_address'] ?? null),
+            'facts'      => array_values(array_filter([
+                ['Date', $format->date($delivery->delivery_date)],
+                ['Order', (string) $order->number],
+                $delivery->carrier ? ['Carrier', $delivery->carrier] : null,
+                $delivery->tracking_number ? ['Tracking No.', $delivery->tracking_number] : null,
+                $delivery->vehicle ? ['Vehicle or Driver', $delivery->vehicle] : null,
+                $delivery->delivered_on ? ['Delivered On', $format->date($delivery->delivered_on)] : null,
+            ])),
+            'rows'       => $delivery->lines->map(fn ($line) => [
+                'name'     => $line->orderLine?->name,
+                'quantity' => $format->quantity((string) $line->quantity),
+                'unit'     => $line->orderLine?->unit,
+            ])->all(),
+            'notes'      => $delivery->notes,
+            'recipient'  => $delivery->recipient_name,
+            'lang'       => $template['language'],
+        ];
+
+        return new RenderedDocument(
+            view('documents.delivery', $data)->render(),
+            $this->footer($template, $business),
+            $template['paper_size'],
+            $this->filename('Delivery-Note', $delivery->number, $delivery->id),
         );
     }
 

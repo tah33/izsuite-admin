@@ -84,14 +84,20 @@ class SalesSnapshots
 
         foreach (['billing_address', 'shipping_address'] as $side) {
             if ($own = $document->{$side}) {
-                $customer[$side] = $this->address($own['country'] ?? null, [
-                    'line1' => $own['line1'] ?? null, 'line2' => $own['line2'] ?? null, 'city' => $own['city'] ?? null,
-                    'region' => $own['state'] ?? null, 'postal' => $own['postal_code'] ?? null,
-                ]);
+                $customer[$side] = $this->addressLines($own);
             }
         }
 
         return $customer;
+    }
+
+    /** A document's own address - a sales document's or a delivery's (Doc 16) - as its country writes it. */
+    public function addressLines(array $own): array
+    {
+        return $this->address($own['country'] ?? null, [
+            'line1' => $own['line1'] ?? null, 'line2' => $own['line2'] ?? null, 'city' => $own['city'] ?? null,
+            'region' => $own['state'] ?? null, 'postal' => $own['postal_code'] ?? null,
+        ]);
     }
 
     public function customer(Contact $contact): array

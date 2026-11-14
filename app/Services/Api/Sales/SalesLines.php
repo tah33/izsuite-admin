@@ -48,6 +48,11 @@ class SalesLines
                 ...(isset($line['id']) ? ['id' => (int) $line['id']] : []),
                 // The line of its source it was made from - SalesDocumentService keeps only its source's (Phase B2).
                 'source_line_id' => isset($line['source_line_id']) ? (int) $line['source_line_id'] : null,
+                // A deduction of a deposit invoice (Doc 16 Phase D2); SalesOrderDeposits checks it.
+                'deposit_invoice_id' => isset($line['deposit_invoice_id']) ? (int) $line['deposit_invoice_id'] : null,
+                // The price list and rule that priced it (Doc 16 Phase F1) - checked as the business's by SaveSalesDocumentRequest.
+                'price_list_id'      => isset($line['price_list_id'], $line['price_list_rule_id']) ? (int) $line['price_list_id'] : null,
+                'price_list_rule_id' => isset($line['price_list_id'], $line['price_list_rule_id']) ? (int) $line['price_list_rule_id'] : null,
                 'position'       => $index + 1,
                 'item_id'        => $item?->id,
                 'name'           => $line['name'] ?? '',
@@ -72,6 +77,7 @@ class SalesLines
             'unit_price'     => (string) $row['unit_price'],
             'discount_type'  => $row['discount_type'] ?? null,
             'discount_value' => isset($row['discount_value']) ? (string) $row['discount_value'] : null,
+            'deduction'      => ! empty($row['deposit_invoice_id']),
             'tax'            => $row['tax_rate'] !== null ? [
                 'id'        => $row['tax_rate_id'],
                 'name'      => $row['tax_name'],

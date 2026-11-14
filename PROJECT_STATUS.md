@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-14
-- **Code:** Doc 16's gap check and Phase A are pushed: `main` at `b2d436d`, `nuxt` at `2c105da` (2026-11-14). Phase B (B1 and B2) is committed in the next commit of each, not pushed yet.
-- **Tests:** 857 backend tests pass (last full run 2026-11-14, on the second PC).
-- **Next step:** Doc 16 Phase C: deliveries (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 16's gap check and Phases A to F are pushed (2026-11-14). Phases C to F are one commit in each repo, "Doc 16 Phases C to F", the one after `main`'s `4dc364c` and `nuxt`'s `32a787b`.
+- **Tests:** 877 backend tests pass (last full run 2026-11-14, on the second PC).
+- **Next step:** Doc 16 Phase G: credit control and the customer's link (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 16 Phase C.
+   > Read PROJECT_STATUS.md, then start Doc 16 Phase G.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -41,7 +41,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
-| **16** | **Sales** | **In progress: gap check and Phases A and B done (2026-11-14), Phase C next** |
+| **16** | **Sales** | **In progress: gap check and Phases A to F done (2026-11-14), Phase G next** |
 | 17 to 21 | CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -951,7 +951,7 @@ B3 was split again on starting it (2026-11-13), as a support session names a sup
 - IP allow-listing and a separate domain for the admin panel. These are server decisions.
 - Deleting a business for good. Closed keeps its data.
 
-### 4. Doc 16: Sales (next: Phase C)
+### 4. Doc 16: Sales (next: Phase G)
 
 The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replaces Sales Lite (Doc 08) when a business turns it on, keeping and extending its records.
 
@@ -1114,6 +1114,107 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
   - Back on Sales Lite, the order opened with Preview only, and the orders list sent to the Apps Center.
   - The business, its Sales row, the member, the customer, the items, the documents, the sign-ins and the activity were then put back.
 
+**Phase C: deliveries** (section 16.10) is built, with your defaults:
+
+- **A delivery note** (DN-, its own numbering in Settings on full Sales; drawn with its order's template) belongs to one confirmed sales order, in its own table (`sales_deliveries`, `sales_delivery_lines`).
+- **Create Delivery** on a confirmed order lists each line with what is left: ordered, less delivered, less what other open deliveries hold. It makes a draft of what is chosen - never more, and no permission lets it go beyond.
+- **A draft or ready delivery changes:** its date, location, its own address (else the order's), carrier, tracking number, vehicle or driver, recipient, notes and quantities.
+- **Its statuses:** Draft; Ready, numbered then (a draft delivered straight away is numbered on delivering); Delivered, with the day it arrived and who received it; or Cancelled with a reason from Ready. A draft is deleted instead. Delivered and cancelled are final: what comes back is a return (Phase E).
+- **Marking it delivered** counts its quantities on the order: each line's delivered quantity and the order's delivery status (Not Delivered, Partially Delivered, Delivered; a service needs none) follow, worked out again from the delivered deliveries. When the order still has something left, Mark Delivered offers a backorder, ticked: a new draft of the rest.
+- **Services and digital products** go on deliveries like goods, marked fulfilled. No stock moves: there is no Inventory.
+- **The order** shows each line's To Deliver and its deliveries, and the invoice policy's delivered quantities now have something to count. An order with deliveries not cancelled is not cancelled - one delivered is completed instead - and keeps the lines on them.
+- **The delivery note PDF** shows the customer and Ship To, the order, carrier, tracking number, vehicle or driver and the day it arrived, the lines without prices, and who received it. A delivery has its proof of delivery as files.
+- **Deliveries** is a page of its own (full Sales, after Sales Orders): searched by number, order, customer or tracking number, and filtered by status.
+- **Permissions**, on full Sales only: View, Create Draft, Edit Draft, Mark Ready or Delivered, Cancel and Delete Draft. A delivery shows no values.
+- **Left for later:** backorder settings, warehouses and stock (Inventory), and a delivery's comments and e-mail.
+- **Checked in the browser** as `user@izsuite.io` with full Sales switched on by hand, and as a throwaway member who may make and edit deliveries:
+  - Create Delivery of 3 of 4 chairs made a draft; its form came filled in and saved the carrier, tracking number and vehicle.
+  - Its Proof of Delivery failed: the delivery model lacked the files trait. It has it now, and a test lists a delivery's files.
+  - Mark Ready numbered it DN-00001; Mark Delivered, with the backorder ticked, recorded who received it and made a draft of the rest. The order read Partially Delivered and listed both; the delivery note's text read as above.
+  - The member saw Sales Orders and Deliveries, and on a draft only Preview and its form.
+  - On Sales Lite, Deliveries sent to the Apps Center and left the menu.
+  - The business, its Sales row, the member, the customer, the items, the order, the deliveries, the sign-ins and the activity were then put back.
+
+**Phase D: deposits, advances and credit** was split on starting it (2026-11-14): D1, customer advances and applying credit; D2, deposit invoices.
+
+**Phase D1: customer advances and credit** (sections 16.15, 16.16 and 16.18) is built, with your defaults:
+
+- **A customer advance** (ADV-, its own numbering in Settings on full Sales) is money a customer paid ahead: from their contact page (Record Advance, in a currency of the business) or from a sales order still open (in its currency, at its location). It needs the customer, date, an active account that takes customer payments, the currency and the amount; in another currency than the account's, what reached the account too. It goes into the account's history as a Customer Advance, but is no sale.
+- **Settings → Sales** has Customer Advances (on to start, full Sales only). Off, none is recorded and no overpayment is kept.
+- **An overpayment** is refused as before, unless the payment dialog's "Keep the extra as an advance" is ticked (full Sales, advances on, Record Advance permission): the payment then takes what was due, and the rest becomes the customer's advance, named on the invoice.
+- **Apply Credit** on an issued invoice with something to pay applies one of the customer's advances or other credit notes with credit left, in the invoice's currency, never more than either has. A credit note's own invoice takes its credit by itself, as before; its credit left can now go to the customer's other invoices too (Apply to Invoice on the credit note), and an advance's from its own page.
+- **Credit applied** shows on the invoice's sheet (Credit Applied, between the total and the balance), in its Credit Applied card, and on the credit note or advance. Take Off asks why and puts it back; the row stays in the history, marked taken off. The invoice's payment status counts it like a payment.
+- **An advance** is reversed (with a reason) only while nothing of it is applied. An invoice with credit applied is not voided, nor a credit note with credit applied elsewhere.
+- **Payments Received** has Payments and Advances: the advances with what is left of each, searched and filtered by Open, Applied or Reversed. An advance has its own page.
+- **The customer's statement** lists each advance as money in on its day; applying it moves nothing there. What an invoice owed on a day (the statement's Outstanding, Outstanding Invoices and its ageing) takes off the credit applied to it by then, and a credit note's credit applied elsewhere; Outstanding Invoices' Credit Notes column counts both.
+- **Permissions**, on full Sales only: Customer Advances' View, Record Advance, Apply Advances and Credit, and Reverse Advance. Sales users get the first three, Finance users all four.
+- **Left for later:** an advance's receipt PDF and e-mail, refunding an advance as money out (it is reversed instead), applying credit across currencies, and the liability an advance is in Accounting.
+- **Checked in the browser** as `user@izsuite.io` with full Sales switched on by hand, and as a throwaway member who may only view invoices and advances:
+  - Record Advance on the customer's page recorded ADV-00001 of USD 120, listed as Open.
+  - Apply Credit on INV-00001 (USD 300) offered it with USD 120 left; 100 of it left USD 200 to pay, Partially Paid, with Credit Applied on the sheet.
+  - A payment of 250 was refused with how to keep the extra; ticked, it recorded RCT-00001 of 200 and ADV-00002 of 50, and the invoice read Paid.
+  - ADV-00002 went to INV-00002 from its own page; Take Off on that invoice, with a reason, put it back, the row kept as taken off; Reverse then reversed it.
+  - Payments Received's Advances listed both; Settings → Sales showed the switch, on.
+  - The member saw the advances and the credit applied, but no Record Advance, Apply Credit or Take Off; the API refused them too.
+  - On Sales Lite, an advance's page sent to the Apps Center.
+  - The business, its Sales row, the member, the customer, the item, the account, the invoices, the payment, the advances, the sign-ins and the activity were then put back.
+
+**Phase D2: deposit invoices** (section 16.14) is built, with your defaults. Phase D is done.
+
+- **Create Deposit Invoice** on a confirmed order makes a draft invoice of a fixed amount or a percentage of the order's total, tax included: one line, "Deposit for Sales Order SO-00001" (and "40% of the order"), without tax and without the order's discount - the final invoice charges the order's tax, until country localization says otherwise. It is linked to the order and marked a deposit; its page, list title and PDF say Deposit Invoice.
+- **What the order bills** never passes its total without Invoice Beyond the Order and a reason: a deposit is checked when it is made, and once an order has deposits, issuing any of its invoices checks its deposits and invoices together (a few cents of rounding aside).
+- **Payments** are recorded from the issued deposit like any invoice's, and an overpayment can become an advance (Phase D1).
+- **The order's next invoices** deduct its issued deposits: Create Invoice adds a negative line per deposit with something left, "Less deposit INV-00001", with the deposit's tax, up to that invoice's total. A deduction takes no share of the document discount. The draft's form may change it, and saving and issuing refuse more than the deposit has left - what drafts hold counts. Only a later invoice of the same order deducts; anywhere else a negative price is refused, as before.
+- **A deposit** deducted on an invoice not void is not voided. The order's progress lists its deposits, with what is deducted of each; the deduction lines stay on the invoices.
+- **Left for later:** a deposit invoice made from a proforma ("converted to an Invoice or Deposit Invoice", section 16.8), and taxing deposits where localization asks for it.
+- **Checked in the browser** as `user@izsuite.io` with full Sales switched on by hand:
+  - Create Deposit Invoice on SO-00001 (USD 625) at 40% showed USD 250 and made a draft Deposit Invoice of one line; issued as INV-00001, it was paid in full.
+  - The order then listed it under Deposits. Its Create Invoice made a draft of 600 + 25 less "Less deposit INV-00001" 250: USD 375.
+  - In the draft's form the deduction showed as -250.00; lowered to -200 the live totals read USD 425, and it saved. Issuing it was refused (the order would bill 675 of 625) - a check added during the browser check; set back to -250, Save and Issue issued INV-00002.
+  - The order read Invoiced, its deposit "USD 250 deducted".
+  - The business, its Sales row, the customer, the item, the account, the order, the invoices, the payment, the sign-ins and the activity were then put back.
+
+**Phase E: returns** (section 16.17) is built, with your defaults:
+
+- **A return** (RET-, its own numbering in Settings on full Sales) is of a sales order's delivered goods, in its own table (`sales_returns`, `sales_return_lines`): Create Return on a delivered delivery (its lines) or on an order with something delivered (its delivered lines). It never takes more of a line than was delivered, less what other returns hold (rejected and cancelled ones aside); from a delivery, no more than that delivery took.
+- **It needs** the date (today to start), the location (the order's), the reason and the lines; the condition (unopened, opened, damaged, defective) and the resolution (refund, credit note, replacement, repair, no financial adjustment) are optional until it is completed. Each line keeps the item's warranty as the order kept it.
+- **Its statuses:** Draft (changed or deleted); Submitted (numbered, still changed); Authorised or Rejected (with a reason); Received, when the goods came back; Completed, with its resolution. Submitted and authorised ones can be cancelled with a reason.
+- **Received** goods count as the order lines' returned quantities, and the order's delivery status follows (Partially Returned, Returned). A return refunds nothing by itself: a refund or credit note is made from the invoice, as before.
+- **Returns** is a page of its own (full Sales, after Invoices), searched by number, order, delivery or customer, and filtered by status. A return has its page, its form while draft or submitted, and its photos and papers as files. The order lists its returns under its progress.
+- **Permissions**, on full Sales only: View, Create Draft, Edit Draft (and Submit), Authorise or Reject, Mark Received or Completed, Cancel and Delete Draft. A return shows no values.
+- **Left for later:** a return from an invoice - a direct invoice has no deliveries - and a credit note made from the return itself, linked to it; stock back into a warehouse (Inventory); approval stages (Approvals).
+- **Checked in the browser** as `user@izsuite.io` with full Sales switched on by hand:
+  - On SO-00001 (4 chairs, 3 delivered on DN-00001), the delivery offered Create Return; 4 chairs were refused ("only 3 delivered and not returned yet"), 1 made a draft from DN-00001 with its form.
+  - Submit numbered it RET-00001; Authorise, Mark Received and Complete (Credit Note) took it through, each with the buttons its status allows.
+  - The order then read Partially Returned, 1 returned, with RET-00001 listed; the Returns page listed it, and Returns sat after Invoices in the menu.
+  - The business, its Sales row, the customer, the item, the account, the order, the delivery, the return, the sign-ins and the activity were then put back.
+
+**Phase F: price lists and discount limits** was split on starting it (2026-11-14): F1, price lists and pricing; F2, discount limits by role and price overrides.
+
+**Phase F1: price lists** (section 16.19) is built, with your defaults:
+
+- **A price list** has a name, a currency, a status, the days it holds (open-ended either way), its customers (all, or those chosen - there are no customer groups yet), its locations (all, or those ticked) and a priority (lower first). It is a page of its own (full Sales, after Payments Received), with its form and rules.
+- **A rule** prices an item, an item category, a brand or all items, from a minimum quantity, between optional days: a fixed price in the list's currency, a percentage off the item's sale price, or a percentage over its cost. Off and over are worked in the base currency and turned at the document's rate in another.
+- **The sales form prices its lines**: a moment after an item is added, or its quantity, the customer, location, currency or date changes, each line of an item takes one price - from the first list that holds, by priority, and in it the most specific rule (item, category, brand, all), then the highest quantity reached. The list's name shows under the price; a line no rule prices keeps its item's price.
+- **The line keeps the list and rule** that priced it, through conversions, and later list changes reprice nothing made before; a draft loaded again is not repriced either. A price typed by hand stays, and the line no longer names a list.
+- **A list** that priced a line is switched off, not deleted.
+- **Permissions**, on full Sales only: Price Lists' View, and Add or Change. Whoever fills in a sales form gets its prices.
+- **Left for later:** customer groups, and permission for a price typed by hand (Phase F2).
+- **Checked in the browser** as `user@izsuite.io` with full Sales switched on by hand:
+  - New Price List made "Browser Wholesale" with one rule, the chair at a fixed USD 120; Price Lists sat after Payments Received in the menu.
+  - In a new invoice for the customer, the chair (USD 150 on its own) came in at 120.00 with "Browser Wholesale" under its price, and the saved draft's line kept the list and rule.
+  - In its form, 115 typed by hand took the list's name away, and the saved line named no list.
+  - The business, its Sales row, the customer, the item, the account, the list, the invoice, the sign-ins and the activity were then put back.
+
+**Phase F2: discount limits and price overrides** (section 16.20) is built, with your defaults. Phase F is done.
+
+- **A role's largest discount** (a percentage; empty for no limit) is set on its page in Settings → Users & Roles, with the full Sales app. The owner and full-access roles have none.
+- **Past it** - a line's discount, or the whole document's, worked out as a percentage of what it comes off - saving needs "Discount Beyond the Limit" and a reason, which the document keeps; the form shows the reason field once it is asked for.
+- **An item's line costs** its item's price, or what its price list's rule makes it. Another price needs "Change Prices by Hand"; without it the price field of an item's line is read-only. A line that already had its price, one made from another document, and a deposit's deduction are left as they are.
+- **Permissions**, on full Sales only: Prices and Discounts' Change Prices by Hand (Sales users get it) and Discount Beyond the Limit. Sales Lite prices and discounts as before.
+- **Left for later:** an approval workflow instead of the override (the Approvals app), and promotions' source references (Marketing, Loyalty, POS, eCommerce).
+- **Checked in the browser** as a throwaway member whose role gives up to 10% and may not change prices: in a new invoice the chair's price was read-only at 150.00, and a 15% line discount was refused with "Your role gives discounts up to 10.00%. A larger one needs "Discount Beyond the Limit"", under the new reason field. The member, the customer, the item, the account, the sign-in and the activity were then put back.
+
 After Doc 16 come Docs 17 to 21 (CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## How we work
@@ -1155,7 +1256,7 @@ Each document goes the same way:
 - Blade: a one-line `@php(...)` in a view that also has a `@php ... @endphp` block further down is read as the start of that block, and everything between them is printed raw. Use the block form in such a view - and keep the word out of its comments, which Blade reads before it strips them.
 - A support session's link works for a minute. Right after `docker restart izsuite-frontend`, the dev app can take longer than that to build the page it opens, so the first link expires; enter again. In the Claude browser pane, Enter in the App's new tab does not open: open the link (`/admin/support-sessions/{id}/open`) in a tab of its own.
 - Nuxt: in a layout, `useRoute()` moves to a new page only once that page has rendered. Where the layout itself decides whether the page renders (the dashboard's status panel), read `useRouter().currentRoute` instead.
-- Eloquent's strict mode is off, so a model loaded with a column list (`with('workspace:id,name')`) reads every other column as null, with no error. Load whole models for anything handed on to another service: Doc 13's billing reads a business's `package_id`, for one.
+- Eloquent's strict mode is off, so a model loaded with a column list (`with('workspace:id,name')`) reads every other column as null, with no error. Load whole models for anything handed on to another service: Doc 13's billing reads a business's `package_id`, for one. Likewise an invoice's `source` (its sales order) comes with a few columns, so its total read as null and every deposit looked over budget until `SalesOrderDeposits` read the total afresh (Doc 16 Phase D2).
 - An admin form shows its message, then reloads the page 300 ms later, which takes the message with it. Where the page does not change (Resend Invoice), give the form `data-no-reload` and the message stays.
 - The Subscription Invoices buttons ask with the browser's own `confirm()`, which the Claude browser pane cannot answer. Confirm a transfer there with `SubscriptionInvoiceService::confirm()` in tinker instead.
 - Billing's notices in the bell go to the business's members with Manage Subscription (`NotificationAudience`). In a test, set the business up with `SetUpNewWorkspace`, or its owner is no member and nothing is sent.
@@ -1167,6 +1268,10 @@ Each document goes the same way:
 - The dev MySQL caches `information_schema` table figures for a day, AUTO_INCREMENT included. To read them as they are, start with `SET SESSION information_schema_stats_expiry = 0`, or take them from the phase's backup.
 - A full-only Sales page needs the dev business on full Sales, which its plan (Billing Starter) does not allow from the Apps Center. Point its `workspace_apps` Sales row at the full app (`app_id` 2) with a query and bump `nav_version`; put back `app_id` 1 afterwards.
 - While the Claude desktop window is minimized, the browser pane cannot be clicked or screenshotted. `form_input`, `get_page_text` and `javascript_tool` still work: fill fields with `form_input`, and click buttons from a script. An ActionMenu item needs a `mousedown` before its `click`.
+- MySQL refuses a name over 64 characters, and Laravel's own name for an index over two long columns can pass that; the tests' SQLite does not mind, so only the dev database finds it. A migration that fails there leaves the tables it made before failing, as MySQL does not roll back a table's creation. Name such an index yourself (`'sales_delivery_lines_line_unique'`), and drop the half-made tables before running it again.
+- A record whose files go through `RecordFileService` (a `RecordFilesPanel` in the frontend) needs the `HasFiles` trait on its model. Without it, listing its files fails (`filesIn()` is undefined); the tests catch it only if one lists them.
+- The sidebar is cached in Redis for a day under the business's `nav_version`. A check that puts `nav_version` back leaves the sidebars of the versions it went through cached, so the next check that reaches the same versions reads an old sidebar (Sales Lite's, say). Forget those keys (`nav:{business}:{user}:{version}:{catalog}`) when putting the data back, or bump past them.
+- A PHP script that edits a file must check each step's result before writing: a failed `preg_replace()` returns null, and writing that empties the file (it happened to `AccountLedger.php`, restored from git).
 
 ### Checking the app as a limited member
 
@@ -1314,8 +1419,14 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 15: Phase G2, legal holds | the commit after `80c94fc` | | 000148 |
 | Doc 15: Phase G3, consent and retention | the commit after `80c94fc` | the commit after `4bd877b` | 000149 |
 | Doc 16: gap check, and Phase A, Sales takes over from Sales Lite | `b2d436d` | `2c105da` | 000150 |
-| Doc 16: Phase B1, sales orders | the commit after `b2d436d` | the commit after `2c105da` | 000151 |
-| Doc 16: Phase B2, invoicing from orders | the commit after `b2d436d` | the commit after `2c105da` | 000152 |
+| Doc 16: Phase B1, sales orders | `4dc364c` | `32a787b` | 000151 |
+| Doc 16: Phase B2, invoicing from orders | `4dc364c` | `32a787b` | 000152 |
+| Doc 16: Phase C, deliveries | the commit after `4dc364c` | the commit after `32a787b` | 000153 |
+| Doc 16: Phase D1, advances and credit | the commit after `4dc364c` | the commit after `32a787b` | 000154 |
+| Doc 16: Phase D2, deposit invoices | the commit after `4dc364c` | the commit after `32a787b` | 000155 |
+| Doc 16: Phase E, returns | the commit after `4dc364c` | the commit after `32a787b` | 000156 |
+| Doc 16: Phase F1, price lists | the commit after `4dc364c` | the commit after `32a787b` | 000157 |
+| Doc 16: Phase F2, discount limits | the commit after `4dc364c` | the commit after `32a787b` | 000158 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -1580,6 +1691,12 @@ These are easy to undo by mistake.
   - An order's lines keep their ids through edits (`SalesDocumentRepository::syncLines`; the form sends each line's `id`), as invoice lines link to them. Every other document's lines are replaced on saving, keeping only `source_line_id` links to its own source's lines (`SalesDocumentService::sourceLinks`).
   - `SalesOrderInvoicing` works out what each line has left (`lines()`), checks invoicing beyond (`check()`, and `checkIssue()` before an invoice from an order is issued) and counts an order's invoiced and credited quantities again from its issued invoices and their issued credit notes (`refresh()`, after each issue and void). `SalesOrderProgress` gives the delivery and invoice statuses: a line needs delivering unless its item is a service.
 - A permission group for a full edition only has a fourth element, `'full'` (`Permissions::GROUPS['sales.orders']`). It counts with "{family}:full" among the families (`WorkspaceApps::permissionFamilies()`, which roles and new businesses use). `WorkspaceApps::requestHas('sales', Edition::Full)` is the check for a response that shows a full-only field (the invoice policy on items and Settings → Sales).
+- Deliveries (Doc 16 Phase C, migration 000153) are `SalesDelivery` and `SalesDeliveryLine`, numbered as `DocumentType::Delivery` (DN-), which has no template of its own (`hasTemplate()`): `DocumentTypes::for($workspace, templated: true)` leaves it out of Settings → Documents' templates, and its PDF uses the order's. `SalesDeliveryService` checks quantities against what is left (`left()`), and after each delivery counts the order's delivered quantities again (`refreshOrder()`); `SalesDeliveryRules` lists a delivery's actions, and `AllowedActions::deliveryNote()` filters them. A delivery line refers to its order line, restricted on delete.
+- Customer advances and applied credit (Doc 16 Phase D1, migration 000154) are `CustomerAdvance` (numbered as `DocumentType::CustomerAdvance`, ADV-, no template) and `SalesAllocation` (an invoice, and an advance or credit note, with an amount; removed ones stay). `InvoiceSettlement::settle()` takes active allocations off an invoice after its payments and before its own credit notes, and a credit note's allocations elsewhere off what it can apply to its own invoice; both keep the sum in `sales_documents.allocated_amount`. `SalesAllocationService` applies and takes off credit, settling the invoice and the credit note's own invoice, or refreshing the advance; `CustomerAdvanceService` records, keeps an overpayment's extra (`keepExtra()`, inside `SalesPaymentService::record()`'s transaction) and reverses. `AllowedActions::sales()` drops `apply_credit` on Sales Lite and `record_advance` while Settings → Sales has advances off.
+- Deposit invoices (Doc 16 Phase D2, migration 000155) are invoices of their order (`source_id`) with `sales_documents.is_deposit`; a deduction is a negative line with `sales_document_lines.deposit_invoice_id`. `SalesOrderDeposits` works out a deposit's amount, what is left of it (`leftOf()`, counting drafts), the deduction lines a new invoice takes (`deductions()`), checks deductions saved from the form (`checkLines()`, from `SalesDocumentService::create()` and `update()`) and on issuing (`checkIssue()`, from `SalesOrderInvoicing::checkIssue()`), and what an order with deposits bills (`billsPast()`). `SalesCalculator` leaves lines marked `deduction` out of the document discount. `SalesConversionService::depositOrder()` makes the draft.
+- Returns (Doc 16 Phase E, migration 000156) are `SalesReturn` and `SalesReturnLine` (an order line, its quantity and warranty), numbered as `DocumentType::SalesReturn` (RET-, no template). `SalesReturnService` checks quantities against what was delivered (`left()`, from a delivery no more than it took), takes a return through its steps and, once received, counts the order lines' returned quantities again (`refreshOrder()`); `SalesReturnRules` lists its actions, `AllowedActions::salesReturn()` filters them, and `SalesDocumentRules` offers `create_return` only on an order with something delivered. `SalesDeliveryLinesInput` takes words of its own for the return's form.
+- Price lists (Doc 16 Phase F1, migration 000157) are `PriceList` (with `price_list_contacts` and `price_list_locations` when not for all) and `PriceListRule`. `PriceListPricing::quote()` prices lines (`POST /sales/prices`); `sales_document_lines.price_list_id` and `price_list_rule_id` keep what priced a line, checked as the business's by `SaveSalesDocumentRequest` and copied by conversions. In the frontend, `useLinePricing()` (from `useSalesDocumentForm`) asks for prices while a line's `priceAuto` holds; typing a price clears it (`SalesFormLine`).
+- Discount limits and hand-typed prices (Doc 16 Phase F2, migration 000158) are `workspace_roles.max_discount` and `sales_documents.discount_reason`, checked by `SalesPricingChecks::check()` from `SalesDocumentService::create()` and `update()` on full Sales. The form's defaults carry `max_discount` and `prices_by_hand`, which `SalesFormLine` uses to make an item's price read-only.
 - A Nuxt page for several kinds sets `minEdition` per route: `minEdition: route => (route.params.kind === 'orders' ? 'full' : 'lite')` (`middleware/app-access.global.ts`). The order's own page has none, so it opens read-only on Sales Lite.
 
 ## Small things left
@@ -1590,10 +1707,15 @@ These are easy to undo by mistake.
 - Replacing the logo or signature deletes the old file, so documents numbered earlier can lose that image.
 - Menu Builder has no "Preview sidebar" yet.
 - Country localization shows as none.
-- The full Sales menu's Sales Orders item (there since Doc 13) needs no permission, so even a limited member sees it and its placeholder page. Doc 16 Phase B gives it the orders' view permission.
 - On Contacts opened from Sales → Customers, picking another role in the filter leaves Customers highlighted, as the address keeps `role=customer`.
 - A sales order line typed in without an item counts as goods to deliver; one of a service item does not.
-- A role holds the sales order permissions only once granted: roles made before Doc 16 Phase B, or from a template while the business was on Sales Lite, have none. Grant them in Settings → Users & Roles after turning Sales on.
+- A role holds the full Sales permissions added since Doc 16 Phase B - Sales Orders, Deliveries, Customer Advances, Returns, Price Lists, and Prices and Discounts - only once granted: roles made before those phases, or from a template while the business was on Sales Lite, have none. Without Change Prices by Hand, such a role can no longer type an item's price on full Sales. Grant them in Settings → Users & Roles after turning Sales on.
+- A delivery note is not e-mailed or shared yet, and whether to make a backorder is asked on each Mark Delivered: Settings → Sales gets its backorder rule in Phase H.
+- A customer advance has no receipt PDF or e-mail yet, and is not refunded as money out: it is reversed. Credit applies only within one currency.
+- A deposit invoice carries no tax, and is made only from a confirmed order, not from a proforma.
+- A return is made from an order or its delivery, not from an invoice, and its credit note is made from the invoice without a link back to it.
+- Price lists are for all customers or chosen ones: there are no customer groups yet.
+- Amount Received (the Dashboard, the Sales Overview and Payments Received's report) counts invoice payments only, so money paid ahead does not show there. Phase H's Invoice and Payment Report should count advances.
 
 ## Open decisions
 
@@ -1620,6 +1742,7 @@ Each of these is yours to settle.
 - Who in a business sees its support cases? Today the owner sees every one, and anyone else only the ones they opened. A business's Administrators could see them all too.
 - Which admin roles open support sessions with edit access? Today only the Super Admin, until a role is given "Support session edit" in Admin > Roles.
 - Should Admin > Users treat phone numbers typed differently ("+880 1711-000000" and "+8801711000000") as the same for its shared-phone alert? Today only the same typing matches.
+- Should an advance paid back to the customer be a refund of its own (money out, with its receipt), rather than a reversal? Today it is reversed, which takes it out of the account's balance as if it never came.
 
 ## Deploying to a server
 
@@ -1652,4 +1775,10 @@ Each of these is yours to settle.
 - Doc 15 Phase G3: migration 000149 adds `consent_records` and `users.marketing_consent`, records the terms acceptance of each existing account on its day, and gives the roles Admin > Data Retention. Deploy the frontend with it, for the product news checkbox; the API's account now carries `marketing`. Rebuild the admin CSS, and restart the queue workers.
 - Doc 16 Phase A: migration 000150 adds `sales_teams`, `sales_team_members` and the documents' salesperson, team, addresses and delivery columns, and puts Overview and Customers in the full Sales menu. Deploy the frontend with it. Restart the queue workers, as the PDFs changed. A business on Sales Lite sees no change.
 - Doc 16 Phase B: migration 000151 adds the sales order columns, each line's delivered, invoiced, returned and credited quantities, a revision's reason, and gives the Sales Orders menu item the orders' View; 000152 adds the invoice policy (Settings → Sales and items) and an invoice's over-invoice reason. Deploy the frontend with it (the old `pages/sales/orders.vue` is gone). Restart the queue workers, as the PDFs changed. Existing roles need the sales order permissions granted.
+- Doc 16 Phase C: migration 000153 adds `sales_deliveries` and `sales_delivery_lines` and puts Deliveries in the full Sales menu, after Sales Orders. Deploy the frontend with it. Restart the queue workers, as the PDFs' code changed. Existing roles need the delivery permissions granted.
+- Doc 16 Phase D1: migration 000154 adds `customer_advances`, `sales_allocations`, the documents' `allocated_amount` and Settings → Sales's `customer_advances` (on). Deploy the frontend with it. Existing roles need the Customer Advances permissions granted.
+- Doc 16 Phase D2: migration 000155 adds the invoices' `is_deposit` and the lines' `deposit_invoice_id`. Deploy the frontend with it. Restart the queue workers, as the PDFs changed.
+- Doc 16 Phase E: migration 000156 adds `sales_returns` and `sales_return_lines` and puts Returns in the full Sales menu, after Invoices. Deploy the frontend with it. Existing roles need the Returns permissions granted.
+- Doc 16 Phase F1: migration 000157 adds `price_lists`, its customers, locations and rules, and the lines' `price_list_id` and `price_list_rule_id`, and puts Price Lists in the full Sales menu, after Payments Received. Deploy the frontend with it. Existing roles need the Price Lists permissions granted.
+- Doc 16 Phase F2: migration 000158 adds the roles' `max_discount` and the documents' `discount_reason`. Deploy the frontend with it. On full Sales a role without "Change Prices by Hand" can no longer type an item's price: grant it to the roles that should.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

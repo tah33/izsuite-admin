@@ -33,6 +33,9 @@ class SalesDefaultsResource extends JsonResource
             'taxes_enabled'      => $this->resource['taxes_enabled'],
             'line_discounts'     => $this->resource['line_discounts'],
             'document_discounts' => $this->resource['document_discounts'],
+            // What this user may discount and price (Doc 16 Phase F2).
+            'max_discount'       => $this->resource['max_discount'] ?? null,
+            'prices_by_hand'     => $this->resource['prices_by_hand'] ?? true,
             'default_tax_id'     => $this->resource['default_tax_id'],
             'customer_treatment' => $this->resource['customer_treatment'],
             'customer_tax_id'    => $this->resource['customer_tax_id'],

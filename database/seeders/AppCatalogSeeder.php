@@ -166,7 +166,11 @@ class AppCatalogSeeder extends Seeder
         ['apps', 'sales', 'Proforma Invoices', 'file-check', '/sales/proformas', 'lite', null],
         ['apps', 'sales', 'Credit Notes', 'receipt-text', '/sales/credit-notes', 'lite', null],
         ['apps', 'sales', 'Payments Received', 'hand-coins', '/sales/payments', 'lite', null],
+        ['apps', 'sales', 'Price Lists', 'tags', '/sales/price-lists', 'full', null],
         ['apps', 'sales', 'Sales Orders', 'clipboard-list', '/sales/orders', 'full', null],
+        // Doc 16 Phase C: delivery notes.
+        ['apps', 'sales', 'Deliveries', 'truck', '/sales/deliveries', 'full', null],
+        ['apps', 'sales', 'Returns', 'undo-2', '/sales/returns', 'full', null],
         // Doc 16 Phase A: the Sales Overview, and the customers in the shared Contacts page.
         ['apps', 'sales', 'Overview', 'layout-dashboard', '/sales/overview', 'full', null],
         ['apps', 'sales', 'Customers', 'users', '/contacts?role=customer', 'full', null],
@@ -199,8 +203,11 @@ class AppCatalogSeeder extends Seeder
         '/sales/quotations'   => 'sales.quotations.view',
         '/sales/proformas'    => 'sales.proformas.view',
         '/sales/orders'       => 'sales.orders.view',
+        '/sales/deliveries'   => 'sales.deliveries.view',
+        '/sales/returns'      => 'sales.returns.view',
         '/sales/credit-notes' => 'sales.credit_notes.view',
         '/sales/payments'     => 'sales.payments.view',
+        '/sales/price-lists'  => 'sales.price_lists.view',
         '/sales/overview'     => 'sales.values.view',
         '/contacts?role=customer' => 'contacts.view',
         '/purchases'          => 'purchases.purchases.view',

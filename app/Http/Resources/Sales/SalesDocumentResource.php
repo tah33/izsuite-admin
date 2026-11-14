@@ -7,8 +7,18 @@ use App\Enums\DocumentType;
 use App\Enums\SalesDocumentStatus;
 use App\Http\Resources\Concerns\HidesValues;
 use App\Http\Resources\Contacts\ContactResource;
+use App\Repositories\User\CustomerAdvanceRepository;
+use App\Repositories\User\SalesAllocationRepository;
+use App\Repositories\User\SalesDeliveryRepository;
+use App\Repositories\User\SalesReturnRepository;
+use App\Models\User\SalesReturn;
+use App\Models\User\CustomerAdvance;
+use App\Models\User\SalesDelivery;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesDocumentLine;
+use App\Services\Api\Sales\CustomerAdvanceService;
+use App\Services\Api\Sales\SalesOrderDeposits;
+use App\Services\Api\Sales\SalesDeliveryService;
 use App\Services\Api\Sales\SalesOrderInvoicing;
 use App\Services\Api\Sales\SalesSnapshots;
 use App\Services\Documents\DocumentLinks;
@@ -41,7 +51,7 @@ class SalesDocumentResource extends JsonResource
     /** What a user without Sales Values does not see (Doc 12 section 14). */
     private const VALUES = [
         'discount_value', 'subtotal', 'discount_total', 'tax_total', 'grand_total', 'net_total', 'base_grand_total', 'taxes' => [],
-        'amount_paid', 'withholding_amount', 'credited_amount', 'applied_amount', 'refunded_amount', 'balance_due', 'refundable',
+        'amount_paid', 'withholding_amount', 'credited_amount', 'applied_amount', 'refunded_amount', 'allocated_amount', 'balance_due', 'refundable',
     ];
 
     public function __construct($resource, private string $today)
@@ -95,9 +105,24 @@ class SalesDocumentResource extends JsonResource
             'discount_type'        => $this->discount_type,
             'discount_value'       => $this->discount_value,
             'progress'             => $this->type === DocumentType::SalesOrder ? $this->progress($request) : null,
+            // A sales order's delivery notes (Phase C).
+            'deliveries'           => $this->type === DocumentType::SalesOrder
+                ? app(SalesDeliveryRepository::class)->forOrder($this->resource)->map(fn (SalesDelivery $delivery) => $delivery->only(['id', 'number', 'status', 'delivery_date', 'delivered_on']))->all()
+                : null,
+            // Its customer returns (Phase E).
+            'returns'              => $this->type === DocumentType::SalesOrder
+                ? app(SalesReturnRepository::class)->forOrder($this->resource)->map(fn (SalesReturn $return) => $return->only(['id', 'number', 'status', 'return_date']))->all()
+                : null,
             'lines'                => SalesDocumentLineResource::collection($this->lines),
             // An invoice made from a sales order, billing beyond what it had left: why (Doc 16 Phase B2).
             'over_invoice_reason'  => $this->when($this->type === DocumentType::Invoice, fn () => $this->over_invoice_reason),
+            // A sales order's deposit invoice (Doc 16 Phase D2), and an order's deposits with what is deducted of each.
+            'is_deposit'           => (bool) $this->is_deposit,
+            // Why its discount went past the role's limit (Doc 16 Phase F2).
+            'discount_reason'      => $this->discount_reason,
+            'deposits'             => $this->type === DocumentType::SalesOrder
+                ? array_map(fn (array $deposit) => $this->hideValues('sales', $deposit, ['grand_total', 'deducted']), app(SalesOrderDeposits::class)->forOrder($this->resource))
+                : null,
             'subtotal'             => $this->subtotal,
             'discount_total'       => $this->discount_total,
             'tax_total'            => $this->tax_total,
@@ -110,6 +135,8 @@ class SalesDocumentResource extends JsonResource
             'credited_amount'      => $this->credited_amount,
             'applied_amount'       => $this->applied_amount,
             'refunded_amount'      => $this->refunded_amount,
+            // An invoice's credit from advances and other credit notes; a credit note's applied to other invoices (Doc 16 Phase D1).
+            'allocated_amount'     => $this->allocated_amount,
             'balance_due'          => $this->balance_due,
             'refundable'           => $this->type === DocumentType::CreditNote ? $rules->refundable($this->resource) : null,
             'notes'                => $this->notes,
@@ -128,6 +155,16 @@ class SalesDocumentResource extends JsonResource
                 'payment_status' => $note->payment_status,
             ], ['grand_total', 'balance_due']))->all(),
             'payments'             => SalesPaymentListResource::collection($this->payments),
+            // Credit applied to an invoice, or out of a credit note, the removed ones too (Doc 16 Phase D1).
+            'allocations'          => in_array($this->type, [DocumentType::Invoice, DocumentType::CreditNote], true)
+                ? SalesAllocationResource::collection(app(SalesAllocationRepository::class)->historyOf($this->resource))
+                : null,
+            // A sales order's advances, or those kept from payments over an invoice.
+            'advances'             => in_array($this->type, [DocumentType::SalesOrder, DocumentType::Invoice], true)
+                ? $this->hideValues('sales', ['rows' => app(CustomerAdvanceRepository::class)->forDocument($this->resource)->map(fn (CustomerAdvance $advance) => $advance->only(['id', 'number', 'status', 'payment_date', 'currency', 'amount', 'balance']))->all()], ['rows' => []])['rows']
+                : null,
+            // Whether a payment over the balance may be kept as the customer's advance, once confirmed (section 16.16).
+            'keeps_overpayments'   => $this->type === DocumentType::Invoice && app(CustomerAdvanceService::class)->keepsOverpayments($this->resource->workspace),
             'issued_at'            => $this->issued_at?->toIso8601String(),
             'delivery'             => app(AllowedActions::class)->delivery($this->type, $rules->delivery($this->resource, $this->today)),
             'link'                 => $this->activeLink ? new DocumentLinkResource(['link' => $this->activeLink, 'url' => app(DocumentLinks::class)->url($this->activeLink)]) : null,
@@ -150,9 +187,10 @@ class SalesDocumentResource extends JsonResource
      */
     private function progress(Request $request): array
     {
-        $invoicing = $this->status === SalesDocumentStatus::Confirmed
-            ? app(SalesOrderInvoicing::class)->lines($request->attributes->get('workspace'), $this->resource)
-            : [];
+        $confirmed  = $this->status === SalesDocumentStatus::Confirmed;
+        $invoicing  = $confirmed ? app(SalesOrderInvoicing::class)->lines($request->attributes->get('workspace'), $this->resource) : [];
+        // What is left to deliver of each, besides what open deliveries hold (Phase C).
+        $delivering = $confirmed ? app(SalesDeliveryService::class)->left($this->resource) : [];
 
         return $this->lines->map(fn (SalesDocumentLine $line) => [
             'line_id'   => $line->id,
@@ -162,6 +200,8 @@ class SalesDocumentResource extends JsonResource
             'credited'  => $line->credited_quantity,
             'drafted'   => $invoicing[$line->id]['drafted'] ?? null,
             'left'      => $invoicing[$line->id]['left'] ?? null,
+            'to_deliver' => $delivering[$line->id]['left'] ?? null,
+            'on_deliveries' => $delivering[$line->id]['held'] ?? null,
         ])->all();
     }
 

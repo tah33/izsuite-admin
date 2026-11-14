@@ -25,6 +25,11 @@ class SalesDocumentLine extends Model
 {
     protected $fillable = [
         'source_line_id',
+        // A deduction of this deposit invoice (Doc 16 Phase D2): a negative line of a later invoice of its order.
+        'deposit_invoice_id',
+        // The price list and rule that priced it (Doc 16 Phase F1).
+        'price_list_id',
+        'price_list_rule_id',
         'position',
         'item_id',
         'name',
@@ -52,6 +57,9 @@ class SalesDocumentLine extends Model
 
     protected $casts = [
         'source_line_id'  => 'integer',
+        'deposit_invoice_id' => 'integer',
+        'price_list_id'      => 'integer',
+        'price_list_rule_id' => 'integer',
         'position'        => 'integer',
         'item_id'         => 'integer',
         'quantity'        => 'decimal:3',
@@ -73,6 +81,18 @@ class SalesDocumentLine extends Model
     public function document(): BelongsTo
     {
         return $this->belongsTo(SalesDocument::class, 'sales_document_id');
+    }
+
+    /** The deposit invoice this line deducts. */
+    public function depositInvoice(): BelongsTo
+    {
+        return $this->belongsTo(SalesDocument::class, 'deposit_invoice_id');
+    }
+
+    /** The price list that priced it. */
+    public function priceList(): BelongsTo
+    {
+        return $this->belongsTo(PriceList::class);
     }
 
     public function item(): BelongsTo

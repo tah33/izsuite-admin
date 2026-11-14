@@ -4,11 +4,14 @@ namespace App\Repositories\User;
 
 use App\Enums\DocumentType;
 use App\Enums\SalesDocumentStatus;
+use App\Models\User\CustomerAdvance;
 use App\Models\User\Item;
+use App\Models\User\SalesAllocation;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesDocumentLine;
 use App\Models\User\SalesPayment;
 use App\Models\User\Workspace;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -150,9 +153,22 @@ class SalesReportRepository
             ->where('sales_payments.payment_date', '<=', $asOf)
             ->groupBy('notes.source_id');
 
+        // Advances and credit notes applied to it by then, and its credit notes' credit applied elsewhere (Doc 16 Phase D1).
+        $allocatedIn = $this->allocationsAsOf($workspace, $asOf)
+            ->selectRaw('invoice_id, SUM(amount) as allocated_sum')
+            ->groupBy('invoice_id');
+
+        $allocatedOut = $this->allocationsAsOf($workspace, $asOf)
+            ->join('sales_documents as given', 'given.id', '=', 'sales_allocations.credit_note_id')
+            ->selectRaw('given.source_id, SUM(sales_allocations.amount) as given_sum')
+            ->groupBy('given.source_id');
+
         return $this->documents($workspace, DocumentType::Invoice, $filters, 'sales_documents.')
             ->select(array_map(fn (string $column) => "sales_documents.{$column}", self::FIGURES))
             ->selectRaw('COALESCE(p.paid_sum, 0) as paid_by, COALESCE(p.withheld_sum, 0) as withheld_by, COALESCE(c.credited_sum, 0) as credited_by, COALESCE(r.refunded_sum, 0) as refunded_by')
+            ->selectRaw('COALESCE(a.allocated_sum, 0) as allocated_by, COALESCE(g.given_sum, 0) as given_by')
+            ->leftJoinSub($allocatedIn, 'a', 'a.invoice_id', '=', 'sales_documents.id')
+            ->leftJoinSub($allocatedOut, 'g', 'g.source_id', '=', 'sales_documents.id')
             ->leftJoinSub($payments, 'p', 'p.sales_document_id', '=', 'sales_documents.id')
             ->leftJoinSub($credits, 'c', 'c.source_id', '=', 'sales_documents.id')
             ->leftJoinSub($refunds, 'r', 'r.source_id', '=', 'sales_documents.id')
@@ -161,6 +177,37 @@ class SalesReportRepository
             ->orderBy('sales_documents.due_date')
             ->orderBy('sales_documents.id')
             ->get();
+    }
+
+    /** Allocations standing at the end of $asOf: made by then, and not taken off before the next day. */
+    private function allocationsAsOf(Workspace $workspace, string $asOf): Builder
+    {
+        return SalesAllocation::query()
+            ->where('sales_allocations.workspace_id', $workspace->id)
+            ->where('sales_allocations.allocation_date', '<=', $asOf)
+            ->where(fn (Builder $query) => $query->where('sales_allocations.status', SalesAllocation::ACTIVE)
+                ->orWhere('sales_allocations.removed_at', '>=', CarbonImmutable::parse($asOf)->addDay()->startOfDay()));
+    }
+
+    /**
+     * A customer's advances paid from $from to $to, not reversed (Doc 16
+     * Phase D1): their statement's money paid ahead. One taken at no location
+     * shows wherever its customer does.
+     */
+    public function advancesFor(Workspace $workspace, string $from, string $to, array $filters = []): Collection
+    {
+        $locations = $filters['location_ids'] ?? null;
+
+        return CustomerAdvance::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('status', CustomerAdvance::COMPLETED)
+            ->whereBetween('payment_date', [$from, $to])
+            ->when($filters['contact_id'] ?? null, fn (Builder $query, $id) => $query->where('contact_id', $id))
+            ->when($filters['currency'] ?? null, fn (Builder $query, string $currency) => $query->where('currency', $currency))
+            ->when($locations !== null, fn (Builder $query) => $query->where(fn (Builder $query) => $query->whereNull('location_id')->orWhereIn('location_id', $locations)))
+            ->orderBy('payment_date')
+            ->orderBy('id')
+            ->get(['id', 'number', 'payment_date', 'currency', 'amount', 'base_amount']);
     }
 
     /**

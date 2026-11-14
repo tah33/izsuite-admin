@@ -50,15 +50,17 @@ class SalesFigures
 
     /**
      * What an invoice from invoicesAsOf() still owed that day: its total less
-     * payments and tax withheld, less its credit notes' credit not refunded -
-     * never below zero (see InvoiceSettlement).
+     * payments and tax withheld, less the advances and other credit notes
+     * applied to it, less its credit notes' credit not refunded or applied
+     * elsewhere - never below zero (see InvoiceSettlement).
      */
     public function owedAsOf(SalesDocument $invoice): string
     {
         $settled = Decimal::sum([
             Decimal::of($invoice->paid_by),
             Decimal::of($invoice->withheld_by),
-            bcsub(Decimal::of($invoice->credited_by), Decimal::of($invoice->refunded_by), 2),
+            Decimal::of($invoice->allocated_by),
+            bcsub(bcsub(Decimal::of($invoice->credited_by), Decimal::of($invoice->refunded_by), 2), Decimal::of($invoice->given_by), 2),
         ]);
         $owed = bcsub((string) $invoice->grand_total, $settled, 2);
 

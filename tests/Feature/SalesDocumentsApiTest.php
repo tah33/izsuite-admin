@@ -139,8 +139,8 @@ class SalesDocumentsApiTest extends TestCase
         $this->getJson("/api/v1/sales/invoices/{$id}")->assertOk();
         $this->getJson("/api/v1/sales/quotations/{$id}")->assertNotFound()->assertJsonPath('message', 'Quotation not found.');
         $this->getJson("/api/v1/sales/invoices/{$id}", $this->pick($other))->assertNotFound();
-        // A kind still to come (Doc 16 Phase E).
-        $this->getJson('/api/v1/sales/returns')->assertNotFound();
+        // Returns are the full Sales app's (Doc 16 Phase E).
+        $this->getJson('/api/v1/sales/returns')->assertForbidden();
     }
 
     public function test_a_draft_is_changed_with_its_totals_worked_out_again_and_deleted(): void

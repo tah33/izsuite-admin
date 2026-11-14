@@ -105,6 +105,7 @@ class SalesDocument extends Model
         'credited_amount',
         'applied_amount',
         'refunded_amount',
+        'allocated_amount',
         'balance_due',
         'notes',
         'internal_notes',
@@ -117,6 +118,10 @@ class SalesDocument extends Model
         'status_reason',
         // An invoice billing beyond what its sales order had left: why (Doc 16 Phase B2).
         'over_invoice_reason',
+        // A sales order's deposit invoice (Doc 16 Phase D2).
+        'is_deposit',
+        // Why its discount goes past the user's role's (Doc 16 Phase F2).
+        'discount_reason',
         'reason',
         'issued_at',
         'confirmed_at',
@@ -152,8 +157,10 @@ class SalesDocument extends Model
         'amount_paid'        => 'decimal:2',
         'withholding_amount' => 'decimal:2',
         'credited_amount'    => 'decimal:2',
+        'is_deposit'         => 'boolean',
         'applied_amount'     => 'decimal:2',
         'refunded_amount'    => 'decimal:2',
+        'allocated_amount'   => 'decimal:2',
         'balance_due'        => 'decimal:2',
         'business_snapshot' => 'array',
         'customer_snapshot' => 'array',
@@ -222,6 +229,24 @@ class SalesDocument extends Model
     public function conversions(): HasMany
     {
         return $this->hasMany(self::class, 'source_id')->where('type', '!=', DocumentType::CreditNote->value)->orderBy('id');
+    }
+
+    /** A sales order's delivery notes (Doc 16 Phase C), oldest first. */
+    public function deliveries(): HasMany
+    {
+        return $this->hasMany(SalesDelivery::class)->orderBy('id');
+    }
+
+    /** An invoice's advances and other credit notes applied to it (Doc 16 Phase D1), the removed ones too, oldest first. */
+    public function allocationsIn(): HasMany
+    {
+        return $this->hasMany(SalesAllocation::class, 'invoice_id')->orderBy('id');
+    }
+
+    /** A credit note's credit applied to other invoices (Doc 16 Phase D1), the removed ones too, oldest first. */
+    public function allocationsOut(): HasMany
+    {
+        return $this->hasMany(SalesAllocation::class, 'credit_note_id')->orderBy('id');
     }
 
     /** An invoice's credit notes, in the order they were made. */

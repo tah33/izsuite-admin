@@ -66,6 +66,7 @@ class RoleService
             'name'        => $data['name'],
             'description' => $data['description'] ?? null,
             'full_access' => (bool) ($data['full_access'] ?? false),
+            'max_discount' => $data['max_discount'] ?? null,
             'permissions' => ($data['full_access'] ?? false) ? [] : Permissions::expand(array_values(array_intersect($data['permissions'] ?? [], $this->available($workspace)))),
         ]);
 
@@ -94,6 +95,7 @@ class RoleService
             'name'        => $data['name'],
             'description' => $data['description'] ?? null,
             'full_access' => $full,
+            'max_discount' => $data['max_discount'] ?? null,
             'permissions' => $full ? [] : Permissions::expand([...$kept, ...array_intersect($data['permissions'] ?? [], $available)]),
         ]);
 
@@ -120,6 +122,7 @@ class RoleService
             'name'        => $this->copyName($workspace, $source->name),
             'description' => $source->description,
             'full_access' => $source->full_access,
+            'max_discount' => $source->max_discount,
             'permissions' => $source->permissions ?? [],
         ]);
 

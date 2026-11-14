@@ -38,6 +38,8 @@ class SalesConversionService
     private const LINE_FIELDS = [
         'position', 'item_id', 'name', 'description', 'quantity', 'unit', 'unit_price', 'discount_type', 'discount_value',
         'tax_rate_id', 'tax_name', 'tax_code', 'tax_rate', 'tax_treatment', 'components', 'warranty',
+        // Its price list and rule go with its price (Doc 16 Phase F1).
+        'price_list_id', 'price_list_rule_id',
     ];
 
     public function __construct(
@@ -46,6 +48,7 @@ class SalesConversionService
         protected SalesDocumentService $salesDocumentService,
         protected SalesDocumentRules $salesDocumentRules,
         protected SalesOrderInvoicing $salesOrderInvoicing,
+        protected SalesOrderDeposits $salesOrderDeposits,
     ) {}
 
     /**
@@ -76,13 +79,20 @@ class SalesConversionService
         $beyond = $this->salesOrderInvoicing->check($workspace, $order, $chosen, $reason);
         $header = [...$this->header($workspace, $order, DocumentType::Invoice, $today, $user), 'over_invoice_reason' => $beyond ? $reason : null];
 
-        [$totals, $rows] = $this->salesDocumentService->totals($header, $order->lines
+        $sold = $order->lines
             ->filter(fn (SalesDocumentLine $line) => isset($chosen[$line->id]))
             ->values()
             ->map(fn (SalesDocumentLine $line, int $index) => [
                 ...$line->only(self::LINE_FIELDS), 'position' => $index + 1, 'quantity' => (string) $chosen[$line->id], 'source_line_id' => $line->id,
             ])
-            ->all());
+            ->all();
+
+        [$totals, $rows] = $this->salesDocumentService->totals($header, $sold);
+
+        // The order's issued deposits, deducted as far as this invoice goes (Doc 16 Phase D2).
+        if ($deductions = $this->salesOrderDeposits->deductions($order, (string) $totals['grand_total'], count($sold))) {
+            [$totals, $rows] = $this->salesDocumentService->totals($header, [...$sold, ...$deductions]);
+        }
 
         $invoice = DB::transaction(function () use ($workspace, $header, $totals, $rows) {
             $invoice = $this->salesDocumentRepository->create($workspace, [...$header, ...$totals]);
@@ -93,6 +103,54 @@ class SalesConversionService
         });
 
         ActivityLogService::record('created', 'Made a draft invoice from '.$this->salesDocumentService->describe($order).($beyond ? " beyond what it had left: {$reason}" : ''), $invoice, ['source' => 'api']);
+
+        return $this->salesDocumentRepository->loadShown($invoice);
+    }
+
+    /**
+     * A draft deposit invoice of a confirmed sales order (Doc 16 section
+     * 16.14): $data's fixed amount or percentage of its total, as one line
+     * without tax and without the order's discount - the final invoice charges
+     * the tax. Past what the order may still bill it needs the permission and
+     * a reason (SalesOrderDeposits::checkValue).
+     */
+    public function depositOrder(Workspace $workspace, int $id, array $data, User $user): SalesDocument
+    {
+        $order = $this->salesDocumentService->find($workspace, DocumentType::SalesOrder, $id);
+        $today = $this->salesDocumentService->today($workspace);
+
+        if (! $this->salesDocumentRules->allows($order, 'create_deposit', $today)) {
+            $this->refuse('Only a confirmed sales order takes a deposit invoice. Resume one on hold first.');
+        }
+
+        $amount = $this->salesOrderDeposits->amountOf($order, $data['type'], (string) $data['value']);
+        $reason = filled($data['reason'] ?? null) ? trim($data['reason']) : null;
+        $beyond = $this->salesOrderDeposits->checkValue($order, $amount, $reason);
+
+        $header = [
+            ...$this->header($workspace, $order, DocumentType::Invoice, $today, $user),
+            'discount_type'       => null,
+            'discount_value'      => null,
+            'is_deposit'          => true,
+            'over_invoice_reason' => $beyond ? $reason : null,
+        ];
+
+        [$totals, $rows] = $this->salesDocumentService->totals($header, [[
+            'position' => 1, 'item_id' => null, 'name' => "Deposit for Sales Order {$order->number}", 'description' => $data['type'] === 'percent' ? "{$data['value']}% of the order" : null,
+            'quantity' => '1', 'unit' => null, 'unit_price' => $amount, 'discount_type' => null, 'discount_value' => null,
+            'tax_rate_id' => null, 'tax_name' => null, 'tax_code' => null, 'tax_rate' => null, 'tax_treatment' => null, 'components' => null, 'warranty' => null,
+            'source_line_id' => null, 'deposit_invoice_id' => null,
+        ]]);
+
+        $invoice = DB::transaction(function () use ($workspace, $header, $totals, $rows) {
+            $invoice = $this->salesDocumentRepository->create($workspace, [...$header, ...$totals]);
+
+            $this->salesDocumentRepository->replaceLines($invoice, $rows);
+
+            return $invoice;
+        });
+
+        ActivityLogService::record('created', "Made a draft deposit invoice of {$order->currency} {$amount} from ".$this->salesDocumentService->describe($order).($beyond ? " past its total: {$reason}" : ''), $invoice, ['source' => 'api']);
 
         return $this->salesDocumentRepository->loadShown($invoice);
     }

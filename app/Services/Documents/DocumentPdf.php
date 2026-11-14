@@ -5,6 +5,7 @@ namespace App\Services\Documents;
 use App\Models\User\Expense;
 use App\Models\User\ExpensePayment;
 use App\Models\User\Purchase;
+use App\Models\User\SalesDelivery;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesPayment;
 use App\Models\User\SupplierPayment;
@@ -27,6 +28,12 @@ class DocumentPdf
     public function sales(Workspace $workspace, SalesDocument $document): array
     {
         return $this->made($this->documentRenderer->sales($workspace, $document));
+    }
+
+    /** @return array{0: string, 1: string} a sales order's delivery note (Doc 16 Phase C) */
+    public function delivery(Workspace $workspace, SalesDelivery $delivery): array
+    {
+        return $this->made($this->documentRenderer->delivery($workspace, $delivery));
     }
 
     /** @return array{0: string, 1: string} */

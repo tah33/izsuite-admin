@@ -27,6 +27,8 @@ class WorkspaceRole extends Model
         'name',
         'description',
         'full_access',
+        // The largest discount it gives, as a percentage - null for no limit (Doc 16 Phase F2).
+        'max_discount',
         'permissions',
         'is_active',
     ];
@@ -38,6 +40,7 @@ class WorkspaceRole extends Model
 
     protected $casts = [
         'full_access' => 'boolean',
+        'max_discount' => 'decimal:2',
         'permissions' => 'array',
         'is_active'   => 'boolean',
     ];

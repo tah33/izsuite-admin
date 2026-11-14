@@ -60,6 +60,8 @@ class SalesDocumentService
         protected ExchangeRateService $exchangeRateService,
         protected SalesOrderProgress $salesOrderProgress,
         protected SalesOrderAmendments $salesOrderAmendments,
+        protected SalesOrderDeposits $salesOrderDeposits,
+        protected SalesPricingChecks $salesPricingChecks,
     ) {}
 
     /** The business's today, which expiry and overdue are measured by: "2026-10-28". */
@@ -93,7 +95,13 @@ class SalesDocumentService
                 'updated_by'     => $user->id,
             ];
 
-            [$totals, $rows] = $this->totals($header, $this->salesLines->rows($workspace, $data['lines'] ?? []));
+            // Made here, it comes from no order, so it deducts no deposit (Doc 16 Phase D2).
+            $lines = $this->salesOrderDeposits->checkLines(null, $this->salesLines->rows($workspace, $data['lines'] ?? []));
+
+            // Its prices and discounts, within what the user may give (Doc 16 Phase F2).
+            $this->salesPricingChecks->check($workspace, $header, $lines, null);
+
+            [$totals, $rows] = $this->totals($header, $lines);
 
             $document = $this->salesDocumentRepository->create($workspace, [...$header, ...$totals]);
             // Made here, it comes from nothing: its lines link to none.
@@ -129,7 +137,13 @@ class SalesDocumentService
         $revised = DB::transaction(function () use ($workspace, $type, $user, $data, $document, $before) {
             $header = [...$this->header($workspace, $type, $data), 'updated_by' => $user->id];
 
-            [$totals, $rows] = $this->totals([...$header, ...$document->only(['price_tax_mode', 'tax_rounding'])], $this->salesLines->rows($workspace, $data['lines'] ?? []));
+            // An invoice of a sales order keeps deducting its deposits, within what each has left (Doc 16 Phase D2).
+            $lines = $this->salesOrderDeposits->checkLines($document, $this->salesLines->rows($workspace, $data['lines'] ?? []));
+
+            // Its prices and discounts, within what the user may give (Doc 16 Phase F2).
+            $this->salesPricingChecks->check($workspace, $header, $lines, $document);
+
+            [$totals, $rows] = $this->totals([...$header, ...$document->only(['price_tax_mode', 'tax_rounding'])], $lines);
             $rows = $this->sourceLinks($document, $rows);
 
             $this->salesDocumentRepository->update($document, [...$header, ...$totals]);
@@ -301,6 +315,8 @@ class SalesDocumentService
             ...$this->fullFields($data),
             // An invoice made from a sales order: why it may bill beyond what the order has left - kept unless its form says (Phase B2).
             ...($type === DocumentType::Invoice && array_key_exists('over_invoice_reason', $data) ? ['over_invoice_reason' => filled($data['over_invoice_reason']) ? trim($data['over_invoice_reason']) : null] : []),
+            // Why its discount goes past what the user's role gives (Doc 16 Phase F2).
+            ...(array_key_exists('discount_reason', $data) ? ['discount_reason' => filled($data['discount_reason']) ? trim($data['discount_reason']) : null] : []),
         ];
     }
 

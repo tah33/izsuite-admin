@@ -20,6 +20,8 @@ class RoleResource extends RoleListResource
         return [
             ...parent::toArray($request),
             'permissions' => $this->full_access ? [] : ($this->permissions ?? []),
+            // The largest discount it gives (Doc 16 Phase F2).
+            'max_discount' => $this->max_discount,
             'yours'       => $this->id === app(WorkspaceAccess::class)->role(),
         ];
     }

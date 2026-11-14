@@ -30,6 +30,7 @@ class AccountTransaction extends Model
     public const TYPES = [
         'customer_payment' => self::IN,
         'customer_refund'  => self::OUT,
+        'customer_advance' => self::IN,
         'transfer_in'      => self::IN,
         'transfer_out'     => self::OUT,
         'supplier_payment' => self::OUT,
@@ -40,6 +41,7 @@ class AccountTransaction extends Model
     public const LABELS = [
         'customer_payment' => 'Customer Payment',
         'customer_refund'  => 'Customer Refund',
+        'customer_advance' => 'Customer Advance',
         'transfer_in'      => 'Transfer In',
         'transfer_out'     => 'Transfer Out',
         'supplier_payment' => 'Supplier Payment',

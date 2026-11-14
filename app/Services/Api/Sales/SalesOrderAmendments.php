@@ -3,6 +3,7 @@
 namespace App\Services\Api\Sales;
 
 use App\Models\User\SalesDocument;
+use App\Repositories\User\SalesDeliveryRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use Illuminate\Validation\ValidationException;
 
@@ -17,6 +18,7 @@ class SalesOrderAmendments
 {
     public function __construct(
         protected SalesDocumentRepository $salesDocumentRepository,
+        protected SalesDeliveryRepository $salesDeliveryRepository,
     ) {}
 
     /** $data is validated (AmendSalesOrderRequest); $order has its lines. */
@@ -52,8 +54,8 @@ class SalesOrderAmendments
 
         $removed = $lines->keys()->diff($kept)->values()->all();
 
-        if ($removed !== [] && $this->salesDocumentRepository->linesInUse($removed)) {
-            $errors['lines'] = 'A line delivered, invoiced or made into another document stays. Change its quantity instead.';
+        if ($removed !== [] && ($this->salesDocumentRepository->linesInUse($removed) || $this->salesDeliveryRepository->linesOnDeliveries($removed))) {
+            $errors['lines'] = 'A line delivered, on a delivery, invoiced or made into another document stays. Change its quantity instead.';
         }
 
         if ($errors) {

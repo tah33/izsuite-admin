@@ -77,6 +77,15 @@ use App\Http\Controllers\Api\RegionalSettingController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SalesConversionController;
+use App\Http\Controllers\Api\CustomerAdvanceController;
+use App\Http\Controllers\Api\PriceListController;
+use App\Http\Controllers\Api\SalesAllocationController;
+use App\Http\Controllers\Api\SalesReturnAttachmentController;
+use App\Http\Controllers\Api\SalesReturnController;
+use App\Http\Controllers\Api\SalesReturnFlowController;
+use App\Http\Controllers\Api\SalesDeliveryAttachmentController;
+use App\Http\Controllers\Api\SalesDeliveryController;
+use App\Http\Controllers\Api\SalesDeliveryFlowController;
 use App\Http\Controllers\Api\SalesDocumentAttachmentController;
 use App\Http\Controllers\Api\SalesDocumentController;
 use App\Http\Controllers\Api\SalesDocumentFlowController;
@@ -589,6 +598,69 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:sales', 'access'])->prefix('sales')->group(function () {
         Route::post('/calculate', [SalesFormController::class, 'calculate'])->name('api.sales.calculate');
 
+        // Deliveries (Doc 16 Phase C): a sales order's delivery notes, the full Sales app's.
+        Route::middleware('app:sales,full')->group(function () {
+            Route::post('/orders/{id}/deliveries', [SalesDeliveryController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.sales.deliveries.store');
+
+            Route::prefix('deliveries')->group(function () {
+                Route::get('/', [SalesDeliveryController::class, 'index'])->name('api.sales.deliveries.index');
+                Route::get('/{id}', [SalesDeliveryController::class, 'show'])->whereNumber('id')->name('api.sales.deliveries.show');
+                Route::put('/{id}', [SalesDeliveryController::class, 'update'])->whereNumber('id')->name('api.sales.deliveries.update');
+                Route::delete('/{id}', [SalesDeliveryController::class, 'destroy'])->whereNumber('id')->name('api.sales.deliveries.destroy');
+                Route::get('/{id}/pdf', [SalesDeliveryController::class, 'pdf'])->whereNumber('id')->name('api.sales.deliveries.pdf');
+
+                foreach (['ready', 'deliver', 'cancel'] as $action) {
+                    Route::post("/{id}/{$action}", [SalesDeliveryFlowController::class, $action])->whereNumber('id')->name("api.sales.deliveries.{$action}");
+                }
+
+                Route::get('/{id}/attachments', [SalesDeliveryAttachmentController::class, 'index'])->whereNumber('id')->name('api.sales.deliveries.attachments.index');
+                Route::post('/{id}/attachments', [SalesDeliveryAttachmentController::class, 'store'])->whereNumber('id')->name('api.sales.deliveries.attachments.store');
+                Route::delete('/{id}/attachments/{fileId}', [SalesDeliveryAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.sales.deliveries.attachments.destroy');
+            });
+
+            // Price lists, and what a sales form's lines cost by them (Doc 16 Phase F1).
+            Route::prefix('price-lists')->group(function () {
+                Route::get('/', [PriceListController::class, 'index'])->name('api.sales.price-lists.index');
+                Route::post('/', [PriceListController::class, 'store'])->middleware('idempotent')->name('api.sales.price-lists.store');
+                Route::get('/{id}', [PriceListController::class, 'show'])->whereNumber('id')->name('api.sales.price-lists.show');
+                Route::put('/{id}', [PriceListController::class, 'update'])->whereNumber('id')->name('api.sales.price-lists.update');
+                Route::delete('/{id}', [PriceListController::class, 'destroy'])->whereNumber('id')->name('api.sales.price-lists.destroy');
+            });
+            Route::post('/prices', [PriceListController::class, 'quote'])->name('api.sales.prices');
+
+            // Customer returns of an order's delivered goods (Doc 16 Phase E).
+            Route::post('/orders/{id}/returns', [SalesReturnController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.sales.returns.store');
+
+            Route::prefix('returns')->group(function () {
+                Route::get('/', [SalesReturnController::class, 'index'])->name('api.sales.returns.index');
+                Route::get('/{id}', [SalesReturnController::class, 'show'])->whereNumber('id')->name('api.sales.returns.show');
+                Route::put('/{id}', [SalesReturnController::class, 'update'])->whereNumber('id')->name('api.sales.returns.update');
+                Route::delete('/{id}', [SalesReturnController::class, 'destroy'])->whereNumber('id')->name('api.sales.returns.destroy');
+
+                foreach (['submit', 'authorise', 'reject', 'receive', 'complete', 'cancel'] as $step) {
+                    Route::post("/{id}/{$step}", [SalesReturnFlowController::class, $step])->whereNumber('id')->name("api.sales.returns.{$step}");
+                }
+
+                Route::get('/{id}/attachments', [SalesReturnAttachmentController::class, 'index'])->whereNumber('id')->name('api.sales.returns.attachments.index');
+                Route::post('/{id}/attachments', [SalesReturnAttachmentController::class, 'store'])->whereNumber('id')->name('api.sales.returns.attachments.store');
+                Route::delete('/{id}/attachments/{fileId}', [SalesReturnAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.sales.returns.attachments.destroy');
+            });
+
+            // Customer advances and credit applied to invoices (Doc 16 Phase D1).
+            Route::prefix('advances')->group(function () {
+                Route::get('/', [CustomerAdvanceController::class, 'index'])->name('api.sales.advances.index');
+                Route::post('/', [CustomerAdvanceController::class, 'store'])->middleware('idempotent')->name('api.sales.advances.store');
+                Route::get('/{id}', [CustomerAdvanceController::class, 'show'])->whereNumber('id')->name('api.sales.advances.show');
+                Route::post('/{id}/reverse', [CustomerAdvanceController::class, 'reverse'])->whereNumber('id')->name('api.sales.advances.reverse');
+                Route::get('/{id}/invoices', [SalesAllocationController::class, 'advanceTargets'])->whereNumber('id')->name('api.sales.advances.invoices');
+            });
+
+            Route::get('/invoices/{id}/credit', [SalesAllocationController::class, 'sources'])->whereNumber('id')->name('api.sales.allocations.sources');
+            Route::post('/invoices/{id}/allocations', [SalesAllocationController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.sales.allocations.store');
+            Route::get('/credit-notes/{id}/invoices', [SalesAllocationController::class, 'noteTargets'])->whereNumber('id')->name('api.sales.allocations.note-invoices');
+            Route::post('/allocations/{id}/remove', [SalesAllocationController::class, 'remove'])->whereNumber('id')->name('api.sales.allocations.remove');
+        });
+
         // The full Sales app's (Doc 16 Phase A): its Overview, and whom the form can name as salesperson and team.
         Route::middleware('app:sales,full')->group(function () {
             Route::get('/overview', [SalesOverviewController::class, 'show'])->name('api.sales.overview');
@@ -651,6 +723,8 @@ Route::prefix('v1')->group(function () {
             Route::post('/{id}/duplicate', [SalesConversionController::class, 'duplicate'])->whereNumber('id')->middleware('idempotent')->name('api.sales.duplicate');
             // A sales order's lines invoiced, some or all (Doc 16 Phase B2).
             Route::post('/{id}/invoice', [SalesConversionController::class, 'invoice'])->whereNumber('id')->middleware('idempotent')->name('api.sales.invoice');
+            // A deposit invoice of a confirmed sales order (Doc 16 Phase D2).
+            Route::post('/{id}/deposit', [SalesConversionController::class, 'deposit'])->whereNumber('id')->middleware('idempotent')->name('api.sales.deposit');
             Route::get('/{id}/revisions', [SalesDocumentRevisionController::class, 'index'])->whereNumber('id')->name('api.sales.revisions.index');
             Route::get('/{id}/revisions/{revision}', [SalesDocumentRevisionController::class, 'show'])->whereNumber(['id', 'revision'])->name('api.sales.revisions.show');
         });

@@ -5,6 +5,7 @@ namespace App\Services\Shared;
 use App\Enums\DocumentType;
 use App\Enums\Edition;
 use App\Models\User\Workspace;
+use App\Repositories\User\SalesSettingRepository;
 use App\Services\User\Apps\WorkspaceApps;
 use Illuminate\Http\Request;
 
@@ -33,7 +34,12 @@ class AllowedActions
         $kind = $type->permissionGroup();
 
         if (! $this->fullSales()) {
-            $actions = $type->edition() === Edition::Full ? [] : array_values(array_diff($actions, ['convert_to_sales_order']));
+            $actions = $type->edition() === Edition::Full ? [] : array_values(array_diff($actions, ['convert_to_sales_order', 'apply_credit']));
+        }
+
+        // Advances are taken only where Settings > Sales has them on (Doc 16 section 16.15).
+        if (in_array('record_advance', $actions, true) && ! $this->advancesOn()) {
+            $actions = array_values(array_diff($actions, ['record_advance']));
         }
 
         return $this->keep($actions, [
@@ -56,6 +62,11 @@ class AllowedActions
             'convert_to_invoice'     => 'sales.invoices.create',
             'create_proforma'        => 'sales.proformas.create',
             'create_invoice'         => 'sales.invoices.create',
+            'create_deposit'         => 'sales.invoices.create',
+            'create_return'          => 'sales.returns.create',
+            'create_delivery'        => 'sales.deliveries.create',
+            'record_advance'         => 'sales.advances.record',
+            'apply_credit'           => 'sales.advances.apply',
             'record_payment'         => 'sales.payments.record',
             'credit_note'            => 'sales.credit_notes.create',
             'refund'                 => $type === DocumentType::Invoice ? ['sales.credit_notes.create', 'sales.refunds.record'] : 'sales.refunds.record',
@@ -72,7 +83,56 @@ class AllowedActions
         return $this->access->can("{$type->permissionGroup()}.send") ? $ways : [];
     }
 
+    /** A delivery note's actions (Doc 16 Phase C): Ready and Delivered come under Mark Ready or Delivered. */
+    /** A customer return's (Doc 16 Phase E). */
+    public function salesReturn(array $actions): array
+    {
+        return $this->keep($actions, [
+            'edit'      => 'sales.returns.edit',
+            'submit'    => 'sales.returns.edit',
+            'authorise' => 'sales.returns.authorise',
+            'reject'    => 'sales.returns.authorise',
+            'receive'   => 'sales.returns.receive',
+            'complete'  => 'sales.returns.receive',
+            'cancel'    => 'sales.returns.cancel',
+            'delete'    => 'sales.returns.delete',
+        ]);
+    }
+
+    /** A customer advance's (Doc 16 Phase D1). */
+    public function advance(array $actions): array
+    {
+        return $this->keep($actions, ['apply' => 'sales.advances.apply', 'reverse' => 'sales.advances.reverse']);
+    }
+
+    public function deliveryNote(array $actions): array
+    {
+        return $this->keep($actions, [
+            'edit'    => 'sales.deliveries.edit',
+            'ready'   => 'sales.deliveries.deliver',
+            'deliver' => 'sales.deliveries.deliver',
+            'cancel'  => 'sales.deliveries.cancel',
+            'delete'  => 'sales.deliveries.delete',
+            'return'  => 'sales.returns.create',
+        ]);
+    }
+
     /** Whether the business the request is for has the full Sales app on. */
+    /** Settings > Sales's Customer Advances, read once a request. */
+    private function advancesOn(): bool
+    {
+        $request = app(Request::class);
+
+        if (! $request->attributes->has('sales.advances_on')) {
+            $workspace = $request->attributes->get('workspace');
+
+            $request->attributes->set('sales.advances_on', $workspace instanceof Workspace
+                && (bool) (app(SalesSettingRepository::class)->forWorkspace($workspace)->customer_advances ?? true));
+        }
+
+        return (bool) $request->attributes->get('sales.advances_on');
+    }
+
     private function fullSales(): bool
     {
         $workspace = app(Request::class)->attributes->get('workspace');

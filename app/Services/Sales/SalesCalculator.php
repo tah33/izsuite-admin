@@ -20,6 +20,8 @@ use App\Support\Decimal;
  *   6. The same totals in the base currency, at the exchange rate.
  *
  * A discount never goes past what it is taken from, so no total is negative.
+ * A deposit's deduction (Doc 16 Phase D2) is a negative line: it takes no
+ * share of the document discount, which is worked out on the other lines.
  */
 final class SalesCalculator
 {
@@ -39,9 +41,12 @@ final class SalesCalculator
             $rows[$key] = ['discount_amount' => $discount, 'amount' => bcsub($gross, $discount, 2), 'tax_amount' => '0.00'];
         }
 
+        $sold          = array_filter($rows, fn ($row, $key) => empty($lines[$key]['deduction']), ARRAY_FILTER_USE_BOTH);
         $subtotal      = Decimal::sum(array_column($rows, 'amount'));
-        $discountTotal = $this->discount($subtotal, $discountType, $discountValue);
-        $shares        = $this->share($discountTotal, array_map(fn (array $row) => $row['amount'], $rows), $subtotal);
+        $soldTotal     = Decimal::sum(array_column($sold, 'amount'));
+        $discountTotal = $this->discount($soldTotal, $discountType, $discountValue);
+        // Keyed as the lines are: array_replace() keeps their keys, where spreading would number them anew.
+        $shares        = array_replace(array_map(fn () => '0.00', $rows), $this->share($discountTotal, array_map(fn (array $row) => $row['amount'], $sold), $soldTotal));
 
         $groups = [];
 

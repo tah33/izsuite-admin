@@ -21,6 +21,8 @@ class SalesSetting extends Model
         'document_discounts',
         // The full Sales app's (Doc 16 Phase B): its orders invoice what was ordered or what was delivered.
         'invoice_policy',
+        // Doc 16 Phase D1: advances recorded, and overpayments kept as them.
+        'customer_advances',
         'notes',
         'terms',
     ];
@@ -32,6 +34,7 @@ class SalesSetting extends Model
         'line_discounts'     => true,
         'document_discounts' => true,
         'invoice_policy'     => 'ordered',
+        'customer_advances'  => true,
     ];
 
     protected $casts = [
@@ -40,6 +43,7 @@ class SalesSetting extends Model
         'proforma_validity'  => 'integer',
         'line_discounts'     => 'boolean',
         'document_discounts' => 'boolean',
+        'customer_advances'  => 'boolean',
     ];
 
     public function workspace(): BelongsTo

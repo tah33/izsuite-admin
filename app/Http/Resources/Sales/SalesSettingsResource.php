@@ -20,6 +20,8 @@ class SalesSettingsResource extends JsonResource
             'document_discounts' => $this->document_discounts,
             // The full Sales app's (Doc 16 Phase B2): how its sales orders are invoiced.
             'invoice_policy'     => $this->when(WorkspaceApps::requestHas('sales', Edition::Full), fn () => $this->invoice_policy),
+            // Doc 16 Phase D1: whether advances are taken, overpayments included.
+            'customer_advances'  => $this->when(WorkspaceApps::requestHas('sales', Edition::Full), fn () => $this->customer_advances),
             'notes'              => $this->notes,
             'terms'              => $this->terms,
         ];

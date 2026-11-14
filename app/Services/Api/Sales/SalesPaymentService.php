@@ -3,6 +3,7 @@
 namespace App\Services\Api\Sales;
 
 use App\Enums\DocumentType;
+use App\Enums\Edition;
 use App\Models\User\PaymentAccount;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesPayment;
@@ -19,6 +20,7 @@ use App\Services\Documents\DocumentTemplates;
 use App\Services\Sales\SalesDocumentRules;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\WorkspaceAccess;
+use App\Services\User\Apps\WorkspaceApps;
 use App\Support\Decimal;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -57,6 +59,7 @@ class SalesPaymentService
         protected DocumentTemplates $documentTemplates,
         protected WorkspaceAccess $access,
         protected RowLockRepository $rows,
+        protected CustomerAdvanceService $customerAdvanceService,
     ) {}
 
     public function list(Workspace $workspace, array $filters, int $perPage): LengthAwarePaginator
@@ -95,11 +98,22 @@ class SalesPaymentService
         $payment = DB::transaction(function () use ($workspace, $user, $data, $invoice, $account, $amount, $applied, $withholding) {
             // What is still due, read again with the invoice locked: a payment made meanwhile counts (Doc 14 section 22).
             $invoice = $this->rows->lock($invoice);
+            $extra   = bcsub(bcadd($applied, $withholding['withholding_amount'], 2), (string) $invoice->balance_due, 2);
 
-            if (bccomp(bcadd($applied, $withholding['withholding_amount'], 2), (string) $invoice->balance_due, 2) > 0) {
-                throw ValidationException::withMessages([
-                    $account->currency === $invoice->currency ? 'amount' : 'applied_amount' => "That comes to more than the {$invoice->currency} {$invoice->balance_due} still due. Overpayments are not taken in Sales Lite.",
-                ]);
+            // More than is due: refused - or, in the full Sales app and once the
+            // user confirmed it, the extra kept as the customer's advance (Doc 16
+            // section 16.16). The payment takes what is due, the advance the rest.
+            if (bccomp($extra, '0', 2) > 0) {
+                if (empty($data['keep_as_advance']) || bccomp($extra, $applied, 2) >= 0 || ! $this->customerAdvanceService->keepsOverpayments($workspace)) {
+                    throw ValidationException::withMessages([
+                        $account->currency === $invoice->currency ? 'amount' : 'applied_amount' => $this->overpaid($workspace, $invoice),
+                    ]);
+                }
+
+                $whole   = $amount;
+                $applied = bcsub($applied, $extra, 2);
+                $amount  = $account->currency === $invoice->currency ? $applied : Decimal::round(bcdiv(bcmul($whole, $applied, 10), bcadd($applied, $extra, 2), 10));
+                $kept    = bcsub($whole, $amount, 2);
             }
 
             $payment = $this->salesPaymentRepository->create($workspace, [
@@ -132,12 +146,16 @@ class SalesPaymentService
             $this->accountLedger->recordPayment($workspace, $payment);
             $this->invoiceSettlement->settle($invoice);
 
+            if (isset($kept)) {
+                $payment->setRelation('keptAdvance', $this->customerAdvanceService->keepExtra($workspace, $user, $account, $payment, $invoice, $extra, $kept));
+            }
+
             return $payment;
         });
 
         // Logged here, by what it is, so LogApiWriteActivity does not add its
         // own vaguer entry.
-        ActivityLogService::record('created', "Recorded payment {$payment->number} of {$account->currency} {$amount} for invoice {$invoice->number}", $payment, ['source' => 'api']);
+        ActivityLogService::record('created', "Recorded payment {$payment->number} of {$account->currency} {$payment->amount} for invoice {$invoice->number}", $payment, ['source' => 'api']);
 
         return $this->salesPaymentRepository->loadShown($payment);
     }
@@ -179,6 +197,20 @@ class SalesPaymentService
         ActivityLogService::record('updated', "Reversed {$what}", $payment, ['source' => 'api']);
 
         return $this->salesPaymentRepository->loadShown($payment);
+    }
+
+    /** Why a payment over the balance is refused, and - where it can be - how to keep the extra instead. */
+    private function overpaid(Workspace $workspace, SalesDocument $invoice): string
+    {
+        $more = "That comes to more than the {$invoice->currency} {$invoice->balance_due} still due.";
+
+        if (! WorkspaceApps::for($workspace)->has('sales', Edition::Full)) {
+            return "{$more} Overpayments are not taken in Sales Lite.";
+        }
+
+        return $this->customerAdvanceService->keepsOverpayments($workspace)
+            ? "{$more} Tick \"Keep the extra as an advance\" to keep the rest for the customer."
+            : $more;
     }
 
     /**

@@ -15,20 +15,23 @@ use App\Services\User\Apps\WorkspaceApps;
  */
 class DocumentTypes
 {
-    /** @return list<DocumentType> in DocumentType's order */
-    public function for(Workspace $workspace): array
+    /**
+     * @param  bool  $templated  only those with a template of their own - a delivery note has its order's (Doc 16 Phase C)
+     * @return list<DocumentType> in DocumentType's order
+     */
+    public function for(Workspace $workspace, bool $templated = false): array
     {
         $apps = WorkspaceApps::for($workspace);
 
-        return array_values(array_filter(DocumentType::cases(), fn (DocumentType $type) => $apps->has($type->family(), $type->edition())));
+        return array_values(array_filter(DocumentType::cases(), fn (DocumentType $type) => $apps->has($type->family(), $type->edition()) && (! $templated || $type->hasTemplate())));
     }
 
     /** The document type named in the address - 404 for one that is not, or whose app is off. */
-    public function named(Workspace $workspace, string $value): DocumentType
+    public function named(Workspace $workspace, string $value, bool $templated = false): DocumentType
     {
         $type = DocumentType::tryFrom($value);
 
-        abort_unless($type && in_array($type, $this->for($workspace), true), 404, 'There is no such kind of document.');
+        abort_unless($type && in_array($type, $this->for($workspace, $templated), true), 404, 'There is no such kind of document.');
 
         return $type;
     }

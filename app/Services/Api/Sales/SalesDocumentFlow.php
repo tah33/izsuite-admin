@@ -10,6 +10,7 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\DocumentLinkRepository;
 use App\Repositories\User\LocationRepository;
+use App\Repositories\User\SalesDeliveryRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Services\Api\BusinessSetup\ExchangeRateService;
 use App\Services\Documents\DocumentNumbers;
@@ -61,6 +62,8 @@ class SalesDocumentFlow
         protected LocationRepository $locationRepository,
         protected SalesOrderProgress $salesOrderProgress,
         protected SalesOrderInvoicing $salesOrderInvoicing,
+        protected SalesDeliveryRepository $salesDeliveryRepository,
+        protected SalesOrderDeposits $salesOrderDeposits,
     ) {}
 
     /**
@@ -182,8 +185,15 @@ class SalesDocumentFlow
      */
     public function cancel(Workspace $workspace, DocumentType $type, int $id, User $user, ?string $reason): SalesDocument
     {
-        if ($type === DocumentType::SalesOrder && $this->salesDocumentRepository->hasOpenInvoicesFrom($this->salesDocumentService->find($workspace, $type, $id))) {
+        $order = $type === DocumentType::SalesOrder ? $this->salesDocumentService->find($workspace, $type, $id) : null;
+
+        if ($order && $this->salesDocumentRepository->hasOpenInvoicesFrom($order)) {
             $this->refuse('Cancelling the order leaves its invoices as they are. Void or delete them first.');
+        }
+
+        // Its deliveries too (Phase C): a delivered one is returned, not cancelled, so the order is completed instead.
+        if ($order && $this->salesDeliveryRepository->hasActiveFor($order)) {
+            $this->refuse('Cancelling the order leaves its deliveries as they are. Cancel or delete them first - once one was delivered, complete the order instead.');
         }
 
         return $this->move($workspace, $type, $id, $user, 'cancel', SalesDocumentStatus::Cancelled, $reason, 'This cannot be cancelled. A draft is deleted instead.', 'Cancelled %s');
@@ -204,6 +214,11 @@ class SalesDocumentFlow
         $document = $this->allowed($workspace, $type, $id, 'void', $this->salesDocumentService->find($workspace, $type, $id)->status === SalesDocumentStatus::Issued
             ? 'Payments or credit notes have settled some of this invoice. Reverse its payments and void its credit notes first.'
             : 'Only an issued invoice can be voided. A draft is deleted instead.');
+
+        // A deposit its order's later invoices deduct stands while they do (Doc 16 Phase D2).
+        if ($document->is_deposit && $this->salesOrderDeposits->isDeducted($document)) {
+            $this->refuse('Later invoices of the order deduct this deposit. Void them, or take the deduction off a draft, first.');
+        }
 
         DB::transaction(function () use ($document, $user, $reason) {
             $this->salesDocumentRepository->update($document, [

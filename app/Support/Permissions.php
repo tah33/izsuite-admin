@@ -72,10 +72,26 @@ final class Permissions
             ...self::DRAFTS, 'confirm' => 'Confirm, Hold or Complete', 'amend' => 'Edit Confirmed Orders', 'send' => 'Send or Share', 'cancel' => 'Cancel', 'delete' => 'Delete Draft',
             'invoice_beyond' => 'Invoice Beyond the Order',
         ], 'full'],
+        // Delivery notes (Doc 16 Phase C): no values on them.
+        'sales.deliveries'   => ['Deliveries', 'sales', [
+            ...self::DRAFTS, 'deliver' => 'Mark Ready or Delivered', 'cancel' => 'Cancel', 'delete' => 'Delete Draft',
+        ], 'full'],
+        // Customer returns (Doc 16 Phase E): no values on them.
+        'sales.returns'      => ['Returns', 'sales', [
+            ...self::DRAFTS, 'authorise' => 'Authorise or Reject', 'receive' => 'Mark Received or Completed', 'cancel' => 'Cancel', 'delete' => 'Delete Draft',
+        ], 'full'],
         'sales.invoices'     => ['Invoices', 'sales', [...self::DRAFTS, 'issue' => 'Issue', 'send' => 'Send or Share', 'void' => 'Void', 'delete' => 'Delete Draft']],
         'sales.payments'     => ['Customer Payments', 'sales', self::PAYMENTS],
+        // Customer advances, and credit applied to invoices (Doc 16 Phase D1).
+        'sales.advances'     => ['Customer Advances', 'sales', [
+            'view' => self::VIEW, 'record' => 'Record Advance', 'apply' => 'Apply Advances and Credit', 'reverse' => 'Reverse Advance',
+        ], 'full'],
         'sales.credit_notes' => ['Credit Notes', 'sales', [...self::DRAFTS, 'issue' => 'Issue', 'send' => 'Send or Share', 'void' => 'Void', 'delete' => 'Delete Draft']],
         'sales.refunds'      => ['Refunds', 'sales', ['record' => 'Record Refund']],
+        // A price typed by hand, and a discount past the role's largest (Doc 16 Phase F2).
+        'sales.pricing'      => ['Prices and Discounts', 'sales', ['override' => 'Change Prices by Hand', 'beyond' => 'Discount Beyond the Limit'], 'full'],
+        // Price lists (Doc 16 Phase F1).
+        'sales.price_lists'  => ['Price Lists', 'sales', ['view' => self::VIEW, 'manage' => 'Add or Change'], 'full'],
         'sales.values'       => ['Sales Values', 'sales', ['view' => 'View Sales Values']],
         'sales.settings'     => ['Sales Settings', 'sales', self::APP_SETTINGS],
 
@@ -95,7 +111,7 @@ final class Permissions
 
     /** The groups whose records carry their app's values: anything but viewing one needs them. */
     private const VALUED = [
-        'sales.quotations', 'sales.proformas', 'sales.orders', 'sales.invoices', 'sales.payments', 'sales.credit_notes', 'sales.refunds',
+        'sales.quotations', 'sales.proformas', 'sales.orders', 'sales.invoices', 'sales.payments', 'sales.advances', 'sales.credit_notes', 'sales.refunds',
         'purchases.purchases', 'purchases.payments',
         'expenses.expenses', 'expenses.payments',
     ];
@@ -125,10 +141,15 @@ final class Permissions
         'sales.orders.create'        => ['contacts.view', 'items.view'],
         'sales.orders.amend'         => ['sales.orders.edit'],
         'sales.orders.invoice_beyond' => ['sales.invoices.create'],
+        'sales.deliveries.create'    => ['sales.orders.view'],
+        'sales.returns.create'       => ['sales.orders.view'],
         'sales.invoices.create'      => ['contacts.view', 'items.view'],
         'sales.credit_notes.create'  => ['sales.invoices.view'],
         'sales.payments.record'      => ['sales.invoices.view', 'payment_accounts.view'],
         'sales.payments.reverse'     => ['payment_accounts.view'],
+        'sales.advances.record'      => ['contacts.view', 'payment_accounts.view'],
+        'sales.advances.apply'       => ['sales.invoices.view'],
+        'sales.advances.reverse'     => ['payment_accounts.view'],
         'sales.refunds.record'       => ['sales.credit_notes.view', 'payment_accounts.view'],
         'sales.settings.manage'      => ['settings.view'],
         'purchases.purchases.create' => ['contacts.view', 'items.view'],
@@ -263,8 +284,12 @@ final class Permissions
                 ...self::actionsOf('sales.quotations', ['view', 'create', 'edit', 'send', 'cancel', 'delete']),
                 ...self::actionsOf('sales.proformas', ['view', 'create', 'edit', 'send', 'cancel', 'delete']),
                 ...self::actionsOf('sales.orders', ['view', 'create', 'edit', 'confirm', 'send', 'cancel', 'delete']),
+                ...self::actionsOf('sales.deliveries', ['view', 'create', 'edit', 'deliver']),
+                ...self::actionsOf('sales.returns', ['view', 'create', 'edit']),
+                'sales.pricing.override',
                 ...self::actionsOf('sales.invoices', ['view', 'create', 'edit', 'issue', 'send', 'delete']),
                 'sales.payments.view', 'sales.payments.record', 'sales.credit_notes.view',
+                ...self::actionsOf('sales.advances', ['view', 'record', 'apply']),
             ],
 
             'purchase_user' => [
@@ -284,6 +309,7 @@ final class Permissions
                 'dashboard.view', 'contacts.view', 'documents.view', 'reports.view', 'reports.export', 'taxes.view',
                 ...self::actionsOf('payment_accounts', ['view', 'create', 'edit', 'transfer', 'export', 'balances', 'details']),
                 'sales.invoices.view', 'sales.credit_notes.view', 'sales.payments.view', 'sales.payments.record', 'sales.payments.reverse', 'sales.refunds.record',
+                ...self::actionsOf('sales.advances', ['view', 'record', 'apply', 'reverse']),
                 'purchases.purchases.view', 'purchases.payments.view', 'purchases.payments.record', 'purchases.payments.reverse',
                 'expenses.expenses.view', 'expenses.payments.view', 'expenses.payments.record', 'expenses.payments.reverse',
             ],
@@ -362,7 +388,7 @@ final class Permissions
             $needs[] = "{$group}.view";
         }
 
-        if (in_array($action, ['issue', 'record', 'confirm'], true) && isset($actions['edit'])) {
+        if (in_array($action, ['issue', 'record', 'confirm', 'deliver'], true) && isset($actions['edit'])) {
             $needs[] = "{$group}.edit";
         }
 

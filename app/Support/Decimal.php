@@ -29,6 +29,11 @@ final class Decimal
         return bccomp($a, $b, 10) <= 0 ? $a : $b;
     }
 
+    public static function max(string $a, string $b): string
+    {
+        return bccomp($a, $b, 10) >= 0 ? $a : $b;
+    }
+
     /**
      * A number as a database sum returns it - "150.00" from MySQL, 150.5 or
      * 5.0E-17 from SQLite, null for no rows - as a decimal string bcmath takes.
