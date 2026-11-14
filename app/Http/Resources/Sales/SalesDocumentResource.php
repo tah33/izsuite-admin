@@ -62,7 +62,7 @@ class SalesDocumentResource extends JsonResource
             'overdue'              => $rules->overdue($this->resource, $this->today),
             'actions'              => app(AllowedActions::class)->sales($this->type, $rules->actions($this->resource, $this->today)),
             'contact_id'           => $this->contact_id,
-            'customer'             => $this->party($this->customer_snapshot ?? ($this->contact ? app(SalesSnapshots::class)->customer($this->contact) : null)),
+            'customer'             => $this->party($this->customer_snapshot ?? ($this->contact ? app(SalesSnapshots::class)->customerOf($this->resource) : null)),
             // What the page's sheet shows of the business as it was at issue - its tax numbers with Tax Information.
             'business'             => $this->business_snapshot ? $this->hideWithout('taxes.view', Arr::only($this->business_snapshot, ['name', 'address', 'phone', 'tax_numbers']), ['tax_numbers' => []]) : null,
             'location_id'          => $this->location_id,
@@ -77,6 +77,14 @@ class SalesDocumentResource extends JsonResource
             'tax_rounding'         => $this->tax_rounding,
             'customer_reference'   => $this->customer_reference,
             'sales_reference'      => $this->sales_reference,
+            // The full Sales app's (Doc 16 Phase A).
+            'salesperson'            => $this->salesperson_id ? ['id' => $this->salesperson_id, 'name' => $this->salesperson?->name] : null,
+            'sales_team'             => $this->sales_team_id ? ['id' => $this->sales_team_id, 'name' => $this->salesTeam?->name] : null,
+            'billing_address'        => $this->billing_address,
+            'shipping_address'       => $this->shipping_address,
+            'expected_delivery_date' => $this->expected_delivery_date,
+            'shipping_method'        => $this->shipping_method,
+            'shipping_terms'         => $this->shipping_terms,
             'discount_type'        => $this->discount_type,
             'discount_value'       => $this->discount_value,
             'lines'                => SalesDocumentLineResource::collection($this->lines),

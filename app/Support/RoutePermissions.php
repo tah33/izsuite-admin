@@ -169,6 +169,10 @@ final class RoutePermissions
             'api.business-settings.numbering.update'           => 'settings.numbering',
             'api.business-settings.sales.show'                 => 'settings.view',
             'api.business-settings.sales.update'               => 'sales.settings.manage',
+            'api.business-settings.sales-teams.index'          => 'settings.view',
+            'api.business-settings.sales-teams.store'          => 'sales.settings.manage',
+            'api.business-settings.sales-teams.update'         => 'sales.settings.manage',
+            'api.business-settings.sales-teams.destroy'        => 'sales.settings.manage',
             'api.business-settings.purchases.show'             => 'settings.view',
             'api.business-settings.purchases.update'           => 'purchases.settings.manage',
             'api.business-settings.expenses.show'              => 'settings.view',
@@ -237,6 +241,9 @@ final class RoutePermissions
             'api.activity-log.users' => 'settings.audit',
 
             // Sales Lite (Doc 08): quotations, proforma invoices, invoices and credit notes by their kind.
+            'api.sales.overview'            => 'sales.values.view',
+            // The sales form, the Overview's filters and Settings → Sales teams choose from it.
+            'api.sales.salespeople'         => [...self::SALES_DRAFTS, 'sales.values.view', 'sales.settings.manage'],
             'api.sales.index'               => 'sales.{kind}.view',
             'api.sales.show'                => 'sales.{kind}.view',
             'api.sales.pdf'                 => 'sales.{kind}.view',

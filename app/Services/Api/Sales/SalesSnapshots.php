@@ -26,6 +26,8 @@ class SalesSnapshots
     private const COMPARED = [
         'contact_id', 'location_id', 'document_date', 'due_date', 'expiry_date', 'currency', 'exchange_rate', 'customer_reference', 'sales_reference',
         'discount_type', 'discount_value', 'notes', 'terms', 'payment_instructions', 'grand_total', 'lines',
+        // The full Sales app's (Doc 16 Phase A).
+        'salesperson_id', 'sales_team_id', 'billing_address', 'shipping_address', 'expected_delivery_date', 'shipping_method', 'shipping_terms',
     ];
 
     public function __construct(
@@ -71,6 +73,27 @@ class SalesSnapshots
         ];
     }
 
+    /**
+     * The customer as $document shows them: with the document's own billing
+     * and shipping address where it names one (Doc 16 Phase A), each written
+     * as its country writes addresses.
+     */
+    public function customerOf(SalesDocument $document): array
+    {
+        $customer = $this->customer($document->contact);
+
+        foreach (['billing_address', 'shipping_address'] as $side) {
+            if ($own = $document->{$side}) {
+                $customer[$side] = $this->address($own['country'] ?? null, [
+                    'line1' => $own['line1'] ?? null, 'line2' => $own['line2'] ?? null, 'city' => $own['city'] ?? null,
+                    'region' => $own['state'] ?? null, 'postal' => $own['postal_code'] ?? null,
+                ]);
+            }
+        }
+
+        return $customer;
+    }
+
     public function customer(Contact $contact): array
     {
         $address = fn (string $side) => $this->address($contact->{"{$side}_country"}, [
@@ -102,6 +125,7 @@ class SalesSnapshots
                 'number', 'revision', 'status', 'contact_id', 'location_id', 'document_date', 'due_date', 'expiry_date', 'currency', 'exchange_rate',
                 'price_tax_mode', 'customer_reference', 'sales_reference', 'discount_type', 'discount_value', 'subtotal', 'discount_total',
                 'tax_total', 'grand_total', 'notes', 'terms', 'payment_instructions', 'customer_snapshot',
+                ...SalesDocument::FULL_FIELDS,
             ]),
             'status' => $document->status->value,
             'lines'  => $document->lines->map(fn (SalesDocumentLine $line) => $line->only([

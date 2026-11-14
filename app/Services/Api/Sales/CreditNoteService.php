@@ -228,6 +228,9 @@ class CreditNoteService
         return [
             'contact_id'     => $invoice->contact_id,
             'location_id'    => $invoice->location_id,
+            // Its invoice's salesperson and team, so a credit note counts against them (Doc 16 Phase A).
+            'salesperson_id' => $invoice->salesperson_id,
+            'sales_team_id'  => $invoice->sales_team_id,
             'document_date'  => $data['document_date'],
             'currency'       => $invoice->currency,
             'exchange_rate'  => (string) $invoice->exchange_rate,

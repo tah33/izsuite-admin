@@ -36,6 +36,15 @@ use Illuminate\Database\Eloquent\Relations\MorphOne;
  */
 class SalesDocument extends Model
 {
+    /**
+     * The fields only the full Sales app keeps on a document (Doc 16 Phase A):
+     * Sales Lite's form leaves them as they are.
+     */
+    public const FULL_FIELDS = ['salesperson_id', 'sales_team_id', 'billing_address', 'shipping_address', 'expected_delivery_date', 'shipping_method', 'shipping_terms'];
+
+    /** The parts of an address a document keeps. */
+    public const ADDRESS_PARTS = ['line1', 'line2', 'city', 'state', 'postal_code', 'country'];
+
     use AtLocation;
     use HasAuthors;
     use HasFiles;
@@ -69,6 +78,14 @@ class SalesDocument extends Model
         'tax_rounding',
         'customer_reference',
         'sales_reference',
+        // The full Sales app's (Doc 16 Phase A).
+        'salesperson_id',
+        'sales_team_id',
+        'billing_address',
+        'shipping_address',
+        'expected_delivery_date',
+        'shipping_method',
+        'shipping_terms',
         'discount_type',
         'discount_value',
         'subtotal',
@@ -133,6 +150,8 @@ class SalesDocument extends Model
         'balance_due'        => 'decimal:2',
         'business_snapshot' => 'array',
         'customer_snapshot' => 'array',
+        'billing_address'   => 'array',
+        'shipping_address'  => 'array',
         'template_snapshot' => 'array',
         'source_id'         => 'integer',
         'issued_at'         => 'datetime',
@@ -151,6 +170,17 @@ class SalesDocument extends Model
     }
 
     /** The customer. */
+    /** Who sold it: a member of the business (Doc 16 Phase A). */
+    public function salesperson(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'salesperson_id');
+    }
+
+    public function salesTeam(): BelongsTo
+    {
+        return $this->belongsTo(SalesTeam::class);
+    }
+
     public function contact(): BelongsTo
     {
         return $this->belongsTo(Contact::class);

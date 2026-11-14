@@ -16,6 +16,7 @@
     .muted { color: #6b7280; }
     .num { text-align: right; white-space: nowrap; }
     .label { margin-bottom: 4px; font-size: 7.5pt; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #6b7280; }
+    .label.ship-to { margin-top: 10px; }
 
     .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; padding-bottom: 14px; border-bottom: 3px solid var(--accent); }
     .head--logo_right { flex-direction: row-reverse; }

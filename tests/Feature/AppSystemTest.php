@@ -269,9 +269,9 @@ class AppSystemTest extends TestCase
             'from_app_id'  => $this->apps['sales_lite']->id,
         ]);
 
-        // The answer carries the new sidebar: Sales in Sales Lite's place, with its Full-only item.
+        // The answer carries the new sidebar: Sales in Sales Lite's place, with its Full-only item, in Doc 16's order.
         $this->assertSame('Sales', $response->json('data.menu.apps.0.label'));
-        $this->assertSame(['Invoices', 'Sales Orders'], $this->labels($response->json('data.menu.apps.0.children')));
+        $this->assertSame(['Sales Orders', 'Invoices'], $this->labels($response->json('data.menu.apps.0.children')));
     }
 
     public function test_turning_on_an_app_adds_its_family(): void

@@ -230,7 +230,33 @@ class SalesDocumentService
             'internal_notes'       => $data['internal_notes'] ?? null,
             'terms'                => $data['terms'] ?? null,
             'payment_instructions' => $data['payment_instructions'] ?? null,
+            ...$this->fullFields($data),
         ];
+    }
+
+    /**
+     * The full Sales app's fields $data carries (Doc 16 Phase A) - none from
+     * Sales Lite's form, which leaves them as they are. An address with
+     * nothing in it is none: the customer's.
+     */
+    private function fullFields(array $data): array
+    {
+        $fields = Arr::only($data, SalesDocument::FULL_FIELDS);
+
+        foreach (['billing_address', 'shipping_address'] as $address) {
+            if (array_key_exists($address, $fields)) {
+                $parts            = array_filter(Arr::only((array) $fields[$address], SalesDocument::ADDRESS_PARTS), fn ($part) => filled($part));
+                $fields[$address] = $parts ? [...array_fill_keys(SalesDocument::ADDRESS_PARTS, null), ...array_map(fn ($part) => trim((string) $part), $parts)] : null;
+            }
+        }
+
+        foreach (['shipping_method', 'shipping_terms'] as $text) {
+            if (array_key_exists($text, $fields)) {
+                $fields[$text] = filled($fields[$text]) ? trim($fields[$text]) : null;
+            }
+        }
+
+        return $fields;
     }
 
     private function paymentTerms(Workspace $workspace, array $data): int

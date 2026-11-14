@@ -204,7 +204,7 @@ class SalesDocumentFlow
             ),
             'issued_at'         => $document->issued_at ?? now(),
             'business_snapshot' => $this->salesSnapshots->business($workspace, $document->location, $document->type->isPaidFrom() ? $document->currency : null),
-            'customer_snapshot' => $this->salesSnapshots->customer($document->contact),
+            'customer_snapshot' => $this->salesSnapshots->customerOf($document),
             'template_snapshot' => $this->documentTemplates->snapshot($workspace, $document->type),
         ];
     }

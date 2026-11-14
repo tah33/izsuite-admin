@@ -110,6 +110,8 @@ class SalesReportRepository
             ->when($filters['payment_account_id'] ?? null, fn (Builder $query, $id) => $query->where('payment_account_id', $id))
             ->when($filters['currency'] ?? null, fn (Builder $query, string $currency) => $query->whereHas('account', fn (Builder $query) => $query->where('currency', $currency)))
             ->when($filters['document_currency'] ?? null, fn (Builder $query, string $currency) => $query->whereHas('document', fn (Builder $query) => $query->where('currency', $currency)))
+            // By the salesperson or team of the invoice paid - or, for a refund, of its credit note's invoice (Doc 16 Phase A).
+            ->when(($filters['salesperson_id'] ?? null) || ($filters['sales_team_id'] ?? null), fn (Builder $query) => $query->whereHas('document', fn (Builder $document) => $document->where(fn (Builder $own) => $this->bySeller($own, $filters))->orWhereHas('source', fn (Builder $source) => $this->bySeller($source, $filters))))
             ->with(['document:id,type,number,currency,exchange_rate,source_id', 'contact:id,name', 'account:id,name,currency', 'location:id,name'])
             ->orderBy('payment_date')
             ->orderBy('id')
@@ -194,6 +196,14 @@ class SalesReportRepository
             ->get(['id', 'kind', 'number', 'status', 'payment_date', 'contact_id', 'payment_account_id', 'amount', 'created_at']);
     }
 
+    /** $query narrowed to the documents of $filters' salesperson and team. */
+    private function bySeller(Builder $query, array $filters): Builder
+    {
+        return $query
+            ->when($filters['salesperson_id'] ?? null, fn (Builder $query, $id) => $query->where('salesperson_id', $id))
+            ->when($filters['sales_team_id'] ?? null, fn (Builder $query, $id) => $query->where('sales_team_id', $id));
+    }
+
     /** Issued documents of $type with $filters - columns prefixed with $table where the query joins. */
     private function documents(Workspace $workspace, DocumentType $type, array $filters, string $table = ''): Builder
     {
@@ -204,6 +214,30 @@ class SalesReportRepository
             ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where("{$table}location_id", $id))
             ->when(isset($filters['location_ids']), fn (Builder $query) => $query->whereIn("{$table}location_id", $filters['location_ids']))
             ->when($filters['contact_id'] ?? null, fn (Builder $query, $id) => $query->where("{$table}contact_id", $id))
-            ->when($filters['currency'] ?? null, fn (Builder $query, string $currency) => $query->where("{$table}currency", $currency));
+            ->when($filters['currency'] ?? null, fn (Builder $query, string $currency) => $query->where("{$table}currency", $currency))
+            // The full Sales app's (Doc 16 Phase A): who sold it, and their team.
+            ->when($filters['salesperson_id'] ?? null, fn (Builder $query, $id) => $query->where("{$table}salesperson_id", $id))
+            ->when($filters['sales_team_id'] ?? null, fn (Builder $query, $id) => $query->where("{$table}sales_team_id", $id));
+    }
+
+    /**
+     * Quotations dated from $from to $to that went out - not drafts or
+     * cancelled ones - for the Sales Overview (Doc 16 section 16.5), with
+     * $filters as documents() takes them.
+     */
+    public function offers(Workspace $workspace, string $from, string $to, array $filters = []): Collection
+    {
+        return SalesDocument::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('type', DocumentType::Quotation->value)
+            ->whereNotIn('status', [SalesDocumentStatus::Draft->value, SalesDocumentStatus::Cancelled->value])
+            ->whereBetween('document_date', [$from, $to])
+            ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('location_id', $id))
+            ->when(isset($filters['location_ids']), fn (Builder $query) => $query->whereIn('location_id', $filters['location_ids']))
+            ->when($filters['contact_id'] ?? null, fn (Builder $query, $id) => $query->where('contact_id', $id))
+            ->when($filters['currency'] ?? null, fn (Builder $query, string $currency) => $query->where('currency', $currency))
+            ->when($filters['salesperson_id'] ?? null, fn (Builder $query, $id) => $query->where('salesperson_id', $id))
+            ->when($filters['sales_team_id'] ?? null, fn (Builder $query, $id) => $query->where('sales_team_id', $id))
+            ->get(['id', 'status', 'currency', 'grand_total', 'base_grand_total']);
     }
 }

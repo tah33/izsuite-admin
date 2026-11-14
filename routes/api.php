@@ -18,6 +18,8 @@ use App\Http\Controllers\Api\ContactAttachmentController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\ContactMessageController;
 use App\Http\Controllers\Api\CountryController;
+use App\Http\Controllers\Api\SalesOverviewController;
+use App\Http\Controllers\Api\SalesTeamController;
 use App\Http\Controllers\Api\CreditNoteController;
 use App\Http\Controllers\Api\CurrencyController;
 use App\Http\Controllers\Api\DashboardController;
@@ -262,6 +264,14 @@ Route::prefix('v1')->group(function () {
         Route::middleware('app:sales')->group(function () {
             Route::get('/sales', [SalesSettingController::class, 'show'])->name('api.business-settings.sales.show');
             Route::put('/sales', [SalesSettingController::class, 'update'])->name('api.business-settings.sales.update');
+
+            // Sales teams (Doc 16 Phase A): only the full Sales app has them.
+            Route::middleware('app:sales,full')->prefix('sales-teams')->group(function () {
+                Route::get('/', [SalesTeamController::class, 'index'])->name('api.business-settings.sales-teams.index');
+                Route::post('/', [SalesTeamController::class, 'store'])->name('api.business-settings.sales-teams.store');
+                Route::put('/{id}', [SalesTeamController::class, 'update'])->whereNumber('id')->name('api.business-settings.sales-teams.update');
+                Route::delete('/{id}', [SalesTeamController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.sales-teams.destroy');
+            });
         });
 
         // Settings > Purchases (Doc 11 section 16): what new purchases start
@@ -578,6 +588,12 @@ Route::prefix('v1')->group(function () {
      | -------------------------------------------------------- */
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:sales', 'access'])->prefix('sales')->group(function () {
         Route::post('/calculate', [SalesFormController::class, 'calculate'])->name('api.sales.calculate');
+
+        // The full Sales app's (Doc 16 Phase A): its Overview, and whom the form can name as salesperson and team.
+        Route::middleware('app:sales,full')->group(function () {
+            Route::get('/overview', [SalesOverviewController::class, 'show'])->name('api.sales.overview');
+            Route::get('/salespeople', [SalesTeamController::class, 'options'])->name('api.sales.salespeople');
+        });
 
         Route::get('/payments', [SalesPaymentController::class, 'index'])->name('api.sales.payments.index');
         Route::get('/payments/{id}', [SalesPaymentController::class, 'show'])->whereNumber('id')->name('api.sales.payments.show');

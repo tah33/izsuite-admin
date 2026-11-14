@@ -52,8 +52,10 @@ class DocumentRenderer
         $template = $this->documentTemplates->settingsFor($workspace, $document->type, $document->template_snapshot);
         $format   = DocumentFormat::of($template);
         $business = $document->business_snapshot ?? $this->salesSnapshots->business($workspace, $document->location, $document->type->isPaidFrom() ? $document->currency : null);
-        $customer = $document->customer_snapshot ?? ($document->contact ? $this->salesSnapshots->customer($document->contact) : null);
+        $customer = $document->customer_snapshot ?? ($document->contact ? $this->salesSnapshots->customerOf($document) : null);
         $label    = $document->type->label();
+        // Where it goes, once the document says how or when (Doc 16 Phase A): its own address, else the customer's.
+        $shipping = $document->shipping_address || $document->shipping_method || $document->shipping_terms || $document->expected_delivery_date;
 
         $data = [
             'title'     => $document->number ? "{$label} {$document->number}" : "Draft {$label}",
@@ -65,6 +67,7 @@ class DocumentRenderer
             'logo'      => $this->image($workspace, $template['show_logo'] ? ($business['logo_file_id'] ?? null) : null),
             'signature' => $this->image($workspace, $template['signature_file_id'] ?? null),
             'customer'  => $customer,
+            'shipTo'    => $shipping && $customer ? ($customer['shipping_address'] ?? $customer['billing_address'] ?? null) : null,
             'partyLabel' => match ($document->type) {
                 DocumentType::Invoice, DocumentType::Proforma => 'Bill To',
                 DocumentType::CreditNote                       => 'Credit To',

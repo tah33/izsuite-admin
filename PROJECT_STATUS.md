@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-14
-- **Code:** Doc 15 Phases D3a (service health), D3b (incidents), E1 (feature flags), E2 (apps in depth), E3a (plan details), E3b (plan versions), F1 (announcements), F2 (e-mail templates), F3a (countries), F3b (payment methods by country), G1 (privacy requests), G2 (legal holds) and G3 (consent and retention) are built on `main` after `80c94fc`, not committed yet. In the frontend, E1, E2, E3a, F1, F3a and G3 changed something (`useNavigation`; the Apps Center's states; the plans' levels, cycles and countries; the announcement banner; the setup's time zone from the country; the product news checkbox at sign-up and in My Profile), on `nuxt` after `4bd877b`, not committed yet.
-- **Tests:** 843 backend tests pass (last full run 2026-11-14, on the second PC). After it, the admin sidebar's Compliance and System sections moved into a partial (`admin/partials/sidebar-system`) to stay under 200 lines, and the admin page tests pass again.
-- **Next step:** Doc 15 is done, apart from what was suggested to leave. Choose which full app comes first (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 15 is done and pushed: `main` at `b2856cd`, `nuxt` at `4a3bbd0` (2026-11-14). Doc 16's gap check and Phase A are committed in the next commit of each, not pushed yet.
+- **Tests:** 848 backend tests pass (last full run 2026-11-14, on the second PC). After it, the Sales Overview test also checks the amount received and its salesperson filter, and passes.
+- **Next step:** Doc 16 Phase B: sales orders (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then let's choose the first full app.
+   > Read PROJECT_STATUS.md, then start Doc 16 Phase B.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -41,7 +41,8 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
-| 16 to 21 | Sales, CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
+| **16** | **Sales** | **In progress: gap check and Phase A done (2026-11-14), Phase B next** |
+| 17 to 21 | CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
 Stock, full Sales, OCR and full Accounting features are left out of the Lite apps on purpose. They wait for their own docs.
@@ -950,9 +951,138 @@ B3 was split again on starting it (2026-11-13), as a support session names a sup
 - IP allow-listing and a separate domain for the admin panel. These are server decisions.
 - Deleting a business for good. Closed keeps its data.
 
-### 4. The full apps
+### 4. Doc 16: Sales (next: Phase B)
 
-Doc 15 is done (2026-11-14). Choose which app comes first. Docs 16 to 21 are written. Docs 22 and up must be written before they can be built.
+The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replaces Sales Lite (Doc 08) when a business turns it on, keeping and extending its records.
+
+**Already built (Sales Lite), which Sales keeps:**
+
+- Quotations, proforma invoices, invoices and credit notes in one `sales_documents` table, each with its own numbering (QUO-, PRO-, INV-, CN-) and statuses.
+  - A sent quotation or proforma keeps its earlier versions as revisions.
+  - Each has a PDF, e-mail, reminders, a share link (view and PDF, revocable, no expiry), attachments, comments and e-mail history.
+- Conversions:
+  - A quotation becomes a proforma or an invoice, and a proforma an invoice; `source_id` links them. Lines are copied without a link to the line they came from.
+  - A business user marks a quotation accepted or rejected; proformas have no acceptance.
+- Credit notes come from an issued invoice, within each line's credited limits, and are applied to their own invoice only. Refunds are recorded against a credit note.
+- Payments received are recorded only from an issued invoice:
+  - partial and several, with withholding and other currencies;
+  - reversed with a reason, never deleted;
+  - receipts (RCT-) with a PDF and e-mail.
+  - Paying more than is owed is refused.
+- Line and whole-document discounts (switches in Settings → Sales), taxes, payment terms, and customer and sales references.
+- The dashboard shows net sales, amount received, outstanding and overdue invoices, a chart and the latest documents. Reports: Sales Summary, Sales Trend, Top-Selling Items, Top Customers, Outstanding Invoices, Payments Received, Credit Note Details, the tax reports and the contact statement.
+- Permissions per document kind (view, create, edit, issue, send, cancel, void, delete), for payments (view, record, reverse), refunds, values and settings.
+- The Apps Center already lists the full Sales edition as available, from Standard up. Turning it on switches the family to Full; today that only adds a Sales Orders menu item, which opens a placeholder page.
+
+**Missing (what Doc 16 adds):**
+
+- 16.2 to 16.6:
+  - New Sale offering each document;
+  - the Sales Overview;
+  - billing and shipping addresses on documents, salesperson, sales team, expected delivery date, shipping method and terms, and price list;
+  - advanced records kept read-only after a downgrade to Lite.
+- 16.7 to 16.8: customers accepting or rejecting through the link, with how recorded; converting to sales orders.
+- 16.9 to 16.11: sales orders, which do not exist:
+  - order, delivery and invoice statuses;
+  - each line's ordered, delivered, invoiced, returned and credited quantities;
+  - confirming locks the terms, with amendments needing a reason;
+  - invoice policies and partial invoicing.
+- 16.10 and 16.13: deliveries and backorders. Stock is not kept anywhere yet.
+- 16.14 to 16.16:
+  - deposit invoices and their deductions;
+  - customer advances and their allocation;
+  - an overpayment kept as an advance;
+  - online payment.
+- 16.17 to 16.18: returns with their resolutions; a credit note's remaining credit applied to the customer's other invoices.
+- 16.19 to 16.21: price lists and their rules, discount limits by role with overrides, and customer credit limits.
+- 16.22: what a customer does through the link (accept, reject, comment, pay), and links that expire.
+- 16.23 to 16.27: the new settings, the dashboard's sales figures, about 20 more reports and the new permissions.
+
+**Waiting for other apps**, as Doc 16 itself says:
+
+- Inventory (not written): stock reserved, moved on delivery and return, warehouses, batches and serials, and the direct invoice's stock method.
+- Accounting: postings, and an advance's liability.
+- CRM: opportunities. CRM extends the sales teams Phase A makes.
+- POS and eCommerce: their orders flowing in.
+- Customer Subscriptions: recurring invoices.
+- Projects and Field Service.
+- Approvals and eSignatures.
+- A payment gateway for a business's own customers: paying an invoice online.
+
+**Phases, with suggested defaults.** Saying "Start Phase A" accepts them.
+
+- **Phase A: Sales takes over from Sales Lite.**
+  - The sidebar in Doc 16's order, each item added by the phase that builds it, with a Customers link (Contacts filtered to customers).
+  - New Sale as a menu: Quotation, Proforma Invoice, Invoice, and Sales Order once it exists.
+  - The Sales Overview, its figures and filters. Quotation and order values are labelled as not sales.
+  - On documents: billing and shipping address (from the customer, changeable), salesperson (a member of the business), sales team, expected delivery date, shipping method and shipping terms. The PDF prints them where set.
+  - Sales teams kept simple in Settings → Sales: name, members, active or not.
+  - Back on Lite after a downgrade, the full-only pages hide and their records stay, read-only.
+- **Phase B: sales orders.**
+  - A new kind in `sales_documents` (SO-), converted from quotations and proformas or made directly.
+  - Draft, Confirmed, On Hold, Completed or Cancelled, with delivery and invoice statuses beside.
+  - Each line linked to the line it came from (`source_line_id` on every conversion), keeping its ordered, delivered, invoiced, returned and credited quantities.
+  - Confirming locks the terms; an amendment needs the permission and a reason.
+  - Invoices from an order: ordered or delivered quantities (Settings → Sales, and per item), several invoices, never past what is left without the permission and a reason. Direct invoices stay.
+  - Cancelling an order cancels nothing after it.
+- **Phase C: deliveries.**
+  - A delivery (DN-) from a confirmed order, in its own table: date, location, lines and quantities, address, carrier, tracking number, vehicle or driver, recipient, notes, the day it arrived, and proof as an attachment.
+  - Draft, Ready, Delivered or Cancelled. A partial delivery leaves a backorder.
+  - Services are marked fulfilled, and digital products delivered by hand.
+  - No stock moves until Inventory exists. Each has a delivery note PDF.
+- **Phase D: deposits, advances and credit.**
+  - A deposit invoice from an order, as an amount or a percentage, deducted from the final invoice.
+  - Customer advances recorded from the customer or an order, then allocated to issued invoices, with their history.
+  - An overpayment becomes an advance once confirmed (a setting).
+  - A credit note's remaining credit applied to the customer's other outstanding invoices.
+- **Phase E: returns.**
+  - A return (RET-) from a delivery, order or invoice, in its own table, never above what was delivered.
+  - A reason and condition, and a resolution: refund, credit note, replacement, repair or none. Draft, Submitted, Authorised, Received, Rejected, Completed or Cancelled.
+  - A credit note made from it, with or without goods coming back. The item's warranty is kept.
+- **Phase F: price lists and discount limits.**
+  - Price lists:
+    - their currency, days, customers (all or chosen: there are no customer groups yet), locations and priority;
+    - rules by item, category, brand and minimum quantity: a fixed price, a percentage off, or a markup or markdown.
+  - One price is chosen per line, and the list and rule are recorded. Issued and confirmed documents keep their prices. Changing a price by hand needs a permission.
+  - A largest discount per role, past which a permission and a reason are needed.
+- **Phase G: credit control and the customer's link.**
+  - On a customer: a credit limit, credit sales allowed or not, warn or block, and a note.
+  - Exposure counts outstanding and overdue invoices, unapplied credit, and confirmed orders not yet invoiced (a setting), in the base currency. Going over warns or blocks, and an override needs the permission and a reason.
+  - Through the link, a customer views a quotation, proforma, order or invoice, accepts or rejects a quotation (recorded with when and from where) and leaves a comment.
+  - Links can expire after the days set. Paying online waits for a gateway.
+- **Phase H: settings, dashboard and reports.**
+  - The rest of Settings → Sales: default workflow, invoice policy, deposits, backorders, and the discount, price and credit rules. Numbering and templates for the new documents go in the shared settings.
+  - The dashboard's sales figures from 16.25.
+  - The reports in 16.26: by item, category, brand, location, salesperson and team; quotation conversion; order backlog; deliveries; returns; discounts; price list use; credit exposure; and estimated margin from the items' costs.
+  - Each phase adds the permissions it needs.
+
+**Phase A: Sales takes over from Sales Lite** (sections 16.2 to 16.6) is built, with your defaults:
+
+- **The sidebar** follows Doc 16's order once Sales is on: Overview, Quotations, Proforma Invoices, Sales Orders, Invoices, Credit Notes, Payments Received, then Customers, which opens Contacts filtered to customers and is the entry highlighted there. Deliveries, Returns and Price Lists take their places as their phases add them. Sales Lite keeps Doc 08's order, Invoices first.
+- **New Sale** is one menu on the sales pages and the Overview: Quotation, Proforma Invoice, Invoice on Sales, and Invoice first on Sales Lite. Each shows only to those who may create it.
+- **The Sales Overview** (`/sales/overview`, with View Sales Values):
+  - first, apart and labelled "Not sales: what was offered", the quotations sent in the period and those accepted or converted;
+  - then sales from issued invoices without tax, the amount received (payments less refunds) and credit notes;
+  - and outstanding and overdue invoices as of the period's end, or today.
+  - It filters by period, location (with more than one), customer, salesperson, team and currency (with more than one). Amounts are in the base currency unless a currency is chosen.
+- **A document's Sales and Delivery** (the full app's form only):
+  - a salesperson (the owner or an active member), a sales team (one switched on), the expected delivery, the shipping method and the shipping terms (Incoterms offered);
+  - billing and shipping addresses: the customer's, unless "Bill to another address" or "Ship to another address" is ticked, which gives the document its own.
+  - They show on the document's page, carry over when it is converted, and a credit note keeps its invoice's salesperson and team.
+  - The PDF lists the salesperson and delivery details. Once a document says how or when it ships, the PDF also prints Ship To under the customer: its own shipping address, else the customer's. The sales team stays off the PDF.
+- **Sales teams** are in Settings → Sales on the full app: a name, members (the owner and active members) and switched on or off. A team a document names is switched off rather than deleted.
+- **Back on Sales Lite**, the Overview, Customers and the teams card go, and the form leaves the full app's fields as they are. A document keeps them and still shows them. Opening the Overview offers the full app in the Apps Center.
+- **Left for later:** price lists on documents (Phase F), Sales Order in New Sale (Phase B), and the dashboard's and a contact's New Sale, which still open an invoice as Docs 02 and 03 say.
+- **Checked in the browser** as `user@izsuite.io`, with the business switched to full Sales by hand (its plan is Billing Starter), and as a throwaway member who may only view, create and edit quotations:
+  - The sidebar, New Sale and the Overview showed as above. A team was added, switched off and on.
+  - A quotation with a salesperson, team, delivery details and its own shipping address saved, edited and printed Ship To on its PDF.
+  - Sent and accepted, it counted as sent but not as accepted on the Overview: the status is cast to its enum, so comparing it with plain strings matched nothing. It now compares enums, and the test accepts a quotation too.
+  - The Overview's filters sat too far from its figures: their margins and the page's spacing added up. Fixed.
+  - The member saw only Quotations and Sales Orders, New Sale with Quotation alone, the salesperson list, and no Overview.
+  - On Sales Lite again, the menu, New Sale and the form went back to Doc 08's, and the quotation kept its details.
+  - The business, its Sales row, the member, the team, the customer, the quotation, the sign-ins and the activity were then put back.
+
+After Doc 16 come Docs 17 to 21 (CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## How we work
 
@@ -1001,12 +1131,15 @@ Each document goes the same way:
 - In the Claude browser pane, navigating to the same address with only a different `#part` does not reload the page: reload it, or a check reads the page as it was.
 - `sed` in Git Bash here does not match a backslash (`Tests\TestCase`) in its pattern; change such lines with PowerShell's `.Replace()` or the edit tool.
 - If `docker` cannot reach its engine (`dockerDesktopLinuxEngine` not found), Docker Desktop has stopped. On the second PC it is installed per user, under `%LOCALAPPDATA%\Programs\DockerDesktop`. Starting it brings the containers back by themselves, but the admin's sign-in is lost with Redis.
+- A model attribute cast to an enum (a sales document's `status`) matches nothing in a loaded collection's `->where('status', ...)` or `->whereIn('status', [...->value])`: compare the enum itself (`in_array($document->status, [...], true)`). Queries compare as strings and are fine.
+- The dev MySQL caches `information_schema` table figures for a day, AUTO_INCREMENT included. To read them as they are, start with `SET SESSION information_schema_stats_expiry = 0`, or take them from the phase's backup.
+- A full-only Sales page needs the dev business on full Sales, which its plan (Billing Starter) does not allow from the Apps Center. Point its `workspace_apps` Sales row at the full app (`app_id` 2) with a query and bump `nav_version`; put back `app_id` 1 afterwards.
 
 ### Checking the app as a limited member
 
-1. Copy a small script into the container with `docker cp`, and run it with `docker exec izsuite-api php artisan tinker --execute="require '/tmp/x.php';"`. It creates a throwaway verified user and a `workspace_members` row, then prints `LoginAsService::link($member, $admin)`, a one-time link that works for 60 seconds. No password is needed.
-2. Before opening the link, copy the owner's `izsuite_token` cookie into the browser's `localStorage`. Afterwards write it back as the cookie and reload. Login-as clears the token only in that browser, so the owner's session survives.
-3. Delete the user and member when finished. If the plan's limits were raised for the test, put them back.
+1. Copy a small script into the container with `docker cp`, and run it with `docker exec izsuite-api php artisan tinker --execute="require '/tmp/x.php';"`. It creates a throwaway verified user (with `role_id` 6, the app's user role), a role in the business and a `workspace_members` row, and writes `$user->createToken(...)->plainTextToken` to a file in the container. No password is needed. (Login as, which earlier phases used, became support sessions in Doc 15 Phase B4.)
+2. In the browser, copy the owner's `izsuite_token` cookie into `localStorage`, then set the cookie to the member's token (URL-encoded) and reload. Afterwards write the owner's back as the cookie and reload.
+3. Delete the user, member, role and token when finished. If the plan's limits were raised for the test, put them back.
 
 ### Look and feel
 
@@ -1147,6 +1280,7 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 15: Phase G1, privacy requests | the commit after `80c94fc` | | 000147 |
 | Doc 15: Phase G2, legal holds | the commit after `80c94fc` | | 000148 |
 | Doc 15: Phase G3, consent and retention | the commit after `80c94fc` | the commit after `4bd877b` | 000149 |
+| Doc 16: gap check, and Phase A, Sales takes over from Sales Lite | the commit after `b2856cd` | the commit after `4a3bbd0` | 000150 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -1400,6 +1534,12 @@ These are easy to undo by mistake.
   - A total of zero with a discount and no credit is confirmed at once, paid with `SubscriptionBilling::PAID_WITH_PROMOTION`; with credit too, it is `PAID_WITH_CREDIT`. The receipt PDF words each.
 - Dev's admin CSS is `public/build`, git-ignored and built only when missing (`docker/entrypoint.sh`), so it goes stale. After adding Tailwind classes to admin views, run `docker exec izsuite-api npm run build`; a server builds it fresh on deploy.
 - The frontend's location pick is `useLocationPick()`. It is shared state behind the `izsuite_location` cookie, and `''` means All Locations. A pick no longer offered (an inactive location, another business's) counts as All Locations. `forNewRecord()` waits for the locations list, so a form opened right after a reload still gets the pick.
+- The full Sales menu's order (Doc 16 Phase A) is `NavigationBuilder::FULL_ORDER`, a list of routes; an item not in it follows them by its `sort_order`. Sales Lite keeps `sort_order` alone. A phase adding a sales page adds its menu item in a migration (for existing installs) and in `AppCatalogSeeder` (for new ones).
+- The full Sales app's document fields (Doc 16 Phase A, migration 000150) are `SalesDocument::FULL_FIELDS`: `salesperson_id`, `sales_team_id`, `billing_address` and `shipping_address` (JSON with `ADDRESS_PARTS`, null for the customer's own), `expected_delivery_date`, `shipping_method` and `shipping_terms`.
+  - `SaveSalesDocumentRequest` drops them while the business is on Sales Lite, so a Lite edit leaves them as they are. Conversions copy them all; a credit note copies the salesperson and team.
+  - `SalesSnapshots::customerOf()` is the customer with the document's own addresses. The customer snapshot taken on sending or issuing, the API's `customer` and the PDF all use it.
+- Sales teams (Doc 16 Phase A) are `sales_teams` and `sales_team_members` (`SalesTeamRepository`). The owner counts as a member (`isMember()`, `activeMemberIds()`) whether or not the business has a `workspace_members` row for them; a business made in a test has none. `GET /sales/salespeople` gives the people and switched-on teams to choose from: the sales form, the Overview's filters and the teams card use it, so it is open to the sales drafting permissions, View Sales Values and Manage Sales Settings.
+- The frontend's `useActiveRoute()` treats a menu link with a query (`/contacts?role=customer`) as current only with that query, and then the plain link to the same page (`/contacts`) is not.
 
 ## Small things left
 
@@ -1409,6 +1549,8 @@ These are easy to undo by mistake.
 - Replacing the logo or signature deletes the old file, so documents numbered earlier can lose that image.
 - Menu Builder has no "Preview sidebar" yet.
 - Country localization shows as none.
+- The full Sales menu's Sales Orders item (there since Doc 13) needs no permission, so even a limited member sees it and its placeholder page. Doc 16 Phase B gives it the orders' view permission.
+- On Contacts opened from Sales → Customers, picking another role in the filter leaves Customers highlighted, as the address keeps `role=customer`.
 
 ## Open decisions
 
@@ -1465,4 +1607,5 @@ Each of these is yours to settle.
 - Doc 15 Phase G1: migration 000147 adds `privacy_requests` and gives the roles Admin > Privacy Requests. Restart the queue workers after deploying (`php artisan queue:restart`): a worker started before it does not know the export's link, so the export fails and goes back to Identity checked. The scheduler runs `privacy:purge-exports` hourly. `APP_URL` must be the backend's public address, as the e-mailed link points there. The exports are kept on the `local` disk (`storage/app/private/privacy-exports`), which must persist between deploys for 7 days.
 - Doc 15 Phase G2: migration 000148 adds `legal_holds` and gives the roles Admin > Legal Holds. Nothing changes until a hold is placed.
 - Doc 15 Phase G3: migration 000149 adds `consent_records` and `users.marketing_consent`, records the terms acceptance of each existing account on its day, and gives the roles Admin > Data Retention. Deploy the frontend with it, for the product news checkbox; the API's account now carries `marketing`. Rebuild the admin CSS, and restart the queue workers.
+- Doc 16 Phase A: migration 000150 adds `sales_teams`, `sales_team_members` and the documents' salesperson, team, addresses and delivery columns, and puts Overview and Customers in the full Sales menu. Deploy the frontend with it. Restart the queue workers, as the PDFs changed. A business on Sales Lite sees no change.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

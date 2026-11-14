@@ -36,6 +36,18 @@ use Illuminate\Support\Facades\Cache;
  */
 class NavigationBuilder
 {
+    /**
+     * A full edition's menu where it orders its pages otherwise than Lite: Sales
+     * as Doc 16 section 16.3 lists it - Sales Lite keeps Doc 08's, Invoices
+     * first. A page not built yet is simply not there.
+     */
+    private const FULL_ORDER = [
+        'sales' => [
+            '/sales/overview', '/sales/quotations', '/sales/proformas', '/sales/orders', '/sales/deliveries', '/sales/invoices',
+            '/sales/returns', '/sales/credit-notes', '/sales/payments', '/sales/price-lists', '/contacts?role=customer',
+        ],
+    ];
+
     public function __construct(
         private ShowIfRules $rules,
         private MenuItemRepository $menuItems,
@@ -170,11 +182,27 @@ class NavigationBuilder
                 'label'    => $row->app->name,
                 'icon'     => $row->app->icon,
                 'edition'  => $row->app->edition->value,
-                'children' => $this->tree($items->where('family_key', $row->family_key)),
+                'children' => $this->tree($this->inEditionOrder($items->where('family_key', $row->family_key), $row)),
             ])
             ->filter(fn (array $entry) => ! $pruneEmpty || $entry['children'] !== [])
             ->values()
             ->all();
+    }
+
+    /**
+     * $items - a family's - in its full edition's own order where it has one
+     * (FULL_ORDER), the rest after them as they come. The Lite edition keeps
+     * the menu's order.
+     */
+    private function inEditionOrder(Collection $items, WorkspaceApp $row): Collection
+    {
+        $order = $row->app->edition === Edition::Full ? (self::FULL_ORDER[$row->family_key] ?? null) : null;
+
+        if (! $order) {
+            return $items;
+        }
+
+        return $items->sortBy(fn (MenuItem $item) => [array_search($item->route, $order, true) === false ? PHP_INT_MAX : array_search($item->route, $order, true), $item->sort_order]);
     }
 
     private function tree(Collection $items, ?int $parentId = null): array
