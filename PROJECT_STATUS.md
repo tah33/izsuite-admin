@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-15
-- **Code:** Doc 16 Phase G1 (credit control) is committed: frontend `2281c27` on `nuxt`, and on `main` the admin commit right after `6af463f`.
-- **Tests:** 880 backend tests pass (last full run 2026-11-15, on the first PC, on this code).
-- **Next step:** Doc 16 Phase G2: the customer's link (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 16 Phase G2 (the customer's link) is committed: frontend `23dc5f7` on `nuxt`, and on `main` the admin commit right after `86d14c2`.
+- **Tests:** 883 backend tests pass (last full run 2026-11-15, on the first PC, on this code).
+- **Next step:** Doc 16 Phase H: settings, dashboard and reports (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 16 Phase G2.
+   > Read PROJECT_STATUS.md, then start Doc 16 Phase H.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -41,7 +41,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
-| **16** | **Sales** | **In progress: gap check and Phases A to F done (2026-11-14), G1 built (2026-11-15), G2 next** |
+| **16** | **Sales** | **In progress: gap check and Phases A to G done (2026-11-15), Phase H next** |
 | 17 to 21 | CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -951,7 +951,7 @@ B3 was split again on starting it (2026-11-13), as a support session names a sup
 - IP allow-listing and a separate domain for the admin panel. These are server decisions.
 - Deleting a business for good. Closed keeps its data.
 
-### 4. Doc 16: Sales (next: Phase G2)
+### 4. Doc 16: Sales (next: Phase H)
 
 The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replaces Sales Lite (Doc 08) when a business turns it on, keeping and extending its records.
 
@@ -1246,11 +1246,22 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
   - A member without Override Credit Limits is covered by the tests, not the browser.
   - The invoices, the customer's credit, its Sales row, the sequence, the keys, the sign-in and the activity were then put back.
 
-**Phase G2: the customer's link** (section 16.22), suggested defaults:
+**Phase G2: the customer's link** (section 16.22) is built, with these defaults. Phase G is done.
 
-- Through the link a customer views a quotation, proforma, order or invoice and downloads its PDF; accepts or rejects a sent quotation, recorded with when and from where (the address and browser); and leaves a comment, which the business sees on the document. Nothing internal shows.
-- Links expire after the days set in Settings → Sales (empty for never); revoking stays.
-- Paying online waits for a payment gateway for the business's own customers.
+- **On the full Sales app**, the page a secure link opens lets the customer:
+  - accept or decline a sent quotation that has not expired, giving their name and, to decline, why. The quotation becomes Accepted or Rejected, as when the business marks it.
+  - send a comment on any document it opens (quotation, proforma, sales order or invoice), while Settings → Sales allows it (on to start). The page lists the comments sent through it.
+- **Each answer and comment** is kept with when and where from (the address and browser), and shows on the document's page under Customer Responses. The business's users who see that kind of document are told, in the bell and by e-mail, under a new notification kind, Customer Responses.
+- **Links expire** after the days Settings → Sales sets (empty, to start, for never), counted from when each link is made. An expired link opens the same "no longer available" page, Share Link makes a new one, and its dialog says when the link stops working.
+- **Nothing internal shows:** the page has the document as its PDF shows it, the customer's own comments, and the forms.
+- Sales Lite's links stay as they were: view and download only, never expiring. Paying online waits for a payment gateway.
+- **Also fixed:** on Sales Lite, saving Settings → Sales sent the full app's settings at their defaults, which reset any chosen on full Sales. The form now leaves them out there.
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with full Sales switched on by hand, at `127.0.0.1:3000` (another project's dev server held `localhost:3000`):
+  - QUO-00002 for Bose Electronics, sent and shared, opened at its link with Your Answer and Comments under it.
+  - Accepting as "Rahim Ahmed" thanked the customer and showed "Accepted by Rahim Ahmed on 15 Nov 2026, 11:25"; a comment then showed under Comments.
+  - In the app the quotation read Accepted, its Customer Responses listed both with time, address and "Chrome on Windows", and the bell had "Bose Electronics accepted quotation QUO-00002" and the comment.
+  - Settings → Sales took 7 days; a new link's Share Link dialog said "It works until 22/11/2026, 11:29 AM, then a new one is needed."
+  - The quotation, its links and responses, the notifications, the settings, its Sales row, the sequence, the keys, the sign-in and the activity were then put back.
 
 After Doc 16 come Docs 17 to 21 (CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
@@ -1312,6 +1323,8 @@ Each document goes the same way:
 - Coming back to a PC after the other has pushed migrations: its containers run every waiting migration as the app starts. Start only `docker compose up -d --wait mysql redis`, take the backup, then `docker compose up -d --wait`, and run `AppCatalogSeeder` if it changed. A stack stopped by hand stays stopped when Docker starts; one that was running comes back by itself, migrating at once.
 - `last_value` is a reserved word in MySQL 8: quote it (`` `last_value` ``) when putting `workspace_sequences` back by hand.
 - A `WorkspaceDropdown` option is picked by clicking the `button` inside its `li`, not the `li` itself.
+- Another project's dev server on the host can take `localhost:3000` (Node on `0.0.0.0:3000`), and the browser then opens that site instead. Open izSuite at `http://127.0.0.1:3000`, which Docker holds; the API takes it, as no CORS origin list is set. Its sign-in is separate from `localhost`'s.
+- `ActivityLogService::record()` puts an entry down to whoever is signed in, even in a test that acts as someone across requests. Something no one in the business did (a customer through a link) goes through `recordCustomer()`.
 
 ### Checking the app as a limited member
 
@@ -1467,7 +1480,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 16: Phase E, returns | the commit after `4dc364c` | the commit after `32a787b` | 000156 |
 | Doc 16: Phase F1, price lists | the commit after `4dc364c` | the commit after `32a787b` | 000157 |
 | Doc 16: Phase F2, discount limits | the commit after `4dc364c` | the commit after `32a787b` | 000158 |
-| Doc 16: Phase G1, credit control | the commit after `6af463f` | `2281c27` | 000159 |
+| Doc 16: Phase G1, credit control | `86d14c2` | `2281c27` | 000159 |
+| Doc 16: Phase G2, the customer's link | the commit after `86d14c2` | `23dc5f7` | 000160 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -1744,6 +1758,12 @@ These are easy to undo by mistake.
   - `check()` runs in `SalesDocumentFlow::issue()` (at the rate it is issued at, after the rate question) and `confirm()`. A document is checked only when it adds to the exposure: an invoice adds its base total, less what a counted order of its still had uninvoiced; an order adds its total only while orders count.
   - Warn returns the message, which the controller adds after "Invoice … issued." from `SalesDocumentFlow::$creditNotice`. Block throws on `credit_reason` unless the user has `sales.credit.override` and gave one; then the reason goes on the document and a second Activity Log entry ("… over its customer's credit limit, because: …").
   - The frontend's `SalesCreditModal` opens from `SalesDocumentActions` when issuing or confirming fails on `credit_reason`, and sends the action again with the same rate and number. The status tables it used moved to `utils/salesDocuments.ts` (`PRIMARY_ACTIONS`, `REASONED_ACTIONS`, `CONFIRMED_ACTIONS`, `MAKING_ACTIONS`) to keep the component under 200 lines.
+- The customer's link (Doc 16 Phase G2, migration 000160) is `CustomerResponses`, with `customer_responses` (the link, the document as `linkable`, `kind` accepted, rejected or comment, `name`, `body`, `ip_address`, `user_agent`).
+  - The page `/d/{token}` is server-rendered: `DocumentRenderer::sales()` takes `$screen` (`CustomerResponses::screen()`, null on Sales Lite) and `documents/partials/respond.blade.php` draws plain forms posting to `/d/{token}/accept`, `/reject` and `/comment` (web routes: session and CSRF; `throttle:customer-responses`, 20 an hour per link and address). The page's policy allows `form-action 'self'`; it still has no scripts.
+  - Answers lock the quotation, check `SalesDocumentRules::allows(…, 'accept')`, and set Accepted, or Rejected with `status_reason`. A refusal is a `ValidationException` on `response`, so the page comes back with it.
+  - Each is logged with `ActivityLogService::recordCustomer()` - put down to no one, whoever is signed in to that browser - and sent through `Notifier` (kind `customers`) to those with the document kind's View at its location.
+  - Expiry: `document_links.expires_at`, set by `DocumentLinks::ensure()` from `sales_settings.link_expiry_days` on full Sales. `works()`, `DocumentLinkRepository::activeFor()` and `SalesDocument::activeLink()` leave out an expired link, so sharing again makes a new one.
+  - The frontend's `useSalesSettingsForm` leaves out `FULL_ONLY` settings on Sales Lite.
 - A Nuxt page for several kinds sets `minEdition` per route: `minEdition: route => (route.params.kind === 'orders' ? 'full' : 'lite')` (`middleware/app-access.global.ts`). The order's own page has none, so it opens read-only on Sales Lite.
 
 ## Small things left
@@ -1765,6 +1785,8 @@ These are easy to undo by mistake.
 - Amount Received (the Dashboard, the Sales Overview and Payments Received's report) counts invoice payments only, so money paid ahead does not show there. Phase H's Invoice and Payment Report should count advances.
 - The Activity Log gets an entry, "POST api/v1/sales/calculate completed with status 200", each time a sales form works out its totals: `LogApiWriteActivity` logs every POST that writes no entry of its own, and calculating writes nothing. Found during Doc 16 Phase G1's check; older than it.
 - A customer's credit exposure counts invoices dated up to today, as Outstanding Invoices does, so one dated ahead is left out until its day.
+- The customer's link page answers in English, even for a document in another language: only Download PDF is translated there.
+- A customer's address on a response is what Laravel sees: behind a proxy it is the proxy's until its address is trusted (see Deploying), and on dev it is Docker's gateway.
 
 ## Open decisions
 
@@ -1832,4 +1854,5 @@ Each of these is yours to settle.
 - Doc 16 Phase F1: migration 000157 adds `price_lists`, its customers, locations and rules, and the lines' `price_list_id` and `price_list_rule_id`, and puts Price Lists in the full Sales menu, after Payments Received. Deploy the frontend with it. Existing roles need the Price Lists permissions granted.
 - Doc 16 Phase F2: migration 000158 adds the roles' `max_discount` and the documents' `discount_reason`. Deploy the frontend with it. On full Sales a role without "Change Prices by Hand" can no longer type an item's price: grant it to the roles that should.
 - Doc 16 Phase G1: migration 000159 adds the customers' credit control (`credit_limit`, `credit_sales`, `credit_action`, `credit_warning`), Settings → Sales's `credit_counts_orders` (off) and the documents' `credit_reason`. Nothing is checked until a customer is given a limit or set to pay ahead. Deploy the frontend with it. Existing roles need the Customer Credit permissions granted; the Finance User template has both.
+- Doc 16 Phase G2: migration 000160 adds `customer_responses`, `document_links.expires_at` and Settings → Sales's `link_expiry_days` (none: links never expire) and `link_comments` (on). Links already made keep working as they were. The customer's answers and comments are web routes on the backend's host, so `APP_URL` must be its public address and sessions must work there. Behind a proxy, trust its address (Laravel's `trustProxies` in `bootstrap/app.php`), or every response records the proxy's. Their e-mails go through the queue worker. Deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

@@ -25,6 +25,9 @@ class SalesSetting extends Model
         'customer_advances',
         // Doc 16 Phase G1: confirmed orders not invoiced yet count toward a customer's credit exposure.
         'credit_counts_orders',
+        // Doc 16 Phase G2: the days a new secure link lasts (null: it never expires), and whether customers comment through it.
+        'link_expiry_days',
+        'link_comments',
         'notes',
         'terms',
     ];
@@ -38,6 +41,7 @@ class SalesSetting extends Model
         'invoice_policy'     => 'ordered',
         'customer_advances'  => true,
         'credit_counts_orders' => false,
+        'link_comments'        => true,
     ];
 
     protected $casts = [
@@ -48,6 +52,8 @@ class SalesSetting extends Model
         'document_discounts' => 'boolean',
         'customer_advances'  => 'boolean',
         'credit_counts_orders' => 'boolean',
+        'link_expiry_days'     => 'integer',
+        'link_comments'        => 'boolean',
     ];
 
     public function workspace(): BelongsTo

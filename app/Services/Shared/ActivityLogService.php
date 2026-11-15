@@ -116,6 +116,28 @@ class ActivityLogService
     }
 
     /**
+     * An entry in $workspace's own Activity Log about what a customer did
+     * through a document's secure link (Doc 16 Phase G2): no one in the
+     * business did it - whoever may be signed in to that browser - so it is
+     * put down to no one, from the customer's address.
+     */
+    public static function recordCustomer(Workspace $workspace, string $action, string $description, Model $subject, array $properties = []): ActivityLog
+    {
+        static::skipForThisRequest();
+
+        return app(ActivityLogRepository::class)->create([
+            'user_id'      => null,
+            'workspace_id' => $workspace->id,
+            'action'       => $action,
+            'model_type'   => get_class($subject),
+            'model_id'     => $subject->getKey(),
+            'description'  => $description,
+            'properties'   => [...$properties, ...($subject->getAttribute('location_id') ? ['location_id' => (int) $subject->getAttribute('location_id')] : [])],
+            'ip_address'   => app()->bound('request') ? app(Request::class)->ip() : null,
+        ]);
+    }
+
+    /**
      * Keeps LogApiWriteActivity from writing its generic entry for this
      * request, which changes nothing worth one - or is logged later, by name,
      * once its work is done in the background (an import).

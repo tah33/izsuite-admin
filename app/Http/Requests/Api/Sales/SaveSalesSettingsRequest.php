@@ -31,6 +31,9 @@ class SaveSalesSettingsRequest extends FormRequest
             'customer_advances'  => ['sometimes', 'boolean'],
             // Doc 16 Phase G1: confirmed orders not invoiced yet count toward a customer's credit exposure.
             'credit_counts_orders' => ['sometimes', 'boolean'],
+            // Doc 16 Phase G2: how many days a new secure link lasts - empty for never - and whether customers comment through it.
+            'link_expiry_days'   => ['sometimes', 'nullable', 'integer', 'min:1', 'max:365'],
+            'link_comments'      => ['sometimes', 'boolean'],
             'notes'              => ['nullable', 'string', 'max:5000'],
             'terms'              => ['nullable', 'string', 'max:10000'],
         ];

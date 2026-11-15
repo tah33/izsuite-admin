@@ -275,9 +275,18 @@ class SalesDocument extends Model
         return $this->morphMany(DocumentLink::class, 'linkable');
     }
 
-    /** The secure link that still works, if it has one. */
+    /** The secure link that still works, if it has one: not revoked, nor expired (Doc 16 Phase G2). */
     public function activeLink(): MorphOne
     {
-        return $this->morphOne(DocumentLink::class, 'linkable')->whereNull('revoked_at')->latest('id');
+        return $this->morphOne(DocumentLink::class, 'linkable')
+            ->whereNull('revoked_at')
+            ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->latest('id');
+    }
+
+    /** What the customer did through its link - answered or commented - oldest first (Doc 16 Phase G2). */
+    public function customerResponses(): MorphMany
+    {
+        return $this->morphMany(CustomerResponse::class, 'linkable')->oldest('id');
     }
 }

@@ -24,6 +24,9 @@ class SalesSettingsResource extends JsonResource
             'customer_advances'  => $this->when(WorkspaceApps::requestHas('sales', Edition::Full), fn () => $this->customer_advances),
             // Doc 16 Phase G1: whether confirmed orders count toward a customer's credit exposure.
             'credit_counts_orders' => $this->when(WorkspaceApps::requestHas('sales', Edition::Full), fn () => $this->credit_counts_orders),
+            // Doc 16 Phase G2: the customer's link - the days a new one lasts, null for never, and whether they comment through it.
+            'link_expiry_days'   => $this->when(WorkspaceApps::requestHas('sales', Edition::Full), fn () => $this->link_expiry_days),
+            'link_comments'      => $this->when(WorkspaceApps::requestHas('sales', Edition::Full), fn () => $this->link_comments),
             'notes'              => $this->notes,
             'terms'              => $this->terms,
         ];

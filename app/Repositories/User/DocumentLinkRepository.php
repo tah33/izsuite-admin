@@ -9,13 +9,14 @@ use Illuminate\Database\Eloquent\Model;
 /** Secure links to a business's documents. */
 class DocumentLinkRepository
 {
-    /** $record's link that still works, if it has one. */
+    /** $record's link that still works, if it has one: not revoked, nor expired (Doc 16 Phase G2). */
     public function activeFor(Model $record): ?DocumentLink
     {
         return DocumentLink::query()
             ->where('linkable_type', $record->getMorphClass())
             ->where('linkable_id', $record->getKey())
             ->whereNull('revoked_at')
+            ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
             ->latest('id')
             ->first();
     }

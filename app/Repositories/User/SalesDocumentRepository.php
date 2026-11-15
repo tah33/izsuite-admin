@@ -41,6 +41,8 @@ class SalesDocumentRepository
         'payments.account:id,name,currency',
         'activeLink', 'emails.sender:id,first_name,last_name',
         'sourceApp:id,name', 'creator:id,first_name,last_name',
+        // What the customer did through its link (Doc 16 Phase G2).
+        'customerResponses',
     ];
 
     public function paginateFor(Workspace $workspace, DocumentType $type, array $filters, int $perPage, string $today): LengthAwarePaginator

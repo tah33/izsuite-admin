@@ -439,6 +439,12 @@ class Workspace extends Model
         return $this->hasMany(DocumentLink::class);
     }
 
+    /** What its customers did through secure links (Doc 16 Phase G2). */
+    public function customerResponses(): HasMany
+    {
+        return $this->hasMany(CustomerResponse::class);
+    }
+
     /** Every file the business keeps, whichever record it belongs to - what its storage counts. */
     public function businessFiles(): HasMany
     {

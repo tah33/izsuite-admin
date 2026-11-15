@@ -171,6 +171,8 @@ class SalesDocumentResource extends JsonResource
             'delivery'             => app(AllowedActions::class)->delivery($this->type, $rules->delivery($this->resource, $this->today)),
             'link'                 => $this->activeLink ? new DocumentLinkResource(['link' => $this->activeLink, 'url' => app(DocumentLinks::class)->url($this->activeLink)]) : null,
             'emails'               => DocumentEmailResource::collection($this->emails),
+            // What the customer did through its link - answered, commented (Doc 16 Phase G2).
+            'customer_responses'   => CustomerResponseResource::collection($this->whenLoaded('customerResponses')),
 
             // The app that made it, and who (Doc 14 section 14.5), where it was read with them
             'made_in' => $this->whenLoaded('sourceApp', fn () => $this->sourceApp?->name),

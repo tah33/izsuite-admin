@@ -107,6 +107,10 @@ class AppServiceProvider extends ServiceProvider
         // random characters, so this is a ceiling on PDFs made for strangers
         // rather than a guard against guessing: a reader opens a page or two.
         RateLimiter::for('public-documents', fn (Request $request) => Limit::perMinute(30)->by('public-documents|'.$request->ip()));
+
+        // What a customer sends through a link (Doc 16 Phase G2) - an answer, comments - each a
+        // notification to the business: a ceiling per link and address, against flooding it.
+        RateLimiter::for('customer-responses', fn (Request $request) => Limit::perHour(20)->by('customer-responses|'.$request->route('token').'|'.$request->ip()));
     }
 
     /**

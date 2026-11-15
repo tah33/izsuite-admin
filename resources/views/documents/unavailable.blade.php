@@ -19,7 +19,7 @@
 <body>
     <div class="card">
         <h1>This document is no longer available</h1>
-        <p>The link may have been withdrawn, or the document cancelled. Please ask the business that sent it for a new link.</p>
+        <p>The link may have been withdrawn or have expired, or the document cancelled. Please ask the business that sent it for a new link.</p>
         <p class="powered">Powered by izSuite</p>
     </div>
 </body>

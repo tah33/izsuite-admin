@@ -20,9 +20,14 @@ class PublicDocuments
         protected DocumentLinks $documentLinks,
         protected DocumentRenderer $documentRenderer,
         protected DocumentPdf $documentPdf,
+        protected CustomerResponses $customerResponses,
     ) {}
 
-    /** The page, with a button to $pdfUrl - null when the link does not work. */
+    /**
+     * The page, with a button to $pdfUrl - and, on the full Sales app, the
+     * customer's answer and comment forms (Doc 16 Phase G2) - null when the
+     * link does not work.
+     */
     public function page(string $token, string $pdfUrl): ?RenderedDocument
     {
         $link = $this->working($token);
@@ -33,7 +38,7 @@ class PublicDocuments
 
         $this->documentLinkRepository->recordView($link);
 
-        return $this->documentRenderer->sales($link->workspace, $this->salesDocumentRepository->loadForPdf($link->linkable), $pdfUrl);
+        return $this->documentRenderer->sales($link->workspace, $this->salesDocumentRepository->loadForPdf($link->linkable), $pdfUrl, $this->customerResponses->screen($link));
     }
 
     /** @return array{0: string, 1: string}|null the file name and the PDF */

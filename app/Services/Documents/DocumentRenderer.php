@@ -45,10 +45,11 @@ class DocumentRenderer
 
     /**
      * $pdfUrl draws it for a screen, as its secure link shows it, with a link
-     * to download its PDF. A template preview's sample carries the settings
-     * being tried as its snapshot.
+     * to download its PDF - and $screen, the customer's answer and comment
+     * forms under it (Doc 16 Phase G2, CustomerResponses::screen). A template
+     * preview's sample carries the settings being tried as its snapshot.
      */
-    public function sales(Workspace $workspace, SalesDocument $document, ?string $pdfUrl = null): RenderedDocument
+    public function sales(Workspace $workspace, SalesDocument $document, ?string $pdfUrl = null, ?array $screen = null): RenderedDocument
     {
         $template = $this->documentTemplates->settingsFor($workspace, $document->type, $document->template_snapshot);
         $format   = DocumentFormat::of($template);
@@ -83,6 +84,7 @@ class DocumentRenderer
             'proforma'  => $document->type === DocumentType::Proforma,
             'lang'      => $template['language'],
             'pdfUrl'    => $pdfUrl,
+            'screen'    => $pdfUrl ? $screen : null,
         ];
 
         return new RenderedDocument(
