@@ -24,7 +24,7 @@ class SalesFormController extends Controller
     public function defaults(SalesDefaultsRequest $request, string $kind): JsonResponse
     {
         try {
-            $defaults = $this->salesFormService->defaults($this->currentWorkspace($request), DocumentType::fromKind($kind), $request->validated());
+            $defaults = $this->salesFormService->defaults($this->currentWorkspace($request), DocumentType::fromKind($kind), $request->validated(), $request->user());
 
             return response()->json([
                 'data' => new SalesDefaultsResource($defaults),

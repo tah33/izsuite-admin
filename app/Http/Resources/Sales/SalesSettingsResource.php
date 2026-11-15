@@ -27,6 +27,13 @@ class SalesSettingsResource extends JsonResource
             // Doc 16 Phase G2: the customer's link - the days a new one lasts, null for never, and whether they comment through it.
             'link_expiry_days'   => $this->when(WorkspaceApps::requestHas('sales', Edition::Full), fn () => $this->link_expiry_days),
             'link_comments'      => $this->when(WorkspaceApps::requestHas('sales', Edition::Full), fn () => $this->link_comments),
+            // Doc 16 Phase H1: the rest of the full Sales app's settings; the default price list with its name, as its list may be out of reach.
+            'new_sales_start_as'     => $this->when(WorkspaceApps::requestHas('sales', Edition::Full), fn () => $this->new_sales_start_as),
+            'default_price_list'     => $this->when(WorkspaceApps::requestHas('sales', Edition::Full), fn () => $this->defaultPriceList ? ['id' => $this->defaultPriceList->id, 'name' => $this->defaultPriceList->name] : null),
+            'deposit_percent'        => $this->when(WorkspaceApps::requestHas('sales', Edition::Full), fn () => $this->deposit_percent),
+            'backorders'             => $this->when(WorkspaceApps::requestHas('sales', Edition::Full), fn () => $this->backorders),
+            'default_shipping_terms' => $this->when(WorkspaceApps::requestHas('sales', Edition::Full), fn () => $this->default_shipping_terms),
+            'salesperson_is_creator' => $this->when(WorkspaceApps::requestHas('sales', Edition::Full), fn () => $this->salesperson_is_creator),
             'notes'              => $this->notes,
             'terms'              => $this->terms,
         ];

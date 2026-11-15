@@ -40,6 +40,9 @@ class SalesDefaultsResource extends JsonResource
             'customer_treatment' => $this->resource['customer_treatment'],
             'customer_tax_id'    => $this->resource['customer_tax_id'],
             'customer'           => $this->resource['customer'] ? ['id' => $this->resource['customer']->id, 'name' => $this->resource['customer']->name] : null,
+            // The full Sales app's starting shipping terms and salesperson (Doc 16 Phase H1).
+            'shipping_terms'     => $this->resource['shipping_terms'] ?? null,
+            'salesperson_id'     => $this->resource['salesperson_id'] ?? null,
         ];
     }
 }

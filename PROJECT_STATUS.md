@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-15
-- **Code:** Doc 16 Phase G2 (the customer's link) is committed: frontend `23dc5f7` on `nuxt`, and on `main` the admin commit right after `86d14c2`.
-- **Tests:** 883 backend tests pass (last full run 2026-11-15, on the first PC, on this code).
-- **Next step:** Doc 16 Phase H: settings, dashboard and reports (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 16 Phase H1 (settings and the Dashboard) is committed: frontend `6517bf4` on `nuxt`, and on `main` the admin commit right after `a7bc602`.
+- **Tests:** 887 backend tests pass (last full run 2026-11-15, on the first PC, on this code).
+- **Next step:** Doc 16 Phase H2: the sales analysis reports (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 16 Phase H.
+   > Read PROJECT_STATUS.md, then start Doc 16 Phase H2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -41,7 +41,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
-| **16** | **Sales** | **In progress: gap check and Phases A to G done (2026-11-15), Phase H next** |
+| **16** | **Sales** | **In progress: gap check and Phases A to G done, H1 built (2026-11-15), H2 next** |
 | 17 to 21 | CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -951,7 +951,7 @@ B3 was split again on starting it (2026-11-13), as a support session names a sup
 - IP allow-listing and a separate domain for the admin panel. These are server decisions.
 - Deleting a business for good. Closed keeps its data.
 
-### 4. Doc 16: Sales (next: Phase H)
+### 4. Doc 16: Sales (next: Phase H2)
 
 The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replaces Sales Lite (Doc 08) when a business turns it on, keeping and extending its records.
 
@@ -1263,6 +1263,40 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
   - Settings → Sales took 7 days; a new link's Share Link dialog said "It works until 22/11/2026, 11:29 AM, then a new one is needed."
   - The quotation, its links and responses, the notifications, the settings, its Sales row, the sequence, the keys, the sign-in and the activity were then put back.
 
+**Phase H: settings, dashboard and reports** was split on starting it (2026-11-15): H1, the rest of Settings → Sales and the Dashboard's sales pipeline; H2, the sales analysis reports; H3, the pipeline and operations reports.
+
+**Phase H1: settings and the Dashboard** (sections 16.23 and 16.25) is built, with these defaults:
+
+- **Settings → Sales**, on the full Sales app, gains:
+  - **New sales start as** an invoice (as now), a quotation or a sales order. The Dashboard's and a contact's New Sale open that, and New Sale lists it first.
+  - **A default price list**, tried after the others, for any customer and location, when no other list prices a line.
+  - **Deposits:** the percentage Create Deposit Invoice starts with (none to start).
+  - **Backorders** after a partial delivery: ask each time (as now), always make one, or never.
+  - **Shipping terms** new documents start with (none to start).
+  - **Salesperson:** new documents name whoever makes them, when they may be one (off to start).
+- **The Dashboard**, on the full Sales app, adds a Sales Pipeline card for those who see sales values, each figure with its count and value and a link to its list:
+  - quotations awaiting an answer (sent, not expired);
+  - orders confirmed in the period;
+  - orders to deliver, and orders to invoice.
+- Stock reservation and the direct invoice's stock method wait for Inventory. E-mail templates for orders and delivery notes wait with their e-mailing.
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with full Sales switched on by hand:
+  - Settings → Sales showed the new settings under the full app's part, and saved Quotation, 25%, always make a backorder, DAP and the salesperson.
+  - The Dashboard's New Sale then opened a new quotation, and its Sales Pipeline card showed the four figures (none on dev).
+  - The new quotation started with Shipping Terms DAP and izSuite User as salesperson.
+  - The deposit's percentage, the backorder rule and the default price list are covered by the tests only.
+  - The settings, its Sales row, the sign-in and the activity were then put back.
+
+**Phase H2: sales analysis reports** (section 16.26), suggested defaults:
+
+- Sales by Customer, Item, Category, Brand, Location, Salesperson, Sales Team and Source (the app that made it): issued invoices less credit notes, before tax, in the base currency.
+- The Discount Report (line and document discounts given, with any reason), Price List Usage (the lines each list and rule priced), and Estimated Sales Margin (sales less the items' costs, labelled as not a Profit and Loss Statement).
+
+**Phase H3: pipeline and operations reports** (section 16.26), suggested defaults:
+
+- Quotation Performance and Conversion Rate (sent, accepted, rejected, converted, expired), and Expired Quotations.
+- Sales Order Backlog, Orders to Deliver, Orders to Invoice, and Delivery Performance (delivered by the expected day, or after).
+- The Returns Report, Credit Notes and Refunds, an Invoice and Payment Report that counts advances, and Customer Credit Exposure.
+
 After Doc 16 come Docs 17 to 21 (CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## How we work
@@ -1320,6 +1354,7 @@ Each document goes the same way:
 - A record whose files go through `RecordFileService` (a `RecordFilesPanel` in the frontend) needs the `HasFiles` trait on its model. Without it, listing its files fails (`filesIn()` is undefined); the tests catch it only if one lists them.
 - The sidebar is cached in Redis for a day under the business's `nav_version`. A check that puts `nav_version` back leaves the sidebars of the versions it went through cached, so the next check that reaches the same versions reads an old sidebar (Sales Lite's, say). Forget those keys (`nav:{business}:{user}:{version}:{catalog}`) when putting the data back, or bump past them.
 - A PHP script that edits a file must check each step's result before writing: a failed `preg_replace()` returns null, and writing that empties the file (it happened to `AccountLedger.php`, restored from git).
+- Docker Desktop can stop in the middle of a session (twice on the first PC on 2026-11-15). Containers that were running come back with it, and the app migrates at once - a new migration file included. Run `until docker info >/dev/null 2>&1; do sleep 1; done; docker stop -t 1 izsuite-api izsuite-queue izsuite-scheduler` in the background before starting Docker Desktop, back up, then `docker compose up -d --wait`.
 - Coming back to a PC after the other has pushed migrations: its containers run every waiting migration as the app starts. Start only `docker compose up -d --wait mysql redis`, take the backup, then `docker compose up -d --wait`, and run `AppCatalogSeeder` if it changed. A stack stopped by hand stays stopped when Docker starts; one that was running comes back by itself, migrating at once.
 - `last_value` is a reserved word in MySQL 8: quote it (`` `last_value` ``) when putting `workspace_sequences` back by hand.
 - A `WorkspaceDropdown` option is picked by clicking the `button` inside its `li`, not the `li` itself.
@@ -1481,7 +1516,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 16: Phase F1, price lists | the commit after `4dc364c` | the commit after `32a787b` | 000157 |
 | Doc 16: Phase F2, discount limits | the commit after `4dc364c` | the commit after `32a787b` | 000158 |
 | Doc 16: Phase G1, credit control | `86d14c2` | `2281c27` | 000159 |
-| Doc 16: Phase G2, the customer's link | the commit after `86d14c2` | `23dc5f7` | 000160 |
+| Doc 16: Phase G2, the customer's link | `a7bc602` | `23dc5f7` | 000160 |
+| Doc 16: Phase H1, settings and the Dashboard | the commit after `a7bc602` | `6517bf4` | 000161 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -1764,6 +1800,12 @@ These are easy to undo by mistake.
   - Each is logged with `ActivityLogService::recordCustomer()` - put down to no one, whoever is signed in to that browser - and sent through `Notifier` (kind `customers`) to those with the document kind's View at its location.
   - Expiry: `document_links.expires_at`, set by `DocumentLinks::ensure()` from `sales_settings.link_expiry_days` on full Sales. `works()`, `DocumentLinkRepository::activeFor()` and `SalesDocument::activeLink()` leave out an expired link, so sharing again makes a new one.
   - The frontend's `useSalesSettingsForm` leaves out `FULL_ONLY` settings on Sales Lite.
+- The rest of Settings → Sales (Doc 16 Phase H1, migration 000161) is `sales_settings`' `new_sales_start_as`, `default_price_list_id`, `deposit_percent`, `backorders`, `default_shipping_terms` and `salesperson_is_creator`.
+  - What pages act on rides in the navigation: `workspace.sales` (`start_as`, `deposit_percent`, `backorders`; null on Sales Lite), built by `NavigationBuilder::salesChoices()`. `SalesSettingService` bumps `nav_version` when one of those three changes, and the settings form reloads the navigation after saving.
+  - `useNewSale().startKind` is what the Dashboard's and a contact's New Sale open, and what New Sale lists first: the chosen kind while the user may make one, else an invoice.
+  - `PriceListPricing::quote()` appends `PriceListRepository::fallback()` - the default list, active, in the currency and on the date, whatever its customers and locations - after the eligible lists.
+  - `SalesDeliveryService::deliver()` overrides the request's `backorder` with `always` or `never`; `SalesFormService::defaults()` adds `shipping_terms` and `salesperson_id` on the full app.
+  - The Dashboard's `sales.pipeline` is `DashboardService::pipeline()`, each figure null without its kind's View.
 - A Nuxt page for several kinds sets `minEdition` per route: `minEdition: route => (route.params.kind === 'orders' ? 'full' : 'lite')` (`middleware/app-access.global.ts`). The order's own page has none, so it opens read-only on Sales Lite.
 
 ## Small things left
@@ -1855,4 +1897,5 @@ Each of these is yours to settle.
 - Doc 16 Phase F2: migration 000158 adds the roles' `max_discount` and the documents' `discount_reason`. Deploy the frontend with it. On full Sales a role without "Change Prices by Hand" can no longer type an item's price: grant it to the roles that should.
 - Doc 16 Phase G1: migration 000159 adds the customers' credit control (`credit_limit`, `credit_sales`, `credit_action`, `credit_warning`), Settings → Sales's `credit_counts_orders` (off) and the documents' `credit_reason`. Nothing is checked until a customer is given a limit or set to pay ahead. Deploy the frontend with it. Existing roles need the Customer Credit permissions granted; the Finance User template has both.
 - Doc 16 Phase G2: migration 000160 adds `customer_responses`, `document_links.expires_at` and Settings → Sales's `link_expiry_days` (none: links never expire) and `link_comments` (on). Links already made keep working as they were. The customer's answers and comments are web routes on the backend's host, so `APP_URL` must be its public address and sessions must work there. Behind a proxy, trust its address (Laravel's `trustProxies` in `bootstrap/app.php`), or every response records the proxy's. Their e-mails go through the queue worker. Deploy the frontend with it.
+- Doc 16 Phase H1: migration 000161 adds the rest of Settings → Sales (`new_sales_start_as` invoice, `default_price_list_id`, `deposit_percent`, `backorders` ask, `default_shipping_terms`, `salesperson_is_creator` off), so nothing changes until a business chooses. Deploy the frontend with it: the navigation now carries `workspace.sales`.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

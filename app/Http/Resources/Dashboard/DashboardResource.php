@@ -43,6 +43,8 @@ class DashboardResource extends JsonResource
                     'payment_status' => $row['payment_status'],
                     'overdue'        => $row['days_overdue'] > 0,
                 ], $sales['outstanding_rows']),
+                // The full Sales app's Sales Pipeline (Doc 16 Phase H1): each {count, value}, null for a kind the role does not see.
+                'pipeline'          => $sales['pipeline'] ?? null,
             ] : null,
             'purchases' => $this->resource['purchases'],
             'expenses'  => $this->resource['expenses'],

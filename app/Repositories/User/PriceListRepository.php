@@ -105,6 +105,28 @@ class PriceListRepository
             ->get();
     }
 
+    /**
+     * The business's default list (Doc 16 Phase H1), $id, while it holds -
+     * active, in $currency, on $date - for any customer and location: tried
+     * after the eligible ones. Null without one.
+     */
+    public function fallback(Workspace $workspace, ?int $id, string $currency, string $date): ?PriceList
+    {
+        if (! $id) {
+            return null;
+        }
+
+        return PriceList::query()
+            ->where('workspace_id', $workspace->id)
+            ->whereKey($id)
+            ->where('is_active', true)
+            ->where('currency', $currency)
+            ->where(fn (Builder $query) => $query->whereNull('valid_from')->orWhere('valid_from', '<=', $date))
+            ->where(fn (Builder $query) => $query->whereNull('valid_to')->orWhere('valid_to', '>=', $date))
+            ->with('rules')
+            ->first();
+    }
+
     /** Rules by id, as a form's lines name them: SalesPricingChecks works out what each makes a line cost. */
     public function rulesFor(array $ids): Collection
     {

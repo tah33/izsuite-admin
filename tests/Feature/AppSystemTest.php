@@ -194,6 +194,8 @@ class AppSystemTest extends TestCase
             'setup_completed' => false,
             // Active, so no status to show (Doc 15 Phase B1: the banner says why one is restricted or shut).
             'status'          => null,
+            // Sales Lite, so none of the full Sales app's choices (Doc 16 Phase H1).
+            'sales'           => null,
         ], $nav['workspace']);
         $this->assertSame(
             ['name' => 'Sales Lite', 'edition' => 'lite', 'status' => 'active', 'has_history' => true],

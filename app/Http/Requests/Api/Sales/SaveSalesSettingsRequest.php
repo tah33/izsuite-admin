@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\Sales;
 
 use App\Models\User\Contact;
+use App\Models\User\SalesSetting;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -34,6 +35,13 @@ class SaveSalesSettingsRequest extends FormRequest
             // Doc 16 Phase G2: how many days a new secure link lasts - empty for never - and whether customers comment through it.
             'link_expiry_days'   => ['sometimes', 'nullable', 'integer', 'min:1', 'max:365'],
             'link_comments'      => ['sometimes', 'boolean'],
+            // Doc 16 Phase H1: the rest of the full Sales app's settings.
+            'new_sales_start_as'     => ['sometimes', Rule::in(SalesSetting::START_AS)],
+            'default_price_list_id'  => ['sometimes', 'nullable', 'integer', Rule::exists('price_lists', 'id')->where('workspace_id', $this->attributes->get('workspace')?->id ?? 0)],
+            'deposit_percent'        => ['sometimes', 'nullable', 'numeric', 'gt:0', 'max:100', 'decimal:0,2'],
+            'backorders'             => ['sometimes', Rule::in(SalesSetting::BACKORDERS)],
+            'default_shipping_terms' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'salesperson_is_creator' => ['sometimes', 'boolean'],
             'notes'              => ['nullable', 'string', 'max:5000'],
             'terms'              => ['nullable', 'string', 'max:10000'],
         ];
@@ -54,6 +62,8 @@ class SaveSalesSettingsRequest extends FormRequest
             'payment_terms.*'      => 'Payment terms are 0 to '.Contact::MAX_PAYMENT_TERMS.' days.',
             'quotation_validity.*' => 'A quotation is valid for 1 to 365 days.',
             'proforma_validity.*'  => 'A proforma invoice is valid for 1 to 365 days.',
+            'deposit_percent.*'    => 'A deposit is more than 0% and at most 100% of the order, to two decimal places.',
+            'default_price_list_id.exists' => 'Choose one of your price lists.',
         ];
     }
 }

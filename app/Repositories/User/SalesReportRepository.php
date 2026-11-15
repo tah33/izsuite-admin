@@ -272,6 +272,15 @@ class SalesReportRepository
      * cancelled ones - for the Sales Overview (Doc 16 section 16.5), with
      * $filters as documents() takes them.
      */
+    /** Quotations sent and not answered, while they hold on $today - the Dashboard's Sales Pipeline (Doc 16 Phase H1). */
+    public function awaitingAnswer(Workspace $workspace, string $today, array $filters = []): Collection
+    {
+        return $this->overviewDocuments($workspace, DocumentType::Quotation, $filters)
+            ->where('status', SalesDocumentStatus::Sent->value)
+            ->where(fn (Builder $query) => $query->whereNull('expiry_date')->orWhere('expiry_date', '>=', $today))
+            ->get(['id', 'base_grand_total']);
+    }
+
     public function offers(Workspace $workspace, string $from, string $to, array $filters = []): Collection
     {
         return $this->overviewDocuments($workspace, DocumentType::Quotation, $filters)

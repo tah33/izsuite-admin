@@ -3,6 +3,8 @@
 namespace App\Services\Api\Dashboard;
 
 use App\Enums\DocumentType;
+use App\Enums\Edition;
+use App\Enums\SalesDocumentStatus;
 use App\Models\User\Expense;
 use App\Models\User\ExpensePayment;
 use App\Models\User\PaymentAccount;
@@ -112,6 +114,28 @@ class DashboardService
             'overdue'           => Decimal::sum(array_column($overdue, 'base_outstanding')),
             'overdue_count'     => count($overdue),
             'outstanding_rows'  => array_slice($outstanding, 0, self::OUTSTANDING_SHOWN),
+            'pipeline'          => WorkspaceApps::for($workspace)->has('sales', Edition::Full) ? $this->pipeline($workspace, $filters, $asOf) : null,
+        ];
+    }
+
+    /**
+     * The full Sales app's Sales Pipeline (Doc 16 section 16.25 - Phase H1):
+     * quotations awaiting an answer, orders confirmed in the range, and those
+     * still to deliver or to invoice - each with its count and value in the
+     * base currency, for a role that sees that kind of document, null otherwise.
+     */
+    private function pipeline(Workspace $workspace, array $filters, string $asOf): array
+    {
+        $figure = fn (Collection $documents) => ['count' => $documents->count(), 'value' => Decimal::sum($documents->map(fn (SalesDocument $document) => Decimal::of($document->base_grand_total)))];
+        $orders = $this->access->can('sales.orders.view') ? $this->salesReportRepository->orders($workspace, $filters['to'], $filters) : null;
+        // The status is cast to its enum, so it is compared as one.
+        $open   = $orders?->filter(fn (SalesDocument $order) => in_array($order->status, [SalesDocumentStatus::Confirmed, SalesDocumentStatus::OnHold], true));
+
+        return [
+            'awaiting'   => $this->access->can('sales.quotations.view') ? $figure($this->salesReportRepository->awaitingAnswer($workspace, $asOf, $filters)) : null,
+            'confirmed'  => $orders ? $figure($orders->filter(fn (SalesDocument $order) => $order->document_date >= $filters['from'])) : null,
+            'to_deliver' => $open ? $figure($open->filter(fn (SalesDocument $order) => in_array($order->delivery_status, ['not_delivered', 'partially_delivered'], true))) : null,
+            'to_invoice' => $open ? $figure($open->filter(fn (SalesDocument $order) => $order->invoice_status !== 'invoiced')) : null,
         ];
     }
 

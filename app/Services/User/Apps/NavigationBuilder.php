@@ -9,6 +9,7 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceApp;
 use App\Repositories\Admin\MenuItemRepository;
+use App\Repositories\User\SalesSettingRepository;
 use App\Repositories\User\WorkspaceFileRepository;
 use App\Services\Files\FileStorage;
 use App\Services\Shared\BusinessCalendar;
@@ -57,7 +58,20 @@ class NavigationBuilder
         private FileStorage $fileStorage,
         private BusinessStatusService $statuses,
         private Features $features,
+        private SalesSettingRepository $salesSettings,
     ) {}
+
+    /** @return array{start_as: string, deposit_percent: ?string, backorders: string} */
+    private function salesChoices(Workspace $workspace): array
+    {
+        $settings = $this->salesSettings->forWorkspace($workspace);
+
+        return [
+            'start_as'        => $settings->new_sales_start_as,
+            'deposit_percent' => $settings->deposit_percent === null ? null : (string) $settings->deposit_percent,
+            'backorders'      => $settings->backorders,
+        ];
+    }
 
     public function for(?Workspace $workspace, User $user): array
     {
@@ -137,6 +151,10 @@ class NavigationBuilder
 
                 // Until it is, the business opens its setup wizard (Doc 11 section 3).
                 'setup_completed' => $workspace->isSetUp(),
+
+                // The full Sales app's choices pages act on (Doc 16 Phase H1): what New Sale opens,
+                // a deposit's starting percentage and the backorder rule. Null on Sales Lite.
+                'sales'           => $apps?->has('sales', Edition::Full) ? $this->salesChoices($workspace) : null,
             ] : null,
 
             // An object even when empty, so the client always gets a map.

@@ -4,10 +4,13 @@ namespace App\Services\Api\Sales;
 
 use App\Enums\DocumentType;
 use App\Enums\Edition;
+use App\Models\User\SalesSetting;
 use App\Models\User\TaxRate;
+use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\ContactRepository;
 use App\Repositories\User\SalesSettingRepository;
+use App\Repositories\User\SalesTeamRepository;
 use App\Repositories\User\TaxRateRepository;
 use App\Services\Api\BusinessSetup\ExchangeRateService;
 use App\Services\Shared\LocationAccess;
@@ -43,10 +46,16 @@ class SalesFormService
         protected ExchangeRateService $exchangeRateService,
         protected SalesDocumentService $salesDocumentService,
         protected SalesLines $salesLines,
+        protected SalesTeamRepository $salesTeams,
     ) {}
 
-    /** $query is validated: an optional customer, date and currency. */
-    public function defaults(Workspace $workspace, DocumentType $type, array $query): array
+    /**
+     * $query is validated: an optional customer, date and currency. On the
+     * full Sales app (Doc 16 Phase H1) a new document also starts with
+     * Settings > Sales's shipping terms, and - when it says so - $user as its
+     * salesperson, while they may be one.
+     */
+    public function defaults(Workspace $workspace, DocumentType $type, array $query, ?User $user = null): array
     {
         $date     = $query['document_date'] ?? $this->salesDocumentService->today($workspace);
         $settings = $this->salesSettingRepository->forWorkspace($workspace);
@@ -82,6 +91,20 @@ class SalesFormService
             // The customer a sale started from their profile goes to (Doc 03
             // section 10) - while they can still be sold to.
             'customer'           => $contact && $contact->is_active && $contact->isCustomer() ? $contact : null,
+            ...$this->fullDefaults($workspace, $type, $settings, $user),
+        ];
+    }
+
+    /** @return array{shipping_terms: ?string, salesperson_id: ?int} */
+    private function fullDefaults(Workspace $workspace, DocumentType $type, SalesSetting $settings, ?User $user): array
+    {
+        if (! WorkspaceApps::for($workspace)->has('sales', Edition::Full) || $type === DocumentType::CreditNote) {
+            return ['shipping_terms' => null, 'salesperson_id' => null];
+        }
+
+        return [
+            'shipping_terms' => $settings->default_shipping_terms,
+            'salesperson_id' => $user && $settings->salesperson_is_creator && $this->salesTeams->isMember($workspace, $user->id) ? $user->id : null,
         ];
     }
 

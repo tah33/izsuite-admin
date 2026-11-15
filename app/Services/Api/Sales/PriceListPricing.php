@@ -7,6 +7,7 @@ use App\Models\User\PriceList;
 use App\Models\User\PriceListRule;
 use App\Models\User\Workspace;
 use App\Repositories\User\PriceListRepository;
+use App\Repositories\User\SalesSettingRepository;
 use App\Support\Decimal;
 
 /**
@@ -28,6 +29,7 @@ class PriceListPricing
 
     public function __construct(
         protected PriceListRepository $priceLists,
+        protected SalesSettingRepository $salesSettings,
     ) {}
 
     /**
@@ -39,6 +41,9 @@ class PriceListPricing
     public function quote(Workspace $workspace, array $context, array $lines): array
     {
         $lists = $this->priceLists->eligible($workspace, $context['currency'], $context['date'], $context['contact_id'] ?? null, $context['location_id'] ?? null);
+        // Settings > Sales's default list, for any customer and location, after the others (Doc 16 Phase H1).
+        $last  = $this->priceLists->fallback($workspace, $this->salesSettings->forWorkspace($workspace)->default_price_list_id, $context['currency'], $context['date']);
+        $lists = $last && ! $lists->contains('id', $last->id) ? $lists->push($last) : $lists;
         $items = $this->priceLists->itemsFor($workspace, array_values(array_filter(array_column($lines, 'item_id'))))->keyBy('id');
         $rate  = Decimal::isZero((string) ($context['exchange_rate'] ?? '1')) ? '1' : (string) ($context['exchange_rate'] ?? '1');
         $out   = [];

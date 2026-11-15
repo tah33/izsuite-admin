@@ -34,6 +34,8 @@ class NavigationResource extends JsonResource
                 'setup_completed' => $workspace['setup_completed'] ?? true,
                 // Doc 15 section 15.6: null while Active; else its banner or why it cannot be opened.
                 'status'          => $workspace['status'] ?? null,
+                // Doc 16 Phase H1: what New Sale opens, a deposit's starting percentage and the backorder rule - null on Sales Lite.
+                'sales'           => $workspace['sales'] ?? null,
             ] : null,
 
             // By family. An object even when empty, so the client always gets a

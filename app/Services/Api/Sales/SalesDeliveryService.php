@@ -9,6 +9,7 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\SalesDeliveryRepository;
 use App\Repositories\User\SalesDocumentRepository;
+use App\Repositories\User\SalesSettingRepository;
 use App\Services\Documents\DocumentNumbers;
 use App\Services\Documents\DocumentPdf;
 use App\Services\Sales\SalesDeliveryRules;
@@ -49,6 +50,7 @@ class SalesDeliveryService
         protected DocumentNumbers $documentNumbers,
         protected WorkspaceAccess $access,
         protected DocumentPdf $documentPdf,
+        protected SalesSettingRepository $salesSettings,
     ) {}
 
     public function list(Workspace $workspace, array $filters, int $perPage): LengthAwarePaginator
@@ -151,7 +153,8 @@ class SalesDeliveryService
      * A delivery that arrived: who received it and the day ($data: delivered_on,
      * recipient_name, backorder, number - DeliverRequest). Its lines count on
      * the order; with `backorder`, what the order still has left becomes a new
-     * draft delivery.
+     * draft delivery - always, or never, when Settings > Sales says so (Doc 16
+     * Phase H1).
      */
     public function deliver(Workspace $workspace, int $id, User $user, array $data): SalesDelivery
     {
@@ -159,6 +162,12 @@ class SalesDeliveryService
 
         // Still within what its order has left - another may have gone out since.
         $this->checked($delivery->order, $delivery->lines->mapWithKeys(fn ($line) => [$line->sales_document_line_id => (string) $line->quantity])->all(), $delivery->id);
+
+        $data['backorder'] = match ($this->salesSettings->forWorkspace($workspace)->backorders) {
+            'always' => true,
+            'never'  => false,
+            default  => (bool) ($data['backorder'] ?? false),
+        };
 
         $backorder = DB::transaction(function () use ($workspace, $delivery, $user, $data) {
             $this->deliveries->update($delivery, [
