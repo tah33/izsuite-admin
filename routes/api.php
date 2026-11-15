@@ -78,6 +78,7 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SalesConversionController;
 use App\Http\Controllers\Api\CustomerAdvanceController;
+use App\Http\Controllers\Api\CustomerCreditController;
 use App\Http\Controllers\Api\PriceListController;
 use App\Http\Controllers\Api\SalesAllocationController;
 use App\Http\Controllers\Api\SalesReturnAttachmentController;
@@ -665,6 +666,10 @@ Route::prefix('v1')->group(function () {
         Route::middleware('app:sales,full')->group(function () {
             Route::get('/overview', [SalesOverviewController::class, 'show'])->name('api.sales.overview');
             Route::get('/salespeople', [SalesTeamController::class, 'options'])->name('api.sales.salespeople');
+
+            // A customer's credit control and exposure (Doc 16 Phase G1).
+            Route::get('/customers/{id}/credit', [CustomerCreditController::class, 'show'])->whereNumber('id')->name('api.sales.customers.credit');
+            Route::put('/customers/{id}/credit', [CustomerCreditController::class, 'update'])->whereNumber('id')->name('api.sales.customers.credit.update');
         });
 
         Route::get('/payments', [SalesPaymentController::class, 'index'])->name('api.sales.payments.index');

@@ -28,9 +28,9 @@ class SalesDocumentFlowController extends Controller
     public function issue(IssueSalesDocumentRequest $request, string $kind, int $id): JsonResponse
     {
         try {
-            $document = $this->salesDocumentFlow->issue($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user(), $request->validated('exchange_rate'), $request->validated('number'));
+            $document = $this->salesDocumentFlow->issue($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user(), $request->validated('exchange_rate'), $request->validated('number'), $request->validated('credit_reason'));
 
-            return $this->answer($request, $document, "{$document->type->label()} {$document->number} issued.");
+            return $this->answer($request, $document, trim("{$document->type->label()} {$document->number} issued. {$this->salesDocumentFlow->creditNotice}"));
 
         } catch (\Throwable $e) {
             report($e);
@@ -107,9 +107,9 @@ class SalesDocumentFlowController extends Controller
     public function confirm(IssueSalesDocumentRequest $request, string $kind, int $id): JsonResponse
     {
         try {
-            $document = $this->salesDocumentFlow->confirm($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user(), $request->validated('number'));
+            $document = $this->salesDocumentFlow->confirm($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user(), $request->validated('number'), $request->validated('credit_reason'));
 
-            return $this->answer($request, $document, "Sales order {$document->number} confirmed.");
+            return $this->answer($request, $document, trim("Sales order {$document->number} confirmed. {$this->salesDocumentFlow->creditNotice}"));
 
         } catch (\Throwable $e) {
             report($e);

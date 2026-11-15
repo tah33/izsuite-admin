@@ -64,7 +64,15 @@ class SalesDocumentFlow
         protected SalesOrderInvoicing $salesOrderInvoicing,
         protected SalesDeliveryRepository $salesDeliveryRepository,
         protected SalesOrderDeposits $salesOrderDeposits,
+        protected CustomerCredit $customerCredit,
     ) {}
+
+    /**
+     * What the last issue or confirmation has to say about its customer's
+     * credit limit (Doc 16 Phase G1): it went over and was let through, or
+     * was overridden. Null when within it.
+     */
+    public ?string $creditNotice = null;
 
     /**
      * A draft sales order confirmed (Doc 16 section 16.9): numbered - the next
@@ -73,18 +81,21 @@ class SalesDocumentFlow
      * delivery status starts as Not Delivered, or Not Required when every line
      * is a service, and nothing is invoiced yet.
      */
-    public function confirm(Workspace $workspace, DocumentType $type, int $id, User $user, ?string $number = null): SalesDocument
+    public function confirm(Workspace $workspace, DocumentType $type, int $id, User $user, ?string $number = null, ?string $creditReason = null): SalesDocument
     {
         $document = $this->allowed($workspace, $type, $id, 'confirm', 'Only a draft sales order can be confirmed.');
 
         $this->checkReady($workspace, $document);
 
         $typed = $this->documentNumbers->typed($document->type, $number, fn (string $taken) => $this->salesDocumentRepository->numberTaken($workspace, $document->type, $taken));
+        // Its customer's credit limit, while confirmed orders count toward it (Doc 16 Phase G1).
+        $credit = $this->checkCredit($workspace, $document, $creditReason);
 
         $this->salesDocumentRepository->loadLineItems($document);
 
         DB::transaction(fn () => $this->salesDocumentRepository->update($document, [
             ...$this->numbered($workspace, $document, $typed),
+            ...($credit['overridden'] ?? false ? ['credit_reason' => trim((string) $creditReason)] : []),
             'status'          => SalesDocumentStatus::Confirmed,
             'confirmed_at'    => now(),
             'confirmed_by'    => $user->id,
@@ -93,7 +104,7 @@ class SalesDocumentFlow
             'updated_by'      => $user->id,
         ]));
 
-        return $this->logged($document, 'Confirmed '.$this->salesDocumentService->describe($document));
+        return $this->creditLogged($document, 'Confirmed '.$this->salesDocumentService->describe($document), $credit, $creditReason);
     }
 
     /** A confirmed sales order put on hold, with an optional reason: nothing more is done on it until it is resumed. */
@@ -119,8 +130,10 @@ class SalesDocumentFlow
      * $rate 'keep' - or at the business's rate for its date - 'current' - its
      * base figures then worked out again (Doc 08 sections 11 and 18).
      */
-    public function issue(Workspace $workspace, DocumentType $type, int $id, User $user, ?string $rate = null, ?string $number = null): SalesDocument
+    public function issue(Workspace $workspace, DocumentType $type, int $id, User $user, ?string $rate = null, ?string $number = null, ?string $creditReason = null): SalesDocument
     {
+        $this->creditNotice = null;
+
         if ($type === DocumentType::CreditNote) {
             return $this->creditNoteService->issue($workspace, $id, $user, $number);
         }
@@ -133,6 +146,8 @@ class SalesDocumentFlow
 
         $current = $this->rateToIssueAt($workspace, $document, $rate);
         $typed   = $this->documentNumbers->typed($document->type, $number, fn (string $taken) => $this->salesDocumentRepository->numberTaken($workspace, $document->type, $taken));
+        // Its customer's credit limit, at the rate it is issued at (Doc 16 Phase G1).
+        $credit  = $this->checkCredit($workspace, $document, $creditReason, $current);
 
         DB::transaction(fn () => $this->salesDocumentRepository->update($document, [
             ...($current ? [
@@ -141,6 +156,7 @@ class SalesDocumentFlow
                 ...$this->salesCalculator->baseTotals((string) $document->grand_total, (string) $document->tax_total, $current),
             ] : []),
             ...$this->numbered($workspace, $document, $typed),
+            ...($credit['overridden'] ?? false ? ['credit_reason' => trim((string) $creditReason)] : []),
             'status'         => SalesDocumentStatus::Issued,
             'payment_status' => bccomp((string) $document->grand_total, '0', 2) > 0 ? SalesDocument::PAYMENT_UNPAID : 'paid',
             'balance_due'    => $document->grand_total,
@@ -149,7 +165,7 @@ class SalesDocumentFlow
 
         $this->refreshOrder($document);
 
-        return $this->logged($document, 'Issued '.$this->salesDocumentService->describe($document));
+        return $this->creditLogged($document, 'Issued '.$this->salesDocumentService->describe($document), $credit, $creditReason);
     }
 
     public function send(Workspace $workspace, DocumentType $type, int $id, User $user): SalesDocument
@@ -371,6 +387,30 @@ class SalesDocumentFlow
 
         return $rate && $rate->is_active && $rate->effective_from <= $document->document_date
             && (! $rate->effective_to || $rate->effective_to >= $document->document_date);
+    }
+
+    /** @return ?array{message: string, overridden: bool} see CustomerCredit::check */
+    private function checkCredit(Workspace $workspace, SalesDocument $document, ?string $reason, ?string $rate = null): ?array
+    {
+        $this->creditNotice = null;
+
+        return $this->customerCredit->check($workspace, $document, $reason, $rate);
+    }
+
+    /** logged(), with the credit limit's word for the user, and an override in the Activity Log with why. */
+    private function creditLogged(SalesDocument $document, string $description, ?array $credit, ?string $reason): SalesDocument
+    {
+        $shown = $this->logged($document, $description);
+
+        if ($credit) {
+            $this->creditNotice = $credit['message'];
+
+            if ($credit['overridden']) {
+                $this->customerCredit->logOverride($document, $description, (string) $reason);
+            }
+        }
+
+        return $shown;
     }
 
     private function logged(SalesDocument $document, string $description): SalesDocument

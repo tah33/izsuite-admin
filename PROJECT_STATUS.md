@@ -2,10 +2,10 @@
 
 What is done, what comes next, and how to carry on from another PC.
 
-- **Last updated:** 2026-11-14
-- **Code:** Doc 16's gap check and Phases A to F are pushed (2026-11-14). Phases C to F are one commit in each repo, "Doc 16 Phases C to F", the one after `main`'s `4dc364c` and `nuxt`'s `32a787b`.
-- **Tests:** 877 backend tests pass (last full run 2026-11-14, on the second PC).
-- **Next step:** Doc 16 Phase G: credit control and the customer's link (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Last updated:** 2026-11-15
+- **Code:** Doc 16 Phase G1 (credit control) is committed: frontend `2281c27` on `nuxt`, and on `main` the admin commit right after `6af463f`.
+- **Tests:** 880 backend tests pass (last full run 2026-11-15, on the first PC, on this code).
+- **Next step:** Doc 16 Phase G2: the customer's link (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 16 Phase G.
+   > Read PROJECT_STATUS.md, then start Doc 16 Phase G2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -41,7 +41,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
-| **16** | **Sales** | **In progress: gap check and Phases A to F done (2026-11-14), Phase G next** |
+| **16** | **Sales** | **In progress: gap check and Phases A to F done (2026-11-14), G1 built (2026-11-15), G2 next** |
 | 17 to 21 | CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -951,7 +951,7 @@ B3 was split again on starting it (2026-11-13), as a support session names a sup
 - IP allow-listing and a separate domain for the admin panel. These are server decisions.
 - Deleting a business for good. Closed keeps its data.
 
-### 4. Doc 16: Sales (next: Phase G)
+### 4. Doc 16: Sales (next: Phase G2)
 
 The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replaces Sales Lite (Doc 08) when a business turns it on, keeping and extending its records.
 
@@ -1215,6 +1215,43 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - **Left for later:** an approval workflow instead of the override (the Approvals app), and promotions' source references (Marketing, Loyalty, POS, eCommerce).
 - **Checked in the browser** as a throwaway member whose role gives up to 10% and may not change prices: in a new invoice the chair's price was read-only at 150.00, and a 15% line discount was refused with "Your role gives discounts up to 10.00%. A larger one needs "Discount Beyond the Limit"", under the new reason field. The member, the customer, the item, the account, the sign-in and the activity were then put back.
 
+**Phase G: credit control and the customer's link** was split on starting it (2026-11-15): G1, credit control; G2, the customer's link.
+
+**Phase G1: credit control** (sections 16.21 and 16.27) is built, with these defaults:
+
+- **On a customer** (full Sales; a Credit Control card on their contact page):
+  - a credit limit in the base currency (empty for none);
+  - whether they may buy on credit at all;
+  - what going over does, Warn or Block;
+  - a warning note, shown when a sale is made for them.
+
+  Changing them needs "Set Credit Limits".
+- **Their exposure**, in the base currency:
+  - what their issued invoices still owe, with the overdue ones shown apart;
+  - with Settings → Sales's "Count confirmed orders" (off to start), what confirmed and held orders have not invoiced yet;
+  - less their unapplied credit: advances, and credit notes with credit left.
+- **Checked** when an invoice is issued and, while orders count, when an order is confirmed - only where that adds to the exposure. An invoice that its deposits or a counted order already cover passes, as does a sale for a customer who may not buy on credit but has paid ahead (16.21: "A credit limit does not affect fully paid cash sales").
+- **Over the limit**, or any credit for a customer who may not buy on credit:
+  - Warn lets it through, and its message says so.
+  - Block refuses it, with the exposure against the limit.
+  - "Override Credit Limits" goes on with a reason, which the document keeps and the Activity Log records.
+- **The sales form** shows a picked customer's warning note, and their limit, exposure and what is left.
+- **Permissions**, on full Sales only: Customer Credit's Set Credit Limits and Override Credit Limits. Finance users get both.
+- **Left for later:** the Customer Credit Exposure report (Phase H), credit holds on deliveries (Inventory), and approving an override (Approvals).
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with full Sales switched on by hand:
+  - Bose Electronics' Credit Control card showed no limit; Edit set USD 100.00, Block and the note "Cash on delivery only", and the card showed USD 100.00 left.
+  - A new invoice for them showed the note, and "Credit limit $100.00 · balance $0.00 · $100.00 left", under the customer.
+  - Issuing a draft of USD 149.99 opened Over the Credit Limit: "would take their balance to USD 149.99. To go on, give a reason." With a reason, it was issued as INV-00004, saying it took them over, and its page showed the reason under Over the Credit Limit.
+  - The card then warned "Over the limit: new sales on credit are blocked", with the balance "$149.99 · $49.99 over" (it said "-$49.99 left" until fixed), and Settings → Sales showed the Customer Credit switch, off.
+  - A member without Override Credit Limits is covered by the tests, not the browser.
+  - The invoices, the customer's credit, its Sales row, the sequence, the keys, the sign-in and the activity were then put back.
+
+**Phase G2: the customer's link** (section 16.22), suggested defaults:
+
+- Through the link a customer views a quotation, proforma, order or invoice and downloads its PDF; accepts or rejects a sent quotation, recorded with when and from where (the address and browser); and leaves a comment, which the business sees on the document. Nothing internal shows.
+- Links expire after the days set in Settings → Sales (empty for never); revoking stays.
+- Paying online waits for a payment gateway for the business's own customers.
+
 After Doc 16 come Docs 17 to 21 (CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## How we work
@@ -1272,6 +1309,9 @@ Each document goes the same way:
 - A record whose files go through `RecordFileService` (a `RecordFilesPanel` in the frontend) needs the `HasFiles` trait on its model. Without it, listing its files fails (`filesIn()` is undefined); the tests catch it only if one lists them.
 - The sidebar is cached in Redis for a day under the business's `nav_version`. A check that puts `nav_version` back leaves the sidebars of the versions it went through cached, so the next check that reaches the same versions reads an old sidebar (Sales Lite's, say). Forget those keys (`nav:{business}:{user}:{version}:{catalog}`) when putting the data back, or bump past them.
 - A PHP script that edits a file must check each step's result before writing: a failed `preg_replace()` returns null, and writing that empties the file (it happened to `AccountLedger.php`, restored from git).
+- Coming back to a PC after the other has pushed migrations: its containers run every waiting migration as the app starts. Start only `docker compose up -d --wait mysql redis`, take the backup, then `docker compose up -d --wait`, and run `AppCatalogSeeder` if it changed. A stack stopped by hand stays stopped when Docker starts; one that was running comes back by itself, migrating at once.
+- `last_value` is a reserved word in MySQL 8: quote it (`` `last_value` ``) when putting `workspace_sequences` back by hand.
+- A `WorkspaceDropdown` option is picked by clicking the `button` inside its `li`, not the `li` itself.
 
 ### Checking the app as a limited member
 
@@ -1427,6 +1467,7 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 16: Phase E, returns | the commit after `4dc364c` | the commit after `32a787b` | 000156 |
 | Doc 16: Phase F1, price lists | the commit after `4dc364c` | the commit after `32a787b` | 000157 |
 | Doc 16: Phase F2, discount limits | the commit after `4dc364c` | the commit after `32a787b` | 000158 |
+| Doc 16: Phase G1, credit control | the commit after `6af463f` | `2281c27` | 000159 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -1697,6 +1738,12 @@ These are easy to undo by mistake.
 - Returns (Doc 16 Phase E, migration 000156) are `SalesReturn` and `SalesReturnLine` (an order line, its quantity and warranty), numbered as `DocumentType::SalesReturn` (RET-, no template). `SalesReturnService` checks quantities against what was delivered (`left()`, from a delivery no more than it took), takes a return through its steps and, once received, counts the order lines' returned quantities again (`refreshOrder()`); `SalesReturnRules` lists its actions, `AllowedActions::salesReturn()` filters them, and `SalesDocumentRules` offers `create_return` only on an order with something delivered. `SalesDeliveryLinesInput` takes words of its own for the return's form.
 - Price lists (Doc 16 Phase F1, migration 000157) are `PriceList` (with `price_list_contacts` and `price_list_locations` when not for all) and `PriceListRule`. `PriceListPricing::quote()` prices lines (`POST /sales/prices`); `sales_document_lines.price_list_id` and `price_list_rule_id` keep what priced a line, checked as the business's by `SaveSalesDocumentRequest` and copied by conversions. In the frontend, `useLinePricing()` (from `useSalesDocumentForm`) asks for prices while a line's `priceAuto` holds; typing a price clears it (`SalesFormLine`).
 - Discount limits and hand-typed prices (Doc 16 Phase F2, migration 000158) are `workspace_roles.max_discount` and `sales_documents.discount_reason`, checked by `SalesPricingChecks::check()` from `SalesDocumentService::create()` and `update()` on full Sales. The form's defaults carry `max_discount` and `prices_by_hand`, which `SalesFormLine` uses to make an item's price read-only.
+- Credit control (Doc 16 Phase G1, migration 000159) is `CustomerCredit`, with `CustomerCreditRepository` and `GET`/`PUT /sales/customers/{id}/credit` (`sales.values.view`; `sales.credit.manage` to change).
+  - A customer who may not buy on credit (`credit_sales` off) has a limit of nothing; no limit and credit sales on means nothing is checked.
+  - Exposure, in the base currency: Outstanding Invoices' rows for the customer as of today (`base_outstanding`); plus, with `sales_settings.credit_counts_orders`, each confirmed or held order's `base_grand_total` less its issued invoices' (a subquery on `source_id`); less unapplied credit. An advance's `exchange_rate` is to its payment account's currency, so its base value is `balance × base_amount / amount`; a credit note's is `balance_due × exchange_rate`.
+  - `check()` runs in `SalesDocumentFlow::issue()` (at the rate it is issued at, after the rate question) and `confirm()`. A document is checked only when it adds to the exposure: an invoice adds its base total, less what a counted order of its still had uninvoiced; an order adds its total only while orders count.
+  - Warn returns the message, which the controller adds after "Invoice … issued." from `SalesDocumentFlow::$creditNotice`. Block throws on `credit_reason` unless the user has `sales.credit.override` and gave one; then the reason goes on the document and a second Activity Log entry ("… over its customer's credit limit, because: …").
+  - The frontend's `SalesCreditModal` opens from `SalesDocumentActions` when issuing or confirming fails on `credit_reason`, and sends the action again with the same rate and number. The status tables it used moved to `utils/salesDocuments.ts` (`PRIMARY_ACTIONS`, `REASONED_ACTIONS`, `CONFIRMED_ACTIONS`, `MAKING_ACTIONS`) to keep the component under 200 lines.
 - A Nuxt page for several kinds sets `minEdition` per route: `minEdition: route => (route.params.kind === 'orders' ? 'full' : 'lite')` (`middleware/app-access.global.ts`). The order's own page has none, so it opens read-only on Sales Lite.
 
 ## Small things left
@@ -1716,6 +1763,8 @@ These are easy to undo by mistake.
 - A return is made from an order or its delivery, not from an invoice, and its credit note is made from the invoice without a link back to it.
 - Price lists are for all customers or chosen ones: there are no customer groups yet.
 - Amount Received (the Dashboard, the Sales Overview and Payments Received's report) counts invoice payments only, so money paid ahead does not show there. Phase H's Invoice and Payment Report should count advances.
+- The Activity Log gets an entry, "POST api/v1/sales/calculate completed with status 200", each time a sales form works out its totals: `LogApiWriteActivity` logs every POST that writes no entry of its own, and calculating writes nothing. Found during Doc 16 Phase G1's check; older than it.
+- A customer's credit exposure counts invoices dated up to today, as Outstanding Invoices does, so one dated ahead is left out until its day.
 
 ## Open decisions
 
@@ -1782,4 +1831,5 @@ Each of these is yours to settle.
 - Doc 16 Phase E: migration 000156 adds `sales_returns` and `sales_return_lines` and puts Returns in the full Sales menu, after Invoices. Deploy the frontend with it. Existing roles need the Returns permissions granted.
 - Doc 16 Phase F1: migration 000157 adds `price_lists`, its customers, locations and rules, and the lines' `price_list_id` and `price_list_rule_id`, and puts Price Lists in the full Sales menu, after Payments Received. Deploy the frontend with it. Existing roles need the Price Lists permissions granted.
 - Doc 16 Phase F2: migration 000158 adds the roles' `max_discount` and the documents' `discount_reason`. Deploy the frontend with it. On full Sales a role without "Change Prices by Hand" can no longer type an item's price: grant it to the roles that should.
+- Doc 16 Phase G1: migration 000159 adds the customers' credit control (`credit_limit`, `credit_sales`, `credit_action`, `credit_warning`), Settings → Sales's `credit_counts_orders` (off) and the documents' `credit_reason`. Nothing is checked until a customer is given a limit or set to pay ahead. Deploy the frontend with it. Existing roles need the Customer Credit permissions granted; the Finance User template has both.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

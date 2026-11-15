@@ -23,6 +23,8 @@ class SalesSetting extends Model
         'invoice_policy',
         // Doc 16 Phase D1: advances recorded, and overpayments kept as them.
         'customer_advances',
+        // Doc 16 Phase G1: confirmed orders not invoiced yet count toward a customer's credit exposure.
+        'credit_counts_orders',
         'notes',
         'terms',
     ];
@@ -35,6 +37,7 @@ class SalesSetting extends Model
         'document_discounts' => true,
         'invoice_policy'     => 'ordered',
         'customer_advances'  => true,
+        'credit_counts_orders' => false,
     ];
 
     protected $casts = [
@@ -44,6 +47,7 @@ class SalesSetting extends Model
         'line_discounts'     => 'boolean',
         'document_discounts' => 'boolean',
         'customer_advances'  => 'boolean',
+        'credit_counts_orders' => 'boolean',
     ];
 
     public function workspace(): BelongsTo

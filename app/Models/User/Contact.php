@@ -48,6 +48,12 @@ class Contact extends Model
     /** The workspace_sequences counter its numbers come from. */
     public const NUMBER_SEQUENCE = 'contact';
 
+    /** Going over the credit limit lets the sale through, saying so (Doc 16 section 16.21). */
+    public const CREDIT_WARN = 'warn';
+
+    /** Going over the credit limit refuses the sale, unless someone who may override it gives a reason. */
+    public const CREDIT_BLOCK = 'block';
+
     public const SHIPPING_FIELDS = [
         'shipping_line1', 'shipping_line2', 'shipping_city', 'shipping_state', 'shipping_postal_code', 'shipping_country',
     ];
@@ -77,6 +83,11 @@ class Contact extends Model
         ...self::SHIPPING_FIELDS,
         'sales_currency',
         'customer_payment_terms',
+        // Credit control, the full Sales app's (Doc 16 Phase G1): see CustomerCredit.
+        'credit_limit',
+        'credit_sales',
+        'credit_action',
+        'credit_warning',
         'purchase_currency',
         'supplier_payment_terms',
         'tax_number',
@@ -92,12 +103,15 @@ class Contact extends Model
         'contact_type'             => self::TYPE_BUSINESS,
         'role'                     => self::ROLE_CUSTOMER,
         'shipping_same_as_billing' => true,
+        'credit_sales'             => true,
+        'credit_action'            => self::CREDIT_WARN,
         'is_active'                => true,
     ];
 
     protected $casts = [
         'tags'                     => 'array',
         'shipping_same_as_billing' => 'boolean',
+        'credit_sales'             => 'boolean',
         'customer_payment_terms'   => 'integer',
         'supplier_payment_terms'   => 'integer',
         'tax_treatment'            => TaxTreatment::class,

@@ -90,6 +90,8 @@ final class Permissions
         'sales.refunds'      => ['Refunds', 'sales', ['record' => 'Record Refund']],
         // A price typed by hand, and a discount past the role's largest (Doc 16 Phase F2).
         'sales.pricing'      => ['Prices and Discounts', 'sales', ['override' => 'Change Prices by Hand', 'beyond' => 'Discount Beyond the Limit'], 'full'],
+        // A customer's credit limit, and going past it (Doc 16 Phase G1).
+        'sales.credit'       => ['Customer Credit', 'sales', ['manage' => 'Set Credit Limits', 'override' => 'Override Credit Limits'], 'full'],
         // Price lists (Doc 16 Phase F1).
         'sales.price_lists'  => ['Price Lists', 'sales', ['view' => self::VIEW, 'manage' => 'Add or Change'], 'full'],
         'sales.values'       => ['Sales Values', 'sales', ['view' => 'View Sales Values']],
@@ -150,6 +152,9 @@ final class Permissions
         'sales.advances.record'      => ['contacts.view', 'payment_accounts.view'],
         'sales.advances.apply'       => ['sales.invoices.view'],
         'sales.advances.reverse'     => ['payment_accounts.view'],
+        // A customer's credit is told in amounts: what they owe against their limit.
+        'sales.credit.manage'        => ['contacts.view', 'sales.values.view'],
+        'sales.credit.override'      => ['sales.values.view'],
         'sales.refunds.record'       => ['sales.credit_notes.view', 'payment_accounts.view'],
         'sales.settings.manage'      => ['settings.view'],
         'purchases.purchases.create' => ['contacts.view', 'items.view'],
@@ -310,6 +315,8 @@ final class Permissions
                 ...self::actionsOf('payment_accounts', ['view', 'create', 'edit', 'transfer', 'export', 'balances', 'details']),
                 'sales.invoices.view', 'sales.credit_notes.view', 'sales.payments.view', 'sales.payments.record', 'sales.payments.reverse', 'sales.refunds.record',
                 ...self::actionsOf('sales.advances', ['view', 'record', 'apply', 'reverse']),
+                // Credit control is finance's (Doc 16 Phase G1).
+                'sales.credit.manage', 'sales.credit.override',
                 'purchases.purchases.view', 'purchases.payments.view', 'purchases.payments.record', 'purchases.payments.reverse',
                 'expenses.expenses.view', 'expenses.payments.view', 'expenses.payments.record', 'expenses.payments.reverse',
             ],

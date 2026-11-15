@@ -23,6 +23,8 @@ class IssueSalesDocumentRequest extends FormRequest
             'exchange_rate' => ['nullable', Rule::in(['keep', 'current'])],
             // A number typed rather than the next one (Doc 14 section 14.6) - DocumentNumbers::typed checks the role and that it is free
             'number'        => ['nullable', 'string', 'max:40', 'regex:#^[A-Za-z0-9][A-Za-z0-9 ._/-]*$#'],
+            // Going over the customer's credit limit, by someone who may (Doc 16 Phase G1) - CustomerCredit::check asks for it
+            'credit_reason' => ['nullable', 'string', 'max:500'],
         ];
     }
 

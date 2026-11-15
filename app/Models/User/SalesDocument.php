@@ -122,6 +122,8 @@ class SalesDocument extends Model
         'is_deposit',
         // Why its discount goes past the user's role's (Doc 16 Phase F2).
         'discount_reason',
+        // Why it was issued or confirmed over its customer's credit limit (Doc 16 Phase G1).
+        'credit_reason',
         'reason',
         'issued_at',
         'confirmed_at',

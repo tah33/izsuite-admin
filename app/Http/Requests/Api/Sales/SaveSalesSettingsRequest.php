@@ -29,6 +29,8 @@ class SaveSalesSettingsRequest extends FormRequest
             // The full Sales app's (Doc 16 Phase B); Sales Lite's form leaves it as it is.
             'invoice_policy'     => ['sometimes', Rule::in(['ordered', 'delivered'])],
             'customer_advances'  => ['sometimes', 'boolean'],
+            // Doc 16 Phase G1: confirmed orders not invoiced yet count toward a customer's credit exposure.
+            'credit_counts_orders' => ['sometimes', 'boolean'],
             'notes'              => ['nullable', 'string', 'max:5000'],
             'terms'              => ['nullable', 'string', 'max:10000'],
         ];

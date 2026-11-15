@@ -243,6 +243,9 @@ final class RoutePermissions
 
             // Sales Lite (Doc 08): quotations, proforma invoices, invoices and credit notes by their kind.
             'api.sales.overview'            => 'sales.values.view',
+            // A customer's credit control and exposure (Doc 16 Phase G1): seen with the values, set with its permission.
+            'api.sales.customers.credit'        => 'sales.values.view',
+            'api.sales.customers.credit.update' => 'sales.credit.manage',
             // The sales form, the Overview's filters and Settings → Sales teams choose from it.
             'api.sales.salespeople'         => [...self::SALES_DRAFTS, 'sales.values.view', 'sales.settings.manage'],
             'api.sales.index'               => 'sales.{kind}.view',

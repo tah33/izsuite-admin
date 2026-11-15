@@ -120,6 +120,8 @@ class SalesDocumentResource extends JsonResource
             'is_deposit'           => (bool) $this->is_deposit,
             // Why its discount went past the role's limit (Doc 16 Phase F2).
             'discount_reason'      => $this->discount_reason,
+            // Why it was issued or confirmed over its customer's credit limit (Doc 16 Phase G1).
+            'credit_reason'        => $this->credit_reason,
             'deposits'             => $this->type === DocumentType::SalesOrder
                 ? array_map(fn (array $deposit) => $this->hideValues('sales', $deposit, ['grand_total', 'deducted']), app(SalesOrderDeposits::class)->forOrder($this->resource))
                 : null,
