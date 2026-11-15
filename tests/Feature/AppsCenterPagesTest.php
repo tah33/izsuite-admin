@@ -101,6 +101,7 @@ class AppsCenterPagesTest extends TestCase
         $this->assertContains(['name' => 'Tax Summary', 'shared' => true, 'edition' => null], $page['reports']);
         // The full Sales app's own reports, marked as its (Doc 16 Phase H2a).
         $this->assertContains(['name' => 'Sales by Salesperson', 'shared' => false, 'edition' => 'full'], $page['reports']);
+        $this->assertContains(['name' => 'Estimated Sales Margin', 'shared' => false, 'edition' => 'full'], $page['reports']);
         $this->assertContains('Invoices', $page['permissions']);
         $this->assertContains('Sales Values', $page['permissions']);
 

@@ -6,6 +6,7 @@ use App\Enums\DocumentType;
 use App\Enums\SalesDocumentStatus;
 use App\Models\User\CustomerAdvance;
 use App\Models\User\Item;
+use App\Models\User\PriceList;
 use App\Models\User\SalesAllocation;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesDocumentLine;
@@ -25,7 +26,8 @@ use Illuminate\Database\Eloquent\Collection;
  * $filters narrow them: location_id, contact_id, currency - a document's own,
  * or a payment's account's - document_currency for money moved against
  * documents in one currency, payment_account_id for money through one
- * account, and item_id or category_id for lines of one item or category.
+ * account, item_id or category_id for lines of one item or category, and
+ * priced for lines a price list priced.
  */
 class SalesReportRepository
 {
@@ -48,11 +50,41 @@ class SalesReportRepository
     }
 
     /**
+     * Issued invoices dated from $from to $to that gave a discount - on a line
+     * or on the whole - oldest first, with their lines' discounts summed, the
+     * customer, who sold them and why a discount went past a role's limit
+     * (Doc 16 Phase H2b).
+     */
+    public function discounted(Workspace $workspace, string $from, string $to, array $filters = []): Collection
+    {
+        return $this->documents($workspace, DocumentType::Invoice, $filters)
+            ->whereBetween('document_date', [$from, $to])
+            ->where(fn (Builder $query) => $query->where('discount_total', '>', 0)->orWhereHas('lines', fn (Builder $lines) => $lines->where('discount_amount', '>', 0)))
+            ->select([...self::FIGURES, 'discount_reason'])
+            ->withSum('lines as line_discounts', 'discount_amount')
+            ->with(['contact:id,name', 'salesperson:id,first_name,last_name'])
+            ->orderBy('document_date')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /** The business's $ids price lists, with each rule and what it names (Doc 16 Phase H2b). */
+    public function priceLists(Workspace $workspace, array $ids): Collection
+    {
+        return PriceList::query()
+            ->where('workspace_id', $workspace->id)
+            ->whereIn('id', $ids)
+            ->with(['rules.item:id,name', 'rules.category:id,name', 'rules.brand:id,name'])
+            ->get(['id', 'name', 'currency']);
+    }
+
+    /**
      * The lines of issued invoices or credit notes dated from $from to $to,
      * with what their share of the totals needs, and where their document
      * falls: its date, customer, location and currency - and (Doc 16 Phase
      * H2a) its item's category and brand as they are now, its salesperson,
-     * team and the app that made it.
+     * team and the app that made it - and (Phase H2b) the price list and rule
+     * that priced it, and its item's purchase price now.
      */
     public function issuedLines(Workspace $workspace, DocumentType $type, string $from, string $to, array $filters = []): Collection
     {
@@ -79,6 +111,7 @@ class SalesReportRepository
                 'sales_document_lines.item_id',
                 Item::query()->where('workspace_id', $workspace->id)->where('category_id', $id)->select('id'),
             ))
+            ->when($filters['priced'] ?? false, fn (Builder $query) => $query->whereNotNull('sales_document_lines.price_list_id'))
             ->get([
                 'sales_document_lines.item_id', 'sales_document_lines.name', 'sales_document_lines.quantity', 'sales_document_lines.amount',
                 'sales_document_lines.tax_amount', 'sales_document_lines.sales_document_id', 'sales_documents.subtotal',
@@ -88,6 +121,7 @@ class SalesReportRepository
                 'items.category_id', 'item_categories.name as category_name', 'items.brand_id', 'item_brands.name as brand_name',
                 'sales_documents.salesperson_id', 'salespeople.first_name as salesperson_first_name', 'salespeople.last_name as salesperson_last_name',
                 'sales_documents.sales_team_id', 'sales_teams.name as team_name', 'sales_documents.source_app_id', 'source_apps.name as source_name',
+                'sales_document_lines.price_list_id', 'sales_document_lines.price_list_rule_id', 'items.purchase_price',
             ]);
     }
 

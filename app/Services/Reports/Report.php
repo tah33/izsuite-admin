@@ -108,6 +108,12 @@ abstract class Report
         return collect($keys)->mapWithKeys(fn (string $key) => [$key => Decimal::sum(array_column($rows, $key))])->all();
     }
 
+    /** $part as a percentage of $whole, to one place - "12.5" - and none of nothing. */
+    protected function percent(string $part, string $whole): ?string
+    {
+        return Decimal::isZero($whole) ? null : Decimal::round(bcdiv(bcmul($part, '100', 10), $whole, 10), 1);
+    }
+
     protected function add(string $a, string $b): string
     {
         return bcadd($a, $b, 2);

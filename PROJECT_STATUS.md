@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-15
-- **Code:** Doc 16 Phase H2a (the "Sales by" reports) is committed: frontend `94742a7` on `nuxt`, and on `main` the admin commit right after `ad0f5c0`.
-- **Tests:** 891 backend tests pass (last full run 2026-11-15, on the first PC, on this code).
-- **Next step:** Doc 16 Phase H2b: the discount, price list and margin reports (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 16 Phase H2b (discounts, price lists and margin) is committed: frontend `917c2a1` on `nuxt`, and on `main` the admin commit right after `48eba34`.
+- **Tests:** 896 backend tests pass (last full run 2026-11-15, on the first PC, on this code).
+- **Next step:** Doc 16 Phase H3: the pipeline and operations reports (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 16 Phase H2b.
+   > Read PROJECT_STATUS.md, then start Doc 16 Phase H3.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -41,7 +41,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
-| **16** | **Sales** | **In progress: gap check and Phases A to G and H1 done, H2a built (2026-11-15), H2b next** |
+| **16** | **Sales** | **In progress: gap check and Phases A to G, H1 and H2a done, H2b built (2026-11-15), H3 next** |
 | 17 to 21 | CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -951,7 +951,7 @@ B3 was split again on starting it (2026-11-13), as a support session names a sup
 - IP allow-listing and a separate domain for the admin panel. These are server decisions.
 - Deleting a business for good. Closed keeps its data.
 
-### 4. Doc 16: Sales (next: Phase H2b)
+### 4. Doc 16: Sales (next: Phase H3)
 
 The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replaces Sales Lite (Doc 08) when a business turns it on, keeping and extending its records.
 
@@ -1303,11 +1303,21 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
   - The Sales app's page listed them as "(Sales only)".
   - Its Sales row, the sign-in and the activity were then put back.
 
-**Phase H2b: discounts, price lists and margin** (section 16.26), suggested defaults:
+**Phase H2b: discounts, price lists and margin** (section 16.26) is built, with these defaults. Phase H2 is done.
 
-- The Discount Report: each issued invoice with a discount - its line and document discounts in the base currency, its salesperson, and any reason for going past a role's limit.
-- Price List Usage: by list and rule, the issued invoice lines each priced, their quantity and their sales before tax.
-- Estimated Sales Margin: by item, sales before tax less the item's cost now times the quantity, with the margin and its percentage - for those who see costs, and labelled as not a Profit and Loss Statement.
+- Three more reports under Sales, on the full Sales app, after the "Sales by" ones.
+- **The Discount Report:** each issued invoice of the period with a discount, oldest first. It shows what the invoice came to before discounts, its line discounts and its invoice discount, in the base currency, with the total and its percentage. It also shows the customer, the salesperson and any reason for going past a role's limit. Filters: period, location, customer and currency.
+- **Price List Usage:** by list and rule, the issued invoice lines each priced, as the line kept them. It shows how many lines, on how many invoices, their quantity and their sales before tax. A rule removed since shows as one; credit notes are not taken off. Only for roles that may see price lists. Filters: period, location and currency.
+- **Estimated Sales Margin:** by item, sales before tax less credit notes, less the item's purchase price now times the quantity, with the margin and its percentage. Lines without an item, like delivery, are left out. An item without a purchase price shows no cost or margin, and the totals leave it out. Only for roles that may see costs, and labelled as an estimate, not a Profit and Loss Statement. Filters: period, location and item category.
+- Percentages show to one place with their sign, on the page and in the PDF.
+- **Also fixed:** saving a price list deleted its rules and made them again, so every sales line it had priced lost its rule. A rule now keeps its id when the list is saved: the form sends it back, and only rules taken out of the list go.
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with full Sales switched on by hand (after naas, which also uses port 8000, was stopped):
+  - The Reports page listed the three after Sales by Source.
+  - The Discount Report for this year showed INV-00001 for Bose Electronics: $640.00 before discounts, $64.00 off its lines, 10.0%, right-aligned.
+  - Estimated Sales Margin listed Home Office Set and Design Course with no cost, and the Standing Desk at nothing (sold twice and credited twice), under "Total of items with a cost". Given a purchase price of $400.00 for a moment, Home Office Set showed $144.99 and 26.6%.
+  - Price List Usage opened empty (no priced lines on dev).
+  - A price list added for the check, saved from its form with a new priority, kept its rule's id.
+  - The list, the purchase price, its Sales row, the sign-in and the activity were then put back.
 
 **Phase H3: pipeline and operations reports** (section 16.26), suggested defaults:
 
@@ -1536,7 +1546,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 16: Phase G1, credit control | `86d14c2` | `2281c27` | 000159 |
 | Doc 16: Phase G2, the customer's link | `a7bc602` | `23dc5f7` | 000160 |
 | Doc 16: Phase H1, settings and the Dashboard | `ad0f5c0` | `6517bf4` | 000161 |
-| Doc 16: Phase H2a, the "Sales by" reports | the commit after `ad0f5c0` | `94742a7` | none |
+| Doc 16: Phase H2a, the "Sales by" reports | `48eba34` | `94742a7` | none |
+| Doc 16: Phase H2b, discounts, price lists and margin | the commit after `48eba34` | `917c2a1` | none |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -1830,6 +1841,11 @@ These are easy to undo by mistake.
   - `namesFor()` marks them `edition` `full` for the app's page.
   - Sales Summary's full-app groupings are `SalesSummaryReport::FULL_GROUPS`, which `ReportService` refuses on Sales Lite. The frontend's `reportGroups(key, fullSales)` adds them.
   - Category and brand come from `SalesReportRepository::issuedLines()`'s joins to the line's item now; salesperson, team and source from the document (`issued()` loads them, `issuedLines()` joins them).
+- The Discount Report, Price List Usage and Estimated Sales Margin (Doc 16 Phase H2b) are `DiscountReport`, `PriceListUsageReport` and `SalesMarginReport`:
+  - `ReportCatalog::FULL_SALES` maps what the full app's reports need to a permission more: `sales_costs` takes `items.costs`, `sales_lists` takes `sales.price_lists.view`, and `sales_full` none. All need the full app on and sales seen.
+  - `SalesReportRepository::discounted()` gives invoices with a line or invoice discount, with `line_discounts` summed. `issuedLines()` takes `priced` and carries each line's `price_list_id`, `price_list_rule_id` and its item's `purchase_price`; `priceLists()` loads lists with their rules.
+  - `Report::percent()` gives a share to one place, or null of nothing, for `percent` columns.
+  - `PriceListRepository::replaceParts()` updates a rule sent with its id (`PriceListResource` now gives it), adds the others and deletes the rest.
 - A Nuxt page for several kinds sets `minEdition` per route: `minEdition: route => (route.params.kind === 'orders' ? 'full' : 'lite')` (`middleware/app-access.global.ts`). The order's own page has none, so it opens read-only on Sales Lite.
 
 ## Small things left

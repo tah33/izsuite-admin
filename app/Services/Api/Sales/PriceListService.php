@@ -97,6 +97,7 @@ class PriceListService
     private function parts(array $data): array
     {
         $rules = array_values(array_map(fn (array $rule, int $index) => [
+            'id'               => isset($rule['id']) ? (int) $rule['id'] : null,
             'target'           => $rule['target'],
             'item_id'          => $rule['target'] === 'item' ? $rule['item_id'] : null,
             'item_category_id' => $rule['target'] === 'category' ? $rule['item_category_id'] : null,

@@ -15,8 +15,11 @@ use App\Services\Reports\Purchases\PaymentsMadeReport;
 use App\Services\Reports\Purchases\PurchaseSummaryReport;
 use App\Services\Reports\Sales\ContactStatementReport;
 use App\Services\Reports\Sales\CreditNotesReport;
+use App\Services\Reports\Sales\DiscountReport;
 use App\Services\Reports\Sales\OutstandingInvoicesReport;
 use App\Services\Reports\Sales\PaymentsReceivedReport;
+use App\Services\Reports\Sales\PriceListUsageReport;
+use App\Services\Reports\Sales\SalesMarginReport;
 use App\Services\Reports\Sales\SalesSummaryReport;
 use App\Services\Reports\Sales\SalesTrendReport;
 use App\Services\Reports\Sales\TaxDetailsReport;
@@ -33,7 +36,8 @@ use App\Services\User\Apps\WorkspaceApps;
  * on, or turned off since (Doc 06 section 19); Payments Made while
  * Purchases or Expenses has; Contact Statement while any of the three has;
  * Tax Summary and Tax Details while taxes are on or tax history exists (Doc
- * 07 section 16); Payment Account Transactions always. Each only for a role
+ * 07 section 16); Payment Account Transactions always; the full Sales app's
+ * while it is on (Doc 16 section 16.26). Each only for a role
  * that may see what it shows, values included (PARTS) - the tax reports with
  * Tax Information too, the account's with its balances; another is not
  * found.
@@ -59,9 +63,16 @@ class ReportCatalog
     ];
 
     /**
+     * What the full Sales app's reports need (Doc 16 section 16.26): the app
+     * on, and sales seen - and for two of them a permission more.
+     */
+    private const FULL_SALES = ['sales_full' => null, 'sales_costs' => 'items.costs', 'sales_lists' => 'sales.price_lists.view'];
+
+    /**
      * Each report: its name, category, class, filters, what it shows, and what
      * it needs - Sales, Purchases or Expenses records, Purchases' or Expenses'
-     * (payables), any app's (contacts), tax too, or nothing.
+     * (payables), any app's (contacts), tax too, the full Sales app
+     * (FULL_SALES), or nothing.
      */
     private const REPORTS = [
         'sales-summary'        => ['Sales Summary', 'sales', SalesSummaryReport::class, ['period', 'group_by', 'location', 'currency', 'item', 'category'], 'Invoices less credit notes for a period - by day, week, month, customer, item, location or currency.', 'sales'],
@@ -80,6 +91,10 @@ class ReportCatalog
         'sales-by-salesperson' => ['Sales by Salesperson', 'sales', SalesSummaryReport::class, ['period', 'location', 'currency'], 'Invoices less credit notes for a period, before tax, by the salesperson each names.', 'sales_full'],
         'sales-by-team'        => ['Sales by Sales Team', 'sales', SalesSummaryReport::class, ['period', 'location', 'currency'], 'Invoices less credit notes for a period, before tax, by the sales team each names.', 'sales_full'],
         'sales-by-source'      => ['Sales by Source', 'sales', SalesSummaryReport::class, ['period', 'location', 'currency'], 'Invoices less credit notes for a period, before tax, by the app that made each.', 'sales_full'],
+        // Phase H2b's: the margin for those who see costs, price list usage for those who see price lists.
+        'discounts'            => ['Discount Report', 'sales', DiscountReport::class, ['period', 'location', 'contact', 'currency'], 'Invoices that gave a discount, on their lines or the whole, who sold them, and why one went past a limit.', 'sales_full'],
+        'price-list-usage'     => ['Price List Usage', 'sales', PriceListUsageReport::class, ['period', 'location', 'currency'], 'The invoice lines each price list and rule priced, and their sales before tax.', 'sales_lists'],
+        'sales-margin'         => ['Estimated Sales Margin', 'sales', SalesMarginReport::class, ['period', 'location', 'category'], "Sales by item less each item's cost now - an estimate, not a Profit and Loss Statement.", 'sales_costs'],
         'purchase-summary'     => ['Purchase Summary', 'purchases', PurchaseSummaryReport::class, ['period', 'group_by', 'location', 'currency', 'item', 'category'], 'Recorded purchases for a period - by day, week, month, supplier, item, category, location or currency.', 'purchases'],
         'outstanding-purchases' => ['Outstanding Purchases', 'purchases', OutstandingPurchasesReport::class, ['as_of', 'location', 'contact', 'currency', 'payment_status'], 'Purchases still to be paid on a day, and how overdue they are.', 'purchases'],
         'payments-made'        => ['Payments Made', 'purchases', PaymentsMadeReport::class, ['period', 'location', 'contact', 'currency', 'payment_account'], 'Supplier and expense payments by date, with tax withheld apart.', 'payables'],
@@ -123,17 +138,17 @@ class ReportCatalog
         $purchases = $apps->hasHistory('purchases');
         $expenses  = $apps->hasHistory('expenses');
         $has       = [
-            'sales'      => $sales,
-            // The full Sales app's own reports (Doc 16 section 16.26): while it is on.
-            'sales_full' => $apps->has('sales', Edition::Full),
-            'purchases'  => $purchases,
-            'expenses'   => $expenses,
-            'payables'   => $purchases || $expenses,
-            'contacts'   => $sales || $purchases || $expenses,
-            'taxes'      => ($sales || $purchases || $expenses) && ($workspace->usesTaxes()
+            'sales'     => $sales,
+            'purchases' => $purchases,
+            'expenses'  => $expenses,
+            'payables'  => $purchases || $expenses,
+            'contacts'  => $sales || $purchases || $expenses,
+            'taxes'     => ($sales || $purchases || $expenses) && ($workspace->usesTaxes()
                 || ($sales && $this->salesReportRepository->hasTaxHistory($workspace))
                 || ($purchases && $this->purchaseReportRepository->hasTaxHistory($workspace))
                 || ($expenses && $this->expenseReportRepository->hasTaxHistory($workspace))),
+            // The full Sales app's own (Doc 16 section 16.26): while it is on.
+            ...array_fill_keys(array_keys(self::FULL_SALES), $apps->has('sales', Edition::Full)),
         ];
         $entries = [];
 
@@ -164,8 +179,8 @@ class ReportCatalog
 
         foreach (self::REPORTS as [$name, , , , , $needs]) {
             // The full Sales app's own count as Sales', marked as the full edition's (Doc 16 Phase H2a).
-            $edition = $needs === 'sales_full' ? 'full' : null;
-            $needs   = $needs === 'sales_full' ? 'sales' : $needs;
+            $edition = array_key_exists($needs ?? '', self::FULL_SALES) ? 'full' : null;
+            $needs   = $edition ? 'sales' : $needs;
 
             if ($needs === $family || in_array($needs, $shared, true)) {
                 $names[] = ['name' => $name, 'shared' => $needs !== $family, 'edition' => $edition];
@@ -205,7 +220,7 @@ class ReportCatalog
     {
         return match ($needs) {
             'sales', 'purchases', 'expenses' => $this->sees([$needs => true]),
-            'sales_full' => $this->sees(['sales' => true]),
+            'sales_full', 'sales_costs', 'sales_lists' => $this->sees(['sales' => true]) && (self::FULL_SALES[$needs] === null || $this->access->can(self::FULL_SALES[$needs])),
             'payables'   => $this->sees(['supplier_payments' => $purchases, 'expense_payments' => $expenses]),
             'taxes'      => $this->access->can('taxes.view') && $this->sees(['sales' => $sales, 'purchases' => $purchases, 'expenses' => $expenses]),
             // A statement for either side: a customer's, or a supplier's.

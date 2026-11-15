@@ -45,6 +45,8 @@ class SavePriceListRequest extends FormRequest
             'priority'                 => ['required', 'integer', 'min:0', 'max:999'],
             'notes'                    => ['nullable', 'string', 'max:2000'],
             'rules'                    => ['present', 'array', 'max:500'],
+            // A rule it has, kept where it is: the lines it priced keep it.
+            'rules.*.id'               => ['nullable', 'integer'],
             'rules.*.target'           => ['required', Rule::in(PriceListRule::TARGETS)],
             'rules.*.item_id'          => ['required_if:rules.*.target,item', 'nullable', 'integer', $own(Item::class)],
             'rules.*.item_category_id' => ['required_if:rules.*.target,category', 'nullable', 'integer', $own(ItemCategory::class)],

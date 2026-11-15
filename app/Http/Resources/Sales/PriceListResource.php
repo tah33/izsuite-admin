@@ -25,6 +25,7 @@ class PriceListResource extends JsonResource
             'priority'      => $this->priority,
             'notes'         => $this->notes,
             'rules'         => $this->rules->map(fn (PriceListRule $rule) => [
+                'id'               => $rule->id,
                 'target'           => $rule->target,
                 'item_id'          => $rule->item_id,
                 'item_category_id' => $rule->item_category_id,

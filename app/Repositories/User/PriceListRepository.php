@@ -9,6 +9,7 @@ use App\Models\User\Workspace;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Arr;
 
 /**
  * Price lists (Doc 16 Phase F1) belong to one business: every lookup is scoped
@@ -58,11 +59,31 @@ class PriceListRepository
         return $list;
     }
 
-    /** Its rules, customers and locations as given: the old ones go. */
+    /**
+     * Its rules, customers and locations as given. A rule sent with its id is
+     * changed where it is, so the sales lines it priced keep it (Doc 16 Phase
+     * H2b); another is added, and the list's others go.
+     */
     public function replaceParts(PriceList $list, array $rules, array $contactIds, array $locationIds): void
     {
-        $list->rules()->delete();
-        $list->rules()->createMany($rules);
+        $kept = $list->rules()->whereIn('id', array_filter(array_column($rules, 'id')))->pluck('id')->all();
+        $used = [];
+
+        $list->rules()->whereNotIn('id', $kept)->delete();
+
+        foreach ($rules as $rule) {
+            $id     = $rule['id'] ?? null;
+            $fields = Arr::except($rule, 'id');
+
+            // An id sent twice is the first one's; the second is added.
+            if (in_array($id, $kept, true) && ! isset($used[$id])) {
+                $used[$id] = true;
+                $list->rules()->whereKey($id)->update($fields);
+            } else {
+                $list->rules()->create($fields);
+            }
+        }
+
         $list->contacts()->sync($contactIds);
         $list->locations()->sync($locationIds);
         $list->unsetRelations();
