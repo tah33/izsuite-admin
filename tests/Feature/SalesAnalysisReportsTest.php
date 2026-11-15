@@ -113,10 +113,12 @@ class SalesAnalysisReportsTest extends TestCase
         $keys = fn () => array_column($this->getJson('/api/v1/reports')->assertOk()->json('data'), 'key');
         $all  = $keys();
 
-        // Together, after the other sales reports, in Doc 16's order.
-        $at = array_search('discounts', $all, true);
-        $this->assertSame(['discounts', 'price-list-usage', 'sales-margin'], array_slice($all, $at, 3));
-        $this->assertGreaterThan(array_search('sales-by-source', $all, true), $at);
+        // In Doc 16's order, after the "Sales by" reports.
+        $at     = array_map(fn (string $key) => array_search($key, $all, true), ['sales-by-source', 'discounts', 'price-list-usage', 'sales-margin']);
+        $sorted = $at;
+        sort($sorted);
+        $this->assertNotContains(false, $at);
+        $this->assertSame($sorted, $at);
 
         $entries = array_column($this->getJson('/api/v1/reports')->json('data'), null, 'key');
         $this->assertSame([['period', 'location', 'contact', 'currency'], ['period', 'location', 'category']], [$entries['discounts']['filters'], $entries['sales-margin']['filters']]);

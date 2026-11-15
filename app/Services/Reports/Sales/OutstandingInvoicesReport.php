@@ -82,6 +82,8 @@ class OutstandingInvoicesReport extends Report
 
             $rows[] = [
                 'id'               => $invoice->id,
+                // Whose, for Customer Credit Exposure (Doc 16 Phase H3c).
+                'contact_id'       => $invoice->contact_id,
                 'number'           => $invoice->number,
                 'customer'         => $this->figures->customerName($invoice),
                 'document_date'    => $invoice->document_date,

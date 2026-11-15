@@ -9,6 +9,7 @@ use App\Models\User\Item;
 use App\Models\User\PriceList;
 use App\Models\User\SalesAllocation;
 use App\Models\User\SalesDelivery;
+use App\Models\User\SalesReturn;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesDocumentLine;
 use App\Models\User\SalesPayment;
@@ -169,7 +170,9 @@ class SalesReportRepository
     /**
      * Issued invoices dated on or before $asOf, each with what had settled it
      * by then (paid_by, withheld_by, credited_by, refunded_by) - the parts of
-     * InvoiceSettlement's balance, as of that day.
+     * InvoiceSettlement's balance, as of that day - and of what was applied
+     * to it, how much came from advances (advanced_by). $filters may keep
+     * them to those dated from issued_from to issued_to (Doc 16 Phase H3c).
      */
     public function invoicesAsOf(Workspace $workspace, string $asOf, array $filters = []): Collection
     {
@@ -208,12 +211,20 @@ class SalesReportRepository
             ->selectRaw('given.source_id, SUM(sales_allocations.amount) as given_sum')
             ->groupBy('given.source_id');
 
+        $advanced = $this->allocationsAsOf($workspace, $asOf)
+            ->whereNotNull('sales_allocations.customer_advance_id')
+            ->selectRaw('invoice_id, SUM(amount) as advanced_sum')
+            ->groupBy('invoice_id');
+
         return $this->documents($workspace, DocumentType::Invoice, $filters, 'sales_documents.')
             ->select(array_map(fn (string $column) => "sales_documents.{$column}", self::FIGURES))
             ->selectRaw('COALESCE(p.paid_sum, 0) as paid_by, COALESCE(p.withheld_sum, 0) as withheld_by, COALESCE(c.credited_sum, 0) as credited_by, COALESCE(r.refunded_sum, 0) as refunded_by')
-            ->selectRaw('COALESCE(a.allocated_sum, 0) as allocated_by, COALESCE(g.given_sum, 0) as given_by')
+            ->selectRaw('COALESCE(a.allocated_sum, 0) as allocated_by, COALESCE(g.given_sum, 0) as given_by, COALESCE(v.advanced_sum, 0) as advanced_by')
             ->leftJoinSub($allocatedIn, 'a', 'a.invoice_id', '=', 'sales_documents.id')
             ->leftJoinSub($allocatedOut, 'g', 'g.source_id', '=', 'sales_documents.id')
+            ->leftJoinSub($advanced, 'v', 'v.invoice_id', '=', 'sales_documents.id')
+            ->when($filters['issued_from'] ?? null, fn (Builder $query, string $from) => $query->where('sales_documents.document_date', '>=', $from))
+            ->when($filters['issued_to'] ?? null, fn (Builder $query, string $to) => $query->where('sales_documents.document_date', '<=', $to))
             ->leftJoinSub($payments, 'p', 'p.sales_document_id', '=', 'sales_documents.id')
             ->leftJoinSub($credits, 'c', 'c.source_id', '=', 'sales_documents.id')
             ->leftJoinSub($refunds, 'r', 'r.source_id', '=', 'sales_documents.id')
@@ -378,6 +389,26 @@ class SalesReportRepository
             ->whereIn('status', [SalesDocumentStatus::Confirmed->value, SalesDocumentStatus::OnHold->value])
             ->with(['lines' => fn ($lines) => $lines->orderBy('position'), 'lines.item:id,type', 'contact:id,name', 'salesperson:id,first_name,last_name', 'salesTeam:id,name'])
             ->orderBy('document_date')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * Returns dated from $from to $to that were submitted - not drafts or
+     * cancelled ones - with their lines' order lines and their order's
+     * customer, narrowed by the return's own location, as the Returns list
+     * is (Doc 16 Phase H3c).
+     */
+    public function returnsBetween(Workspace $workspace, string $from, string $to, array $filters = []): Collection
+    {
+        return SalesReturn::query()
+            ->where('workspace_id', $workspace->id)
+            ->whereNotIn('status', [SalesReturn::DRAFT, SalesReturn::CANCELLED])
+            ->whereBetween('return_date', [$from, $to])
+            ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('location_id', $id))
+            ->when(isset($filters['location_ids']), fn (Builder $query) => $query->whereIn('location_id', $filters['location_ids']))
+            ->with(['lines.orderLine:id,item_id,name', 'order', 'order.contact:id,name'])
+            ->orderBy('return_date')
             ->orderBy('id')
             ->get();
     }

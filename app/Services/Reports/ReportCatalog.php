@@ -14,10 +14,13 @@ use App\Services\Reports\Purchases\OutstandingPurchasesReport;
 use App\Services\Reports\Purchases\PaymentsMadeReport;
 use App\Services\Reports\Purchases\PurchaseSummaryReport;
 use App\Services\Reports\Sales\ContactStatementReport;
+use App\Services\Reports\Sales\CreditExposureReport;
 use App\Services\Reports\Sales\CreditNotesReport;
+use App\Services\Reports\Sales\CreditRefundsReport;
 use App\Services\Reports\Sales\DeliveryPerformanceReport;
 use App\Services\Reports\Sales\DiscountReport;
 use App\Services\Reports\Sales\ExpiredQuotationsReport;
+use App\Services\Reports\Sales\InvoicePaymentsReport;
 use App\Services\Reports\Sales\OrderBacklogReport;
 use App\Services\Reports\Sales\OrdersToDeliverReport;
 use App\Services\Reports\Sales\OrdersToInvoiceReport;
@@ -26,6 +29,7 @@ use App\Services\Reports\Sales\PaymentsReceivedReport;
 use App\Services\Reports\Sales\PriceListUsageReport;
 use App\Services\Reports\Sales\QuotationConversionReport;
 use App\Services\Reports\Sales\QuotationPerformanceReport;
+use App\Services\Reports\Sales\ReturnsReport;
 use App\Services\Reports\Sales\SalesMarginReport;
 use App\Services\Reports\Sales\SalesSummaryReport;
 use App\Services\Reports\Sales\SalesTrendReport;
@@ -79,8 +83,9 @@ class ReportCatalog
         'sales_lists'      => 'sales.price_lists.view',
         'sales_quotes'     => 'sales.quotations.view',
         'sales_orders'     => 'sales.orders.view',
-        // Delivery Performance shows no values, so it needs this alone.
+        // Delivery Performance and the Returns Report show no values, so they need this alone.
         'sales_deliveries' => 'sales.deliveries.view',
+        'sales_returns'    => 'sales.returns.view',
     ];
 
     /**
@@ -115,9 +120,15 @@ class ReportCatalog
         'orders-to-deliver'    => ['Orders to Deliver', 'sales', OrdersToDeliverReport::class, ['location', 'contact'], 'Open orders with goods still to deliver, the earliest expected first, and how late each is.', 'sales_orders'],
         'orders-to-invoice'    => ['Orders to Invoice', 'sales', OrdersToInvoiceReport::class, ['location', 'contact', 'currency'], 'Open orders not invoiced in full, and what is left to invoice.', 'sales_orders'],
         'delivery-performance' => ['Delivery Performance', 'sales', DeliveryPerformanceReport::class, ['period', 'group_by', 'location'], 'Deliveries that arrived in a period, on time or late against the expected day - by month, customer or carrier.', 'sales_deliveries'],
+        // Phase H3c's: the money for those who see sales, returns - no values - for those who see returns.
+        'invoice-payments'     => ['Invoice and Payment Report', 'sales', InvoicePaymentsReport::class, ['period', 'location', 'contact', 'currency'], 'Invoices of a period and how each was settled - payments, advances, credit and tax withheld - and what is still owed.', 'sales_full'],
+        'returns'              => ['Returns Report', 'sales', ReturnsReport::class, ['period', 'group_by', 'location'], 'Returns of a period - open, received or rejected - by month, item, customer, condition or resolution.', 'sales_returns'],
+        'credit-refunds'       => ['Credit Notes and Refunds', 'sales', CreditRefundsReport::class, ['period', 'group_by', 'location', 'currency'], 'Credit notes of a period and what became of their credit: applied, refunded or still available.', 'sales_full'],
         // Phase H2b's: the margin for those who see costs, price list usage for those who see price lists.
         'discounts'            => ['Discount Report', 'sales', DiscountReport::class, ['period', 'location', 'contact', 'currency'], 'Invoices that gave a discount, on their lines or the whole, who sold them, and why one went past a limit.', 'sales_full'],
         'price-list-usage'     => ['Price List Usage', 'sales', PriceListUsageReport::class, ['period', 'location', 'currency'], 'The invoice lines each price list and rule priced, and their sales before tax.', 'sales_lists'],
+        // Phase H3c's, as of today: where Doc 16 lists it.
+        'credit-exposure'      => ['Customer Credit Exposure', 'sales', CreditExposureReport::class, [], "Each customer's exposure against their credit limit - what they owe, less the credit they hold.", 'sales_full'],
         'sales-margin'         => ['Estimated Sales Margin', 'sales', SalesMarginReport::class, ['period', 'location', 'category'], "Sales by item less each item's cost now - an estimate, not a Profit and Loss Statement.", 'sales_costs'],
         'purchase-summary'     => ['Purchase Summary', 'purchases', PurchaseSummaryReport::class, ['period', 'group_by', 'location', 'currency', 'item', 'category'], 'Recorded purchases for a period - by day, week, month, supplier, item, category, location or currency.', 'purchases'],
         'outstanding-purchases' => ['Outstanding Purchases', 'purchases', OutstandingPurchasesReport::class, ['as_of', 'location', 'contact', 'currency', 'payment_status'], 'Purchases still to be paid on a day, and how overdue they are.', 'purchases'],
@@ -245,7 +256,7 @@ class ReportCatalog
         return match ($needs) {
             'sales', 'purchases', 'expenses' => $this->sees([$needs => true]),
             'sales_full', 'sales_costs', 'sales_lists', 'sales_quotes', 'sales_orders' => $this->sees(['sales' => true]) && (self::FULL_SALES[$needs] === null || $this->access->can(self::FULL_SALES[$needs])),
-            'sales_deliveries' => $this->access->can(self::FULL_SALES['sales_deliveries']),
+            'sales_deliveries', 'sales_returns' => $this->access->can(self::FULL_SALES[$needs]),
             'payables'   => $this->sees(['supplier_payments' => $purchases, 'expense_payments' => $expenses]),
             'taxes'      => $this->access->can('taxes.view') && $this->sees(['sales' => $sales, 'purchases' => $purchases, 'expenses' => $expenses]),
             // A statement for either side: a customer's, or a supplier's.

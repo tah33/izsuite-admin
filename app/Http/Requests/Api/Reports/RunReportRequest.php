@@ -10,6 +10,7 @@ use App\Services\Reports\Sales\DeliveryPerformanceReport;
 use App\Services\Reports\Sales\OrderBacklogReport;
 use App\Services\Reports\Sales\OutstandingInvoicesReport;
 use App\Services\Reports\Sales\QuotationReport;
+use App\Services\Reports\Sales\ReturnsReport;
 use App\Services\Reports\Sales\SalesSummaryReport;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -36,7 +37,7 @@ class RunReportRequest extends FormRequest
             'date_from'           => ['nullable', 'required_with:date_to', 'date_format:Y-m-d'],
             'date_to'             => ['nullable', 'required_with:date_from', 'date_format:Y-m-d', 'after_or_equal:date_from'],
             'as_of'               => ['nullable', 'date_format:Y-m-d'],
-            'group_by'            => ['nullable', Rule::in(array_keys([...SalesSummaryReport::GROUPS, ...PurchaseSummaryReport::GROUPS, ...ExpensesByCategoryReport::GROUPS, ...QuotationReport::GROUPS, ...OrderBacklogReport::GROUPS, ...DeliveryPerformanceReport::GROUPS]))],
+            'group_by'            => ['nullable', Rule::in(array_keys([...SalesSummaryReport::GROUPS, ...PurchaseSummaryReport::GROUPS, ...ExpensesByCategoryReport::GROUPS, ...QuotationReport::GROUPS, ...OrderBacklogReport::GROUPS, ...DeliveryPerformanceReport::GROUPS, ...ReturnsReport::GROUPS]))],
             'location_id'         => ['nullable', 'integer'],
             'contact_id'          => ['nullable', 'integer'],
             'currency'            => ['nullable', 'string', 'size:3'],

@@ -60,6 +60,39 @@ class CustomerCredit
         return $this->figures($workspace, $this->customer($workspace, $contactId));
     }
 
+    /**
+     * Every customer's figures at once, as summary() gives them, with their
+     * name, by their id - those who owe, hold credit or have orders that
+     * count, and any with a credit limit: Customer Credit Exposure's (Doc 16
+     * Phase H3c). Each read once for all of them.
+     *
+     * @return array<int, array>
+     */
+    public function exposures(Workspace $workspace): array
+    {
+        $counts   = $this->countsOrders($workspace);
+        $owed     = collect($this->outstanding->rows($workspace, $this->period->today($workspace), []))->groupBy('contact_id');
+        $orders   = $counts ? $this->credit->openOrdersFor($workspace, null)->groupBy('contact_id') : collect();
+        $advances = $this->credit->openAdvancesFor($workspace, null)->groupBy('contact_id');
+        $notes    = $this->credit->openCreditNotesFor($workspace, null)->groupBy('contact_id');
+        $ids      = collect([$owed, $orders, $advances, $notes])->flatMap(fn (Collection $held) => $held->keys())->filter()->unique()->values()->all();
+        $figures  = [];
+
+        foreach ($this->contacts->creditCustomers($workspace, $ids) as $customer) {
+            $exposure = $this->exposureOf(
+                ($owed[$customer->id] ?? collect())->all(),
+                $orders[$customer->id] ?? collect(),
+                $advances[$customer->id] ?? collect(),
+                $notes[$customer->id] ?? collect(),
+                $counts,
+            );
+
+            $figures[$customer->id] = ['name' => $customer->name, ...$this->figuresOf($workspace, $customer, $counts, $exposure)];
+        }
+
+        return $figures;
+    }
+
     /** A customer's settings changed - the limit, credit sales, what going over does, the note - and logged when they differ. */
     public function save(Workspace $workspace, int $contactId, array $data): array
     {
@@ -182,15 +215,32 @@ class CustomerCredit
      */
     private function exposure(Workspace $workspace, Contact $customer, Collection $orders, bool $counts): array
     {
-        $owed      = $this->outstanding->rows($workspace, $this->period->today($workspace), ['contact_id' => $customer->id]);
+        return $this->exposureOf(
+            $this->outstanding->rows($workspace, $this->period->today($workspace), ['contact_id' => $customer->id]),
+            $orders,
+            $this->credit->openAdvancesFor($workspace, $customer->id),
+            $this->credit->openCreditNotesFor($workspace, $customer->id),
+            $counts,
+        );
+    }
+
+    /**
+     * The same from what was read already: the invoices still owing ($owed,
+     * as Outstanding Invoices' rows), the open orders, and the advances and
+     * credit notes with credit left.
+     *
+     * @return array{outstanding: string, overdue: string, orders: string, unapplied: string, exposure: string}
+     */
+    private function exposureOf(array $owed, Collection $orders, Collection $advances, Collection $notes, bool $counts): array
+    {
         $owing     = Decimal::sum(array_column($owed, 'base_outstanding'));
         $ordered   = $counts ? Decimal::sum($orders->map(fn (SalesDocument $order) => $this->uninvoiced($order))->all()) : '0.00';
         $unapplied = Decimal::sum([
             // An advance's rate is to its account's currency: its base value is its share of base_amount.
-            ...$this->credit->openAdvancesFor($workspace, $customer->id)->map(fn ($advance) => Decimal::isZero(Decimal::of($advance->amount))
+            ...$advances->map(fn ($advance) => Decimal::isZero(Decimal::of($advance->amount))
                 ? '0.00'
                 : Decimal::round(bcdiv(bcmul(Decimal::of($advance->balance), Decimal::of($advance->base_amount), 10), Decimal::of($advance->amount), 10)))->all(),
-            ...$this->credit->openCreditNotesFor($workspace, $customer->id)->map(fn (SalesDocument $note) => Decimal::round(bcmul(Decimal::of($note->balance_due), Decimal::of($note->exchange_rate), 10)))->all(),
+            ...$notes->map(fn (SalesDocument $note) => Decimal::round(bcmul(Decimal::of($note->balance_due), Decimal::of($note->exchange_rate), 10)))->all(),
         ]);
 
         return [
@@ -210,9 +260,15 @@ class CustomerCredit
 
     private function figures(Workspace $workspace, Contact $customer): array
     {
-        $counts   = $this->countsOrders($workspace);
-        $exposure = $this->exposure($workspace, $customer, $counts ? $this->credit->openOrdersFor($workspace, $customer->id) : collect(), $counts);
-        $limit    = $this->limitOf($customer);
+        $counts = $this->countsOrders($workspace);
+
+        return $this->figuresOf($workspace, $customer, $counts, $this->exposure($workspace, $customer, $counts ? $this->credit->openOrdersFor($workspace, $customer->id) : collect(), $counts));
+    }
+
+    /** A customer's settings, their $exposure, and what is left of their limit. */
+    private function figuresOf(Workspace $workspace, Contact $customer, bool $counts, array $exposure): array
+    {
+        $limit = $this->limitOf($customer);
 
         return [
             'currency'       => $workspace->base_currency,

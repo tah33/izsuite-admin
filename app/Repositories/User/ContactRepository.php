@@ -77,6 +77,15 @@ class ContactRepository
         return $workspace->contacts()->withExists(self::USED_ON)->find($id);
     }
 
+    /** The business's contacts among $ids, and any with a credit limit - Customer Credit Exposure's (Doc 16 Phase H3c). */
+    public function creditCustomers(Workspace $workspace, array $ids): Collection
+    {
+        return $workspace->contacts()
+            ->where(fn (Builder $query) => $query->whereIn('id', $ids)->orWhereNotNull('credit_limit'))
+            ->orderBy('name')
+            ->get();
+    }
+
     /**
      * The business's contacts that $probe might be another copy of - up to
      * twenty, alphabetical. $probe holds what to compare, already tidied (see
