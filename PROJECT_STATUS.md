@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-15
-- **Code:** Doc 16 is done and pushed: `main` `916916e`, `nuxt` `b79c75d`. The Doc 17 gap check is in this file only.
-- **Tests:** 910 backend tests pass (last full run 2026-11-15, on the first PC, on this code).
-- **Next step:** Doc 17 Phase A: CRM comes on (see [What is next](#what-is-next)). The gap check is done, with Phases A to I. Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase A1 (CRM's menu, settings and lists) is committed: frontend `41761f0` on `nuxt`, and on `main` the admin commit right after `ed24509`.
+- **Tests:** 914 backend tests pass (last full run 2026-11-15, on the first PC, on this code).
+- **Next step:** Doc 17 Phase A2: the pipeline and shared sales teams (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase A.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase A2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -42,7 +42,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check done (2026-11-15), Phase A next** |
+| **17** | **CRM** | **In progress: gap check done, Phase A1 built (2026-11-15), A2 next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1372,7 +1372,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
   - With a $40.00 limit given to Chowdhury & Sons for a moment, Customer Credit Exposure showed them $49.00 exposed (all of it overdue), $9.00 over, as their Credit Control card did.
   - The order, its delivery and return, their number sequences, the limit, its Sales row, the sign-in and the activity were then put back.
 
-### 5. Doc 17: CRM (next: Phase A)
+### 5. Doc 17: CRM (next: Phase A2)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -1473,6 +1473,29 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - Rule-based lead scoring that shows its factors, and never qualifies or rejects a lead by itself.
   - Marketing consent on contacts and leads, apart from sales follow-up: status, purpose, source, when, who, expiry, withdrawal and evidence.
   - Custom fields for leads and opportunities.
+
+**Phase A: CRM comes on** was split on starting it (2026-11-15): A1, CRM's menu, settings and lists; A2, the pipeline and shared sales teams.
+
+**Phase A1: menu, settings and lists** (sections 17.3, 17.5, 17.8, 17.16, 17.17 and 17.26) is built, with these defaults:
+
+- **The CRM sidebar** in Doc 17's order: Overview, Leads, Opportunities, Activities, Forecast, then Customers (Contacts filtered to customers). Each page comes with the phase that builds it. For now that is Leads and Opportunities (still placeholders) and Customers; Deals becomes Opportunities.
+- **Settings → CRM**, for roles with Manage CRM Settings:
+  - The operating mode: Leads and Opportunities (to start), or Opportunities Only, which hides Leads. Changing it deletes nothing.
+  - Lead Sources, Lost Reasons and Activity Types. Each list starts with Doc 17's examples, and the business can rename them, add its own and switch any off. One izSuite itself uses (a starting one) is never deleted, only switched off; one the business added can be deleted while nothing uses it.
+- A business's lists start the first time its CRM settings are read, so a business with CRM on already gets them too.
+- CRM works with Sales Lite, full Sales or no Sales. Turned off, its pages hide and its settings stay.
+- The CRM permissions start with CRM Settings; each later phase adds its own (17.30).
+- **Checked in the browser** on the first PC, as `user@izsuite.io`, with CRM switched on by hand (dev had it turned off):
+  - The sidebar's CRM showed Leads, Opportunities and Customers, in that order, and Opportunities opened its placeholder page.
+  - Settings → CRM came after Expenses, with the operating mode and the three lists: 12 lead sources, 9 lost reasons and 8 activity types, each with Rename and Switch Off but no Delete.
+  - A lead source added as Trade Show was renamed Trade Fair, switched off and deleted. Its first answer called it switched off though it was saved on, until the model was given the column's default.
+  - Saving Opportunities Only took Leads out of the sidebar at once; switching back brought it again.
+  - The lists, the settings, the app's state, the sign-in and the activity were then put back.
+
+**Phase A2: the pipeline and shared sales teams** (sections 17.13, 17.14 and 17.24), suggested defaults:
+
+- One pipeline with stages New, Qualified, Proposal, Negotiation, Won and Lost, each with its order, default probability (10%, 25%, 50%, 75%, 100% and 0%) and category (open, won or lost), edited in Settings → CRM. More pipelines come with opportunities (Phase D).
+- Sales teams shared by Sales and CRM: in Settings → CRM as well as Settings → Sales, gaining a manager. With CRM on they are there without full Sales.
 
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
@@ -1700,6 +1723,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 16: Phase H3a, the quotation reports | `c681fbe` | `c3c426a` | none |
 | Doc 16: Phase H3b, orders and deliveries | `0637123` | `0754657` | none |
 | Doc 16: Phase H3c, returns, money and credit | `916916e` | `b79c75d` | none |
+| Doc 17: gap check | `ed24509` | | none |
+| Doc 17: Phase A1, CRM's menu, settings and lists | the commit after `ed24509` | `41761f0` | 000162 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -2012,6 +2037,11 @@ These are easy to undo by mistake.
   - `CustomerCredit::exposures()` gives every customer's figures as `summary()` does, reading each part once for all of them: `CustomerCreditRepository`'s open orders, advances and credit notes take a null customer for everyone's, and Outstanding Invoices' rows carry `contact_id`. Both go through `exposureOf()` and `figuresOf()`.
   - `CreditExposureReport` takes `CustomerCredit` in its own constructor, beside what `Report` takes.
 - A Nuxt page for several kinds sets `minEdition` per route: `minEdition: route => (route.params.kind === 'orders' ? 'full' : 'lite')` (`middleware/app-access.global.ts`). The order's own page has none, so it opens read-only on Sales Lite.
+- CRM's settings (Doc 17 Phase A1) are `CrmSetting` (`mode`: `leads` or `opportunities`) and `CrmOption` (`kind`: `lead_source`, `lost_reason` or `activity_type`; `key` for a starting one, from `CrmOption::STARTER`; `position`; `is_active`), saved by `CrmSettingService`:
+  - `CrmOptionRepository::addStarter()` fills every list once, the first time `show()` finds none. A row of a starting one keeps its `key` for code to recognise, and the service refuses to delete it (409).
+  - The Leads menu item's show-if is `crm_uses_leads` (`ShowIfRules`), and saving a changed mode bumps `nav_version`. `NavigationBuilder::FULL_ORDER['crm']` holds Doc 17's order.
+  - The permission group is `crm.settings` (Manage Application Settings), which the role templates leave to full access, as they do every `.settings` group.
+  - A model whose column has a default needs it in `$attributes` too, or what `create()` returns reads it as null.
 
 ## Small things left
 
@@ -2103,4 +2133,5 @@ Each of these is yours to settle.
 - Doc 16 Phase G1: migration 000159 adds the customers' credit control (`credit_limit`, `credit_sales`, `credit_action`, `credit_warning`), Settings → Sales's `credit_counts_orders` (off) and the documents' `credit_reason`. Nothing is checked until a customer is given a limit or set to pay ahead. Deploy the frontend with it. Existing roles need the Customer Credit permissions granted; the Finance User template has both.
 - Doc 16 Phase G2: migration 000160 adds `customer_responses`, `document_links.expires_at` and Settings → Sales's `link_expiry_days` (none: links never expire) and `link_comments` (on). Links already made keep working as they were. The customer's answers and comments are web routes on the backend's host, so `APP_URL` must be its public address and sessions must work there. Behind a proxy, trust its address (Laravel's `trustProxies` in `bootstrap/app.php`), or every response records the proxy's. Their e-mails go through the queue worker. Deploy the frontend with it.
 - Doc 16 Phase H1: migration 000161 adds the rest of Settings → Sales (`new_sales_start_as` invoice, `default_price_list_id`, `deposit_percent`, `backorders` ask, `default_shipping_terms`, `salesperson_is_creator` off), so nothing changes until a business chooses. Deploy the frontend with it: the navigation now carries `workspace.sales`.
+- Doc 17 Phase A1: migration 000162 adds `crm_settings` and `crm_options`, and changes the CRM menu where it exists: Deals becomes Opportunities (`/crm/opportunities`), Leads gets the `crm_uses_leads` show-if, and Customers is added. Deploy the frontend with it, which renames the page. A business's lists start the first time its CRM settings are read, so no seeding is needed.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

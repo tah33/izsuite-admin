@@ -180,8 +180,10 @@ class AppCatalogSeeder extends Seeder
         ['apps', 'expenses', 'Expenses', 'wallet', '/expenses', 'lite', null],
         ['apps', 'expenses', 'Payments Made', 'banknote', '/expenses/payments', 'lite', null],
         ['apps', 'expenses', 'Recurring Expenses', 'repeat', '/expenses/recurring', 'full', null],
-        ['apps', 'crm', 'Leads', 'target', '/crm/leads', 'lite', null],
-        ['apps', 'crm', 'Deals', 'handshake', '/crm/deals', 'lite', null],
+        // Doc 17 Phase A1: Leads while the business uses them, Opportunities, and the customers in the shared Contacts page.
+        ['apps', 'crm', 'Leads', 'target', '/crm/leads', 'lite', 'crm_uses_leads'],
+        ['apps', 'crm', 'Opportunities', 'handshake', '/crm/opportunities', 'lite', null],
+        ['apps', 'crm', 'Customers', 'users', '/contacts?role=customer', 'lite', null],
         ['apps', 'inventory', 'Stock', 'boxes', '/inventory/stock', 'lite', null],
         ['apps', 'inventory', 'Adjustments', 'sliders-horizontal', '/inventory/adjustments', 'lite', null],
 

@@ -109,6 +109,9 @@ final class Permissions
         'expenses.attachments' => ['Receipt Attachments', 'expenses', self::ATTACHMENTS],
         'expenses.values'      => ['Expense Values', 'expenses', ['view' => 'View Expense Values']],
         'expenses.settings'    => ['Expense Settings', 'expenses', self::APP_SETTINGS],
+
+        // CRM (Doc 17 section 17.30): each phase adds its own - Phase A1 its settings.
+        'crm.settings' => ['CRM Settings', 'crm', self::APP_SETTINGS],
     ];
 
     /** The groups whose records carry their app's values: anything but viewing one needs them. */

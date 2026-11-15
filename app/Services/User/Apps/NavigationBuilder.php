@@ -40,13 +40,15 @@ class NavigationBuilder
     /**
      * A full edition's menu where it orders its pages otherwise than Lite: Sales
      * as Doc 16 section 16.3 lists it - Sales Lite keeps Doc 08's, Invoices
-     * first. A page not built yet is simply not there.
+     * first - and CRM, which has one edition, as Doc 17 section 17.3 does. A
+     * page not built yet is simply not there.
      */
     private const FULL_ORDER = [
         'sales' => [
             '/sales/overview', '/sales/quotations', '/sales/proformas', '/sales/orders', '/sales/deliveries', '/sales/invoices',
             '/sales/returns', '/sales/credit-notes', '/sales/payments', '/sales/price-lists', '/contacts?role=customer',
         ],
+        'crm' => ['/crm/overview', '/crm/leads', '/crm/opportunities', '/crm/activities', '/crm/forecast', '/contacts?role=customer'],
     ];
 
     public function __construct(

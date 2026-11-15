@@ -176,6 +176,12 @@ final class RoutePermissions
             'api.business-settings.sales-teams.destroy'        => 'sales.settings.manage',
             'api.business-settings.purchases.show'             => 'settings.view',
             'api.business-settings.purchases.update'           => 'purchases.settings.manage',
+            // Settings > CRM (Doc 17 Phase A1).
+            'api.business-settings.crm.show'                   => 'settings.view',
+            'api.business-settings.crm.update'                 => 'crm.settings.manage',
+            'api.business-settings.crm.options.store'          => 'crm.settings.manage',
+            'api.business-settings.crm.options.update'         => 'crm.settings.manage',
+            'api.business-settings.crm.options.destroy'        => 'crm.settings.manage',
             'api.business-settings.expenses.show'              => 'settings.view',
             'api.business-settings.expenses.update'            => 'expenses.settings.manage',
 

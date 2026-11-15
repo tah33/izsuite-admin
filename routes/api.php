@@ -21,6 +21,8 @@ use App\Http\Controllers\Api\CountryController;
 use App\Http\Controllers\Api\SalesOverviewController;
 use App\Http\Controllers\Api\SalesTeamController;
 use App\Http\Controllers\Api\CreditNoteController;
+use App\Http\Controllers\Api\CrmOptionController;
+use App\Http\Controllers\Api\CrmSettingController;
 use App\Http\Controllers\Api\CurrencyController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DocumentIndexController;
@@ -282,6 +284,16 @@ Route::prefix('v1')->group(function () {
                 Route::put('/{id}', [SalesTeamController::class, 'update'])->whereNumber('id')->name('api.business-settings.sales-teams.update');
                 Route::delete('/{id}', [SalesTeamController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.sales-teams.destroy');
             });
+        });
+
+        // Settings > CRM (Doc 17 Phase A1): the mode, and the lead sources,
+        // lost reasons and activity types - there while CRM is on.
+        Route::middleware('app:crm')->prefix('crm')->group(function () {
+            Route::get('/', [CrmSettingController::class, 'show'])->name('api.business-settings.crm.show');
+            Route::put('/', [CrmSettingController::class, 'update'])->name('api.business-settings.crm.update');
+            Route::post('/options', [CrmOptionController::class, 'store'])->name('api.business-settings.crm.options.store');
+            Route::put('/options/{id}', [CrmOptionController::class, 'update'])->whereNumber('id')->name('api.business-settings.crm.options.update');
+            Route::delete('/options/{id}', [CrmOptionController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.options.destroy');
         });
 
         // Settings > Purchases (Doc 11 section 16): what new purchases start

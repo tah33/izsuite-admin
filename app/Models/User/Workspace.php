@@ -319,6 +319,18 @@ class Workspace extends Model
         return $this->hasOne(SalesSetting::class);
     }
 
+    /** Settings > CRM (Doc 17 Phase A1). */
+    public function crmSetting(): HasOne
+    {
+        return $this->hasOne(CrmSetting::class);
+    }
+
+    /** Its lead sources, lost reasons and activity types (Doc 17 Phase A1). */
+    public function crmOptions(): HasMany
+    {
+        return $this->hasMany(CrmOption::class);
+    }
+
     /** How each kind of document is numbered - a row only where a default was changed. */
     public function documentNumbering(): HasMany
     {
