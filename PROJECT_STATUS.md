@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-15
-- **Code:** Doc 16 Phase H3c (returns, money and credit) is committed: frontend `b79c75d` on `nuxt`, and on `main` the admin commit right after `0637123`.
+- **Code:** Doc 16 is done and pushed: `main` `916916e`, `nuxt` `b79c75d`. The Doc 17 gap check is in this file only.
 - **Tests:** 910 backend tests pass (last full run 2026-11-15, on the first PC, on this code).
-- **Next step:** Doc 17 (CRM): its gap check, as each document starts. Doc 16 is done, except what waits for other apps (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Next step:** Doc 17 Phase A: CRM comes on (see [What is next](#what-is-next)). The gap check is done, with Phases A to I. Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase A.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -42,7 +42,8 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| 17 to 21 | CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
+| **17** | **CRM** | **In progress: gap check done (2026-11-15), Phase A next** |
+| 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
 Stock, full Sales, OCR and full Accounting features are left out of the Lite apps on purpose. They wait for their own docs.
@@ -1371,7 +1372,109 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
   - With a $40.00 limit given to Chowdhury & Sons for a moment, Customer Credit Exposure showed them $49.00 exposed (all of it overdue), $9.00 over, as their Credit Control card did.
   - The order, its delivery and return, their number sequences, the limit, its Sales row, the sign-in and the activity were then put back.
 
-After Doc 16 come Docs 17 to 21 (CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
+### 5. Doc 17: CRM (next: Phase A)
+
+The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
+
+**Already built, which CRM uses:**
+
+- The Apps Center lists CRM as available from Standard, in one edition. Turning it on adds Leads and Deals to the sidebar; both open placeholder pages.
+- The shared Contacts: customers and suppliers in one list, with tags, import and export, and a duplicate check by name, e-mail, phone and tax number when one is saved. There is no merge.
+- Sales teams (Doc 16 Phase A): a name, members and active or not, in Settings → Sales on the full Sales app only. A sales document keeps its salesperson and team.
+- Sales documents and their conversions, linked by `source_id`, on Sales Lite and full Sales.
+- Comments with mentions, and an activity timeline read from the Activity Log, on sales documents, purchases and expenses (Doc 14 Phase D). Attachments on documents.
+- Notifications in the bell and by e-mail, with preferences per kind (Doc 14 Phase B). Documents sent by e-mail, with their history (Docs 11 and 14).
+- Roles, permissions and location access (Doc 12), the Reports page, the Dashboard and Settings.
+
+**Missing (what Doc 17 adds):**
+
+- 17.3 to 17.5: the CRM menu (Overview, Leads, Opportunities, Activities, Forecast and Customers), the Overview with its figures and filters, and the two operating modes.
+- 17.6 to 17.11: leads, which do not exist:
+  - their fields, statuses and rules, and their sources;
+  - assignment by hand, round-robin, or by location, team, source, product, territory or workload, with a queue for unassigned leads;
+  - qualification, and conversion into a contact and an opportunity after a duplicate review.
+- 17.12 to 17.16: opportunities:
+  - pipelines whose stages have a probability, category, stale period and required fields;
+  - kanban, list and calendar views, with each stage move and the time in each stage kept;
+  - probability and the weighted forecast in the base currency;
+  - the actions, won and lost with reasons, reopening, and an automatic win from a confirmed order.
+- 17.17 to 17.19: activities (types, statuses, overdue, reminders, follow-ups); the communication timeline (calls with direction and outcome, meetings, notes, stage and owner changes, sales documents); e-mail from CRM records.
+- 17.20: the CRM part of a contact's profile.
+- 17.21 to 17.23: duplicate review among leads and contacts, with ignore, link and merge; rule-based lead scoring; response times and follow-up warnings.
+- 17.24: a sales team's manager, locations, pipeline, territories and assignment method, and teams outside full Sales.
+- 17.25: marketing consent on contacts, apart from permission to follow up a sale.
+- 17.26: Settings → CRM. Custom fields exist nowhere yet.
+- 17.27 to 17.31: opportunities linked to sales documents both ways, the Dashboard's CRM figures, 20 reports, the CRM permissions and its data rules.
+
+**Waiting for other apps**, as Doc 17 itself says:
+
+- Marketing: campaigns that make leads, bulk promotional e-mail, and its consent rules.
+- Digital Business Profile and eCommerce: enquiries flowing in.
+- Helpdesk: support history on the contact.
+- Projects, Appointments and Field Service: activities and service work linked to them.
+- Integrations and API: website forms, e-mail synchronisation and replies, telephony, SMS and WhatsApp.
+- Automation and AI: advanced assignment and reminders, AI scoring and summaries.
+
+**Phases, with suggested defaults.** Saying "Start Phase A" accepts them.
+
+- **Phase A: CRM comes on.**
+  - The sidebar in Doc 17's order: Overview, Leads, Opportunities, Activities, Forecast, and Customers (Contacts filtered to customers), each item added by the phase that builds it. Deals becomes Opportunities.
+  - Settings → CRM:
+    - the operating mode: Leads and Opportunities, or Opportunities Only;
+    - lead sources, lost reasons and activity types, each a list starting with Doc 17's examples, which a business can rename, add to and switch off;
+    - one pipeline with stages New, Qualified, Proposal, Negotiation, Won and Lost, and their probabilities.
+  - Sales teams shared by Sales and CRM: in Settings → CRM as well as Settings → Sales, gaining a manager.
+  - CRM works with Sales Lite, full Sales or no Sales. Turned off, its pages hide and its records stay.
+  - The CRM permissions of 17.30, each phase adding its own.
+- **Phase B: leads.**
+  - A lead in its own table:
+    - name or contact person, phone or e-mail, source and its details, owner, location (when there are several) and status;
+    - 17.6's optional fields: business, job title, address, country, language, interested items, estimated value and currency, expected purchase date, team, priority, tags, notes and attachments.
+    - Campaigns wait for Marketing, and custom fields for Phase I.
+  - Statuses New, Assigned, Contacted, Qualified, Unqualified (with a reason), Converted and Archived. Reopening an unqualified or archived lead needs the permission.
+  - Assignment by hand to an active member who may see the lead's location, with a notification and the change in the Activity Log. Unassigned leads wait in a queue.
+  - Qualification: need, interested items, budget, purchase period, decision maker, business size, next action and notes. Settings → CRM says which are needed to qualify.
+  - A lead's page with its comments, attachments and timeline (Doc 14's).
+- **Phase C: converting leads, and duplicates.**
+  - Conversion:
+    - contacts matching by e-mail, phone, tax number and business name are offered to choose from, or a new contact is made;
+    - the customer role is given and an opportunity made;
+    - the source, owner, activities, notes, attachments and consent are carried over;
+    - the lead is marked Converted, its history kept.
+  - Possible duplicates among leads, by the same checks, to review, ignore with a reason, or link.
+  - Merging contacts, with the permission, keeps every record and never moves a financial document silently.
+- **Phase D: opportunities and pipelines.**
+  - An opportunity: name, contact, pipeline, stage, owner, location, expected value before tax, currency, expected closing date, and 17.12's optional fields.
+  - Pipelines in Settings → CRM: stages with order, default probability, category (open, won or lost), stale-after days, required fields and status. A pipeline can be for chosen teams or locations.
+  - Kanban, list and calendar views. Each stage move is kept with the time spent, and required fields are checked on entering a stage.
+  - Probability comes from the stage unless changed with the permission; won is 100% and lost 0%. The weighted value is in the base currency at today's rate, as an estimate.
+  - Won, with a date, value, reason and sales document. Lost, with a date, reason, competitor, notes and a follow-up date. Reopening needs the permission.
+- **Phase E: activities and the timeline.**
+  - Activities:
+    - call, meeting, task, e-mail, follow-up, demonstration, site visit or other, for a lead, opportunity or contact;
+    - an assigned member, a due date and time, and 17.17's optional fields;
+    - Planned, Completed or Cancelled, with overdue worked out; an outcome on completing where it is required, and a follow-up straight after.
+  - Reminders in the bell and by e-mail, under a new notification kind.
+  - The Activities page: today's, overdue and planned, and each member's own.
+  - The timeline of a lead, opportunity and contact: calls (direction and outcome), meetings, notes, activities, stage and owner changes, sales documents, won and lost, and attachments. Internal notes never show to the customer.
+- **Phase F: Sales and the contact's profile.**
+  - Create Quotation, Proforma Invoice, Sales Order (on full Sales) and Invoice from an opportunity, each linked to it (`opportunity_id`). Several quotations add no value twice. Their confirmation or issue shows on its timeline, and without Sales the actions offer turning it on.
+  - An opportunity marked won when its linked order is confirmed, if Settings → CRM says so.
+  - E-mail from a lead, opportunity or contact through the business's e-mail, with templates and attached documents, kept on the timeline. Replies and synchronisation wait for an e-mail integration.
+  - A contact's profile shows its lead source, open, won and lost opportunities, planned activities and the timeline beside its sales documents and balance.
+- **Phase G: Overview, Forecast and follow-up.**
+  - The CRM Overview of 17.4 with its filters, and the Forecast page: the weighted value by expected closing month, owner, team or stage.
+  - The Dashboard's CRM figures of 17.28, labelled as not sales.
+  - Response tracking (17.23): first assignment and response times, last contact, next activity, days without activity and time in stage.
+  - Warnings for unassigned and uncontacted leads, overdue activities, opportunities without a next action, stages held too long, and opportunities closing soon without activity. The periods are in Settings → CRM.
+- **Phase H: reports.** The 20 reports of 17.29, in parts.
+- **Phase I: rules and records.**
+  - Assignment rules beyond the hand: round-robin, and by location, team, source, product interest, country and workload.
+  - Rule-based lead scoring that shows its factors, and never qualifies or rejects a lead by itself.
+  - Marketing consent on contacts and leads, apart from sales follow-up: status, purpose, source, when, who, expiry, withdrawal and evidence.
+  - Custom fields for leads and opportunities.
+
+After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## How we work
 
@@ -1596,7 +1699,7 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 16: Phase H2b, discounts, price lists and margin | `d00a1c8` | `917c2a1` | none |
 | Doc 16: Phase H3a, the quotation reports | `c681fbe` | `c3c426a` | none |
 | Doc 16: Phase H3b, orders and deliveries | `0637123` | `0754657` | none |
-| Doc 16: Phase H3c, returns, money and credit | the commit after `0637123` | `b79c75d` | none |
+| Doc 16: Phase H3c, returns, money and credit | `916916e` | `b79c75d` | none |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
