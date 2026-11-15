@@ -3,6 +3,7 @@
 namespace App\Services\Api\Reports;
 
 use App\Enums\DocumentType;
+use App\Enums\Edition;
 use App\Enums\ItemLabel;
 use App\Models\User\PaymentAccount;
 use App\Models\User\Workspace;
@@ -18,8 +19,10 @@ use App\Services\Documents\GotenbergClient;
 use App\Services\Reports\ReportCatalog;
 use App\Services\Reports\ReportPeriod;
 use App\Services\Reports\ReportTable;
+use App\Services\Reports\Sales\SalesSummaryReport;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\WorkspaceAccess;
+use App\Services\User\Apps\WorkspaceApps;
 use App\Support\Csv;
 use App\Support\Xlsx;
 use Illuminate\Validation\ValidationException;
@@ -114,7 +117,8 @@ class ReportService
     {
         $entry = $this->reportCatalog->find($workspace, $key);
 
-        return [$entry['key'], app($entry['class'])->build($workspace, $this->filters($workspace, $entry['key'], $input))];
+        // Its own name, for one that is another grouped one way (Doc 16 Phase H2a).
+        return [$entry['key'], app($entry['class'])->build($workspace, [...$this->filters($workspace, $entry['key'], $input), 'report_name' => $entry['name']])];
     }
 
     /** Its rows, then its totals when it has them. */
@@ -126,8 +130,9 @@ class ReportService
     /**
      * The dates and filters a report is built with: the range, an as-of day,
      * the grouping - by category, unless told, for Expenses by Category, by
-     * month for the rest - and what it is narrowed to: with the contact, item,
-     * category, expense category and account named, each the business's own.
+     * month for the rest, and always its own for a "Sales by" report - and
+     * what it is narrowed to: with the contact, item, category, expense
+     * category and account named, each the business's own.
      */
     private function filters(Workspace $workspace, string $key, array $input): array
     {
@@ -137,7 +142,7 @@ class ReportService
             'from'                => $from,
             'to'                  => $to,
             'as_of'               => $input['as_of'] ?? $this->reportPeriod->today($workspace),
-            'group_by'            => $input['group_by'] ?? ($key === 'expenses-by-category' ? 'category' : 'month'),
+            'group_by'            => ReportCatalog::GROUPED[$key] ?? $input['group_by'] ?? ($key === 'expenses-by-category' ? 'category' : 'month'),
             'location_id'         => $input['location_id'] ?? null,
             'location_ids'        => $this->access->locations(),
             'contact_id'          => $input['contact_id'] ?? null,
@@ -152,6 +157,11 @@ class ReportService
             'week_start'          => $workspace->weekStartDay(),
             'date_format'         => $workspace->date_format,
         ];
+
+        // The full Sales app's groupings, only while it is on (Doc 16 Phase H2a).
+        if ($key === 'sales-summary' && in_array($filters['group_by'], SalesSummaryReport::FULL_GROUPS, true) && ! WorkspaceApps::for($workspace)->has('sales', Edition::Full)) {
+            throw ValidationException::withMessages(['group_by' => 'Only the full Sales app groups sales that way.']);
+        }
 
         $max = self::MAX_PERIODS[$filters['group_by']] ?? null;
 

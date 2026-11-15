@@ -33,15 +33,15 @@ class SalesReportRepository
         'id', 'type', 'number', 'status', 'document_date', 'due_date', 'contact_id', 'location_id', 'source_id', 'currency', 'exchange_rate',
         'price_tax_mode', 'subtotal', 'discount_total', 'tax_total', 'grand_total', 'net_total', 'base_grand_total', 'base_tax_total',
         'base_net_total', 'taxes', 'reason', 'amount_paid', 'withholding_amount', 'applied_amount', 'refunded_amount', 'balance_due',
-        'payment_status', 'customer_snapshot',
+        'payment_status', 'customer_snapshot', 'salesperson_id', 'sales_team_id', 'source_app_id',
     ];
 
-    /** Issued invoices or credit notes dated from $from to $to, oldest first. */
+    /** Issued invoices or credit notes dated from $from to $to, oldest first - with who sold them and the app that made them (Doc 16 Phase H2a). */
     public function issued(Workspace $workspace, DocumentType $type, string $from, string $to, array $filters = []): Collection
     {
         return $this->documents($workspace, $type, $filters)
             ->whereBetween('document_date', [$from, $to])
-            ->with(['contact:id,name', 'location:id,name', 'source:id,number'])
+            ->with(['contact:id,name', 'location:id,name', 'source:id,number', 'salesperson:id,first_name,last_name', 'salesTeam:id,name', 'sourceApp:id,name'])
             ->orderBy('document_date')
             ->orderBy('id')
             ->get(self::FIGURES);
@@ -50,8 +50,9 @@ class SalesReportRepository
     /**
      * The lines of issued invoices or credit notes dated from $from to $to,
      * with what their share of the totals needs, and where their document
-     * falls: its date, customer, location and currency. An item's category is
-     * the one it has now.
+     * falls: its date, customer, location and currency - and (Doc 16 Phase
+     * H2a) its item's category and brand as they are now, its salesperson,
+     * team and the app that made it.
      */
     public function issuedLines(Workspace $workspace, DocumentType $type, string $from, string $to, array $filters = []): Collection
     {
@@ -59,6 +60,12 @@ class SalesReportRepository
             ->join('sales_documents', 'sales_documents.id', '=', 'sales_document_lines.sales_document_id')
             ->leftJoin('contacts', 'contacts.id', '=', 'sales_documents.contact_id')
             ->leftJoin('locations', 'locations.id', '=', 'sales_documents.location_id')
+            ->leftJoin('items', 'items.id', '=', 'sales_document_lines.item_id')
+            ->leftJoin('item_categories', 'item_categories.id', '=', 'items.category_id')
+            ->leftJoin('item_brands', 'item_brands.id', '=', 'items.brand_id')
+            ->leftJoin('users as salespeople', 'salespeople.id', '=', 'sales_documents.salesperson_id')
+            ->leftJoin('sales_teams', 'sales_teams.id', '=', 'sales_documents.sales_team_id')
+            ->leftJoin('apps as source_apps', 'source_apps.id', '=', 'sales_documents.source_app_id')
             ->where('sales_documents.workspace_id', $workspace->id)
             ->where('sales_documents.type', $type->value)
             ->where('sales_documents.status', SalesDocumentStatus::Issued->value)
@@ -78,6 +85,9 @@ class SalesReportRepository
                 'sales_documents.discount_total', 'sales_documents.price_tax_mode', 'sales_documents.exchange_rate',
                 'sales_documents.document_date', 'sales_documents.contact_id', 'sales_documents.location_id', 'sales_documents.currency',
                 'sales_documents.customer_snapshot', 'contacts.name as contact_name', 'locations.name as location_name',
+                'items.category_id', 'item_categories.name as category_name', 'items.brand_id', 'item_brands.name as brand_name',
+                'sales_documents.salesperson_id', 'salespeople.first_name as salesperson_first_name', 'salespeople.last_name as salesperson_last_name',
+                'sales_documents.sales_team_id', 'sales_teams.name as team_name', 'sales_documents.source_app_id', 'source_apps.name as source_name',
             ]);
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Services\Reports;
 
+use App\Enums\Edition;
 use App\Models\User\Workspace;
 use App\Repositories\User\ExpenseReportRepository;
 use App\Repositories\User\PurchaseReportRepository;
@@ -51,6 +52,12 @@ class ReportCatalog
     /** Keys a report was known by before, and the report each is now. */
     private const ALIASES = ['customer-statement' => 'contact-statement'];
 
+    /** The reports that are another one grouped one way, always (Doc 16 Phase H2a): the grouping each is built with. */
+    public const GROUPED = [
+        'sales-by-customer' => 'customer', 'sales-by-item' => 'item', 'sales-by-category' => 'category', 'sales-by-brand' => 'brand',
+        'sales-by-location' => 'location', 'sales-by-salesperson' => 'salesperson', 'sales-by-team' => 'team', 'sales-by-source' => 'source',
+    ];
+
     /**
      * Each report: its name, category, class, filters, what it shows, and what
      * it needs - Sales, Purchases or Expenses records, Purchases' or Expenses'
@@ -64,6 +71,15 @@ class ReportCatalog
         'outstanding-invoices' => ['Outstanding Invoices', 'sales', OutstandingInvoicesReport::class, ['as_of', 'location', 'contact', 'currency', 'payment_status'], 'Invoices still to be paid on a day, and how overdue they are.', 'sales'],
         'payments-received'    => ['Payments Received', 'sales', PaymentsReceivedReport::class, ['period', 'location', 'contact', 'currency', 'payment_account'], 'Customer payments by date, less refunds, with tax withheld apart.', 'sales'],
         'credit-notes'         => ['Credit Note Details', 'sales', CreditNotesReport::class, ['period', 'location', 'contact'], 'Credit notes issued, and what became of their credit.', 'sales'],
+        // The full Sales app's (Doc 16 Phase H2a): Sales Summary, each grouped one way (GROUPED).
+        'sales-by-customer'    => ['Sales by Customer', 'sales', SalesSummaryReport::class, ['period', 'location', 'currency'], 'Invoices less credit notes for a period, before tax, by customer - biggest first.', 'sales_full'],
+        'sales-by-item'        => ['Sales by Item', 'sales', SalesSummaryReport::class, ['period', 'location', 'currency'], 'Invoices less credit notes for a period, before tax, by item - biggest first.', 'sales_full'],
+        'sales-by-category'    => ['Sales by Category', 'sales', SalesSummaryReport::class, ['period', 'location', 'currency'], "Invoices less credit notes for a period, before tax, by each item's category now.", 'sales_full'],
+        'sales-by-brand'       => ['Sales by Brand', 'sales', SalesSummaryReport::class, ['period', 'location', 'currency'], "Invoices less credit notes for a period, before tax, by each item's brand now.", 'sales_full'],
+        'sales-by-location'    => ['Sales by Location', 'sales', SalesSummaryReport::class, ['period', 'currency'], 'Invoices less credit notes for a period, before tax, by location.', 'sales_full'],
+        'sales-by-salesperson' => ['Sales by Salesperson', 'sales', SalesSummaryReport::class, ['period', 'location', 'currency'], 'Invoices less credit notes for a period, before tax, by the salesperson each names.', 'sales_full'],
+        'sales-by-team'        => ['Sales by Sales Team', 'sales', SalesSummaryReport::class, ['period', 'location', 'currency'], 'Invoices less credit notes for a period, before tax, by the sales team each names.', 'sales_full'],
+        'sales-by-source'      => ['Sales by Source', 'sales', SalesSummaryReport::class, ['period', 'location', 'currency'], 'Invoices less credit notes for a period, before tax, by the app that made each.', 'sales_full'],
         'purchase-summary'     => ['Purchase Summary', 'purchases', PurchaseSummaryReport::class, ['period', 'group_by', 'location', 'currency', 'item', 'category'], 'Recorded purchases for a period - by day, week, month, supplier, item, category, location or currency.', 'purchases'],
         'outstanding-purchases' => ['Outstanding Purchases', 'purchases', OutstandingPurchasesReport::class, ['as_of', 'location', 'contact', 'currency', 'payment_status'], 'Purchases still to be paid on a day, and how overdue they are.', 'purchases'],
         'payments-made'        => ['Payments Made', 'purchases', PaymentsMadeReport::class, ['period', 'location', 'contact', 'currency', 'payment_account'], 'Supplier and expense payments by date, with tax withheld apart.', 'payables'],
@@ -107,12 +123,14 @@ class ReportCatalog
         $purchases = $apps->hasHistory('purchases');
         $expenses  = $apps->hasHistory('expenses');
         $has       = [
-            'sales'     => $sales,
-            'purchases' => $purchases,
-            'expenses'  => $expenses,
-            'payables'  => $purchases || $expenses,
-            'contacts'  => $sales || $purchases || $expenses,
-            'taxes'     => ($sales || $purchases || $expenses) && ($workspace->usesTaxes()
+            'sales'      => $sales,
+            // The full Sales app's own reports (Doc 16 section 16.26): while it is on.
+            'sales_full' => $apps->has('sales', Edition::Full),
+            'purchases'  => $purchases,
+            'expenses'   => $expenses,
+            'payables'   => $purchases || $expenses,
+            'contacts'   => $sales || $purchases || $expenses,
+            'taxes'      => ($sales || $purchases || $expenses) && ($workspace->usesTaxes()
                 || ($sales && $this->salesReportRepository->hasTaxHistory($workspace))
                 || ($purchases && $this->purchaseReportRepository->hasTaxHistory($workspace))
                 || ($expenses && $this->expenseReportRepository->hasTaxHistory($workspace))),
@@ -132,7 +150,7 @@ class ReportCatalog
      * The reports app $family brings to the Reports page (Doc 13 section 6):
      * its own, and - shared - those it draws on with the other apps.
      *
-     * @return list<array{name: string, shared: bool}>
+     * @return list<array{name: string, shared: bool, edition: ?string}>
      */
     public static function namesFor(string $family): array
     {
@@ -145,8 +163,12 @@ class ReportCatalog
         $names = [];
 
         foreach (self::REPORTS as [$name, , , , , $needs]) {
+            // The full Sales app's own count as Sales', marked as the full edition's (Doc 16 Phase H2a).
+            $edition = $needs === 'sales_full' ? 'full' : null;
+            $needs   = $needs === 'sales_full' ? 'sales' : $needs;
+
             if ($needs === $family || in_array($needs, $shared, true)) {
-                $names[] = ['name' => $name, 'shared' => $needs !== $family];
+                $names[] = ['name' => $name, 'shared' => $needs !== $family, 'edition' => $edition];
             }
         }
 
@@ -183,12 +205,13 @@ class ReportCatalog
     {
         return match ($needs) {
             'sales', 'purchases', 'expenses' => $this->sees([$needs => true]),
-            'payables' => $this->sees(['supplier_payments' => $purchases, 'expense_payments' => $expenses]),
-            'taxes'    => $this->access->can('taxes.view') && $this->sees(['sales' => $sales, 'purchases' => $purchases, 'expenses' => $expenses]),
+            'sales_full' => $this->sees(['sales' => true]),
+            'payables'   => $this->sees(['supplier_payments' => $purchases, 'expense_payments' => $expenses]),
+            'taxes'      => $this->access->can('taxes.view') && $this->sees(['sales' => $sales, 'purchases' => $purchases, 'expenses' => $expenses]),
             // A statement for either side: a customer's, or a supplier's.
-            'contacts' => $this->access->can('contacts.view')
+            'contacts'   => $this->access->can('contacts.view')
                 && ($sales && $this->sees(['sales' => true]) || ($purchases || $expenses) && $this->sees(['purchases' => $purchases, 'expenses' => $expenses])),
-            default    => $this->access->can('payment_accounts.view') && $this->access->can('payment_accounts.balances'),
+            default      => $this->access->can('payment_accounts.view') && $this->access->can('payment_accounts.balances'),
         };
     }
 

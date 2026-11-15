@@ -97,8 +97,10 @@ class AppsCenterPagesTest extends TestCase
         $this->assertSame(['Sales Lite', 'Sales'], array_column($page['editions'], 'name'));
         $this->assertSame(['Quote, invoice and get paid.', ['Quotations', 'Invoices']], [$page['editions'][0]['long_description'], $page['editions'][0]['features']]);
         $this->assertSame([['label' => 'Invoices', 'edition' => 'lite'], ['label' => 'Sales Orders', 'edition' => 'full']], $page['pages']);
-        $this->assertContains(['name' => 'Sales Summary', 'shared' => false], $page['reports']);
-        $this->assertContains(['name' => 'Tax Summary', 'shared' => true], $page['reports']);
+        $this->assertContains(['name' => 'Sales Summary', 'shared' => false, 'edition' => null], $page['reports']);
+        $this->assertContains(['name' => 'Tax Summary', 'shared' => true, 'edition' => null], $page['reports']);
+        // The full Sales app's own reports, marked as its (Doc 16 Phase H2a).
+        $this->assertContains(['name' => 'Sales by Salesperson', 'shared' => false, 'edition' => 'full'], $page['reports']);
         $this->assertContains('Invoices', $page['permissions']);
         $this->assertContains('Sales Values', $page['permissions']);
 
