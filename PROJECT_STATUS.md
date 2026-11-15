@@ -1749,6 +1749,7 @@ Each of these is yours to settle.
 - Run `php artisan migrate`, then `php artisan db:seed --class=AppCatalogSeeder`. **Never run the full `DatabaseSeeder` on a server:** it adds demo users.
 - The host nginx needs `client_max_body_size` of at least 120M, and the image must be rebuilt for the upload limits.
 - A database that still has `workspaces.staff_id` links and has not yet run migration 000060 would lose them. Check this on any older server.
+- Doc 14: the notification e-mails (Phase B, mentions in comments included) go through the queue worker. The scheduler runs `notifications:usage` hourly (Phase B2), and `model:prune` daily, which clears imports a week old and the one-day keys that stop duplicate creates (Phase A).
 - Doc 15 Phase A1: after deploying, every admin is asked to set up two-factor at their next sign-in, so have an authenticator app ready. The new-browser e-mails go through the queue worker.
 - Doc 15 Phase B1: the scheduler runs `businesses:close-due` hourly, and the owner's status e-mails go through the queue worker.
 - Doc 15 Phase B2: support's account e-mails (the reset link, locking, unlocking, two-factor) go through the queue worker, and the reset link points at `FRONTEND_URL`.
