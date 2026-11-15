@@ -3,6 +3,7 @@
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\CheckEmailVerified;
 use App\Http\Middleware\ConvertAdminRedirectsToJson;
+use App\Http\Middleware\EnsureAnyAppActive;
 use App\Http\Middleware\EnsureAppActive;
 use App\Http\Middleware\EnsureIdempotent;
 use App\Http\Middleware\EnsurePermission;
@@ -51,6 +52,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'verified'   => CheckEmailVerified::class,
             'workspace'  => ResolveWorkspace::class,
             'app'        => EnsureAppActive::class,
+            // What more than one app brings: sales teams, the full Sales app's and CRM's (Doc 17 Phase A2).
+            'app.any'    => EnsureAnyAppActive::class,
             'access'     => EnsurePermission::class,
             // A sales order is the full Sales app's: on Sales Lite it is only read (Doc 16 Phase B).
             'sales.kind' => EnsureSalesKindEdition::class,

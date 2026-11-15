@@ -170,10 +170,12 @@ final class RoutePermissions
             'api.business-settings.numbering.update'           => 'settings.numbering',
             'api.business-settings.sales.show'                 => 'settings.view',
             'api.business-settings.sales.update'               => 'sales.settings.manage',
+            // Sales teams, the full Sales app's and CRM's (Doc 17 Phase A2): either app's settings change them.
             'api.business-settings.sales-teams.index'          => 'settings.view',
-            'api.business-settings.sales-teams.store'          => 'sales.settings.manage',
-            'api.business-settings.sales-teams.update'         => 'sales.settings.manage',
-            'api.business-settings.sales-teams.destroy'        => 'sales.settings.manage',
+            'api.business-settings.sales-teams.people'         => 'settings.view',
+            'api.business-settings.sales-teams.store'          => ['sales.settings.manage', 'crm.settings.manage'],
+            'api.business-settings.sales-teams.update'         => ['sales.settings.manage', 'crm.settings.manage'],
+            'api.business-settings.sales-teams.destroy'        => ['sales.settings.manage', 'crm.settings.manage'],
             'api.business-settings.purchases.show'             => 'settings.view',
             'api.business-settings.purchases.update'           => 'purchases.settings.manage',
             // Settings > CRM (Doc 17 Phase A1).
@@ -182,6 +184,7 @@ final class RoutePermissions
             'api.business-settings.crm.options.store'          => 'crm.settings.manage',
             'api.business-settings.crm.options.update'         => 'crm.settings.manage',
             'api.business-settings.crm.options.destroy'        => 'crm.settings.manage',
+            'api.business-settings.crm.pipelines.update'       => 'crm.settings.manage',
             'api.business-settings.expenses.show'              => 'settings.view',
             'api.business-settings.expenses.update'            => 'expenses.settings.manage',
 

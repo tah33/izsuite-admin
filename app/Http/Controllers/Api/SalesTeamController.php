@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Sales\SaveSalesTeamRequest;
 use App\Http\Resources\Sales\SalesOptionsResource;
 use App\Http\Resources\Sales\SalesTeamResource;
+use App\Http\Resources\Sales\TeamPersonResource;
 use App\Services\Api\Sales\SalesTeamService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -60,6 +61,18 @@ class SalesTeamController extends Controller
             $this->teams->delete($this->currentWorkspace($request), $id, $request->user());
 
             return response()->json(['message' => 'Sales team deleted.']);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** The people a team can have as its members and manager - Settings' own, as CRM may be on without Sales (Doc 17 Phase A2). */
+    public function people(Request $request): JsonResponse
+    {
+        try {
+            return response()->json(['data' => TeamPersonResource::collection($this->teams->people($this->currentWorkspace($request)))]);
 
         } catch (\Throwable $e) {
             report($e);

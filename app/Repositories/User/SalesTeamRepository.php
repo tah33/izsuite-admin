@@ -18,7 +18,7 @@ class SalesTeamRepository
         return SalesTeam::query()
             ->where('workspace_id', $workspace->id)
             ->when($activeOnly, fn ($query) => $query->where('is_active', true))
-            ->with('members:id,first_name,last_name')
+            ->with(['members:id,first_name,last_name', 'manager:id,first_name,last_name'])
             ->withCount('documents')
             ->orderBy('name')
             ->get();

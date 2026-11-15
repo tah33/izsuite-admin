@@ -4,7 +4,13 @@ namespace App\Http\Requests\Api\Sales;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-/** A sales team (Doc 16 Phase A, Settings → Sales): its name, whether it is in use, and its members by user ID. SalesTeamService checks the name is the business's only one and the members are its active ones. */
+/**
+ * A sales team (Doc 16 Phase A, Settings → Sales and - Doc 17 Phase A2 -
+ * Settings → CRM): its name, whether it is in use, its members by user ID
+ * and its manager. Left out, the manager stays. SalesTeamService checks the
+ * name is the business's only one, and the members and manager are its
+ * active people.
+ */
 class SaveSalesTeamRequest extends FormRequest
 {
     public function authorize(): bool
@@ -19,6 +25,7 @@ class SaveSalesTeamRequest extends FormRequest
             'is_active'    => ['sometimes', 'boolean'],
             'member_ids'   => ['present', 'array', 'max:200'],
             'member_ids.*' => ['integer'],
+            'manager_id'   => ['sometimes', 'nullable', 'integer'],
         ];
     }
 }

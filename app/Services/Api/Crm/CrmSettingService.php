@@ -5,6 +5,7 @@ namespace App\Services\Api\Crm;
 use App\Models\User\CrmOption;
 use App\Models\User\Workspace;
 use App\Repositories\User\CrmOptionRepository;
+use App\Repositories\User\CrmPipelineRepository;
 use App\Repositories\User\CrmSettingRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\Api\Sales\RefusesConflicts;
@@ -34,17 +35,31 @@ class CrmSettingService
     public function __construct(
         protected CrmSettingRepository $settings,
         protected CrmOptionRepository $options,
+        protected CrmPipelineRepository $pipelines,
         protected WorkspaceRepository $workspaces,
     ) {}
 
-    /** @return array{settings: \App\Models\User\CrmSetting, options: \Illuminate\Database\Eloquent\Collection} the settings and every list, started if they never were */
+    /**
+     * The settings, every list and the pipelines - the lists and the first
+     * pipeline (Phase A2) started if they never were.
+     *
+     * @return array{settings: \App\Models\User\CrmSetting, options: \Illuminate\Database\Eloquent\Collection, pipelines: \Illuminate\Database\Eloquent\Collection}
+     */
     public function show(Workspace $workspace): array
     {
         if (! $this->options->existsFor($workspace)) {
             $this->options->addStarter($workspace);
         }
 
-        return ['settings' => $this->settings->forWorkspace($workspace), 'options' => $this->options->getFor($workspace)];
+        if (! $this->pipelines->existsFor($workspace)) {
+            $this->pipelines->addStarter($workspace);
+        }
+
+        return [
+            'settings'  => $this->settings->forWorkspace($workspace),
+            'options'   => $this->options->getFor($workspace),
+            'pipelines' => $this->pipelines->getFor($workspace),
+        ];
     }
 
     /** $data is validated (see SaveCrmSettingsRequest). */

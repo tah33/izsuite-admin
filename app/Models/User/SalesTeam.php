@@ -10,14 +10,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * A business's sales team (Doc 16 Phase A, Settings → Sales): a name, the
  * members in it, and whether it is in use. A sales document can name one;
- * a team switched off stays on the documents that name it. CRM extends it
- * later (Doc 17 section 17.24).
+ * a team switched off stays on the documents that name it. Since Doc 17
+ * Phase A2 it is CRM's as well, and has a manager (section 17.24).
  */
 class SalesTeam extends Model
 {
     protected $fillable = [
         'workspace_id',
         'name',
+        'manager_id',
         'is_active',
     ];
 
@@ -33,6 +34,12 @@ class SalesTeam extends Model
     public function members(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'sales_team_members');
+    }
+
+    /** Who leads it (Doc 17 Phase A2): one of the business's people, in the team or not. */
+    public function manager(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'manager_id');
     }
 
     /** The sales documents that name it. */

@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-15
-- **Code:** Doc 17 Phase A1 (CRM's menu, settings and lists) is committed: frontend `41761f0` on `nuxt`, and on `main` the admin commit right after `ed24509`.
-- **Tests:** 914 backend tests pass (last full run 2026-11-15, on the first PC, on this code).
-- **Next step:** Doc 17 Phase A2: the pipeline and shared sales teams (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase A2 (the pipeline and shared sales teams) is committed: frontend `6f21d3a` on `nuxt`, and on `main` the admin commit right after `5b1bf2e`.
+- **Tests:** 918 backend tests pass (last full run 2026-11-15, on the first PC, on this code).
+- **Next step:** Doc 17 Phase B: leads (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase A2.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase B.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -42,7 +42,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check done, Phase A1 built (2026-11-15), A2 next** |
+| **17** | **CRM** | **In progress: gap check and Phase A1 done, A2 built (2026-11-15), Phase B next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1372,7 +1372,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
   - With a $40.00 limit given to Chowdhury & Sons for a moment, Customer Credit Exposure showed them $49.00 exposed (all of it overdue), $9.00 over, as their Credit Control card did.
   - The order, its delivery and return, their number sequences, the limit, its Sales row, the sign-in and the activity were then put back.
 
-### 5. Doc 17: CRM (next: Phase A2)
+### 5. Doc 17: CRM (next: Phase B)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -1492,10 +1492,21 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - Saving Opportunities Only took Leads out of the sidebar at once; switching back brought it again.
   - The lists, the settings, the app's state, the sign-in and the activity were then put back.
 
-**Phase A2: the pipeline and shared sales teams** (sections 17.13, 17.14 and 17.24), suggested defaults:
+**Phase A2: the pipeline and shared sales teams** (sections 17.13, 17.14 and 17.24) is built, with these defaults. Phase A is done.
 
 - One pipeline with stages New, Qualified, Proposal, Negotiation, Won and Lost, each with its order, default probability (10%, 25%, 50%, 75%, 100% and 0%) and category (open, won or lost), edited in Settings → CRM. More pipelines come with opportunities (Phase D).
+  - The pipeline is saved whole: its name and its stages in order, added, renamed, moved up or down, switched off or removed. A stage keeps its id when saved, so the opportunities in it will stay there.
+  - A won stage is always 100% and a lost one 0%, and a pipeline always keeps an open, a won and a lost stage switched on.
+  - A business's pipeline starts the first time its CRM settings are read, as its lists do.
 - Sales teams shared by Sales and CRM: in Settings → CRM as well as Settings → Sales, gaining a manager. With CRM on they are there without full Sales.
+  - The manager is one of the business's active people, in the team or not. Either app's settings permission changes the teams.
+  - The team form takes its people from Settings' own list, since CRM can be on without Sales.
+- **Checked in the browser** on the first PC, as `user@izsuite.io`, with CRM switched on by hand on a business with Sales Lite only:
+  - Settings → CRM showed the Pipeline with its six stages (Won fixed at 100% and Lost at 0%) and the Sales Teams card, after a restart of the frontend container, which had not picked up the new components.
+  - A stage Demo at 60% was added and moved above Negotiation, New renamed Enquiry, and the pipeline saved; every stage kept its id and Demo became the seventh.
+  - With Won switched off, saving said a pipeline needs an open, a won and a lost stage switched on.
+  - A team Dhaka North was added with izSuite User as manager and member, and switching it off kept its manager.
+  - The pipeline, the team, the lists, the app's state, the sign-in and the activity were then put back.
 
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
@@ -1724,7 +1735,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 16: Phase H3b, orders and deliveries | `0637123` | `0754657` | none |
 | Doc 16: Phase H3c, returns, money and credit | `916916e` | `b79c75d` | none |
 | Doc 17: gap check | `ed24509` | | none |
-| Doc 17: Phase A1, CRM's menu, settings and lists | the commit after `ed24509` | `41761f0` | 000162 |
+| Doc 17: Phase A1, CRM's menu, settings and lists | `5b1bf2e` | `41761f0` | 000162 |
+| Doc 17: Phase A2, the pipeline and shared sales teams | the commit after `5b1bf2e` | `6f21d3a` | 000163 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -2042,6 +2054,11 @@ These are easy to undo by mistake.
   - The Leads menu item's show-if is `crm_uses_leads` (`ShowIfRules`), and saving a changed mode bumps `nav_version`. `NavigationBuilder::FULL_ORDER['crm']` holds Doc 17's order.
   - The permission group is `crm.settings` (Manage Application Settings), which the role templates leave to full access, as they do every `.settings` group.
   - A model whose column has a default needs it in `$attributes` too, or what `create()` returns reads it as null.
+- The pipeline (Doc 17 Phase A2) is `CrmPipeline` with its `CrmStage`s (`position`, `probability`, `category` open, won or lost, `is_active`):
+  - `CrmPipelineRepository::addStarter()` makes the first one once (`CrmPipeline::STARTER_STAGES`), from `CrmSettingService::show()`. `replaceStages()` updates a stage sent with its id, adds the others and deletes the rest, as price list rules are.
+  - `CrmPipelineService` forces won to 100% and lost to 0% (`CrmStage::probabilityFor()`); `SaveCrmPipelineRequest` keeps an open, a won and a lost stage switched on.
+- Sales teams are guarded by `app.any:sales:full,crm` (`EnsureAnyAppActive`): any one of the apps on at its edition opens them. `sales_teams.manager_id` is set only when `manager_id` is sent, so switching a team off keeps it. `GET /business-settings/sales-teams/people` gives the team form its people.
+- New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
 
@@ -2134,4 +2151,5 @@ Each of these is yours to settle.
 - Doc 16 Phase G2: migration 000160 adds `customer_responses`, `document_links.expires_at` and Settings → Sales's `link_expiry_days` (none: links never expire) and `link_comments` (on). Links already made keep working as they were. The customer's answers and comments are web routes on the backend's host, so `APP_URL` must be its public address and sessions must work there. Behind a proxy, trust its address (Laravel's `trustProxies` in `bootstrap/app.php`), or every response records the proxy's. Their e-mails go through the queue worker. Deploy the frontend with it.
 - Doc 16 Phase H1: migration 000161 adds the rest of Settings → Sales (`new_sales_start_as` invoice, `default_price_list_id`, `deposit_percent`, `backorders` ask, `default_shipping_terms`, `salesperson_is_creator` off), so nothing changes until a business chooses. Deploy the frontend with it: the navigation now carries `workspace.sales`.
 - Doc 17 Phase A1: migration 000162 adds `crm_settings` and `crm_options`, and changes the CRM menu where it exists: Deals becomes Opportunities (`/crm/opportunities`), Leads gets the `crm_uses_leads` show-if, and Customers is added. Deploy the frontend with it, which renames the page. A business's lists start the first time its CRM settings are read, so no seeding is needed.
+- Doc 17 Phase A2: migration 000163 adds `crm_pipelines`, `crm_stages` and `sales_teams.manager_id`. A business's pipeline starts the first time its CRM settings are read. Deploy the frontend with it: the team form now reads its people from `/business-settings/sales-teams/people`.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

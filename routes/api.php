@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\SalesOverviewController;
 use App\Http\Controllers\Api\SalesTeamController;
 use App\Http\Controllers\Api\CreditNoteController;
 use App\Http\Controllers\Api\CrmOptionController;
+use App\Http\Controllers\Api\CrmPipelineController;
 use App\Http\Controllers\Api\CrmSettingController;
 use App\Http\Controllers\Api\CurrencyController;
 use App\Http\Controllers\Api\DashboardController;
@@ -276,14 +277,6 @@ Route::prefix('v1')->group(function () {
         Route::middleware('app:sales')->group(function () {
             Route::get('/sales', [SalesSettingController::class, 'show'])->name('api.business-settings.sales.show');
             Route::put('/sales', [SalesSettingController::class, 'update'])->name('api.business-settings.sales.update');
-
-            // Sales teams (Doc 16 Phase A): only the full Sales app has them.
-            Route::middleware('app:sales,full')->prefix('sales-teams')->group(function () {
-                Route::get('/', [SalesTeamController::class, 'index'])->name('api.business-settings.sales-teams.index');
-                Route::post('/', [SalesTeamController::class, 'store'])->name('api.business-settings.sales-teams.store');
-                Route::put('/{id}', [SalesTeamController::class, 'update'])->whereNumber('id')->name('api.business-settings.sales-teams.update');
-                Route::delete('/{id}', [SalesTeamController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.sales-teams.destroy');
-            });
         });
 
         // Settings > CRM (Doc 17 Phase A1): the mode, and the lead sources,
@@ -294,6 +287,18 @@ Route::prefix('v1')->group(function () {
             Route::post('/options', [CrmOptionController::class, 'store'])->name('api.business-settings.crm.options.store');
             Route::put('/options/{id}', [CrmOptionController::class, 'update'])->whereNumber('id')->name('api.business-settings.crm.options.update');
             Route::delete('/options/{id}', [CrmOptionController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.options.destroy');
+            // A pipeline and its stages (Doc 17 Phase A2).
+            Route::put('/pipelines/{id}', [CrmPipelineController::class, 'update'])->whereNumber('id')->name('api.business-settings.crm.pipelines.update');
+        });
+
+        // Sales teams (Doc 16 Phase A): the full Sales app's - and, since Doc
+        // 17 Phase A2, CRM's - with the people they can have.
+        Route::middleware('app.any:sales:full,crm')->prefix('sales-teams')->group(function () {
+            Route::get('/', [SalesTeamController::class, 'index'])->name('api.business-settings.sales-teams.index');
+            Route::get('/people', [SalesTeamController::class, 'people'])->name('api.business-settings.sales-teams.people');
+            Route::post('/', [SalesTeamController::class, 'store'])->name('api.business-settings.sales-teams.store');
+            Route::put('/{id}', [SalesTeamController::class, 'update'])->whereNumber('id')->name('api.business-settings.sales-teams.update');
+            Route::delete('/{id}', [SalesTeamController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.sales-teams.destroy');
         });
 
         // Settings > Purchases (Doc 11 section 16): what new purchases start

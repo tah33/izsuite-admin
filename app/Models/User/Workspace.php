@@ -331,6 +331,12 @@ class Workspace extends Model
         return $this->hasMany(CrmOption::class);
     }
 
+    /** Its opportunity pipelines (Doc 17 Phase A2). */
+    public function crmPipelines(): HasMany
+    {
+        return $this->hasMany(CrmPipeline::class);
+    }
+
     /** How each kind of document is numbered - a row only where a default was changed. */
     public function documentNumbering(): HasMany
     {
