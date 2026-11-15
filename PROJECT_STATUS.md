@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-15
-- **Code:** Doc 16 Phase H3a (the quotation reports) is committed: frontend `c3c426a` on `nuxt`, and on `main` the admin commit right after `d00a1c8`.
-- **Tests:** 900 backend tests pass (last full run 2026-11-15, on the first PC, on this code).
-- **Next step:** Doc 16 Phase H3b: the order and delivery reports (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 16 Phase H3b (orders and deliveries) is committed: frontend `0754657` on `nuxt`, and on `main` the admin commit right after `c681fbe`.
+- **Tests:** 905 backend tests pass (last full run 2026-11-15, on the first PC, on this code).
+- **Next step:** Doc 16 Phase H3c: the returns, money and credit reports (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 16 Phase H3b.
+   > Read PROJECT_STATUS.md, then start Doc 16 Phase H3c.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -41,7 +41,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
-| **16** | **Sales** | **In progress: gap check and Phases A to G, H1 and H2 done, H3a built (2026-11-15), H3b next** |
+| **16** | **Sales** | **In progress: gap check and Phases A to G, H1, H2 and H3a done, H3b built (2026-11-15), H3c next** |
 | 17 to 21 | CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -951,7 +951,7 @@ B3 was split again on starting it (2026-11-13), as a support session names a sup
 - IP allow-listing and a separate domain for the admin panel. These are server decisions.
 - Deleting a business for good. Closed keeps its data.
 
-### 4. Doc 16: Sales (next: Phase H3b)
+### 4. Doc 16: Sales (next: Phase H3c)
 
 The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replaces Sales Lite (Doc 08) when a business turns it on, keeping and extending its records.
 
@@ -1337,9 +1337,22 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
   - With QUO-00001 made sent and expired on 10 November for a moment, Expired Quotations showed it 5 days expired for Rahman Traders, and Quotation Performance counted it as expired. Its own-currency total first showed without its currency, until a Currency column was added.
   - The quotation, its Sales row, the sign-in and the activity were then put back.
 
-**Phase H3b: orders and deliveries** (section 16.26), suggested defaults:
+**Phase H3b: orders and deliveries** (section 16.26) is built, with these defaults:
 
-- Sales Order Backlog, Orders to Deliver, Orders to Invoice, and Delivery Performance (delivered by the expected day, or after).
+- Four more reports under Sales, on the full Sales app, after the quotation reports.
+- **Open orders** are those confirmed or on hold, as they stand now, as the Dashboard counts them. Values are before tax, in the base currency. Left to deliver is each goods line's share for what is not delivered yet (services need no delivery). Left to invoice is each line's share for what its ordered quantity has not been invoiced yet. The order reports are for roles that see sales and orders.
+- **Sales Order Backlog:** the open orders grouped by the month ordered, customer, salesperson or sales team: how many, their value, and what is left to deliver and to invoice. Filters: grouping, location and currency.
+- **Orders to Deliver:** each open order with goods still to deliver, the earliest expected day first and those without one last. It shows the date, expected day, days late, customer, salesperson, status, delivery status and what is left to deliver. Filters: location and customer.
+- **Orders to Invoice:** each open order not invoiced in full, oldest first, with its value, what was invoiced and what is left. Filters: location, customer and currency.
+- **Delivery Performance:** the deliveries that arrived in the period, by month, customer or carrier. It shows how many, how many came on time (by their order's expected day) or late or had no expected day, the on-time rate and the average days late. It shows no values, so it is for roles that see deliveries. Filters: period, grouping and the delivery's location.
+- The three order reports read "Open on" today and take no dates: an order's quantities are where they stand now.
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with full Sales switched on by hand. Dev had no orders, so one was made through the API for the check: SO-00001 for Bose Electronics, two Standing Desks and a Design Course ($689.00), expected on 12 November, with one desk delivered today by DHL as DN-00001.
+  - The Reports page listed the four after Expired Quotations, before the Discount Report.
+  - Sales Order Backlog showed November: 1 order, $689.00, $369.00 left to deliver, $689.00 left to invoice; its groupings were Month, Customer, Salesperson and Sales Team.
+  - Orders to Deliver showed SO-00001 3 days late, Partially Delivered, with $369.00 left, opening the order.
+  - Orders to Invoice showed it Not Invoiced, $689.00 left.
+  - Delivery Performance showed the delivery late, 0.0% on time and 3 days late on average, by month and under DHL by carrier.
+  - The order, its delivery, their number sequences, its Sales row, the sign-in and the activity were then put back.
 
 **Phase H3c: returns, money and credit** (section 16.26), suggested defaults:
 
@@ -1568,7 +1581,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 16: Phase H1, settings and the Dashboard | `ad0f5c0` | `6517bf4` | 000161 |
 | Doc 16: Phase H2a, the "Sales by" reports | `48eba34` | `94742a7` | none |
 | Doc 16: Phase H2b, discounts, price lists and margin | `d00a1c8` | `917c2a1` | none |
-| Doc 16: Phase H3a, the quotation reports | the commit after `d00a1c8` | `c3c426a` | none |
+| Doc 16: Phase H3a, the quotation reports | `c681fbe` | `c3c426a` | none |
+| Doc 16: Phase H3b, orders and deliveries | the commit after `c681fbe` | `0754657` | none |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -1872,6 +1886,10 @@ These are easy to undo by mistake.
   - `ExpiredQuotationsReport` lists `expiredQuotations()`: draft or sent, dated by the as-of day and expired before it.
   - The frontend's `reportGroups()` gives the two summaries `QUOTATION_GROUPS`.
   - A report's rows reach the page with only their columns' keys and `link` (`ReportTableResource`), so a money column in each row's own currency needs a `currency` column beside it.
+- The order reports (Doc 16 Phase H3b) need `sales_orders` (`sales.orders.view` besides sales seen); Delivery Performance needs `sales_deliveries` (`sales.deliveries.view` alone, as it shows no values):
+  - `OrderReport::left()` works out an order's value, left to deliver and left to invoice from `SalesReportRepository::openOrders()` - whole orders with their lines and each line's item type - with `SalesFigures::lineNetOf()`, which is `lineNet()` for a line loaded with its document.
+  - `OrderBacklogReport`, `OrdersToDeliverReport` and `OrdersToInvoiceReport` lay it out; `DeliveryPerformanceReport` reads `deliveredBetween()`, by `delivered_on` and the delivery's own location.
+  - The quotation, backlog and delivery summaries share `GroupsSalesDocuments` (by month, customer, salesperson or team, and every month of a range); the frontend's `FULL_SALES_GROUPINGS` gives each its groupings.
 - A Nuxt page for several kinds sets `minEdition` per route: `minEdition: route => (route.params.kind === 'orders' ? 'full' : 'lite')` (`middleware/app-access.global.ts`). The order's own page has none, so it opens read-only on Sales Lite.
 
 ## Small things left

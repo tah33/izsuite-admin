@@ -19,6 +19,8 @@ use App\Support\Decimal;
  */
 abstract class QuotationReport extends Report
 {
+    use GroupsSalesDocuments;
+
     public const GROUPS = ['month' => 'Month', 'customer' => 'Customer', 'salesperson' => 'Salesperson', 'team' => 'Sales Team'];
 
     /**
@@ -29,7 +31,7 @@ abstract class QuotationReport extends Report
     protected function outcomes(Workspace $workspace, array $filters): array
     {
         $group = $this->grouping($filters);
-        $rows  = $group === 'month' ? $this->months($filters) : [];
+        $rows  = $group === 'month' ? $this->months($filters, fn (string $label) => $this->blank($label)) : [];
 
         foreach ($this->sales->quotationsOut($workspace, $filters['from'], $filters['to'], $filters) as $quotation) {
             [$key, $label] = $this->groupOf($quotation, $group, $filters);
@@ -68,33 +70,6 @@ abstract class QuotationReport extends Report
             SalesDocumentStatus::Converted => 'converted',
             SalesDocumentStatus::Rejected  => 'rejected',
             default                        => $quotation->expiry_date && $quotation->expiry_date < $today ? 'expired' : 'open',
-        };
-    }
-
-    private function months(array $filters): array
-    {
-        $rows = [];
-
-        foreach ($this->period->buckets($filters['from'], $filters['to'], 'month') as $key) {
-            $rows[$key] = $this->blank($this->period->label($key, 'month', $filters['date_format'] ?? null));
-        }
-
-        return $rows;
-    }
-
-    /** @return array{0: string, 1: string} the group's key, and what the report calls it */
-    private function groupOf(SalesDocument $quotation, string $group, array $filters): array
-    {
-        if ($group === 'month') {
-            $key = $this->period->bucket($quotation->document_date, 'month');
-
-            return [$key, $this->period->label($key, 'month', $filters['date_format'] ?? null)];
-        }
-
-        return match ($group) {
-            'customer'    => ["contact:{$quotation->contact_id}", $this->figures->customerName($quotation)],
-            'salesperson' => ["salesperson:{$quotation->salesperson_id}", $quotation->salesperson?->name ?? 'No salesperson'],
-            default       => ["team:{$quotation->sales_team_id}", $quotation->salesTeam?->name ?? 'No team'],
         };
     }
 

@@ -8,6 +8,7 @@ use App\Models\User\CustomerAdvance;
 use App\Models\User\Item;
 use App\Models\User\PriceList;
 use App\Models\User\SalesAllocation;
+use App\Models\User\SalesDelivery;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesDocumentLine;
 use App\Models\User\SalesPayment;
@@ -364,6 +365,40 @@ class SalesReportRepository
             ->orderByDesc('expiry_date')
             ->orderByDesc('id')
             ->get(['id', 'number', 'status', 'document_date', 'expiry_date', 'contact_id', 'customer_snapshot', 'salesperson_id', 'currency', 'grand_total', 'base_grand_total']);
+    }
+
+    /**
+     * Open sales orders - confirmed or on hold - oldest first, whole, with
+     * their lines and each line's item type, the customer, salesperson and
+     * team (Doc 16 Phase H3b).
+     */
+    public function openOrders(Workspace $workspace, array $filters = []): Collection
+    {
+        return $this->overviewDocuments($workspace, DocumentType::SalesOrder, $filters)
+            ->whereIn('status', [SalesDocumentStatus::Confirmed->value, SalesDocumentStatus::OnHold->value])
+            ->with(['lines' => fn ($lines) => $lines->orderBy('position'), 'lines.item:id,type', 'contact:id,name', 'salesperson:id,first_name,last_name', 'salesTeam:id,name'])
+            ->orderBy('document_date')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * Deliveries that arrived from $from to $to, by the day they did, with
+     * their order's expected day and customer - narrowed by the delivery's
+     * own location, as the Deliveries list is (Doc 16 Phase H3b).
+     */
+    public function deliveredBetween(Workspace $workspace, string $from, string $to, array $filters = []): Collection
+    {
+        return SalesDelivery::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('status', SalesDelivery::DELIVERED)
+            ->whereBetween('delivered_on', [$from, $to])
+            ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('location_id', $id))
+            ->when(isset($filters['location_ids']), fn (Builder $query) => $query->whereIn('location_id', $filters['location_ids']))
+            ->with(['order', 'order.contact:id,name'])
+            ->orderBy('delivered_on')
+            ->orderBy('id')
+            ->get();
     }
 
     /**
