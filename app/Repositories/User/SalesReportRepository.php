@@ -311,11 +311,6 @@ class SalesReportRepository
             ->when($filters['sales_team_id'] ?? null, fn (Builder $query, $id) => $query->where("{$table}sales_team_id", $id));
     }
 
-    /**
-     * Quotations dated from $from to $to that went out - not drafts or
-     * cancelled ones - for the Sales Overview (Doc 16 section 16.5), with
-     * $filters as documents() takes them.
-     */
     /** Quotations sent and not answered, while they hold on $today - the Dashboard's Sales Pipeline (Doc 16 Phase H1). */
     public function awaitingAnswer(Workspace $workspace, string $today, array $filters = []): Collection
     {
@@ -325,12 +320,50 @@ class SalesReportRepository
             ->get(['id', 'base_grand_total']);
     }
 
+    /**
+     * Quotations dated from $from to $to that went out - not drafts or
+     * cancelled ones - for the Sales Overview (Doc 16 section 16.5), with
+     * $filters as documents() takes them.
+     */
     public function offers(Workspace $workspace, string $from, string $to, array $filters = []): Collection
     {
         return $this->overviewDocuments($workspace, DocumentType::Quotation, $filters)
             ->whereNotIn('status', [SalesDocumentStatus::Draft->value, SalesDocumentStatus::Cancelled->value])
             ->whereBetween('document_date', [$from, $to])
             ->get(['id', 'status', 'currency', 'grand_total', 'base_grand_total']);
+    }
+
+    /**
+     * The same quotations for Quotation Performance and Conversion Rate (Doc
+     * 16 Phase H3a), oldest first: where each stands, its expiry, customer,
+     * salesperson and team.
+     */
+    public function quotationsOut(Workspace $workspace, string $from, string $to, array $filters = []): Collection
+    {
+        return $this->overviewDocuments($workspace, DocumentType::Quotation, $filters)
+            ->whereNotIn('status', [SalesDocumentStatus::Draft->value, SalesDocumentStatus::Cancelled->value])
+            ->whereBetween('document_date', [$from, $to])
+            ->with(['contact:id,name', 'salesperson:id,first_name,last_name', 'salesTeam:id,name'])
+            ->orderBy('document_date')
+            ->orderBy('id')
+            ->get(['id', 'status', 'document_date', 'expiry_date', 'contact_id', 'customer_snapshot', 'salesperson_id', 'sales_team_id', 'currency', 'base_grand_total']);
+    }
+
+    /**
+     * Draft and sent quotations dated up to $asOf whose expiry date was
+     * before it - expired, and not answered or converted since - the latest
+     * to expire first (Doc 16 Phase H3a).
+     */
+    public function expiredQuotations(Workspace $workspace, string $asOf, array $filters = []): Collection
+    {
+        return $this->overviewDocuments($workspace, DocumentType::Quotation, $filters)
+            ->whereIn('status', [SalesDocumentStatus::Draft->value, SalesDocumentStatus::Sent->value])
+            ->where('document_date', '<=', $asOf)
+            ->where('expiry_date', '<', $asOf)
+            ->with(['contact:id,name', 'salesperson:id,first_name,last_name'])
+            ->orderByDesc('expiry_date')
+            ->orderByDesc('id')
+            ->get(['id', 'number', 'status', 'document_date', 'expiry_date', 'contact_id', 'customer_snapshot', 'salesperson_id', 'currency', 'grand_total', 'base_grand_total']);
     }
 
     /**

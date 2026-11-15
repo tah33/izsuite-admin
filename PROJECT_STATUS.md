@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-15
-- **Code:** Doc 16 Phase H2b (discounts, price lists and margin) is committed: frontend `917c2a1` on `nuxt`, and on `main` the admin commit right after `48eba34`.
-- **Tests:** 896 backend tests pass (last full run 2026-11-15, on the first PC, on this code).
-- **Next step:** Doc 16 Phase H3: the pipeline and operations reports (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 16 Phase H3a (the quotation reports) is committed: frontend `c3c426a` on `nuxt`, and on `main` the admin commit right after `d00a1c8`.
+- **Tests:** 900 backend tests pass (last full run 2026-11-15, on the first PC, on this code).
+- **Next step:** Doc 16 Phase H3b: the order and delivery reports (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 16 Phase H3.
+   > Read PROJECT_STATUS.md, then start Doc 16 Phase H3b.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -41,7 +41,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 13 | Apps Center, Packages, Subscriptions and Billing | Done, except usage charges (section 17), which wait for their services |
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
-| **16** | **Sales** | **In progress: gap check and Phases A to G, H1 and H2a done, H2b built (2026-11-15), H3 next** |
+| **16** | **Sales** | **In progress: gap check and Phases A to G, H1 and H2 done, H3a built (2026-11-15), H3b next** |
 | 17 to 21 | CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -951,7 +951,7 @@ B3 was split again on starting it (2026-11-13), as a support session names a sup
 - IP allow-listing and a separate domain for the admin panel. These are server decisions.
 - Deleting a business for good. Closed keeps its data.
 
-### 4. Doc 16: Sales (next: Phase H3)
+### 4. Doc 16: Sales (next: Phase H3b)
 
 The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replaces Sales Lite (Doc 08) when a business turns it on, keeping and extending its records.
 
@@ -1319,10 +1319,30 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
   - A price list added for the check, saved from its form with a new priority, kept its rule's id.
   - The list, the purchase price, its Sales row, the sign-in and the activity were then put back.
 
-**Phase H3: pipeline and operations reports** (section 16.26), suggested defaults:
+**Phase H3: pipeline and operations reports** was split on starting it (2026-11-15): H3a, the quotation reports; H3b, orders and deliveries; H3c, returns, money and credit.
 
-- Quotation Performance and Conversion Rate (sent, accepted, rejected, converted, expired), and Expired Quotations.
+**Phase H3a: the quotation reports** (section 16.26) is built, with these defaults:
+
+- Three more reports under Sales, on the full Sales app, for roles that see sales and quotations.
+- **Quotation Performance:** the quotations of the period that went out (not drafts or cancelled ones), grouped by month, customer, salesperson or sales team. For each group: how many, their value, how many were accepted, converted, rejected or expired or are still open, and the value won (accepted or converted). Values are grand totals in the base currency, as the Sales Overview counts them.
+- **Quotation Conversion Rate:** the same quotations and groupings: how many went out and were won, the share won, and the same by value.
+- **Expired Quotations:** each draft or sent quotation whose expiry date had passed by the as-of day (today to start), the latest to expire first. It shows the customer, the salesperson, how many days ago it expired and its total. Each opens the quotation, which can still be revised or converted.
+- Filters: period, grouping, location and currency for the first two; as of, location and customer for Expired Quotations.
+- A quotation's history is not kept, only where it stands now: one converted after it expired counts as converted.
+- By month, every month of the range shows, a quiet one too; the other groupings put the most valuable first. Expired Quotations shows each total in its own currency, beside its currency, and in the base currency.
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with full Sales switched on by hand:
+  - The Reports page listed the three after Sales by Source, before the Discount Report.
+  - Quotation Performance offered Month, Customer, Salesperson and Sales Team. For this year it showed every month, and October's QUO-00001 ($569.99) as converted and won; by salesperson, as "No salesperson".
+  - Quotation Conversion Rate showed October at 100.0% by number and by value, and no rate for quiet months.
+  - With QUO-00001 made sent and expired on 10 November for a moment, Expired Quotations showed it 5 days expired for Rahman Traders, and Quotation Performance counted it as expired. Its own-currency total first showed without its currency, until a Currency column was added.
+  - The quotation, its Sales row, the sign-in and the activity were then put back.
+
+**Phase H3b: orders and deliveries** (section 16.26), suggested defaults:
+
 - Sales Order Backlog, Orders to Deliver, Orders to Invoice, and Delivery Performance (delivered by the expected day, or after).
+
+**Phase H3c: returns, money and credit** (section 16.26), suggested defaults:
+
 - The Returns Report, Credit Notes and Refunds, an Invoice and Payment Report that counts advances, and Customer Credit Exposure.
 
 After Doc 16 come Docs 17 to 21 (CRM, POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
@@ -1547,7 +1567,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 16: Phase G2, the customer's link | `a7bc602` | `23dc5f7` | 000160 |
 | Doc 16: Phase H1, settings and the Dashboard | `ad0f5c0` | `6517bf4` | 000161 |
 | Doc 16: Phase H2a, the "Sales by" reports | `48eba34` | `94742a7` | none |
-| Doc 16: Phase H2b, discounts, price lists and margin | the commit after `48eba34` | `917c2a1` | none |
+| Doc 16: Phase H2b, discounts, price lists and margin | `d00a1c8` | `917c2a1` | none |
+| Doc 16: Phase H3a, the quotation reports | the commit after `d00a1c8` | `c3c426a` | none |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -1846,6 +1867,11 @@ These are easy to undo by mistake.
   - `SalesReportRepository::discounted()` gives invoices with a line or invoice discount, with `line_discounts` summed. `issuedLines()` takes `priced` and carries each line's `price_list_id`, `price_list_rule_id` and its item's `purchase_price`; `priceLists()` loads lists with their rules.
   - `Report::percent()` gives a share to one place, or null of nothing, for `percent` columns.
   - `PriceListRepository::replaceParts()` updates a rule sent with its id (`PriceListResource` now gives it), adds the others and deletes the rest.
+- The quotation reports (Doc 16 Phase H3a) need `sales_quotes` (`sales.quotations.view` besides sales seen):
+  - `QuotationReport` groups `SalesReportRepository::quotationsOut()` (not drafts or cancelled ones) by `QuotationReport::GROUPS` and counts where each stands; `QuotationPerformanceReport` and `QuotationConversionReport` lay it out. Expired is sent with its expiry before the filters' `as_of`, which is today unless asked.
+  - `ExpiredQuotationsReport` lists `expiredQuotations()`: draft or sent, dated by the as-of day and expired before it.
+  - The frontend's `reportGroups()` gives the two summaries `QUOTATION_GROUPS`.
+  - A report's rows reach the page with only their columns' keys and `link` (`ReportTableResource`), so a money column in each row's own currency needs a `currency` column beside it.
 - A Nuxt page for several kinds sets `minEdition` per route: `minEdition: route => (route.params.kind === 'orders' ? 'full' : 'lite')` (`middleware/app-access.global.ts`). The order's own page has none, so it opens read-only on Sales Lite.
 
 ## Small things left

@@ -16,9 +16,12 @@ use App\Services\Reports\Purchases\PurchaseSummaryReport;
 use App\Services\Reports\Sales\ContactStatementReport;
 use App\Services\Reports\Sales\CreditNotesReport;
 use App\Services\Reports\Sales\DiscountReport;
+use App\Services\Reports\Sales\ExpiredQuotationsReport;
 use App\Services\Reports\Sales\OutstandingInvoicesReport;
 use App\Services\Reports\Sales\PaymentsReceivedReport;
 use App\Services\Reports\Sales\PriceListUsageReport;
+use App\Services\Reports\Sales\QuotationConversionReport;
+use App\Services\Reports\Sales\QuotationPerformanceReport;
 use App\Services\Reports\Sales\SalesMarginReport;
 use App\Services\Reports\Sales\SalesSummaryReport;
 use App\Services\Reports\Sales\SalesTrendReport;
@@ -66,7 +69,7 @@ class ReportCatalog
      * What the full Sales app's reports need (Doc 16 section 16.26): the app
      * on, and sales seen - and for two of them a permission more.
      */
-    private const FULL_SALES = ['sales_full' => null, 'sales_costs' => 'items.costs', 'sales_lists' => 'sales.price_lists.view'];
+    private const FULL_SALES = ['sales_full' => null, 'sales_costs' => 'items.costs', 'sales_lists' => 'sales.price_lists.view', 'sales_quotes' => 'sales.quotations.view'];
 
     /**
      * Each report: its name, category, class, filters, what it shows, and what
@@ -91,6 +94,10 @@ class ReportCatalog
         'sales-by-salesperson' => ['Sales by Salesperson', 'sales', SalesSummaryReport::class, ['period', 'location', 'currency'], 'Invoices less credit notes for a period, before tax, by the salesperson each names.', 'sales_full'],
         'sales-by-team'        => ['Sales by Sales Team', 'sales', SalesSummaryReport::class, ['period', 'location', 'currency'], 'Invoices less credit notes for a period, before tax, by the sales team each names.', 'sales_full'],
         'sales-by-source'      => ['Sales by Source', 'sales', SalesSummaryReport::class, ['period', 'location', 'currency'], 'Invoices less credit notes for a period, before tax, by the app that made each.', 'sales_full'],
+        // Phase H3a's, for those who see quotations.
+        'quotation-performance' => ['Quotation Performance', 'sales', QuotationPerformanceReport::class, ['period', 'group_by', 'location', 'currency'], 'Quotations that went out in a period - accepted, converted, rejected, expired or still open - by month, customer, salesperson or team.', 'sales_quotes'],
+        'quotation-conversion' => ['Quotation Conversion Rate', 'sales', QuotationConversionReport::class, ['period', 'group_by', 'location', 'currency'], 'The share of quotations won - accepted or converted - by number and by value.', 'sales_quotes'],
+        'expired-quotations'   => ['Expired Quotations', 'sales', ExpiredQuotationsReport::class, ['as_of', 'location', 'contact'], 'Draft and sent quotations past their expiry date, to revise, convert or follow up.', 'sales_quotes'],
         // Phase H2b's: the margin for those who see costs, price list usage for those who see price lists.
         'discounts'            => ['Discount Report', 'sales', DiscountReport::class, ['period', 'location', 'contact', 'currency'], 'Invoices that gave a discount, on their lines or the whole, who sold them, and why one went past a limit.', 'sales_full'],
         'price-list-usage'     => ['Price List Usage', 'sales', PriceListUsageReport::class, ['period', 'location', 'currency'], 'The invoice lines each price list and rule priced, and their sales before tax.', 'sales_lists'],
@@ -220,7 +227,7 @@ class ReportCatalog
     {
         return match ($needs) {
             'sales', 'purchases', 'expenses' => $this->sees([$needs => true]),
-            'sales_full', 'sales_costs', 'sales_lists' => $this->sees(['sales' => true]) && (self::FULL_SALES[$needs] === null || $this->access->can(self::FULL_SALES[$needs])),
+            'sales_full', 'sales_costs', 'sales_lists', 'sales_quotes' => $this->sees(['sales' => true]) && (self::FULL_SALES[$needs] === null || $this->access->can(self::FULL_SALES[$needs])),
             'payables'   => $this->sees(['supplier_payments' => $purchases, 'expense_payments' => $expenses]),
             'taxes'      => $this->access->can('taxes.view') && $this->sees(['sales' => $sales, 'purchases' => $purchases, 'expenses' => $expenses]),
             // A statement for either side: a customer's, or a supplier's.

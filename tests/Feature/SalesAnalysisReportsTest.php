@@ -113,7 +113,8 @@ class SalesAnalysisReportsTest extends TestCase
         $keys = fn () => array_column($this->getJson('/api/v1/reports')->assertOk()->json('data'), 'key');
         $all  = $keys();
 
-        $this->assertSame(['discounts', 'price-list-usage', 'sales-margin'], array_slice($all, array_search('sales-by-source', $all, true) + 1, 3));
+        // After the quotation reports, in Doc 16's order (Phase H3a).
+        $this->assertSame(['discounts', 'price-list-usage', 'sales-margin'], array_slice($all, array_search('expired-quotations', $all, true) + 1, 3));
 
         $entries = array_column($this->getJson('/api/v1/reports')->json('data'), null, 'key');
         $this->assertSame([['period', 'location', 'contact', 'currency'], ['period', 'location', 'category']], [$entries['discounts']['filters'], $entries['sales-margin']['filters']]);

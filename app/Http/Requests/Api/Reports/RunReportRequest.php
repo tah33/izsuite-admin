@@ -7,6 +7,7 @@ use App\Services\Reports\Expenses\ExpensesByCategoryReport;
 use App\Services\Reports\Purchases\PurchaseSummaryReport;
 use App\Services\Reports\ReportPeriod;
 use App\Services\Reports\Sales\OutstandingInvoicesReport;
+use App\Services\Reports\Sales\QuotationReport;
 use App\Services\Reports\Sales\SalesSummaryReport;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -33,7 +34,7 @@ class RunReportRequest extends FormRequest
             'date_from'           => ['nullable', 'required_with:date_to', 'date_format:Y-m-d'],
             'date_to'             => ['nullable', 'required_with:date_from', 'date_format:Y-m-d', 'after_or_equal:date_from'],
             'as_of'               => ['nullable', 'date_format:Y-m-d'],
-            'group_by'            => ['nullable', Rule::in(array_keys([...SalesSummaryReport::GROUPS, ...PurchaseSummaryReport::GROUPS, ...ExpensesByCategoryReport::GROUPS]))],
+            'group_by'            => ['nullable', Rule::in(array_keys([...SalesSummaryReport::GROUPS, ...PurchaseSummaryReport::GROUPS, ...ExpensesByCategoryReport::GROUPS, ...QuotationReport::GROUPS]))],
             'location_id'         => ['nullable', 'integer'],
             'contact_id'          => ['nullable', 'integer'],
             'currency'            => ['nullable', 'string', 'size:3'],
