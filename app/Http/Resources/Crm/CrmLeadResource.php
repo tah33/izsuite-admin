@@ -59,6 +59,20 @@ class CrmLeadResource extends JsonResource
             'contacted_at'           => $this->contacted_at?->toIso8601String(),
             'added_by'               => $this->creator?->name,
             'created_at'             => $this->created_at?->toIso8601String(),
+            // What it was converted to (Phase C1).
+            'conversion'             => $this->converted_at ? [
+                'at'          => $this->converted_at->toIso8601String(),
+                'by'          => $this->converter?->name,
+                'contact'     => $named($this->contact),
+                'opportunity' => $this->opportunity ? [
+                    'id'                  => $this->opportunity->id,
+                    'name'                => $this->opportunity->name,
+                    'stage'               => $this->opportunity->stage?->name,
+                    'expected_value'      => $this->opportunity->expected_value,
+                    'currency'            => $this->opportunity->currency,
+                    'expected_close_date' => $this->opportunity->expected_close_date?->toDateString(),
+                ] : null,
+            ] : null,
         ];
     }
 }

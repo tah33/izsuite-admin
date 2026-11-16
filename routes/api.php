@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\SalesTeamController;
 use App\Http\Controllers\Api\CreditNoteController;
 use App\Http\Controllers\Api\CrmLeadAttachmentController;
 use App\Http\Controllers\Api\CrmLeadController;
+use App\Http\Controllers\Api\CrmLeadConversionController;
 use App\Http\Controllers\Api\CrmLeadFlowController;
 use App\Http\Controllers\Api\CrmOptionController;
 use App\Http\Controllers\Api\CrmPipelineController;
@@ -864,6 +865,10 @@ Route::prefix('v1')->group(function () {
         foreach (['assign', 'contact', 'qualify', 'unqualify', 'archive', 'reopen'] as $step) {
             Route::post("/{id}/{$step}", [CrmLeadFlowController::class, $step])->whereNumber('id')->name("api.crm.leads.{$step}");
         }
+
+        // Converting a qualified lead into a contact and an opportunity (Phase C1).
+        Route::get('/{id}/conversion', [CrmLeadConversionController::class, 'show'])->whereNumber('id')->name('api.crm.leads.conversion');
+        Route::post('/{id}/convert', [CrmLeadConversionController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.crm.leads.convert');
 
         // Its files, comments and activity timeline (Phase B2b), Doc 14's.
         Route::get('/{id}/attachments', [CrmLeadAttachmentController::class, 'index'])->whereNumber('id')->name('api.crm.leads.attachments.index');

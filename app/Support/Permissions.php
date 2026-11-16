@@ -111,7 +111,7 @@ final class Permissions
         'expenses.settings'    => ['Expense Settings', 'expenses', self::APP_SETTINGS],
 
         // CRM (Doc 17 section 17.30): each phase adds its own - Phase A1 its settings, B1 leads and whose records are seen.
-        'crm.leads'    => ['Leads', 'crm', ['view' => self::VIEW, 'manage' => 'Create and Edit', 'assign' => 'Assign Leads', 'reopen' => 'Reopen Unqualified or Archived']],
+        'crm.leads'    => ['Leads', 'crm', ['view' => self::VIEW, 'manage' => 'Create and Edit', 'assign' => 'Assign Leads', 'reopen' => 'Reopen Unqualified or Archived', 'convert' => 'Convert Leads']],
         // Without either, a user sees the CRM records they own (LeadVisibility).
         'crm.records'  => ['CRM Records', 'crm', ['team' => 'View Team Records', 'all' => 'View All CRM Records']],
         'crm.settings' => ['CRM Settings', 'crm', self::APP_SETTINGS],
@@ -163,6 +163,8 @@ final class Permissions
         'sales.credit.override'      => ['sales.values.view'],
         'sales.refunds.record'       => ['sales.credit_notes.view', 'payment_accounts.view'],
         'sales.settings.manage'      => ['settings.view'],
+        // Converting a lead (Doc 17 Phase C1) finds or makes its contact; a new one needs contacts.create besides.
+        'crm.leads.convert'          => ['crm.leads.manage', 'contacts.view'],
         'purchases.purchases.create' => ['contacts.view', 'items.view'],
         'purchases.payments.record'  => ['purchases.purchases.view', 'payment_accounts.view'],
         'purchases.payments.reverse' => ['payment_accounts.view'],
@@ -302,7 +304,7 @@ final class Permissions
                 'sales.payments.view', 'sales.payments.record', 'sales.credit_notes.view',
                 ...self::actionsOf('sales.advances', ['view', 'record', 'apply']),
                 // Their own leads (Doc 17 Phase B1).
-                'crm.leads.view', 'crm.leads.manage',
+                'crm.leads.view', 'crm.leads.manage', 'crm.leads.convert',
             ],
 
             'purchase_user' => [

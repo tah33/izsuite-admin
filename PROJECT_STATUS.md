@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-16
-- **Code:** Doc 17 Phase B (leads: B1, B2a and B2b) is committed, with the data export taking in Doc 16's and 17's tables and Doc 16's records checked at their own locations (fixed 2026-11-16): frontend `7812131` on `nuxt`, and on `main` the admin commit right after `d60c15a`.
-- **Tests:** 932 backend tests pass (last full run 2026-11-16, on the first PC, on this code).
-- **Next step:** Doc 17 Phase C: converting leads, and duplicates (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase C1 (converting a lead) is committed: frontend `02e95eb` on `nuxt`, and on `main` the admin commit right after `78c00df`.
+- **Tests:** 936 backend tests pass (last full run 2026-11-16, on the first PC, on this code).
+- **Next step:** Doc 17 Phase C2: possible duplicate leads (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase C.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase C2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -42,7 +42,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check and Phases A and B done (B built 2026-11-15 and 16), Phase C next** |
+| **17** | **CRM** | **In progress: gap check and Phases A and B done, C1 built (2026-11-16), Phase C2 next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1387,7 +1387,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase C)
+### 5. Doc 17: CRM (next: Phase C2)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -1590,6 +1590,44 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - Activity listed the comment, the attachment and the lead being added, newest first.
   - The file was then removed through the API, and the lead, its comment, the CRM lists, the app's state, the sign-in and the activity were put back.
 
+**Phase C: converting leads, and duplicates** was split on starting it (2026-11-16): C1, converting a lead; C2, possible duplicate leads; C3, merging contacts.
+
+**Phase C1: converting a lead** (sections 17.7 and 17.11) is built, with these defaults:
+
+- **Convert**, on a Qualified lead's page, with a new Convert Leads permission. A converted lead is final: it is never converted again.
+- **The contact:**
+  - The business's contacts matching the lead's e-mail, phone, business name or name are listed first, with what matched.
+  - Any other contact can be chosen. Or a new one is made from the lead, for whoever may create contacts: its business (or name), person, job title, e-mail, phone, address, language and tags.
+  - The contact becomes a customer: a supplier becomes both.
+- **The opportunity**, made in the business's pipeline:
+  - at an open stage (the first, to start) with that stage's probability;
+  - named after the lead's business or name;
+  - with an expected value and currency and an expected closing date: the lead's estimate and expected purchase date, or typed in;
+  - carrying over the lead's owner, location, sales team, priority, source, customer need, next action and notes.
+- **The lead's attachments, comments and timeline stay with it.** The opportunity keeps its lead, so Phase D's opportunity page can show them; nothing is copied. Activities and consent come with Phases E and I.
+- **The lead becomes Converted**, its page showing its contact and opportunity. The Leads page can filter on Converted.
+- Opportunities' own pages and changes come with Phase D. Until then:
+  - a stage with opportunities in it cannot be removed from the pipeline, only switched off;
+  - a contact or location with opportunities cannot be deleted;
+  - the data export includes opportunities.
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with CRM switched on by hand:
+  - A qualified lead's page offered Convert.
+  - Its dialog listed Rahim Uddin (C-00001, "the same name and e-mail") first, with Another contact and A new contact as the other choices, and the opportunity started from the lead's name, value and date at New (10%).
+  - Converted to Rahim Uddin at Qualified (25%) as "Rahim Uddin - branch stock": the lead became Converted with no buttons left, and its page showed the contact (a link), the opportunity, its stage, value and closing date.
+  - A second lead, matching no one, started on A new contact. The browser held the conversion until a closing date was given. It then made Haque Garments (C-00021, business, customer, its person, job title, e-mail, phone and city) and an opportunity at New.
+  - The leads, opportunities, the new contact and its number, the CRM lists, the app's state, the sign-in and the activity were then put back.
+
+**Phase C2: possible duplicate leads** (section 17.21), suggested defaults:
+
+- Leads sharing an e-mail, phone or business name with another lead or a contact are flagged on their page and in the list.
+- Each can be reviewed, ignored with a reason (it is no longer flagged for that match), or linked to the other record.
+
+**Phase C3: merging contacts** (section 17.21), suggested defaults:
+
+- With a new Merge Contacts permission: one contact is kept, and the other's details fill only what the kept one lacks.
+- Its leads, opportunities, comments, files and history move to the kept one; its financial documents stay where they are and are listed, so nothing financial moves silently.
+- The merged contact is archived, not deleted, and the merge is logged on both.
+
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## Testing checklist
@@ -1689,6 +1727,25 @@ Use a test business. Some tests need a second person with a limited role: in Set
   - [ ] they get a bell notification (and an e-mail) linking to the lead's comments.
 - [ ] The Activity tab lists what was done to the lead, newest first: added, changed, assigned (with the previous owner), its steps, comments and files.
 - [ ] With Settings → CRM on Opportunities Only, a lead's comments and files can be read but not added.
+
+**Phase C1: converting a lead**
+
+- [ ] Only a Qualified lead offers Convert, and only to a role with Convert Leads. Settings → Users & Roles lists Convert Leads under Leads.
+- [ ] The Convert dialog:
+  - [ ] lists the contacts matching the lead's e-mail, phone, business name or name first, each saying what matched;
+  - [ ] offers Another contact (search any contact) and A new contact from this lead;
+  - [ ] hides A new contact for a role without Create Contacts.
+- [ ] The opportunity starts from the lead: its business or name, its estimated value and currency, its expected purchase date, at the first open stage. A closed (won or lost) stage is never offered.
+- [ ] Converting to an existing supplier makes them both a customer and a supplier.
+- [ ] Converting to a new contact makes one with the lead's business (or name), person, job title, e-mail, phone, address, language and tags.
+- [ ] After converting:
+  - [ ] the lead is Converted, with no buttons, and can no longer be edited;
+  - [ ] its page shows the contact (a link to it) and the opportunity's name, stage, value and closing date;
+  - [ ] the Leads page's Converted filter finds it;
+  - [ ] its files, comments and timeline are still there, the timeline saying what it was converted into.
+- [ ] A contact with an opportunity cannot be deleted ("This contact has CRM opportunities…"), nor can a location with one.
+- [ ] Settings → CRM: removing a pipeline stage that holds an opportunity is refused ("Opportunities are in … switch it off instead").
+- [ ] Admin panel → Privacy Requests: the business's data export holds `opportunities.csv`.
 
 ## How we work
 
@@ -1917,10 +1974,11 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: gap check | `ed24509` | | none |
 | Doc 17: Phase A1, CRM's menu, settings and lists | `5b1bf2e` | `41761f0` | 000162 |
 | Doc 17: Phase A2, the pipeline and shared sales teams | `d60c15a` | `6f21d3a` | 000163 |
-| Doc 17: Phase B1, leads themselves | the commit after `d60c15a` | `7812131` | 000164 |
-| Doc 17: Phase B2a, qualification and interested items | the commit after `d60c15a` | `7812131` | 000165 |
-| Doc 17: Phase B2b, a lead's files, comments and timeline | the commit after `d60c15a` | `7812131` | none |
-| Fixes: Doc 16's records at their own locations, and the data export's Doc 16 and 17 tables | the commit after `d60c15a` | | none |
+| Doc 17: Phase B1, leads themselves | `78c00df` | `7812131` | 000164 |
+| Doc 17: Phase B2a, qualification and interested items | `78c00df` | `7812131` | 000165 |
+| Doc 17: Phase B2b, a lead's files, comments and timeline | `78c00df` | `7812131` | none |
+| Fixes: Doc 16's records at their own locations, and the data export's Doc 16 and 17 tables | `78c00df` | | none |
+| Doc 17: Phase C1, converting a lead | the commit after `78c00df` | `02e95eb` | 000166 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -2261,6 +2319,11 @@ These are easy to undo by mistake.
   - `CrmLeadAttachmentController` finds the lead through `CrmLeadService::find()`, so it answers only for whoever sees the lead.
   - `DiscussedRecords` knows the `crm` family. Its `DiscussedRecord` carries `sees`: `LeadVisibility::sees()`, for any user, narrows who a comment may mention. `RecordActivityRepository::forLead()` reads the timeline, and CRM has no values permission, so it shows in full.
   - `FileLinkService` opens a lead's file only for someone who sees the lead.
+- Converting a lead (Doc 17 Phase C1, migration 000166) is `CrmLeadConversion`, behind `GET /crm/leads/{id}/conversion` (what it offers) and `POST /crm/leads/{id}/convert`:
+  - The matches come from Doc 03's `ContactDuplicates`. A new contact goes through `ContactService::create()` with `allow_duplicates`, since its possible copies were shown.
+  - The lead row is locked, so it is converted once.
+  - Opportunities are `CrmOpportunity` (`crm_opportunities`), made through `CrmOpportunityRepository`. Each keeps its `lead_id`, and a converted lead its `contact_id`, `opportunity_id`, `converted_at` and `converted_by`.
+  - `CrmPipelineService` refuses removing a stage that holds an opportunity (`stagesInUse()`); a stage keeps its id when saved.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -2361,4 +2424,5 @@ Each of these is yours to settle.
 - Doc 17 Phase B2a: migration 000165 adds a lead's qualification columns, `crm_lead_items` and `crm_settings.qualification_required`. Deploy the frontend with it. From then on Qualify needs a lead's customer need, unless Settings → CRM says otherwise.
 - Doc 17 Phase B2b: no migration. Deploy the frontend with it (a lead's page gains its files, comments and timeline).
 - The fix of Doc 16's record locations (2026-11-16): backend only, no migration.
+- Doc 17 Phase C1: migration 000166 adds `crm_opportunities` and a lead's conversion columns. Deploy the frontend with it. Existing roles need Convert Leads granted (Settings → Users & Roles).
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

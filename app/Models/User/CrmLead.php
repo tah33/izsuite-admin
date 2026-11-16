@@ -94,6 +94,11 @@ class CrmLead extends Model
         ...self::QUALIFICATION_FIELDS,
         'assigned_at',
         'contacted_at',
+        // Its conversion (Phase C1).
+        'contact_id',
+        'opportunity_id',
+        'converted_at',
+        'converted_by',
     ];
 
     /** The column default, so a lead just made reads the same as one fetched. */
@@ -112,6 +117,10 @@ class CrmLead extends Model
         'tags'                   => 'array',
         'assigned_at'            => 'datetime',
         'contacted_at'           => 'datetime',
+        'contact_id'             => 'integer',
+        'opportunity_id'         => 'integer',
+        'converted_at'           => 'datetime',
+        'converted_by'           => 'integer',
     ];
 
     public function workspace(): BelongsTo
@@ -144,6 +153,23 @@ class CrmLead extends Model
     public function interestedItems(): HasMany
     {
         return $this->hasMany(CrmLeadItem::class)->orderBy('position')->orderBy('id');
+    }
+
+    /** The contact it was converted to (Phase C1). */
+    public function contact(): BelongsTo
+    {
+        return $this->belongsTo(Contact::class);
+    }
+
+    /** The opportunity it was converted into (Phase C1). */
+    public function opportunity(): BelongsTo
+    {
+        return $this->belongsTo(CrmOpportunity::class, 'opportunity_id');
+    }
+
+    public function converter(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'converted_by');
     }
 
     public function isOpen(): bool

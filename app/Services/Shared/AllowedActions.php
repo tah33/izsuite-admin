@@ -135,6 +135,7 @@ class AllowedActions
             'archive'   => 'crm.leads.manage',
             'assign'    => 'crm.leads.assign',
             'reopen'    => 'crm.leads.reopen',
+            'convert'   => 'crm.leads.convert',
         ]);
     }
 

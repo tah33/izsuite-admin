@@ -45,7 +45,7 @@ class CrmPipelineRepository
 
     public function findFor(Workspace $workspace, int $id): ?CrmPipeline
     {
-        return $workspace->crmPipelines()->find($id);
+        return $workspace->crmPipelines()->with('stages')->find($id);
     }
 
     public function update(CrmPipeline $pipeline, array $data): CrmPipeline

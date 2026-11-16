@@ -7,6 +7,7 @@ use App\Models\User\Contact;
 use App\Models\User\Workspace;
 use App\Repositories\Shared\RecordAuthorRepository;
 use App\Repositories\User\ContactRepository;
+use App\Repositories\User\CrmOpportunityRepository;
 use App\Repositories\User\ExpenseRepository;
 use App\Repositories\User\PurchaseRepository;
 use App\Repositories\User\SalesDocumentRepository;
@@ -27,6 +28,7 @@ class ContactService
         protected ExpenseRepository $expenseRepository,
         protected WorkspaceAccess $access,
         protected RecordAuthorRepository $recordAuthorRepository,
+        protected CrmOpportunityRepository $crmOpportunityRepository,
     ) {}
 
     /** The tax ID is searched only while the business uses taxes (Doc 03 section 3). */
@@ -134,6 +136,13 @@ class ContactService
         if ($this->expenseRepository->usesContact($contact)) {
             throw new HttpResponseException(response()->json([
                 'message' => 'This contact was paid on expenses, so it cannot be deleted. Deactivate it instead.',
+            ], 409));
+        }
+
+        // Doc 17 Phase C1: an opportunity is always for a contact.
+        if ($this->crmOpportunityRepository->usesContact($contact)) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'This contact has CRM opportunities, so it cannot be deleted. Deactivate it instead.',
             ], 409));
         }
 

@@ -21,6 +21,9 @@ class CrmLeadRepository
         'creator:id,first_name,last_name',
         // Phase B2a.
         'interestedItems',
+        // Phase C1: what it was converted to.
+        'contact:id,name', 'opportunity:id,name,stage_id,expected_value,currency,expected_close_date', 'opportunity.stage:id,name',
+        'converter:id,first_name,last_name',
     ];
 
     /**
