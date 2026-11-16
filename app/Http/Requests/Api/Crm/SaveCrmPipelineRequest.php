@@ -32,6 +32,10 @@ class SaveCrmPipelineRequest extends FormRequest
             'stages.*.probability' => ['required', 'integer', 'min:0', 'max:100'],
             'stages.*.category'    => ['required', Rule::in(array_keys(CrmStage::CATEGORIES))],
             'stages.*.is_active'   => ['sometimes', 'boolean'],
+            // Phase D3a: an open stage's stale-after period, and the details any stage needs before one enters it.
+            'stages.*.stale_after_days'  => ['nullable', 'integer', 'min:1', 'max:'.CrmStage::MAX_STALE_DAYS],
+            'stages.*.required_fields'   => ['nullable', 'array'],
+            'stages.*.required_fields.*' => ['string', 'distinct', Rule::in(array_keys(CrmStage::REQUIRABLE))],
         ];
     }
 

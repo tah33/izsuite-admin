@@ -41,11 +41,11 @@ class CrmOpportunityResource extends JsonResource
             'contact'             => $this->contact ? [...$named($this->contact), 'contact_number' => $this->contact->contact_number] : null,
             'contact_person'      => $this->contact_person,
             'lead'                => $named($this->lead),
-            'stage'               => $this->stage ? [...$named($this->stage), 'category' => $this->stage->category] : null,
+            'stage'               => $this->stage ? [...$named($this->stage), 'category' => $this->stage->category, 'stale_after_days' => $this->stage->stale_after_days] : null,
             // The pipeline's stages switched on - and the one it is at - in order: where it stands among them.
             'stages'              => ($this->pipeline?->stages ?? collect())
                 ->filter(fn (CrmStage $stage) => $stage->is_active || $stage->id === $this->stage_id)
-                ->map(fn (CrmStage $stage) => ['id' => $stage->id, 'name' => $stage->name, 'category' => $stage->category, 'probability' => $stage->probability])
+                ->map(fn (CrmStage $stage) => ['id' => $stage->id, 'name' => $stage->name, 'category' => $stage->category, 'probability' => $stage->probability, 'required_fields' => $stage->needs()])
                 ->values(),
             'probability'         => $this->probability,
             'expected_value'      => $this->expected_value,
@@ -54,6 +54,9 @@ class CrmOpportunityResource extends JsonResource
             'base_weighted_value' => $this->base_weighted_value,
             'expected_close_date' => $this->expected_close_date?->toDateString(),
             'overdue'             => (bool) $this->overdue,
+            // Phase D3a: its full days at its stage, and whether that is more than the stage's stale-after period.
+            'days_at_stage'       => (int) $this->days_at_stage,
+            'stale'               => (bool) $this->stale,
             'owner'               => $named($this->owner),
             'team'                => $named($this->team),
             'location'            => $named($this->location),

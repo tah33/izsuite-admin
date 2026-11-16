@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-16
-- **Code:** Doc 17 Phase D2b (an opportunity's files, comments and timeline) is committed: frontend `b514ca8` on `nuxt`, and on `main` the admin commit right after `f052a9d`.
-- **Tests:** 955 backend tests pass (last full run 2026-11-16, on the first PC, on this code).
-- **Next step:** Doc 17 Phase D3: pipelines (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase D3a (stale stages and the fields a stage needs) is committed: frontend `6b69a39` on `nuxt`, and on `main` the admin commit right after `2414d2c`.
+- **Tests:** 959 backend tests pass (last full run 2026-11-16, on the first PC, on this code).
+- **Next step:** Doc 17 Phase D3b: several pipelines, each for chosen teams or locations (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase D2b the latest is 000170. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase D3a the latest is 000171. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase D3.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase D3b.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check and Phases A to C, D1 and D2 done (D2b built 2026-11-16), Phase D3 next** |
+| **17** | **CRM** | **In progress: gap check and Phases A to C, D1, D2 and D3a done (D3a built 2026-11-16), Phase D3b next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase D3)
+### 5. Doc 17: CRM (next: Phase D3b)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -1781,6 +1781,29 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - Archived, the panel kept only Download, with no Upload or Remove, and the comment box stayed.
   - The opportunity, its file (and the stored copy), the comment, the CRM lists, the app's state, the sign-in and the activity were then put back.
 
+**Phase D3** was split on starting it (2026-11-16): D3a, each stage's stale-after period and the fields it needs; D3b, several pipelines, each for chosen teams or locations.
+
+**Phase D3a: stale stages and the fields a stage needs** (section 17.13) is built, with these defaults:
+
+- **Stale after:** each open stage can have a number of days, 1 to 365, or none (never stale). An open opportunity at its stage for longer is stale:
+  - the Opportunities page marks it Stale with its days at the stage, and a Stale filter lists only those;
+  - its page says how long it has been at the stage, against the period.
+  - Warnings on the Dashboard, and follow-ups, come with Phase G.
+- **Needed to enter:** each stage can need some of the opportunity's details filled in first, from Person to Deal With, Sales Team, Lead Source, Priority, Next Action, Customer Requirements, Competitors and Interested Items. Its contact, value, closing date and owner are always needed.
+  - Checked when it is added at the stage, moved there, reopened there or converted from a lead there - and for a won or lost stage, when it is marked won or lost.
+  - The refusal names what is missing: "Proposal needs Customer Requirements and Competitors filled in first."
+  - Change Stage, Mark Won, Mark Lost and Reopen show what the stage needs, each ticked or marked missing. Their button waits until nothing is missing.
+  - Emptying a detail later never moves an opportunity back.
+- **Settings → CRM** sets both for each stage, in the pipeline's Stale After and Needs columns: Needs opens a list to tick, saved with the pipeline. A won or lost stage has no stale period.
+- **Found while checking:** saving an opportunity that had no tags, with an empty list of them, listed Tags as changed ("— → —"). For every record now, an empty list counts as none, as empty text does; emptying a list still shows.
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with CRM switched on by hand:
+  - Settings → CRM: Qualified stale after 5 days, Proposal needing Customer Requirements and Competitors, Won needing Interested Items. "Pipeline saved.", and all three were there after reloading. The won and lost rows could take no stale period.
+  - Adding "Rahman Traders - warehouse racking" at Proposal through the API was refused with "Proposal needs Customer Requirements and Competitors filled in first." At Qualified it was added, and its page read "At Qualified for under a day, stale after 5 days."
+  - Change Stage to Proposal marked both missing, said "Fill in Customer Requirements and Competitors with Edit first." and kept Move greyed out. Negotiation showed no list. Once both were filled in, the list ticked them and the move gave "Moved to Proposal."
+  - Mark Won marked Interested Items missing and stayed greyed out. The API refused it with "Won needs Interested Items filled in first."
+  - Back at Qualified, with its arrival put 6 days back in the database, the Opportunities page marked it "Stale, 6 days". The Stale filter listed only it, not a second one added that day. Its page read "At Qualified for 6 days, stale after 5 days." with Stale.
+  - The opportunities, the CRM lists and pipeline, the app's state, the sign-in and the activity were then put back.
+
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## Testing checklist
@@ -1800,6 +1823,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase D1 | 000169 |
 | Doc 17: Phase D2a | 000170 |
 | Doc 17: Phase D2b | none |
+| Doc 17: Phase D3a | 000171 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -1976,6 +2000,19 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] Activity lists, newest first, its adding, each move ("Stage: … → …", "Probability: … → …"), won or lost, reopening, archiving, its files and comments.
 - [ ] Archived: no Upload or Remove, but comments still work. Won or lost: files can still be added.
 - [ ] Under a legal hold, removing its file or comment is refused.
+
+**Phase D3a: stale stages and the fields a stage needs**
+
+**Before you start:** CRM on, a qualified lead with no interested items, and an open opportunity with no requirements or competitors.
+
+- [ ] Settings → CRM's pipeline has Stale After, days, and Needs for each stage. Won and lost stages take no stale period. A stale period of 0 or over 365 is refused.
+- [ ] Give one open stage a stale period of 1 day and another stage two needs, such as Customer Requirements and Competitors. Save, reload: both are kept.
+- [ ] Change Stage to the stage with needs marks the missing ones and keeps Move greyed out. Fill them in with Edit: the list ticks them and the move works.
+- [ ] Adding an opportunity at that stage without them is refused, naming what is missing, under Stage.
+- [ ] Give the won stage a need, such as Interested Items. Mark Won marks it missing and stays greyed out until it is filled in. The same goes for Mark Lost and the lost stage, and for Reopen and the stage it goes back to.
+- [ ] Give an open stage Interested Items as a need. Converting the lead into that stage is refused, naming them, under Stage; into a stage that needs nothing, it converts.
+- [ ] After more than a day at the stage with the 1-day period, the opportunity shows Stale with its days, in the list and on its page ("At … for 2 days, stale after 1 day."). The Stale filter lists only stale ones. Moved to another stage, it is no longer stale.
+- [ ] Emptying a detail a stage needs, once the opportunity is there, is saved and leaves it where it is.
 
 ## How we work
 
@@ -2213,7 +2250,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase C3, merging contacts | `56ca093` | `cdb6659` | 000168 |
 | Doc 17: Phase D1, opportunities themselves | `56ca093` | `cdb6659` | 000169 |
 | Doc 17: Phase D2a, won, lost, reopening and archiving | `f052a9d` | `3f475e6` | 000170 |
-| Doc 17: Phase D2b, an opportunity's files, comments and timeline | the commit after `f052a9d` | `b514ca8` | none |
+| Doc 17: Phase D2b, an opportunity's files, comments and timeline | `2414d2c` | `b514ca8` | none |
+| Doc 17: Phase D3a, stale stages and the fields a stage needs | the commit after `2414d2c` | `6b69a39` | 000171 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -2583,6 +2621,12 @@ These are easy to undo by mistake.
   - Doc 14's family for it is `opportunities`: the routes' default, in `DiscussedRecords` (with `OpportunityVisibility::sees()` for mentions), `RecordActivityService` / `RecordActivityRepository::forOpportunity()` and `FileLinkService`. The frontend's RecordDiscussion takes `family="crm"`, the app.
   - `CrmOpportunityService::findForFiles()` refuses an archived one. Comments take any status.
   - `ActivityLogService::record()` takes `changes` when given, else works them out from the save (`SettingChanges::of()`). The opportunity's steps give theirs through `App\Services\Crm\CrmOpportunityChanges`, or `[]` for none.
+- Stale stages and what a stage needs (Doc 17 Phase D3a, migration 000171):
+  - `crm_stages.stale_after_days` (open stages only, else null) and `required_fields`, a JSON list of `CrmStage::REQUIRABLE` keys, which `CrmStage::needs()` gives in that order. `CrmPipelineRepository::replaceStages()` saves kept stages through the model, so the list's cast applies.
+  - `App\Services\Crm\StageRequirements::ensure()` checks them wherever an opportunity enters a stage: `CrmOpportunityService::create()`, `CrmOpportunityFlow::changeStage()`, `CrmOpportunityClosing` (win, lose, reopen) and `CrmLeadConversion`. Its refusal is a `stage_id` error (`opportunity.stage_id` on conversion) naming what is missing. `valuesOf()` reads an opportunity's details.
+  - Stale is worked out on reading, never stored: `CrmOpportunityService::mark()` sets `days_at_stage` and `stale` from `stage_entered_at`, and the list's `status=stale` is the open ones past their stage's period (`CrmOpportunityRepository::stale()`).
+  - `SettingChanges` counts an empty list as none, as it does empty text.
+  - The frontend's `STAGE_NEEDS`, `filledNeeds()` and `stageNeeds()` (`utils/crmOpportunities.ts`) mirror the API's check for CrmStageNeedsNote, in Change Stage, Mark Won, Mark Lost and Reopen.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -2689,4 +2733,6 @@ Each of these is yours to settle.
 - Doc 17 Phase C3: migration 000168 adds `merged_into_id`, `merged_at` and `merged_by` to contacts. Nothing changes until someone merges. Merge Contacts is a new permission: give it to custom roles that need it. Deploy the frontend with it.
 - Doc 17 Phase D1: migration 000169 adds an opportunity's person, competitors and tags, `crm_opportunity_items` and `crm_stage_visits` (each opportunity there is starts at its stage), and gives Opportunities in the sidebar its View permission. The Opportunities permissions are new: give them to custom roles that need them (the Sales User template has View, Create and Edit, Change Stages). Deploy the frontend with it.
 - Doc 17 Phase D2a: migration 000170 adds how an opportunity ended (won or lost on, by, the won reason, the lost reason, competitor, notes and follow-up day) and its archiving. Mark Won or Lost and Reopen Won or Lost are new permissions: give them to custom roles that need them (the Sales User template has Mark Won or Lost). Deploy the frontend with it.
+- Doc 17 Phase D2b: no migration. Deploy the frontend with it (an opportunity's page gains its files, comments and timeline).
+- Doc 17 Phase D3a: migration 000171 adds each stage's stale-after days and the details it needs. Nothing changes until Settings → CRM sets them. Deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

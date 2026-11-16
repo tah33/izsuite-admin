@@ -11,6 +11,7 @@ use App\Repositories\User\CrmOptionRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Crm\CrmOpportunityChanges;
 use App\Services\Crm\CrmOpportunityRules;
+use App\Services\Crm\StageRequirements;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\BusinessCalendar;
 use Illuminate\Support\Facades\DB;
@@ -42,6 +43,7 @@ class CrmOpportunityClosing
         protected CrmOptionRepository $options,
         protected CrmOpportunityRules $rules,
         protected BusinessCalendar $calendar,
+        protected StageRequirements $requirements,
     ) {}
 
     /** $data is validated (see CrmOpportunityWinRequest): closed_on, value, reason. */
@@ -122,6 +124,9 @@ class CrmOpportunityClosing
             throw ValidationException::withMessages(['stage_id' => "Choose one of the pipeline's open stages."]);
         }
 
+        // What the stage it goes back to needs (Phase D3a).
+        $this->requirements->ensure($stage, $this->requirements->valuesOf($opportunity));
+
         $was = $this->snapshot($opportunity);
 
         $this->move($opportunity, $user, $stage, [
@@ -176,11 +181,15 @@ class CrmOpportunityClosing
         return $opportunity;
     }
 
-    /** Its pipeline's first $category stage switched on: where a won or lost one goes. */
+    /** Its pipeline's first $category stage switched on: where a won or lost one goes - once it has what that stage needs (Phase D3a). */
     private function closingStage(CrmOpportunity $opportunity, string $category): CrmStage
     {
-        return $opportunity->pipeline->stages->first(fn (CrmStage $stage) => $stage->is_active && $stage->category === $category)
+        $stage = $opportunity->pipeline->stages->first(fn (CrmStage $stage) => $stage->is_active && $stage->category === $category)
             ?? throw ValidationException::withMessages(['stage_id' => "The pipeline has no {$category} stage switched on: add one in Settings → CRM."]);
+
+        $this->requirements->ensure($stage, $this->requirements->valuesOf($opportunity));
+
+        return $stage;
     }
 
     /** A won or lost day is today or before - the business's today. */

@@ -20,6 +20,7 @@ use App\Services\Api\Contacts\ContactDuplicates;
 use App\Services\Api\Contacts\ContactService;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Crm\CrmLeadRules;
+use App\Services\Crm\StageRequirements;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\WorkspaceAccess;
 use Illuminate\Support\Collection;
@@ -51,6 +52,7 @@ class CrmLeadConversion
         protected CrmLeadService $leadService,
         protected CrmLeadRepository $leads,
         protected CrmOpportunityRepository $opportunities,
+        protected StageRequirements $requirements,
         protected CrmPipelineRepository $pipelines,
         protected CrmSettingService $settings,
         protected CrmLeadRules $rules,
@@ -94,6 +96,9 @@ class CrmLeadConversion
         $stage    = $this->openStages($pipeline)->firstWhere('id', (int) $data['opportunity']['stage_id'])
             ?? throw ValidationException::withMessages(['opportunity.stage_id' => "Choose one of the pipeline's open stages."]);
         $contact  = $this->contact($workspace, $data['contact_id'] ?? null);
+
+        // What its first stage needs, from what the lead carries over (Phase D3a).
+        $this->requirements->ensure($stage, [...$this->carried($lead), 'interested_items' => $lead->interestedItems->all()], 'opportunity.stage_id');
 
         DB::transaction(function () use ($workspace, $user, $lead, $pipeline, $stage, $contact, $data) {
             // Converted once: a second request waits here, then finds it converted.

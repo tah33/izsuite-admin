@@ -22,7 +22,7 @@ class ListCrmOpportunitiesRequest extends FormRequest
     {
         return [
             'search'   => ['nullable', 'string', 'max:100'],
-            'status'   => ['nullable', Rule::in(['all', 'archived', ...CrmOpportunity::STATUSES])],
+            'status'   => ['nullable', Rule::in(['all', 'archived', 'stale', ...CrmOpportunity::STATUSES])],
             'stage_id' => ['nullable', 'integer'],
             'owner_id' => ['nullable', 'regex:/^(me|[0-9]+)$/'],
         ];

@@ -28,6 +28,9 @@ class CrmOpportunityListResource extends JsonResource
             'base_weighted_value' => $this->base_weighted_value,
             'expected_close_date' => $this->expected_close_date?->toDateString(),
             'overdue'             => (bool) $this->overdue,
+            // Phase D3a: at its stage for longer than its stale-after period, and for how many days.
+            'stale'               => (bool) $this->stale,
+            'days_at_stage'       => (int) $this->days_at_stage,
             'owner'               => $this->owner?->name,
             // Archived (Phase D2a): listed only under the Archived filter.
             'archived'            => $this->archived_at !== null,

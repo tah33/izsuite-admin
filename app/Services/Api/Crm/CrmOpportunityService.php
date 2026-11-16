@@ -20,6 +20,7 @@ use App\Services\Crm\LeadInterests;
 use App\Services\Crm\OpportunityAssignments;
 use App\Services\Crm\OpportunityForecast;
 use App\Services\Crm\OpportunityVisibility;
+use App\Services\Crm\StageRequirements;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\BusinessCalendar;
 use App\Services\Shared\EditConflicts;
@@ -69,13 +70,25 @@ class CrmOpportunityService
         protected LocationAccess $locationAccess,
         protected WorkspaceAccess $access,
         protected BusinessCalendar $calendar,
+        protected StageRequirements $requirements,
     ) {}
 
-    /** The Opportunities page, each with its weighted value, in its currency and the base one. */
+    /**
+     * The Opportunities page, each with its weighted value, in its currency
+     * and the base one. The "stale" status (Phase D3a) lists the open ones
+     * at a stage for longer than its stale-after period.
+     */
     public function list(Workspace $workspace, User $user, array $filters, int $perPage): LengthAwarePaginator
     {
         if (($filters['owner_id'] ?? null) === 'me') {
             $filters['owner_id'] = $user->id;
+        }
+
+        if (($filters['status'] ?? null) === 'stale') {
+            $filters['stale_since'] = $this->pipelines->getFor($workspace)->flatMap->stages
+                ->filter(fn (CrmStage $stage) => $stage->category === CrmStage::OPEN && $stage->stale_after_days !== null)
+                ->mapWithKeys(fn (CrmStage $stage) => [$stage->id => now()->subDays($stage->stale_after_days)])
+                ->all();
         }
 
         $page = $this->opportunities->paginateFor($workspace, $filters, $this->visibility->scopeFor($workspace, $user), $perPage);
@@ -121,15 +134,27 @@ class CrmOpportunityService
         return $opportunity;
     }
 
-    /** Their weighted values (OpportunityForecast), and whether an open one's closing day has passed - the business's today. */
+    /**
+     * Their weighted values (OpportunityForecast), whether an open one's
+     * closing day has passed - the business's today - and (Phase D3a) its
+     * full days at its stage, and whether that is more than the stage's
+     * stale-after period.
+     */
     private function mark(Workspace $workspace, array $opportunities): void
     {
         $this->forecast->attach($workspace, $opportunities);
 
         $today = $this->calendar->today($workspace)->toDateString();
+        $now   = now();
 
         foreach ($opportunities as $opportunity) {
+            $open    = $opportunity->status === CrmOpportunity::OPEN && ! $opportunity->isArchived();
+            $seconds = $opportunity->stage_entered_at ? max(0, $opportunity->stage_entered_at->diffInSeconds($now)) : 0;
+            $limit   = $opportunity->stage?->stale_after_days;
+
             $opportunity->setAttribute('overdue', $opportunity->status === CrmOpportunity::OPEN && $opportunity->expected_close_date?->toDateString() < $today);
+            $opportunity->setAttribute('days_at_stage', (int) floor($seconds / 86400));
+            $opportunity->setAttribute('stale', $open && $limit !== null && $seconds > $limit * 86400);
         }
     }
 
@@ -168,6 +193,8 @@ class CrmOpportunityService
         $contact  = $this->contacts->findFor($workspace, (int) $fields['contact_id']);
         $items    = $this->interests->rows($workspace, $data['interested_items'] ?? []);
 
+        // What its first stage needs filled in (Phase D3a).
+        $this->requirements->ensure($stage, [...$fields, 'interested_items' => $items]);
         $this->assignments->ensureOwner($workspace, $ownerId, $fields['location_id']);
 
         $opportunity = DB::transaction(function () use ($workspace, $user, $fields, $pipeline, $stage, $ownerId, $contact, $items, $data) {

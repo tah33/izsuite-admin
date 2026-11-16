@@ -9,6 +9,7 @@ use App\Repositories\User\CrmOpportunityRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Crm\CrmOpportunityChanges;
 use App\Services\Crm\CrmOpportunityRules;
+use App\Services\Crm\StageRequirements;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -31,6 +32,7 @@ class CrmOpportunityFlow
         protected CrmOpportunityService $service,
         protected CrmOpportunityRepository $opportunities,
         protected CrmOpportunityRules $rules,
+        protected StageRequirements $requirements,
     ) {}
 
     public function archive(Workspace $workspace, User $user, int $id): CrmOpportunity
@@ -59,6 +61,9 @@ class CrmOpportunityFlow
         if ($stage->id === $opportunity->stage_id) {
             throw ValidationException::withMessages(['stage_id' => "It is at {$stage->name} already."]);
         }
+
+        // What the stage needs filled in before it enters (Phase D3a).
+        $this->requirements->ensure($stage, $this->requirements->valuesOf($opportunity));
 
         $probability = $this->service->probability($data, $stage->probability);
         $before      = $opportunity->probability;

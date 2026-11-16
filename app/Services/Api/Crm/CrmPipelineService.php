@@ -34,6 +34,9 @@ class CrmPipelineService
             'name'        => trim($stage['name']),
             'category'    => $stage['category'],
             'probability' => CrmStage::probabilityFor($stage['category'], (int) $stage['probability']),
+            // Phase D3a: only an open stage goes stale; any stage can need details before one enters it.
+            'stale_after_days' => $stage['category'] === CrmStage::OPEN && ! empty($stage['stale_after_days']) ? (int) $stage['stale_after_days'] : null,
+            'required_fields'  => array_values(array_intersect(array_keys(CrmStage::REQUIRABLE), $stage['required_fields'] ?? [])) ?: null,
             'is_active'   => (bool) ($stage['is_active'] ?? true),
         ], $data['stages']);
 

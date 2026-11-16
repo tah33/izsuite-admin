@@ -19,6 +19,9 @@ class CrmPipelineResource extends JsonResource
                 'name'        => $stage->name,
                 'probability' => $stage->probability,
                 'category'    => $stage->category,
+                // Phase D3a: days before an opportunity at it is stale, and what it needs before one enters.
+                'stale_after_days' => $stage->stale_after_days,
+                'required_fields'  => $stage->needs(),
                 'is_active'   => $stage->is_active,
             ])->values(),
         ];

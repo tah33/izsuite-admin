@@ -73,7 +73,8 @@ class CrmPipelineRepository
 
             if (in_array($id, $kept, true) && ! isset($used[$id])) {
                 $used[$id] = true;
-                $pipeline->stages()->whereKey($id)->update($fields);
+                // Through the model, so its casts write what a stage needs (Phase D3a) as JSON.
+                $pipeline->stages()->whereKey($id)->first()?->update($fields);
             } else {
                 $pipeline->stages()->create($fields);
             }

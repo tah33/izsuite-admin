@@ -75,10 +75,10 @@ final class SettingChanges
         );
     }
 
-    /** One form for any value, to tell whether two differ. */
+    /** One form for any value, to tell whether two differ: empty text and an empty list are none. */
     private static function normal(mixed $value): ?string
     {
-        if ($value === null || $value === '') {
+        if ($value === null || $value === '' || $value === []) {
             return null;
         }
 
