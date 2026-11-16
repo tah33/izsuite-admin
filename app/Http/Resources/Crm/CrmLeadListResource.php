@@ -21,6 +21,8 @@ class CrmLeadListResource extends JsonResource
             'estimated_value' => $this->estimated_value,
             'currency'        => $this->currency,
             'added_on'        => $this->created_at?->toDateString(),
+            // Phase C2: open, with a possible duplicate not decided about.
+            'possible_duplicate' => (bool) $this->possible_duplicate,
         ];
     }
 }

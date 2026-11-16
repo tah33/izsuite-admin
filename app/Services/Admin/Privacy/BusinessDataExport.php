@@ -49,6 +49,7 @@ class BusinessDataExport
         'crm-lists'            => 'crm_options',
         'crm-pipelines'        => 'crm_pipelines',
         'opportunities'        => 'crm_opportunities',
+        'lead-duplicate-reviews' => 'crm_duplicate_reviews',
         'purchases'            => 'purchases',
         'supplier-payments'    => 'supplier_payments',
         'expense-categories'   => 'expense_categories',

@@ -5,6 +5,7 @@ namespace App\Models\User;
 use App\Models\Concerns\AtLocation;
 use App\Models\Concerns\HasFiles;
 use App\Models\Concerns\RecordsAuthors;
+use App\Support\LeadMatchKeys;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -175,5 +176,11 @@ class CrmLead extends Model
     public function isOpen(): bool
     {
         return in_array($this->status, self::OPEN, true);
+    }
+
+    /** What it is compared on for its possible duplicates (Phase C2), kept whenever it is saved. */
+    protected static function booted(): void
+    {
+        static::saving(fn (self $lead) => $lead->forceFill(LeadMatchKeys::of($lead->email, $lead->phone, $lead->business_name)));
     }
 }

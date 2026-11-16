@@ -340,6 +340,11 @@ final class RoutePermissions
             // Converting one (Phase C1); a new contact needs contacts.create besides (CrmLeadConversion).
             'api.crm.leads.conversion' => 'crm.leads.convert',
             'api.crm.leads.convert'    => 'crm.leads.convert',
+            // Its possible duplicates (Phase C2): seen by whoever sees it, decided with Create and Edit.
+            'api.crm.leads.duplicates.index'  => 'crm.leads.view',
+            'api.crm.leads.duplicates.ignore' => 'crm.leads.manage',
+            'api.crm.leads.duplicates.link'   => 'crm.leads.manage',
+            'api.crm.leads.duplicates.clear'  => 'crm.leads.manage',
             // Its files, comments and timeline (Phase B2b): whoever sees it reads and comments; files are changed with Create and Edit.
             'api.crm.leads.attachments.index'   => 'crm.leads.view',
             'api.crm.leads.attachments.store'   => 'crm.leads.manage',

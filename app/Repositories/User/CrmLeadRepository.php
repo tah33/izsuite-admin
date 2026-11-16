@@ -62,6 +62,41 @@ class CrmLeadRepository
         return $workspace->crmLeads()->create($data);
     }
 
+    /**
+     * The leads $scope sees that share any of $keys - each a list of tidied
+     * e-mails, phones and business names (LeadMatchKeys) - with their owners,
+     * $exceptIds aside: possible duplicates (Phase C2).
+     *
+     * @param  array{emails: list<string>, phones: list<string>, businesses: list<string>}  $keys
+     */
+    public function matching(Workspace $workspace, array $scope, array $keys, array $exceptIds): \Illuminate\Database\Eloquent\Collection
+    {
+        if (! array_filter($keys)) {
+            return new \Illuminate\Database\Eloquent\Collection;
+        }
+
+        return $this->visible($workspace, $scope)
+            ->whereNotIn('id', $exceptIds)
+            ->where(fn (Builder $query) => $query
+                ->when($keys['emails'], fn (Builder $query, array $values) => $query->orWhereIn('match_email', $values))
+                ->when($keys['phones'], fn (Builder $query, array $values) => $query->orWhereIn('match_phone', $values))
+                ->when($keys['businesses'], fn (Builder $query, array $values) => $query->orWhereIn('match_business', $values)))
+            ->with('owner:id,first_name,last_name')
+            ->orderByDesc('id')
+            ->limit(200)
+            ->get(['id', 'name', 'business_name', 'status', 'owner_id', 'match_email', 'match_phone', 'match_business']);
+    }
+
+    /** Of $ids, the leads $scope sees, by id: those a decision names that no longer match. */
+    public function visibleAmong(Workspace $workspace, array $scope, array $ids): \Illuminate\Database\Eloquent\Collection
+    {
+        return $ids === [] ? new \Illuminate\Database\Eloquent\Collection : $this->visible($workspace, $scope)
+            ->whereIn('id', $ids)
+            ->with('owner:id,first_name,last_name')
+            ->get(['id', 'name', 'business_name', 'status', 'owner_id', 'match_email', 'match_phone', 'match_business'])
+            ->keyBy('id');
+    }
+
     public function update(CrmLead $lead, array $data): CrmLead
     {
         $lead->update($data);

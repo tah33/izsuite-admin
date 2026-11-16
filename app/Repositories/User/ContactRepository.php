@@ -127,6 +127,53 @@ class ContactRepository
     }
 
     /**
+     * The business's contacts that share any of $names (their name or
+     * trading name), $emails or $phones (a phone's last digits) - tidied as
+     * possibleDuplicatesOf() takes them. For a page of leads at once (Doc 17
+     * Phase C2): which of them may already be contacts.
+     *
+     * @param  list<string>  $names
+     * @param  list<string>  $emails
+     * @param  list<string>  $phones
+     */
+    public function matchingAny(Workspace $workspace, array $names, array $emails, array $phones): Collection
+    {
+        if (! $names && ! $emails && ! $phones) {
+            return new Collection;
+        }
+
+        return Contact::where('workspace_id', $workspace->id)
+            ->where(function (Builder $query) use ($names, $emails, $phones) {
+                if ($names) {
+                    $placeholders = implode(', ', array_fill(0, count($names), '?'));
+                    $query->orWhereRaw("LOWER(TRIM(name)) IN ({$placeholders})", $names)
+                        ->orWhereRaw("LOWER(TRIM(trading_name)) IN ({$placeholders})", $names);
+                }
+
+                if ($emails) {
+                    $query->orWhereRaw('LOWER(TRIM(email)) IN ('.implode(', ', array_fill(0, count($emails), '?')).')', $emails);
+                }
+
+                foreach ($phones as $digits) {
+                    $query->orWhereRaw($this->digitsOf('phone').' LIKE ?', ["%{$digits}"])
+                        ->orWhereRaw($this->digitsOf('alt_phone').' LIKE ?', ["%{$digits}"]);
+                }
+            })
+            ->orderBy('name')
+            ->limit(200)
+            ->get(['id', 'contact_number', 'name', 'trading_name', 'email', 'phone', 'alt_phone']);
+    }
+
+    /** Of $ids, the business's contacts, by id: those a decision names that no longer match. */
+    public function findManyFor(Workspace $workspace, array $ids): Collection
+    {
+        return $ids === [] ? new Collection : Contact::where('workspace_id', $workspace->id)
+            ->whereIn('id', $ids)
+            ->get(['id', 'contact_number', 'name', 'trading_name', 'email', 'phone', 'alt_phone'])
+            ->keyBy('id');
+    }
+
+    /**
      * Made through the business, so its workspace is never read from $data.
      * Its Contact Number is given as it is saved (see Contact).
      */

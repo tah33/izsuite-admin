@@ -3,6 +3,7 @@
 namespace App\Services\Api\Crm;
 
 use App\Models\User\Contact;
+use App\Models\User\CrmDuplicateReview;
 use App\Models\User\CrmLead;
 use App\Models\User\CrmOpportunity;
 use App\Models\User\CrmPipeline;
@@ -11,6 +12,7 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\Shared\RowLockRepository;
 use App\Repositories\User\ContactRepository;
+use App\Repositories\User\CrmDuplicateReviewRepository;
 use App\Repositories\User\CrmLeadRepository;
 use App\Repositories\User\CrmOpportunityRepository;
 use App\Repositories\User\CrmPipelineRepository;
@@ -57,6 +59,7 @@ class CrmLeadConversion
         protected ContactService $contactService,
         protected RowLockRepository $rows,
         protected WorkspaceAccess $access,
+        protected CrmDuplicateReviewRepository $reviews,
     ) {}
 
     /**
@@ -70,7 +73,7 @@ class CrmLeadConversion
         $stages = $this->openStages($this->pipeline($workspace));
 
         return [
-            'matches'            => $this->contactDuplicates->find($workspace, $this->probe($lead)),
+            'matches'            => $this->matches($workspace, $lead),
             'stages'             => $stages,
             'can_create_contact' => $this->access->can('contacts.create'),
             'defaults'           => [
@@ -177,6 +180,22 @@ class CrmLeadConversion
     private function openStages(CrmPipeline $pipeline): Collection
     {
         return $pipeline->stages->filter(fn (CrmStage $stage) => $stage->is_active && $stage->category === CrmStage::OPEN)->values();
+    }
+
+    /**
+     * The contacts that may be the lead's: those it was linked to (Phase C2)
+     * first, then those it matches but was not told apart from.
+     */
+    private function matches(Workspace $workspace, CrmLead $lead): array
+    {
+        $reviews = $this->reviews->forLeads([$lead->id])->where('other_type', CrmDuplicateReview::CONTACT);
+        $linked  = $this->contacts->findManyFor($workspace, $reviews->where('decision', CrmDuplicateReview::LINKED)->pluck('other_id')->all());
+        $decided = $reviews->pluck('other_id')->all();
+
+        return [
+            ...$linked->map(fn (Contact $contact) => ['id' => $contact->id, 'contact_number' => $contact->contact_number, 'name' => $contact->name, 'trading_name' => $contact->trading_name, 'matched_on' => ['linked']])->values(),
+            ...array_values(array_filter($this->contactDuplicates->find($workspace, $this->probe($lead)), fn (array $match) => ! in_array($match['id'], $decided, true))),
+        ];
     }
 
     /** What ContactDuplicates compares the lead on: its business and person, e-mail and phone. */

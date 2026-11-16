@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-16
-- **Code:** Doc 17 Phase C1 (converting a lead) is committed: frontend `02e95eb` on `nuxt`, and on `main` the admin commit right after `78c00df`.
-- **Tests:** 936 backend tests pass (last full run 2026-11-16, on the first PC, on this code).
-- **Next step:** Doc 17 Phase C2: possible duplicate leads (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase C2 (possible duplicate leads) is committed: frontend `0b6e9ef` on `nuxt`, and on `main` the admin commit right after `a4c0ab6`.
+- **Tests:** 939 backend tests pass (last full run 2026-11-16, on the first PC, on this code).
+- **Next step:** Doc 17 Phase C3: merging contacts (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase C2.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase C3.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -42,7 +42,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check and Phases A and B done, C1 built (2026-11-16), Phase C2 next** |
+| **17** | **CRM** | **In progress: gap check and Phases A and B done, C1 and C2 built (2026-11-16), Phase C3 next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1387,7 +1387,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase C2)
+### 5. Doc 17: CRM (next: Phase C3)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -1617,10 +1617,27 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - A second lead, matching no one, started on A new contact. The browser held the conversion until a closing date was given. It then made Haque Garments (C-00021, business, customer, its person, job title, e-mail, phone and city) and an opportunity at New.
   - The leads, opportunities, the new contact and its number, the CRM lists, the app's state, the sign-in and the activity were then put back.
 
-**Phase C2: possible duplicate leads** (section 17.21), suggested defaults:
+**Phase C2: possible duplicate leads** (section 17.21) is built, with these defaults:
 
-- Leads sharing an e-mail, phone or business name with another lead or a contact are flagged on their page and in the list.
-- Each can be reviewed, ignored with a reason (it is no longer flagged for that match), or linked to the other record.
+- **What makes a possible duplicate:**
+  - another lead with the same e-mail, phone (its last nine digits, as contacts compare them) or business name;
+  - a contact matching as conversion does: the same e-mail, phone, or business name (the person's name, for a lead with no business).
+  - Only leads the user sees count, and contacts only for a role that may view them.
+- **Where it shows:**
+  - An open lead's page has a Possible Duplicates card, each match with what matched.
+  - The Leads page marks an open lead with "Possible duplicate" while one is unreviewed.
+- **Each can be reviewed** (its lead or contact opens), and with Create and Edit:
+  - ignored with a reason, so it is no longer flagged for that match;
+  - or linked: a linked contact comes first when the lead is converted, and two linked leads show each other.
+  - Either can be taken back. Between two leads it counts on both.
+- The Activity Log keeps each decision. Merging leads is not offered; merging contacts is Phase C3.
+- The data export includes the decisions (`lead-duplicate-reviews.csv`).
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with CRM switched on by hand:
+  - Two leads of "Chowdhury & Sons" (written in different case) and one other were added. The Leads page marked the two "Possible duplicate", not the third.
+  - The first one's Possible Duplicates card listed the other lead ("The same business name", its status and owner) and the contact Chowdhury & Sons (C-00004, "The same name").
+  - Not a Duplicate would not save without a reason. With one, the other lead showed it, with who decided, on both leads.
+  - Link marked the contact Linked. The first lead was then no longer flagged, while the second still was for its contact. Take Back flagged the contact again.
+  - The leads, the decisions, the CRM lists, the app's state, the sign-in and the activity were then put back.
 
 **Phase C3: merging contacts** (section 17.21), suggested defaults:
 
@@ -1746,6 +1763,18 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] A contact with an opportunity cannot be deleted ("This contact has CRM opportunities…"), nor can a location with one.
 - [ ] Settings → CRM: removing a pipeline stage that holds an opportunity is refused ("Opportunities are in … switch it off instead").
 - [ ] Admin panel → Privacy Requests: the business's data export holds `opportunities.csv`.
+
+**Phase C2: possible duplicate leads**
+
+- [ ] Add two leads with the same business name (in any case), e-mail or phone. The Leads page marks both "Possible duplicate"; a lead matching nothing is not marked.
+- [ ] A lead whose business name, person's name, e-mail or phone matches a contact is marked too.
+- [ ] A lead's Possible Duplicates card lists each match with what matched, and opens it (the lead, or the contact).
+- [ ] Not a Duplicate needs a reason. Afterwards the match shows "Not a duplicate" with the reason and who decided, on both leads when it is another lead.
+- [ ] Link marks a match Linked. A linked contact comes first, "linked to this lead", when the lead is converted.
+- [ ] Once every match is decided, the lead is no longer marked on the Leads page. Take Back flags the match again.
+- [ ] A member who sees only their own leads is not shown other people's leads as matches. Without Contacts View, no contacts are shown.
+- [ ] A role without Create and Edit sees the card but no buttons.
+- [ ] The Activity Log keeps each decision ("Linked lead … to contact …", "Marked … as not a duplicate of …", "Took back the decision about …").
 
 ## How we work
 
@@ -1978,7 +2007,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase B2a, qualification and interested items | `78c00df` | `7812131` | 000165 |
 | Doc 17: Phase B2b, a lead's files, comments and timeline | `78c00df` | `7812131` | none |
 | Fixes: Doc 16's records at their own locations, and the data export's Doc 16 and 17 tables | `78c00df` | | none |
-| Doc 17: Phase C1, converting a lead | the commit after `78c00df` | `02e95eb` | 000166 |
+| Doc 17: Phase C1, converting a lead | `a4c0ab6` | `02e95eb` | 000166 |
+| Doc 17: Phase C2, possible duplicate leads | the commit after `a4c0ab6` | `0b6e9ef` | 000167 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -2324,6 +2354,10 @@ These are easy to undo by mistake.
   - The lead row is locked, so it is converted once.
   - Opportunities are `CrmOpportunity` (`crm_opportunities`), made through `CrmOpportunityRepository`. Each keeps its `lead_id`, and a converted lead its `contact_id`, `opportunity_id`, `converted_at` and `converted_by`.
   - `CrmPipelineService` refuses removing a stage that holds an opportunity (`stagesInUse()`); a stage keeps its id when saved.
+- Possible duplicate leads (Doc 17 Phase C2, migration 000167):
+  - A lead keeps `match_email`, `match_phone` and `match_business`, filled by its model's `saving` hook through `App\Support\LeadMatchKeys` (tidied as `ContactDuplicates` tidies a contact's).
+  - `LeadDuplicates` finds a lead's matches: leads by those keys (`CrmLeadRepository::matching()`, as `LeadVisibility` lets the user see them), and contacts (`ContactRepository::matchingAny()`). It also works out the Leads page's flags, three queries for a whole page.
+  - Decisions are `crm_duplicate_reviews` (`CrmDuplicateReview`). Between two leads one is kept on each. `CrmLeadDuplicateService` makes and takes them back and logs them, and `CrmLeadConversion` puts a linked contact first.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -2425,4 +2459,5 @@ Each of these is yours to settle.
 - Doc 17 Phase B2b: no migration. Deploy the frontend with it (a lead's page gains its files, comments and timeline).
 - The fix of Doc 16's record locations (2026-11-16): backend only, no migration.
 - Doc 17 Phase C1: migration 000166 adds `crm_opportunities` and a lead's conversion columns. Deploy the frontend with it. Existing roles need Convert Leads granted (Settings → Users & Roles).
+- Doc 17 Phase C2: migration 000167 adds a lead's match keys - filling them in for the leads there are - and `crm_duplicate_reviews`. Deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

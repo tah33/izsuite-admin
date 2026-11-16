@@ -12,6 +12,7 @@ use App\Repositories\User\SalesTeamRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Crm\CrmLeadRules;
 use App\Services\Crm\LeadAssignments;
+use App\Services\Crm\LeadDuplicates;
 use App\Services\Crm\LeadInterests;
 use App\Services\Crm\LeadVisibility;
 use App\Services\Shared\ActivityLogService;
@@ -60,15 +61,24 @@ class CrmLeadService
         protected LeadInterests $interests,
         protected LocationAccess $locationAccess,
         protected WorkspaceAccess $access,
+        protected LeadDuplicates $duplicates,
     ) {}
 
+    /** The Leads page, each open lead marked while it has a possible duplicate not decided about (Phase C2). */
     public function list(Workspace $workspace, User $user, array $filters, int $perPage): LengthAwarePaginator
     {
         if (($filters['owner_id'] ?? null) === 'me') {
             $filters['owner_id'] = $user->id;
         }
 
-        return $this->leads->paginateFor($workspace, $filters, $this->visibility->scopeFor($workspace, $user), $perPage);
+        $page  = $this->leads->paginateFor($workspace, $filters, $this->visibility->scopeFor($workspace, $user), $perPage);
+        $flags = $this->duplicates->flagged($workspace, $user, collect($page->items()));
+
+        foreach ($page->items() as $lead) {
+            $lead->setAttribute('possible_duplicate', $flags[$lead->id] ?? false);
+        }
+
+        return $page;
     }
 
     /** Another business's lead - or one $user does not see - answers like one that does not exist. */
