@@ -5,6 +5,7 @@ namespace App\Services\Api\Locations;
 use App\Services\Shared\EditConflicts;
 use App\Models\User\Location;
 use App\Models\User\Workspace;
+use App\Repositories\User\CrmLeadRepository;
 use App\Repositories\User\LocationRepository;
 use App\Repositories\User\PaymentAccountRepository;
 use App\Repositories\User\ExpenseRepository;
@@ -41,6 +42,7 @@ class LocationService
         protected PaymentAccountRepository $paymentAccountRepository,
         protected PlanLimits $planLimits,
         protected WorkspaceAccess $access,
+        protected CrmLeadRepository $crmLeadRepository,
     ) {}
 
     public function list(Workspace $workspace): Collection
@@ -152,6 +154,11 @@ class LocationService
 
         if ($this->expenseRepository->usesLocation($location)) {
             $this->refuse('Expenses were recorded at this location, so it cannot be deleted. Deactivate it instead.');
+        }
+
+        // A lead at no location would be seen only by those who may use every one (Doc 17 Phase B1).
+        if ($this->crmLeadRepository->usesLocation($location)) {
+            $this->refuse('Leads are at this location, so it cannot be deleted. Deactivate it instead.');
         }
 
         // An account of the location would quietly become the whole business's.

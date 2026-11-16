@@ -5,6 +5,7 @@ use App\Http\Middleware\CheckEmailVerified;
 use App\Http\Middleware\ConvertAdminRedirectsToJson;
 use App\Http\Middleware\EnsureAnyAppActive;
 use App\Http\Middleware\EnsureAppActive;
+use App\Http\Middleware\EnsureCrmUsesLeads;
 use App\Http\Middleware\EnsureIdempotent;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureRole;
@@ -59,6 +60,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'sales.kind' => EnsureSalesKindEdition::class,
             // A create sent twice makes one record (Doc 14 Phase A).
             'idempotent' => EnsureIdempotent::class,
+            // Leads change only while Settings > CRM works with them (Doc 17 Phase B1).
+            'crm.leads'  => EnsureCrmUsesLeads::class,
         ]);
 
         $middleware->web(append: [

@@ -4,6 +4,7 @@ namespace App\Services\Api\Crm;
 
 use App\Models\User\CrmOption;
 use App\Models\User\Workspace;
+use App\Repositories\User\CrmLeadRepository;
 use App\Repositories\User\CrmOptionRepository;
 use App\Repositories\User\CrmPipelineRepository;
 use App\Repositories\User\CrmSettingRepository;
@@ -37,6 +38,7 @@ class CrmSettingService
         protected CrmOptionRepository $options,
         protected CrmPipelineRepository $pipelines,
         protected WorkspaceRepository $workspaces,
+        protected CrmLeadRepository $leads,
     ) {}
 
     /**
@@ -47,13 +49,7 @@ class CrmSettingService
      */
     public function show(Workspace $workspace): array
     {
-        if (! $this->options->existsFor($workspace)) {
-            $this->options->addStarter($workspace);
-        }
-
-        if (! $this->pipelines->existsFor($workspace)) {
-            $this->pipelines->addStarter($workspace);
-        }
+        $this->start($workspace);
 
         return [
             'settings'  => $this->settings->forWorkspace($workspace),
@@ -62,29 +58,59 @@ class CrmSettingService
         ];
     }
 
+    /** Whether the business works with leads (section 17.5): the leads' routes change nothing otherwise (EnsureCrmUsesLeads). */
+    public function usesLeads(Workspace $workspace): bool
+    {
+        return $this->settings->forWorkspace($workspace)->usesLeads();
+    }
+
+    /** The lists and the first pipeline started if they never were - before a lead's form offers its sources too (Phase B1). */
+    public function start(Workspace $workspace): void
+    {
+        if (! $this->options->existsFor($workspace)) {
+            $this->options->addStarter($workspace);
+        }
+
+        if (! $this->pipelines->existsFor($workspace)) {
+            $this->pipelines->addStarter($workspace);
+        }
+    }
+
     /** $data is validated (see SaveCrmSettingsRequest). */
     public function save(Workspace $workspace, array $data): array
     {
-        $before   = $this->settings->forWorkspace($workspace)->mode;
-        $settings = $this->settings->save($workspace, $data);
+        $saved  = $this->settings->forWorkspace($workspace);
+        $before = ['mode' => $saved->mode, 'qualification_required' => $saved->qualificationRequired()];
+
+        $settings = $this->settings->save($workspace, Arr::only($data, ['mode', 'qualification_required']));
+        $after    = ['mode' => $settings->mode, 'qualification_required' => $settings->qualificationRequired()];
 
         ActivityLogService::record('updated', 'Updated the CRM settings', $workspace, [
             'source'  => 'api',
-            'fields'  => $before === $settings->mode ? [] : ['mode'],
-            'changes' => SettingChanges::between(['mode' => $before], ['mode' => $settings->mode]),
+            'fields'  => array_keys(array_filter($after, fn ($value, string $key) => $value !== $before[$key], ARRAY_FILTER_USE_BOTH)),
+            'changes' => SettingChanges::between($before, $after),
         ]);
 
         // Leads is in the sidebar only while the mode uses them.
-        if ($before !== $settings->mode) {
+        if ($before['mode'] !== $settings->mode) {
             $this->workspaces->bumpNavVersion($workspace);
         }
 
         return $this->show($workspace);
     }
 
+    /** What a lead needs filled in before it is qualified (Phase B2a): keys of CrmLead::QUALIFYING. @return list<string> */
+    public function qualificationRequired(Workspace $workspace): array
+    {
+        return $this->settings->forWorkspace($workspace)->qualificationRequired();
+    }
+
     /** $data is validated (see SaveCrmOptionRequest): its kind and name. */
     public function addOption(Workspace $workspace, array $data): CrmOption
     {
+        // Added to before they were ever read, the lists still start with Doc 17's examples.
+        $this->start($workspace);
+
         $option = $this->options->create($workspace, Arr::only($data, ['kind', 'name', 'is_active']));
 
         ActivityLogService::record('created', "Added {$this->what($option)}", $option, ['source' => 'api']);
@@ -113,6 +139,11 @@ class CrmSettingService
 
         if ($option->isStarter()) {
             $this->refuse('izSuite uses this one, so it cannot be deleted. Switch it off instead.');
+        }
+
+        // A lead keeps the source it came from (Doc 17 section 17.8).
+        if ($option->kind === 'lead_source' && $this->leads->usesSource($option)) {
+            $this->refuse('Leads came from this source, so it stays. Switch it off instead.');
         }
 
         $this->options->delete($option);

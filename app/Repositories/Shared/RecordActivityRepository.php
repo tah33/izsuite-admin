@@ -3,6 +3,7 @@
 namespace App\Repositories\Shared;
 
 use App\Models\Shared\ActivityLog;
+use App\Models\User\CrmLead;
 use App\Models\User\Expense;
 use App\Models\User\ExpensePayment;
 use App\Models\User\Purchase;
@@ -45,6 +46,12 @@ class RecordActivityRepository
         return $this->entries($expense->workspace_id, fn (Builder $query) => $query
             ->where(fn (Builder $query) => $this->about($query, Expense::class, [$expense->id]))
             ->orWhere(fn (Builder $query) => $this->about($query, ExpensePayment::class, ExpensePayment::query()->where('expense_id', $expense->id)->select('id'))), $limit);
+    }
+
+    /** A lead's own entries (Doc 17 Phase B2b): added, changed, assigned, its steps, its comments and files. */
+    public function forLead(CrmLead $lead, int $limit): Collection
+    {
+        return $this->entries($lead->workspace_id, fn (Builder $query) => $this->about($query, CrmLead::class, [$lead->id]), $limit);
     }
 
     /** @param  list<int>|Builder  $ids */

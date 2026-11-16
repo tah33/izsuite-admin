@@ -20,9 +20,11 @@ final class NotificationKinds
         'usage'        => ['Usage limits', "Users, active locations or storage nearly at, at or past the plan's limits.", false, true],
         'apps'         => ['Apps', 'Apps turned on or off.', false, false],
         'members'      => ['Users', 'Someone joining the business from an invitation.', false, true],
-        'comments'     => ['Comments and mentions', 'Someone mentioning you in a comment on a sales document, purchase or expense.', false, true],
+        'comments'     => ['Comments and mentions', 'Someone mentioning you in a comment on a sales document, purchase, expense or lead.', false, true],
         // Doc 16 Phase G2: what a customer does through a document's secure link.
         'customers'    => ['Customer responses', 'A customer accepting or declining a quotation, or commenting on a document, through its link.', false, true],
+        // Doc 17 Phase B1: CRM's leads.
+        'leads'        => ['Leads', 'A lead given to you to follow up.', false, true],
         // Doc 15 sections 15.5 and 15.6: from the admin panel.
         'izsuite'      => ['Messages from izSuite', 'Notices from izSuite about the business, such as a change to its status. Always on; the owner gets them by e-mail as well.', true, false],
     ];

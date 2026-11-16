@@ -5,6 +5,7 @@ namespace App\Services\Shared;
 use App\Enums\DocumentType;
 use App\Enums\Edition;
 use App\Models\User\Workspace;
+use App\Repositories\User\CrmSettingRepository;
 use App\Repositories\User\SalesSettingRepository;
 use App\Services\User\Apps\WorkspaceApps;
 use Illuminate\Http\Request;
@@ -114,6 +115,26 @@ class AllowedActions
             'cancel'  => 'sales.deliveries.cancel',
             'delete'  => 'sales.deliveries.delete',
             'return'  => 'sales.returns.create',
+        ]);
+    }
+
+    /** A lead's (Doc 17 Phase B1): none while the business works with opportunities only, when leads are read but not changed. */
+    public function lead(array $actions): array
+    {
+        $workspace = app(Request::class)->attributes->get('workspace');
+
+        if ($workspace instanceof Workspace && ! app(CrmSettingRepository::class)->forWorkspace($workspace)->usesLeads()) {
+            return [];
+        }
+
+        return $this->keep($actions, [
+            'edit'      => 'crm.leads.manage',
+            'contact'   => 'crm.leads.manage',
+            'qualify'   => 'crm.leads.manage',
+            'unqualify' => 'crm.leads.manage',
+            'archive'   => 'crm.leads.manage',
+            'assign'    => 'crm.leads.assign',
+            'reopen'    => 'crm.leads.reopen',
         ]);
     }
 

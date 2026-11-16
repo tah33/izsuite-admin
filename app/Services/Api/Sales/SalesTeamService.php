@@ -84,7 +84,7 @@ class SalesTeamService
         $team = $this->teams->find($workspace, $id) ?? abort(404, 'Sales team not found.');
 
         if ($this->teams->isUsed($team)) {
-            throw ValidationException::withMessages(['team' => 'Sales documents name this team, so it stays: switch it off instead.']);
+            throw ValidationException::withMessages(['team' => 'Sales documents or leads name this team, so it stays: switch it off instead.']);
         }
 
         $this->teams->delete($team);

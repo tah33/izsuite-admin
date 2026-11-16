@@ -11,7 +11,8 @@ use Illuminate\Database\Eloquent\Collection;
 class WorkspaceMemberRepository
 {
     /** What a member comes back with: role, account (last sign-in) and locations. */
-    private const RELATIONS = ['role:id,name,template', 'user:id,email,email_verified_at,last_login_at', 'locations:id'];
+    // The user's name too, for whoever lists them by it - the people a lead can be given to (Doc 17 Phase B1).
+    private const RELATIONS = ['role:id,name,template', 'user:id,first_name,last_name,email,email_verified_at,last_login_at', 'locations:id'];
 
     /** $user's membership of the business while it is active, with its role and locations. */
     public function activeFor(Workspace $workspace, User $user): ?WorkspaceMember

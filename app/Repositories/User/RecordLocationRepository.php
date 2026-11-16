@@ -3,12 +3,17 @@
 namespace App\Repositories\User;
 
 use App\Models\User\AccountTransfer;
+use App\Models\User\CrmLead;
+use App\Models\User\CustomerAdvance;
 use App\Models\User\Expense;
 use App\Models\User\ExpensePayment;
 use App\Models\User\PaymentAccount;
 use App\Models\User\Purchase;
+use App\Models\User\SalesAllocation;
+use App\Models\User\SalesDelivery;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesPayment;
+use App\Models\User\SalesReturn;
 use App\Models\User\SupplierPayment;
 use App\Models\User\Workspace;
 use App\Support\RouteRecords;
@@ -27,17 +32,30 @@ class RecordLocationRepository
         RouteRecords::EXPENSE          => Expense::class,
         RouteRecords::EXPENSE_PAYMENT  => ExpensePayment::class,
         RouteRecords::PAYMENT_ACCOUNT  => PaymentAccount::class,
+        RouteRecords::CRM_LEAD         => CrmLead::class,
+        RouteRecords::SALES_DELIVERY   => SalesDelivery::class,
+        RouteRecords::SALES_RETURN     => SalesReturn::class,
+        RouteRecords::CUSTOMER_ADVANCE => CustomerAdvance::class,
     ];
 
     /**
      * The location record $id of $kind is at - for a transfer, its two
-     * accounts' - with null for none; null when the business has no such
-     * record.
+     * accounts'; for credit applied to an invoice, the invoice's - with null
+     * for none; null when the business has no such record.
      *
      * @return list<int|null>|null
      */
     public function locationsOf(Workspace $workspace, string $kind, int $id): ?array
     {
+        if ($kind === RouteRecords::SALES_ALLOCATION) {
+            $allocation = SalesAllocation::query()
+                ->where('workspace_id', $workspace->id)
+                ->with('invoice:id,location_id')
+                ->find($id, ['id', 'invoice_id']);
+
+            return $allocation ? [$allocation->invoice?->location_id] : null;
+        }
+
         if ($kind === RouteRecords::ACCOUNT_TRANSFER) {
             $transfer = AccountTransfer::query()
                 ->where('workspace_id', $workspace->id)

@@ -58,9 +58,17 @@ class SalesDeliveryService
         return $this->deliveries->paginateFor($workspace, [...$filters, 'location_ids' => $this->access->locations()], $perPage);
     }
 
+    /** Another business's delivery - or one at a location out of reach - answers like one that does not exist. */
     public function find(Workspace $workspace, int $id): SalesDelivery
     {
-        return $this->deliveries->findFor($workspace, $id) ?? abort(404, 'Delivery not found.');
+        $delivery  = $this->deliveries->findFor($workspace, $id);
+        $locations = $this->access->locations();
+
+        if (! $delivery || ($locations !== null && ! in_array($delivery->location_id, $locations, true))) {
+            abort(404, 'Delivery not found.');
+        }
+
+        return $delivery;
     }
 
     /**

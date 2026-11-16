@@ -16,7 +16,8 @@ use Illuminate\Support\Str;
 
 /**
  * Comments on a sales document, purchase or expense (Doc 14 section 14.14 -
- * Phase D), for the business alone and never printed.
+ * Phase D) - and a lead (Doc 17 Phase B2b) - for the business alone and
+ * never printed.
  *
  * Anyone who may view the record reads and writes them; only its author
  * deletes a comment. A comment may mention the business's users who may
@@ -105,9 +106,15 @@ class RecordCommentService
         });
     }
 
-    /** The business's active users who may view the record, at its location - as its members, for their names in it. */
+    /**
+     * The business's active users who may view the record, at its location -
+     * as its members, for their names in it. A lead (Doc 17 Phase B2b), only
+     * those who see it.
+     */
     private function mentionable(Workspace $workspace, DiscussedRecord $record): Collection
     {
-        return $this->audience->membersWithPermission($workspace, $record->permission, $record->model->getAttribute('location_id'));
+        $members = $this->audience->membersWithPermission($workspace, $record->permission, $record->model->getAttribute('location_id'));
+
+        return $record->sees === null ? $members : $members->filter(fn (WorkspaceMember $member) => ($record->sees)($member->user))->values();
     }
 }

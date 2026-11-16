@@ -9,6 +9,7 @@ use App\Models\Admin\Role;
 use App\Models\Billing\Package;
 use App\Models\Billing\WorkspaceSubscription;
 use App\Models\User\Contact;
+use App\Models\User\SalesTeam;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Support\BusinessStatus;
@@ -79,6 +80,11 @@ class PrivacyRequestTest extends TestCase
         $this->postJson(route('admin.privacy-requests.export', $request->id))->assertJsonValidationErrors(['request' => 'Check who is asking']);
         $this->postJson(route('admin.privacy-requests.verify', $request->id), ['identity_check' => 'Wrote back from the account\'s own e-mail.'])->assertOk();
 
+        // What full Sales and CRM keep (Docs 16 and 17) goes too - a sales team's members, a table without ids of its own, among it.
+        $team = SalesTeam::create(['workspace_id' => $this->business->id, 'name' => 'North Team']);
+        $team->members()->sync([$this->owner->id]);
+        $this->business->crmPipelines()->create(['name' => 'Trade Pipeline'])->stages()->create(['name' => 'Demo Booked', 'position' => 1, 'probability' => 30, 'category' => 'open']);
+
         $this->postJson(route('admin.privacy-requests.export', $request->id))->assertOk();
         $request->refresh();
         $this->assertSame(PrivacyRequest::COMPLETED, $request->status);
@@ -91,6 +97,14 @@ class PrivacyRequestTest extends TestCase
         $this->assertNotFalse($zip->locateName('README.txt'));
         $this->assertStringContainsString('Nadia Rahman', $zip->getFromName('contacts.csv'));
         $this->assertStringNotContainsString('password', $zip->getFromName('members.csv'));
+
+        foreach (['sales-deliveries', 'sales-delivery-lines', 'sales-returns', 'customer-advances', 'price-list-customers', 'leads', 'crm-lists'] as $file) {
+            $this->assertNotFalse($zip->locateName("{$file}.csv"), "{$file}.csv is missing.");
+        }
+
+        $this->assertStringContainsString('North Team', $zip->getFromName('sales-teams.csv'));
+        $this->assertSame("sales_team_id,user_id\n{$team->id},{$this->owner->id}", trim($zip->getFromName('sales-team-members.csv')));
+        $this->assertStringContainsString('Demo Booked', $zip->getFromName('crm-pipeline-stages.csv'));
         $zip->close();
 
         // Its link goes to the person who asked, and works until it expires.

@@ -3,20 +3,25 @@
 namespace App\Services\Api\Files;
 
 use App\Models\User\Contact;
+use App\Models\User\CrmLead;
 use App\Models\User\Expense;
 use App\Models\User\ExpensePayment;
 use App\Models\User\Item;
 use App\Models\User\Purchase;
+use App\Models\User\SalesDelivery;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesPayment;
+use App\Models\User\SalesReturn;
 use App\Models\User\SupplierPayment;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceFile;
 use App\Repositories\User\WorkspaceFileRepository;
+use App\Services\Crm\LeadVisibility;
 use App\Services\Files\FileStorage;
 use App\Services\Shared\LocationAccess;
 use App\Services\Shared\WorkspaceAccess;
 use App\Support\RouteRecords;
+use Illuminate\Http\Request;
 
 /**
  * Links that download a business's files: a public file's own address, or,
@@ -34,6 +39,10 @@ class FileLinkService
         SalesPayment::class    => 'sales.payments.view',
         SupplierPayment::class => 'purchases.payments.view',
         ExpensePayment::class  => 'expenses.payments.view',
+        CrmLead::class         => 'crm.leads.view',
+        // The full Sales app's (Doc 16).
+        SalesDelivery::class   => 'sales.deliveries.view',
+        SalesReturn::class     => 'sales.returns.view',
     ];
 
     /** The record kinds that are at a location (see LocationAccess), by the record's class. */
@@ -44,6 +53,9 @@ class FileLinkService
         SupplierPayment::class => RouteRecords::SUPPLIER_PAYMENT,
         Expense::class         => RouteRecords::EXPENSE,
         ExpensePayment::class  => RouteRecords::EXPENSE_PAYMENT,
+        CrmLead::class         => RouteRecords::CRM_LEAD,
+        SalesDelivery::class   => RouteRecords::SALES_DELIVERY,
+        SalesReturn::class     => RouteRecords::SALES_RETURN,
     ];
 
     public function __construct(
@@ -51,13 +63,15 @@ class FileLinkService
         protected FileStorage $fileStorage,
         protected WorkspaceAccess $access,
         protected LocationAccess $locationAccess,
+        protected LeadVisibility $leadVisibility,
     ) {}
 
     /**
      * One of the business's files, if the user may see the record it is
-     * attached to - a sales document's by its kind - at its location. The
-     * logo and a template's signature are every member's. Another business's
-     * file answers like one that does not exist.
+     * attached to - a sales document's by its kind - at its location; a
+     * lead's, only if they see the lead (Doc 17 Phase B2b). The logo and a
+     * template's signature are every member's. Another business's file
+     * answers like one that does not exist.
      */
     public function find(Workspace $workspace, int $id): WorkspaceFile
     {
@@ -74,6 +88,12 @@ class FileLinkService
 
         if (isset(self::AT_LOCATION[$file->attachable_type])) {
             abort_unless($this->locationAccess->reaches($workspace, self::AT_LOCATION[$file->attachable_type], (int) $file->attachable_id), 403, LocationAccess::REFUSED);
+        }
+
+        if ($file->attachable_type === CrmLead::class) {
+            $lead = $this->workspaceFileRepository->attachableOf($file);
+
+            abort_unless($lead && $this->leadVisibility->sees($workspace, app(Request::class)->user(), $lead), 404, 'File not found.');
         }
 
         return $file;

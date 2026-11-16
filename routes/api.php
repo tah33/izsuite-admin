@@ -21,6 +21,9 @@ use App\Http\Controllers\Api\CountryController;
 use App\Http\Controllers\Api\SalesOverviewController;
 use App\Http\Controllers\Api\SalesTeamController;
 use App\Http\Controllers\Api\CreditNoteController;
+use App\Http\Controllers\Api\CrmLeadAttachmentController;
+use App\Http\Controllers\Api\CrmLeadController;
+use App\Http\Controllers\Api\CrmLeadFlowController;
 use App\Http\Controllers\Api\CrmOptionController;
 use App\Http\Controllers\Api\CrmPipelineController;
 use App\Http\Controllers\Api\CrmSettingController;
@@ -842,6 +845,35 @@ Route::prefix('v1')->group(function () {
             Route::post('/{id}/comments', [RecordCommentController::class, 'store'])->whereNumber('id')->defaults('family', 'expenses')->middleware('idempotent')->name('api.expenses.comments.store');
             Route::delete('/{id}/comments/{commentId}', [RecordCommentController::class, 'destroy'])->whereNumber(['id', 'commentId'])->defaults('family', 'expenses')->name('api.expenses.comments.destroy');
         });
+    });
+
+    /* ----------------------------------------------------------
+     | CRM (Doc 17): leads (Phase B1) - the Leads page, what a lead's
+     | form chooses from, one lead, adding and changing one, and its steps.
+     | Each user sees the leads LeadVisibility gives them, only at the
+     | locations they may use. Working with opportunities only, a business
+     | reads its leads but changes none (crm.leads).
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access', 'crm.leads'])->prefix('crm/leads')->group(function () {
+        Route::get('/', [CrmLeadController::class, 'index'])->name('api.crm.leads.index');
+        Route::get('/options', [CrmLeadController::class, 'options'])->name('api.crm.leads.options');
+        Route::post('/', [CrmLeadController::class, 'store'])->middleware('idempotent')->name('api.crm.leads.store');
+        Route::get('/{id}', [CrmLeadController::class, 'show'])->whereNumber('id')->name('api.crm.leads.show');
+        Route::put('/{id}', [CrmLeadController::class, 'update'])->whereNumber('id')->name('api.crm.leads.update');
+
+        foreach (['assign', 'contact', 'qualify', 'unqualify', 'archive', 'reopen'] as $step) {
+            Route::post("/{id}/{$step}", [CrmLeadFlowController::class, $step])->whereNumber('id')->name("api.crm.leads.{$step}");
+        }
+
+        // Its files, comments and activity timeline (Phase B2b), Doc 14's.
+        Route::get('/{id}/attachments', [CrmLeadAttachmentController::class, 'index'])->whereNumber('id')->name('api.crm.leads.attachments.index');
+        Route::post('/{id}/attachments', [CrmLeadAttachmentController::class, 'store'])->whereNumber('id')->name('api.crm.leads.attachments.store');
+        Route::delete('/{id}/attachments/{fileId}', [CrmLeadAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.crm.leads.attachments.destroy');
+        Route::get('/{id}/activity', RecordActivityController::class)->whereNumber('id')->defaults('family', 'crm')->name('api.crm.leads.activity');
+        Route::get('/{id}/comments', [RecordCommentController::class, 'index'])->whereNumber('id')->defaults('family', 'crm')->name('api.crm.leads.comments.index');
+        Route::get('/{id}/comments/people', [RecordCommentController::class, 'people'])->whereNumber('id')->defaults('family', 'crm')->name('api.crm.leads.comments.people');
+        Route::post('/{id}/comments', [RecordCommentController::class, 'store'])->whereNumber('id')->defaults('family', 'crm')->middleware('idempotent')->name('api.crm.leads.comments.store');
+        Route::delete('/{id}/comments/{commentId}', [RecordCommentController::class, 'destroy'])->whereNumber(['id', 'commentId'])->defaults('family', 'crm')->name('api.crm.leads.comments.destroy');
     });
 
     /* ----------------------------------------------------------

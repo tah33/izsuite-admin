@@ -2,6 +2,7 @@
 
 namespace App\Repositories\User;
 
+use App\Models\User\CrmLead;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesTeam;
 use App\Models\User\Workspace;
@@ -62,10 +63,26 @@ class SalesTeamRepository
         $team->delete();
     }
 
-    /** Whether a sales document names $team. */
+    /** Whether a sales document or a lead (Doc 17 Phase B1) names $team. */
     public function isUsed(SalesTeam $team): bool
     {
-        return SalesDocument::query()->where('sales_team_id', $team->id)->exists();
+        return SalesDocument::query()->where('sales_team_id', $team->id)->exists()
+            || CrmLead::query()->where('sales_team_id', $team->id)->exists();
+    }
+
+    /**
+     * The teams switched on that $userId belongs to or manages, each with its
+     * members' ids: whose CRM records they see with View Team Records (Doc 17
+     * section 17.30).
+     */
+    public function teamsOf(Workspace $workspace, int $userId): Collection
+    {
+        return SalesTeam::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('is_active', true)
+            ->where(fn ($query) => $query->where('manager_id', $userId)->orWhereHas('members', fn ($query) => $query->whereKey($userId)))
+            ->with('members:id')
+            ->get(['id', 'manager_id']);
     }
 
     /** The people who can sell for $workspace: its owner and active members, by name, as [id => user id, name]. */

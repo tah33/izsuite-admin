@@ -15,12 +15,20 @@ class CrmSetting extends Model
     /** Leads qualified and converted into opportunities, or opportunities made directly (section 17.5). */
     public const MODES = ['leads' => 'Leads and Opportunities', 'opportunities' => 'Opportunities Only'];
 
+    /** What a lead needs filled in before it is qualified, unless the business chose (Phase B2a): the customer need. */
+    public const QUALIFICATION_DEFAULT = ['customer_need'];
+
     protected $fillable = [
         'mode',
+        'qualification_required',
     ];
 
     protected $attributes = [
         'mode' => 'leads',
+    ];
+
+    protected $casts = [
+        'qualification_required' => 'array',
     ];
 
     public function workspace(): BelongsTo
@@ -32,5 +40,19 @@ class CrmSetting extends Model
     public function usesLeads(): bool
     {
         return $this->mode === 'leads';
+    }
+
+    /**
+     * The keys of CrmLead::QUALIFYING a lead needs filled in before it is
+     * qualified, in that order: the default until the business chooses, and
+     * none when it chose none.
+     *
+     * @return list<string>
+     */
+    public function qualificationRequired(): array
+    {
+        $chosen = $this->qualification_required ?? self::QUALIFICATION_DEFAULT;
+
+        return array_values(array_filter(array_keys(CrmLead::QUALIFYING), fn (string $key) => in_array($key, $chosen, true)));
     }
 }

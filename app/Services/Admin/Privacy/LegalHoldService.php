@@ -43,6 +43,12 @@ class LegalHoldService
         'api.purchases.destroy', 'api.purchases.attachments.destroy', 'api.purchases.comments.destroy', 'api.purchases.payments.attachments.destroy',
         'api.expenses.destroy', 'api.expenses.attachments.destroy', 'api.expenses.comments.destroy', 'api.expenses.payments.attachments.destroy',
         'api.exchange-rates.destroy', 'api.locations.destroy',
+        // The full Sales app's (Doc 16): draft deliveries and returns, their files, and price lists.
+        'api.sales.deliveries.destroy', 'api.sales.deliveries.attachments.destroy',
+        'api.sales.returns.destroy', 'api.sales.returns.attachments.destroy',
+        'api.sales.price-lists.destroy',
+        // A lead's files and comments (Doc 17 Phase B2b); leads themselves are never deleted.
+        'api.crm.leads.attachments.destroy', 'api.crm.leads.comments.destroy',
     ];
 
     public function __construct(

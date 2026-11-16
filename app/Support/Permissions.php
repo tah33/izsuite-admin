@@ -110,7 +110,10 @@ final class Permissions
         'expenses.values'      => ['Expense Values', 'expenses', ['view' => 'View Expense Values']],
         'expenses.settings'    => ['Expense Settings', 'expenses', self::APP_SETTINGS],
 
-        // CRM (Doc 17 section 17.30): each phase adds its own - Phase A1 its settings.
+        // CRM (Doc 17 section 17.30): each phase adds its own - Phase A1 its settings, B1 leads and whose records are seen.
+        'crm.leads'    => ['Leads', 'crm', ['view' => self::VIEW, 'manage' => 'Create and Edit', 'assign' => 'Assign Leads', 'reopen' => 'Reopen Unqualified or Archived']],
+        // Without either, a user sees the CRM records they own (LeadVisibility).
+        'crm.records'  => ['CRM Records', 'crm', ['team' => 'View Team Records', 'all' => 'View All CRM Records']],
         'crm.settings' => ['CRM Settings', 'crm', self::APP_SETTINGS],
     ];
 
@@ -298,6 +301,8 @@ final class Permissions
                 ...self::actionsOf('sales.invoices', ['view', 'create', 'edit', 'issue', 'send', 'delete']),
                 'sales.payments.view', 'sales.payments.record', 'sales.credit_notes.view',
                 ...self::actionsOf('sales.advances', ['view', 'record', 'apply']),
+                // Their own leads (Doc 17 Phase B1).
+                'crm.leads.view', 'crm.leads.manage',
             ],
 
             'purchase_user' => [

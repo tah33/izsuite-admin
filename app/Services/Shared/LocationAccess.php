@@ -13,9 +13,10 @@ use Illuminate\Http\Request;
 /**
  * Step 4 of Doc 12's access order (section 2): a member reaches a record
  * only at a location they may use (section 20), whatever their role. A
- * payment account for the whole business is anyone's; a record at no
- * location is for those who may use every location. And where a new
- * transaction starts: the user's default location.
+ * payment account for the whole business is anyone's, and so is a customer
+ * advance taken at no location; any other record at no location is for
+ * those who may use every location. And where a new transaction starts: the
+ * user's default location.
  */
 class LocationAccess
 {
@@ -64,8 +65,9 @@ class LocationAccess
             return true;
         }
 
-        $at     = $this->records->locationsOf($workspace, $kind, $id);
-        $shared = in_array($kind, [RouteRecords::PAYMENT_ACCOUNT, RouteRecords::ACCOUNT_TRANSFER], true);
+        $at = $this->records->locationsOf($workspace, $kind, $id);
+        // At no location, these are anyone's: an account of the whole business, and an advance taken from the customer (Doc 16).
+        $shared = in_array($kind, [RouteRecords::PAYMENT_ACCOUNT, RouteRecords::ACCOUNT_TRANSFER, RouteRecords::CUSTOMER_ADVANCE], true);
 
         return $at === null || collect($at)->every(fn (?int $location) => $location === null ? $shared : in_array($location, $locations, true));
     }

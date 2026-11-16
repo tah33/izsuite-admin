@@ -3,16 +3,21 @@
 namespace App\Services\Shared;
 
 use App\Enums\DocumentType;
+use App\Models\User\User;
 use App\Models\User\Workspace;
+use App\Services\Api\Crm\CrmLeadService;
 use App\Services\Api\Expenses\ExpenseService;
 use App\Services\Api\Purchases\PurchaseService;
 use App\Services\Api\Sales\SalesDocumentService;
+use App\Services\Crm\LeadVisibility;
+use Illuminate\Http\Request;
 
 /**
  * Finds the record a comments or activity route is about (Doc 14 Phase D):
- * a sales document of its {kind}, a purchase or an expense of the business.
- * Another business's record, or one of another kind, is a 404, as on its
- * own page. The route's middleware has already checked the app, the View
+ * a sales document of its {kind}, a purchase, an expense or - Doc 17 Phase
+ * B2b - a lead of the business. Another business's record, or one of
+ * another kind, is a 404, as on its own page; so is a lead the user does
+ * not see. The route's middleware has already checked the app, the View
  * permission and the location.
  */
 class DiscussedRecords
@@ -21,16 +26,28 @@ class DiscussedRecords
         protected SalesDocumentService $salesDocumentService,
         protected PurchaseService $purchaseService,
         protected ExpenseService $expenseService,
+        protected CrmLeadService $crmLeadService,
+        protected LeadVisibility $leadVisibility,
     ) {}
 
-    /** $family is the route's: "sales", "purchases" or "expenses". $kind is a sales route's {kind}. */
+    /** $family is the route's: "sales", "purchases", "expenses" or "crm". $kind is a sales route's {kind}. */
     public function find(Workspace $workspace, string $family, ?string $kind, int $id): DiscussedRecord
     {
         return match ($family) {
             'sales'     => $this->sales($workspace, (string) $kind, $id),
             'purchases' => $this->purchase($workspace, $id),
             'expenses'  => $this->expense($workspace, $id),
+            'crm'       => $this->lead($workspace, $id),
         };
+    }
+
+    /** A lead the signed-in user sees; who else sees it decides who a comment may mention. */
+    private function lead(Workspace $workspace, int $id): DiscussedRecord
+    {
+        $lead = $this->crmLeadService->find($workspace, app(Request::class)->user(), $id);
+
+        return new DiscussedRecord($lead, 'crm', 'crm.leads.view', $this->crmLeadService->describe($lead), "/crm/leads/{$lead->id}",
+            fn (User $user) => $this->leadVisibility->sees($workspace, $user, $lead));
     }
 
     private function sales(Workspace $workspace, string $kind, int $id): DiscussedRecord

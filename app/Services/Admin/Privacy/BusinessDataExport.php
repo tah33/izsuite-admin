@@ -22,7 +22,10 @@ class BusinessDataExport
     /** Where the exports are kept, on the private disk. */
     public const DIRECTORY = 'privacy-exports';
 
-    /** file => the business's own table */
+    /**
+     * file => the business's own table. An app's settings are left out, as
+     * they hold no records: Settings > Sales's, Purchases', Expenses', CRM's.
+     */
     private const OWN = [
         'business-profile'     => 'business_settings',
         'locations'            => 'locations',
@@ -33,6 +36,18 @@ class BusinessDataExport
         'items'                => 'items',
         'sales-documents'      => 'sales_documents',
         'sales-payments'       => 'sales_payments',
+        // The full Sales app's (Doc 16): deliveries, returns, advances and the credit applied to invoices, customers' answers through a document's link, price lists and sales teams.
+        'sales-deliveries'     => 'sales_deliveries',
+        'sales-returns'        => 'sales_returns',
+        'customer-advances'    => 'customer_advances',
+        'sales-allocations'    => 'sales_allocations',
+        'customer-responses'   => 'customer_responses',
+        'price-lists'          => 'price_lists',
+        'sales-teams'          => 'sales_teams',
+        // CRM's (Doc 17): its leads, its lists - lead sources, lost reasons, activity types - and its pipelines.
+        'leads'                => 'crm_leads',
+        'crm-lists'            => 'crm_options',
+        'crm-pipelines'        => 'crm_pipelines',
         'purchases'            => 'purchases',
         'supplier-payments'    => 'supplier_payments',
         'expense-categories'   => 'expense_categories',
@@ -54,10 +69,21 @@ class BusinessDataExport
         'activity-log'         => 'activity_logs',
     ];
 
-    /** file => [table, its column naming the parent, the parent table] */
+    /**
+     * file => [table, its column naming the parent, the parent table, and -
+     * for a table without an id, one that only links two records - the
+     * columns its rows are read in order of].
+     */
     private const CHILDREN = [
         'item-components'      => ['item_components', 'combo_id', 'items'],
         'sales-document-lines' => ['sales_document_lines', 'sales_document_id', 'sales_documents'],
+        'sales-delivery-lines' => ['sales_delivery_lines', 'sales_delivery_id', 'sales_deliveries'],
+        'sales-return-lines'   => ['sales_return_lines', 'sales_return_id', 'sales_returns'],
+        'price-list-rules'     => ['price_list_rules', 'price_list_id', 'price_lists'],
+        'price-list-customers' => ['price_list_contacts', 'price_list_id', 'price_lists', ['price_list_id', 'contact_id']],
+        'price-list-locations' => ['price_list_locations', 'price_list_id', 'price_lists', ['price_list_id', 'location_id']],
+        'sales-team-members'   => ['sales_team_members', 'sales_team_id', 'sales_teams', ['sales_team_id', 'user_id']],
+        'crm-pipeline-stages'  => ['crm_stages', 'crm_pipeline_id', 'crm_pipelines'],
         'purchase-lines'       => ['purchase_lines', 'purchase_id', 'purchases'],
         'expense-lines'        => ['expense_lines', 'expense_id', 'expenses'],
     ];
@@ -111,8 +137,10 @@ class BusinessDataExport
             yield $file => [$this->columns($table), $this->rows->ownRows($table, $workspace->id)];
         }
 
-        foreach (self::CHILDREN as $file => [$table, $foreignKey, $parent]) {
-            yield $file => [$this->columns($table), $this->rows->childRows($table, $foreignKey, $parent, $workspace->id)];
+        foreach (self::CHILDREN as $file => $child) {
+            [$table, $foreignKey, $parent] = $child;
+
+            yield $file => [$this->columns($table), $this->rows->childRows($table, $foreignKey, $parent, $workspace->id, $child[3] ?? ['id'])];
         }
     }
 

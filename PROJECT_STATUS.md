@@ -2,10 +2,10 @@
 
 What is done, what comes next, and how to carry on from another PC.
 
-- **Last updated:** 2026-11-15
-- **Code:** Doc 17 Phase A2 (the pipeline and shared sales teams) is committed: frontend `6f21d3a` on `nuxt`, and on `main` the admin commit right after `5b1bf2e`.
-- **Tests:** 918 backend tests pass (last full run 2026-11-15, on the first PC, on this code).
-- **Next step:** Doc 17 Phase B: leads (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Last updated:** 2026-11-16
+- **Code:** Doc 17 Phase B (leads: B1, B2a and B2b) is committed, with the data export taking in Doc 16's and 17's tables and Doc 16's records checked at their own locations (fixed 2026-11-16): frontend `7812131` on `nuxt`, and on `main` the admin commit right after `d60c15a`.
+- **Tests:** 932 backend tests pass (last full run 2026-11-16, on the first PC, on this code).
+- **Next step:** Doc 17 Phase C: converting leads, and duplicates (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase B.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase C.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -42,7 +42,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check and Phase A1 done, A2 built (2026-11-15), Phase B next** |
+| **17** | **CRM** | **In progress: gap check and Phases A and B done (B built 2026-11-15 and 16), Phase C next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1372,7 +1372,22 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
   - With a $40.00 limit given to Chowdhury & Sons for a moment, Customer Credit Exposure showed them $49.00 exposed (all of it overdue), $9.00 over, as their Credit Control card did.
   - The order, its delivery and return, their number sequences, the limit, its Sales row, the sign-in and the activity were then put back.
 
-### 5. Doc 17: CRM (next: Phase B)
+**Fixed on 2026-11-16: Doc 16's records at their own locations.** Found while building Doc 17 Phase B2b.
+
+- **The bug:** every `api.sales.*` route with an `{id}` was checked at the location of the sales document with that id.
+  - The routes: those of a delivery, return, customer advance, credit taken off an invoice, price list and customer credit.
+  - A member limited to some locations could be refused a record of their own location.
+  - Worse, deliveries had no location check of their own, so another location's delivery could open.
+- **Now:**
+  - Deliveries, returns and advances are each checked at their own location, and credit taken off at its invoice's. A new delivery or return is still checked at its order's.
+  - Price lists and a customer's credit are checked at none: a price list names its own locations, and a customer is the whole business's.
+  - An advance taken at no location is anyone's, as its own page and list already had it.
+  - The delivery service now refuses another location's delivery itself, as returns already did.
+- Delivery and return files open only for whoever may view deliveries or returns at their location.
+- A legal hold stops deleting draft deliveries and returns, their files, and price lists.
+- `SalesRecordLocationsTest`. No migration.
+
+### 5. Doc 17: CRM (next: Phase C)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -1508,7 +1523,172 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - A team Dhaka North was added with izSuite User as manager and member, and switching it off kept its manager.
   - The pipeline, the team, the lists, the app's state, the sign-in and the activity were then put back.
 
+**Phase B: leads** was split on starting it (2026-11-15): B1, leads themselves; B2, qualification and a lead's records.
+
+**Phase B1: leads themselves** (sections 17.6 to 17.9 and 17.30) is built, with these defaults:
+
+- **A lead** in its own table:
+  - Required: its name (the person, or the business when nobody is named), a phone or an e-mail (at least one), a source from Settings → CRM's Lead Sources, and its location when the business has more than one (else its only one).
+  - The owner is whoever adds it, unless someone who may assign leads gives it to another member or leaves it in the queue.
+  - Optional: business name, job title, the source's details (one line: a referral's name, a form, a platform or a reference), address and country, preferred language, estimated value and currency (the business's), expected purchase date, sales team, priority (Low, Medium or High), tags and notes.
+  - Interested items and attachments come with B2, campaigns with Marketing, custom fields with Phase I.
+  - A lead is never deleted: Archive keeps it in history and reports (17.7).
+- **Statuses** (17.7), fixed, as its rules hang on them:
+  - New: no owner yet, waiting in the queue. Assigned: an owner, not contacted yet; a lead added with an owner starts here.
+  - Contacted (Mark Contacted, from Assigned), Qualified (Qualify, from Assigned or Contacted; B2 adds what must be filled in first), Unqualified (with a reason, from any open status) and Archived (an optional reason, from any status but Converted).
+  - Reopen takes an unqualified or archived lead back to Assigned (New without an owner), with the Reopen permission. Converted comes with Phase C.
+  - An open lead (New to Qualified) can be edited; an unqualified or archived one is reopened first.
+- **Assignment by hand** (17.9), with Assign Leads: to an active member who may view leads and use the lead's location.
+  - A New lead becomes Assigned; any other keeps its status.
+  - The new owner is notified, in the bell and by e-mail, under a new Leads kind (unless they gave it to themselves). The Activity Log keeps the change with the previous owner.
+  - Unassigned leads are the queue: the Leads page's New filter, seen by whoever may assign leads.
+- **Who sees which leads** (17.30), always only at the locations they may use (Doc 12):
+  - Everyone with View Leads sees the leads they own.
+  - View Team Records adds those owned by the people of the sales teams they belong to or manage, and those given to those teams.
+  - View All CRM Records shows every lead; Assign Leads adds the queue.
+- **Permissions:** Leads (View, Create and Edit, Assign, Reopen) and CRM Records (View Team Records, View All CRM Records). The Sales User template gets View and Create and Edit.
+- **Pages:** the Leads page (search by name, business, e-mail or phone; open leads first, filtered by status, owner and source), Add Lead, a lead's page with its details and steps, and Edit Lead.
+- In Opportunities Only mode the leads stay and can still be read (a notification's link opens), but none is added or changed, and a lead's page offers no steps.
+- A lead source or a sales team that a lead uses is switched off, not deleted, and so is a location with leads.
+- A business's data export (Doc 15's privacy requests) includes its leads, as `leads.csv`. With them it now holds what Doc 16 added too, which it had missed: deliveries and returns with their lines, customer advances, credit applied to invoices, customers' answers through a document's link, price lists with their rules, customers and locations, and sales teams with their members. CRM's lists and pipelines with their stages are in as well, 50 CSV files in all. The apps' settings (Sales, Purchases, Expenses, CRM) stay out, as they hold no records.
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with CRM switched on by hand, and as a throwaway member whose role sees and works their own leads only:
+  - A lead added from the form (source Event, value $2,500, priority High) was Assigned to its maker. Marked contacted; unqualified, first without a reason (refused) then with one, shown on its page; reopened back to Assigned; edited (the phone-or-e-mail rule showed when both were empty); archived without a reason, leaving only Reopen.
+  - The list showed open leads to start, and its status and source filters worked.
+  - A second lead left in the queue was New, offering Assign but not Mark Contacted. Assigned to the member, it became theirs: their bell said who gave them the lead, its link opened it, their list showed only that lead with no owner filter, and the owner's lead answered "Lead not found."
+  - The owner list first came back without names: the members' list loads each user without their name. It now loads first and last names.
+  - With Opportunities Only, Leads left the sidebar and a lead's page showed no steps.
+  - The leads, the lists, the member, the notification, the app's state, the sign-in and the activity were then put back.
+
+**Phase B2: qualification and a lead's records** was split on starting it (2026-11-16): B2a, qualification and interested items; B2b, a lead's attachments, comments and timeline.
+
+**Phase B2a: qualification and interested items** (sections 17.6 and 17.10) is built, with these defaults:
+
+- **A lead's qualification**, in its form and on its page:
+  - customer need, estimated budget (in the lead's currency) and expected purchase period (this month, within 3, 6 or 12 months, or later);
+  - decision maker, business size or type, next action and qualification notes.
+- **Interested items or services:** items from the business's list (for whoever may view items), or names typed in, each with an optional quantity. A lead keeps an item's name if the item is deleted later.
+- **Settings → CRM's Qualification card** says which of these must be filled in before a lead is qualified. To start, that is the customer need. Qualify refuses, naming what is missing.
+- Qualifying is no sale and makes no document (17.10).
+- A lead's page lists what qualifying still needs, while the lead can be qualified.
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with CRM switched on by hand:
+  - Settings → CRM's Qualification card started with Customer Need ticked; Interested Items and Next Action were added and saved, and the Activity Log kept the change.
+  - Add Lead starred those three. A lead was added with an item found in the list (Office Chair, then no longer offered), a typed one (Delivery and assembly × 2), a need, a budget, a period and a decision maker.
+  - Its page showed the qualification and items, and "Before it is qualified, fill in: next action." Qualify refused with "Fill in the next action before qualifying this lead."
+  - Edit Lead loaded it all; with the next action filled in and the chair removed, it saved, and Qualify went through.
+  - The lead, the CRM settings and lists, the app's state, the sign-in and the activity were then put back.
+
+**Phase B2b: a lead's attachments, comments and timeline** is built, with these defaults. Phase B is done.
+
+- Attachments on a lead's page, added and removed by whoever may edit leads (Create and Edit), at any status. They open only for whoever sees the lead.
+- Comments with mentions (Doc 14's), mentioning only people who can see the lead.
+- The lead's timeline, read from its Activity Log entries: added, changed, assigned (with the previous owner), contacted, qualified, unqualified, archived, reopened, its comments and its files.
+- A mention reaches the person in the bell and by e-mail, under Comments and mentions, linking to the lead's comments.
+- A legal hold (Doc 15) stops a lead's files and comments being deleted, as it does other records'.
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with CRM switched on by hand:
+  - A lead's page showed Attachments and the Comments and Activity card.
+  - A PDF was uploaded and its download link opened. A comment was posted.
+  - Activity listed the comment, the attachment and the lead being added, newest first.
+  - The file was then removed through the API, and the lead, its comment, the CRM lists, the app's state, the sign-in and the activity were put back.
+
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
+
+## Testing checklist
+
+Manual tests for each phase, to work through one by one once a doc is finished, ticking each off. Every phase adds its own here as it is built (from Doc 17 on). Earlier docs were checked as they were built: see each phase's "Checked in the browser" notes above.
+
+Use a test business. Some tests need a second person with a limited role: in Settings → Users & Roles, make the role, then invite someone with it.
+
+### Doc 16: Sales (the fix of 2026-11-16)
+
+**Before you start:** the full Sales app on, two active locations, and a member whose role views sales orders, deliveries and returns, at one location only (Settings → Users & Roles, then their Locations).
+
+- [ ] As that member, a delivery, return or advance at their location opens, with its files and steps. One at the other location does not ("This record is at a location you do not have access to."), and the Deliveries and Returns lists show only theirs.
+- [ ] A delivery's or return's file opens only for someone who may view deliveries or returns at its location, even with its link.
+- [ ] Price lists and a customer's Credit Control open for whoever has their permission, at any location.
+- [ ] Admin panel → Legal Holds: with a hold on the business, deleting a draft delivery or return, their files, or a price list is refused.
+
+### Doc 17: CRM
+
+**Before you start:** turn CRM on in the Apps Center. It works with Sales Lite, full Sales or no Sales.
+
+**Phase A1: menu, settings and lists**
+
+- [ ] The sidebar's CRM section shows Leads, Opportunities and Customers, in that order. Opportunities opens a placeholder page, and Customers opens Contacts filtered to customers.
+- [ ] Settings → CRM shows (after Expenses) for a role with Manage CRM Settings, and not for one without.
+- [ ] Saving Opportunities Only takes Leads out of the sidebar at once; switching back brings it again. Nothing is deleted.
+- [ ] Lead Sources (12), Lost Reasons (9) and Activity Types (8) start with Doc 17's examples. A starting entry can be renamed and switched off, but has no Delete.
+- [ ] An entry you add can be renamed, switched off and deleted. A second entry with the same name in the same list is refused.
+
+**Phase A2: the pipeline and sales teams**
+
+- [ ] Settings → CRM shows the Sales Pipeline: New 10%, Qualified 25%, Proposal 50%, Negotiation 75%, Won 100% and Lost 0%.
+- [ ] Add a stage, rename one, move one up and down, change a probability, switch one off and remove one, then save: it all stays after a reload.
+- [ ] Won stays 100% and Lost 0%, whatever is typed.
+- [ ] Switching off the only won stage (or the only lost one, or every open one) is refused: "A pipeline needs an open stage, a won stage and a lost stage, each switched on."
+- [ ] Sales Teams show on the CRM tab, with full Sales off too. Add a team with a manager and members; switching it off keeps its manager.
+- [ ] A role with Manage CRM Settings but not Sales's settings can add and change teams.
+
+**Phase B1: leads**
+
+- [ ] Add Lead without a phone or an e-mail: "Give a phone number or an e-mail address." Without a source: "Choose where the lead came from."
+- [ ] A lead you add is yours and Assigned. Its page shows its details, source, owner, value, dates and who added it, and its location when the business has several.
+- [ ] The Location field shows only to someone who may use more than one location.
+- [ ] On a lead's page:
+  - [ ] Mark Contacted makes it Contacted, and Qualify makes it Qualified (once what Settings → CRM requires is filled in: see Phase B2a).
+  - [ ] Unqualify without a reason is refused; with one it is Unqualified, and the page shows the reason.
+  - [ ] Reopen takes it back to Assigned.
+  - [ ] Archive (the reason is optional) leaves only Reopen.
+- [ ] An unqualified or archived lead's Edit page says to reopen it first.
+- [ ] The Leads list shows the open leads to start. Its status filter (New is the queue, Archived, All leads), source filter, owner filter and search (name, business, phone, e-mail) all work.
+- [ ] As someone with Assign Leads, add a lead with Owner "Nobody yet: the queue". It is New, offering Assign but not Mark Contacted or Qualify.
+- [ ] Assign it to a member:
+  - [ ] It becomes Assigned and theirs.
+  - [ ] Their bell (and e-mail) says "… gave you a lead: …", and the link opens the lead.
+  - [ ] The Activity Log shows the assignment with the previous owner.
+- [ ] The Assign list offers only active people who may view leads at the lead's location.
+- [ ] A member whose role has only Leads View and Create and Edit:
+  - [ ] sees only their own leads, with no Owner filter and no Assign or Reopen;
+  - [ ] gets "Lead not found." for anyone else's lead;
+  - [ ] can add leads for themselves only.
+- [ ] With View Team Records they also see the leads of their sales teams' people and those given to their teams. With View All CRM Records they see every lead.
+- [ ] A member limited to some locations never sees leads at the others.
+- [ ] With Settings → CRM on Opportunities Only:
+  - [ ] Leads leaves the sidebar.
+  - [ ] A lead's page still opens (from a notification, say) but shows no buttons.
+  - [ ] Adding a lead is refused.
+- [ ] A lead source that a lead came from cannot be deleted ("Leads came from this source, so it stays. Switch it off instead."). Nor can a sales team a lead names, or a location with leads.
+- [ ] Settings → Notifications, for the business and in your profile, lists the new Leads kind.
+- [ ] Admin panel → Privacy Requests: export a business's data. The ZIP holds:
+  - [ ] the CRM files: `leads.csv`, `crm-lists.csv`, `crm-pipelines.csv` and `crm-pipeline-stages.csv`;
+  - [ ] the Doc 16 files: deliveries and returns with their lines, customer advances, sales allocations, customer responses, price lists with their rules, customers and locations, and sales teams with their members.
+
+**Phase B2a: qualification and interested items**
+
+- [ ] Settings → CRM's Qualification card starts with Customer Need ticked. It shows only while the business uses leads.
+- [ ] Tick other details (Interested Items, Next Action, say) and save: the Activity Log shows the change. Untick them all and save: any assigned or contacted lead can be qualified.
+- [ ] Add Lead and Edit Lead mark the required details with a star, and a lead saves without them.
+- [ ] Interested Items or Services:
+  - [ ] Search adds one of your items; an item already added is not offered again.
+  - [ ] Type a Name adds anything else. Each takes an optional quantity, and the bin removes it.
+  - [ ] A row with neither an item nor a name is refused: "Choose an item or type its name."
+  - [ ] A role without Items View sees no search, only Type a Name.
+- [ ] The Qualification card on Add Lead takes the need, the budget (in the lead's currency), the purchase period, the decision maker, the business size, the next action and notes.
+- [ ] A lead's page shows its qualification and items, and lists what qualifying still needs ("Before it is qualified, fill in: …").
+- [ ] Qualify with something missing is refused, naming it ("Fill in the next action before qualifying this lead."). Once it is filled in, Qualify goes through.
+- [ ] Deleting an item that a lead is interested in leaves the lead with the item's name.
+
+**Phase B2b: a lead's attachments, comments and timeline**
+
+- [ ] A lead's page shows Attachments, and a Comments and Activity card, below its qualification.
+- [ ] Upload a file: it is listed with its size, date and who added it, Download opens it, and Remove takes it away.
+- [ ] Someone whose role has Leads View but not Create and Edit sees the files but no Upload or Remove.
+- [ ] A file of a lead someone does not see does not open for them, even with its link.
+- [ ] Post a comment, and delete it. Only its writer can delete a comment.
+- [ ] Mention someone (type @):
+  - [ ] only people who see the lead are offered;
+  - [ ] they get a bell notification (and an e-mail) linking to the lead's comments.
+- [ ] The Activity tab lists what was done to the lead, newest first: added, changed, assigned (with the previous owner), its steps, comments and files.
+- [ ] With Settings → CRM on Opportunities Only, a lead's comments and files can be read but not added.
 
 ## How we work
 
@@ -1518,7 +1698,7 @@ Each document goes the same way:
 2. Split it into phases (A, B, C...) with suggested defaults written down. Saying "Start Phase X" accepts them. Say so if you want something different.
 3. Build the phase: backend, frontend and tests, following `CLAUDE.md`.
 4. Check it: the test suite, then in the browser, including as a limited member when roles or locations are involved. Remove any test data from the dev database.
-5. Update this file and report back.
+5. Update this file and report back, adding the phase's manual tests to the [Testing checklist](#testing-checklist).
 6. **"Commit and push":** only when asked, never before.
 
 ### Rules to keep
@@ -1736,7 +1916,11 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 16: Phase H3c, returns, money and credit | `916916e` | `b79c75d` | none |
 | Doc 17: gap check | `ed24509` | | none |
 | Doc 17: Phase A1, CRM's menu, settings and lists | `5b1bf2e` | `41761f0` | 000162 |
-| Doc 17: Phase A2, the pipeline and shared sales teams | the commit after `5b1bf2e` | `6f21d3a` | 000163 |
+| Doc 17: Phase A2, the pipeline and shared sales teams | `d60c15a` | `6f21d3a` | 000163 |
+| Doc 17: Phase B1, leads themselves | the commit after `d60c15a` | `7812131` | 000164 |
+| Doc 17: Phase B2a, qualification and interested items | the commit after `d60c15a` | `7812131` | 000165 |
+| Doc 17: Phase B2b, a lead's files, comments and timeline | the commit after `d60c15a` | `7812131` | none |
+| Fixes: Doc 16's records at their own locations, and the data export's Doc 16 and 17 tables | the commit after `d60c15a` | | none |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -1976,7 +2160,7 @@ These are easy to undo by mistake.
   - `SubscriptionBilling::instructions()` takes only the offline methods offered where the invoice's business is billed.
   - Refunds are not limited by country.
 - Privacy requests (Doc 15 Phase G1, migration 000147) are `privacy_requests`, worked by `App\Services\Admin\Privacy\PrivacyRequestService` over `PrivacyRequestRepository`.
-  - The export is `BusinessDataExport` over `BusinessExportRepository`: one CSV per table in its `OWN` and `CHILDREN` lists, plus `members`; a column whose name holds password, secret, token, credential or remember is never written. To export a new kind of record, add its table there. It is built by the `BuildPrivacyExport` job and kept on the `local` disk under `privacy-exports/`.
+  - The export is `BusinessDataExport` over `BusinessExportRepository`: one CSV per table in its `OWN` and `CHILDREN` lists, plus `members`; a column whose name holds password, secret, token, credential or remember is never written. To export a new kind of record, add its table there; a child table without an `id` (one that only links two records, such as `sales_team_members`) also names the columns its rows are read in order of. It is built by the `BuildPrivacyExport` job and kept on the `local` disk under `privacy-exports/`.
   - The person asking downloads it through `/privacy-exports/{id}`, a signed link that lasts until the export expires (`URL::temporarySignedRoute`), so it points at the backend's own address (`APP_URL`).
   - An account closure sets `users.status` to `closed` (`User::CLOSED`) and closes each business it owns through `BusinessStatusService::closeNow()`.
 - Legal holds (Doc 15 Phase G2, migration 000148) are `legal_holds`, worked by `App\Services\Admin\Privacy\LegalHoldService`. The API's deletions it refuses are its `DELETIONS` list of route names, checked in `ResolveWorkspace` after the business's status; `WorkspaceService::delete()` checks it too. A new route that permanently deletes a business's records belongs in that list.
@@ -2058,6 +2242,25 @@ These are easy to undo by mistake.
   - `CrmPipelineRepository::addStarter()` makes the first one once (`CrmPipeline::STARTER_STAGES`), from `CrmSettingService::show()`. `replaceStages()` updates a stage sent with its id, adds the others and deletes the rest, as price list rules are.
   - `CrmPipelineService` forces won to 100% and lost to 0% (`CrmStage::probabilityFor()`); `SaveCrmPipelineRequest` keeps an open, a won and a lost stage switched on.
 - Sales teams are guarded by `app.any:sales:full,crm` (`EnsureAnyAppActive`): any one of the apps on at its edition opens them. `sales_teams.manager_id` is set only when `manager_id` is sent, so switching a team off keeps it. `GET /business-settings/sales-teams/people` gives the team form its people.
+- Leads (Doc 17 Phase B1, migration 000164) are `CrmLead` (`crm_leads`), worked by `CrmLeadService` (the list, one lead, the form's options, adding and changing) and `CrmLeadFlow` (assign, contact, qualify, unqualify, archive, reopen). `CrmLeadRules` says which step each status allows, and `AllowedActions::lead()` keeps those the role allows.
+  - `LeadVisibility::scopeFor()` gives `CrmLeadRepository` what a user sees: their own leads; with `crm.records.team` also those owned by the people of their teams and those given to their teams (`SalesTeamRepository::teamsOf`); with `crm.records.all` every one; with `crm.leads.assign` the queue (no owner). Always only at their locations (`atLocations`). A lead out of sight is a 404; one at a location out of reach, a 403 (`RouteRecords::CRM_LEAD`).
+  - `LeadAssignments` lists who a lead can be given to (members holding `crm.leads.view`, from `NotificationAudience::membersWithPermission`, and the owner), checks the owner can use the lead's location, and sends `leads.assigned` (the `leads` notification kind).
+  - `EnsureCrmUsesLeads` (the `crm.leads` middleware) lets the leads' routes only read in Opportunities Only mode, and `AllowedActions::lead()` then offers no steps.
+  - `CrmSettingService::start()` starts the lists and the pipeline: Settings → CRM, the lead form's options and adding a list entry all call it.
+- `WorkspaceMemberRepository::RELATIONS` loads each member's user with their first and last name, so `$member->user->name` is set.
+- A lead's qualification (Doc 17 Phase B2a, migration 000165) is seven columns on `crm_leads` (`CrmLead::QUALIFICATION_FIELDS`). Its interested items are `crm_lead_items` (`CrmLeadItem`: an `item_id` or none, `name`, `quantity`, `position`):
+  - `LeadInterests` checks the items sent against the business's and keeps an item's name; `CrmLeadRepository::replaceItems()` replaces them whole, and only when `interested_items` is sent.
+  - `crm_settings.qualification_required` lists what qualifying needs, as keys of `CrmLead::QUALIFYING`; null means `CrmSetting::QUALIFICATION_DEFAULT` (the customer need).
+  - `LeadQualification::missing()` works out what a lead lacks: Qualify's refusal and the lead's `qualification_missing` both use it.
+- `RouteRecords` finds a route's record by the start of its name, the first that fits.
+  - A family inside another's prefix goes before it: `api.sales.deliveries.` before `api.sales.`.
+  - A route whose `{id}` is another kind of record goes in `ROUTES`: a new delivery takes its order's id.
+  - A prefix mapped to null is checked at no location.
+  - When a new kind of record gets routes under an existing prefix, add it there, with its model in `RecordLocationRepository`, and in `FileLinkService` if it has files.
+- A lead's files, comments and timeline (Doc 17 Phase B2b) are Doc 14's, under `/crm/leads/{id}/attachments`, `/comments` and `/activity`:
+  - `CrmLeadAttachmentController` finds the lead through `CrmLeadService::find()`, so it answers only for whoever sees the lead.
+  - `DiscussedRecords` knows the `crm` family. Its `DiscussedRecord` carries `sees`: `LeadVisibility::sees()`, for any user, narrows who a comment may mention. `RecordActivityRepository::forLead()` reads the timeline, and CRM has no values permission, so it shows in full.
+  - `FileLinkService` opens a lead's file only for someone who sees the lead.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -2108,6 +2311,8 @@ Each of these is yours to settle.
 - Which admin roles open support sessions with edit access? Today only the Super Admin, until a role is given "Support session edit" in Admin > Roles.
 - Should Admin > Users treat phone numbers typed differently ("+880 1711-000000" and "+8801711000000") as the same for its shared-phone alert? Today only the same typing matches.
 - Should an advance paid back to the customer be a refund of its own (money out, with its receipt), rather than a reversal? Today it is reversed, which takes it out of the account's balance as if it never came.
+- Should Settings → CRM let a business rename lead statuses (17.26 lists "Lead statuses" there)? Doc 17 Phase B1 keeps the seven fixed, since 17.7's rules hang on them.
+- May a member take a lead from the queue without Assign Leads? Today only someone who may assign leads sees the queue and gives its leads out.
 
 ## Deploying to a server
 
@@ -2152,4 +2357,8 @@ Each of these is yours to settle.
 - Doc 16 Phase H1: migration 000161 adds the rest of Settings → Sales (`new_sales_start_as` invoice, `default_price_list_id`, `deposit_percent`, `backorders` ask, `default_shipping_terms`, `salesperson_is_creator` off), so nothing changes until a business chooses. Deploy the frontend with it: the navigation now carries `workspace.sales`.
 - Doc 17 Phase A1: migration 000162 adds `crm_settings` and `crm_options`, and changes the CRM menu where it exists: Deals becomes Opportunities (`/crm/opportunities`), Leads gets the `crm_uses_leads` show-if, and Customers is added. Deploy the frontend with it, which renames the page. A business's lists start the first time its CRM settings are read, so no seeding is needed.
 - Doc 17 Phase A2: migration 000163 adds `crm_pipelines`, `crm_stages` and `sales_teams.manager_id`. A business's pipeline starts the first time its CRM settings are read. Deploy the frontend with it: the team form now reads its people from `/business-settings/sales-teams/people`.
+- Doc 17 Phase B1: migration 000164 adds `crm_leads` and gives the Leads menu item the leads' View (`crm.leads.view`). Deploy the frontend with it (the Leads placeholder page is replaced). Restart the queue workers: a lead's new owner is told by e-mail through them. Existing roles need the lead permissions granted in Settings → Users & Roles.
+- Doc 17 Phase B2a: migration 000165 adds a lead's qualification columns, `crm_lead_items` and `crm_settings.qualification_required`. Deploy the frontend with it. From then on Qualify needs a lead's customer need, unless Settings → CRM says otherwise.
+- Doc 17 Phase B2b: no migration. Deploy the frontend with it (a lead's page gains its files, comments and timeline).
+- The fix of Doc 16's record locations (2026-11-16): backend only, no migration.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

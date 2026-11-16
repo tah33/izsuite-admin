@@ -24,13 +24,22 @@ class BusinessExportRepository
         return DB::table($table)->where('workspace_id', $workspaceId)->orderBy('id')->lazy(500);
     }
 
-    /** $table's rows under the rows of $parent that belong to business $workspaceId, joined by $foreignKey. */
-    public function childRows(string $table, string $foreignKey, string $parent, int $workspaceId): LazyCollection
+    /**
+     * $table's rows under the rows of $parent that belong to business
+     * $workspaceId, joined by $foreignKey, in order of $order: its id, or -
+     * a table that only links two records - the columns that are its key.
+     *
+     * @param  list<string>  $order
+     */
+    public function childRows(string $table, string $foreignKey, string $parent, int $workspaceId, array $order = ['id']): LazyCollection
     {
-        return DB::table($table)
-            ->whereIn($foreignKey, DB::table($parent)->select('id')->where('workspace_id', $workspaceId))
-            ->orderBy('id')
-            ->lazy(500);
+        $query = DB::table($table)->whereIn($foreignKey, DB::table($parent)->select('id')->where('workspace_id', $workspaceId));
+
+        foreach ($order as $column) {
+            $query->orderBy($column);
+        }
+
+        return $query->lazy(500);
     }
 
     /** The business's members: who they are, their role, and since when - not their account's secrets. */

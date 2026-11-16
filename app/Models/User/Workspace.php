@@ -337,6 +337,12 @@ class Workspace extends Model
         return $this->hasMany(CrmPipeline::class);
     }
 
+    /** Its leads (Doc 17 Phase B1). */
+    public function crmLeads(): HasMany
+    {
+        return $this->hasMany(CrmLead::class);
+    }
+
     /** How each kind of document is numbered - a row only where a default was changed. */
     public function documentNumbering(): HasMany
     {
