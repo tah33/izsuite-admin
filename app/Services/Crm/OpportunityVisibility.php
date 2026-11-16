@@ -2,6 +2,7 @@
 
 namespace App\Services\Crm;
 
+use App\Models\User\CrmOpportunity;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 
@@ -26,5 +27,24 @@ class OpportunityVisibility
     public function scopeFor(Workspace $workspace, User $user): array
     {
         return [...$this->leads->scopeFor($workspace, $user), 'queue' => false];
+    }
+
+    /**
+     * Whether $user sees $opportunity - for anyone, not only the signed-in
+     * user: who a comment on it may mention, and whose its files are (Phase
+     * D2b). Their View Opportunities is the caller's to check.
+     */
+    public function sees(Workspace $workspace, User $user, CrmOpportunity $opportunity): bool
+    {
+        $scope = $this->scopeFor($workspace, $user);
+
+        if ($scope['location_ids'] !== null && ! in_array($opportunity->location_id, $scope['location_ids'], true)) {
+            return false;
+        }
+
+        return $scope['all']
+            || $opportunity->owner_id === $user->id
+            || in_array($opportunity->owner_id, $scope['member_ids'], true)
+            || in_array($opportunity->sales_team_id, $scope['team_ids'], true);
     }
 }

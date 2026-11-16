@@ -6,19 +6,21 @@ use App\Enums\DocumentType;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Services\Api\Crm\CrmLeadService;
+use App\Services\Api\Crm\CrmOpportunityService;
 use App\Services\Api\Expenses\ExpenseService;
 use App\Services\Api\Purchases\PurchaseService;
 use App\Services\Api\Sales\SalesDocumentService;
 use App\Services\Crm\LeadVisibility;
+use App\Services\Crm\OpportunityVisibility;
 use Illuminate\Http\Request;
 
 /**
  * Finds the record a comments or activity route is about (Doc 14 Phase D):
- * a sales document of its {kind}, a purchase, an expense or - Doc 17 Phase
- * B2b - a lead of the business. Another business's record, or one of
- * another kind, is a 404, as on its own page; so is a lead the user does
- * not see. The route's middleware has already checked the app, the View
- * permission and the location.
+ * a sales document of its {kind}, a purchase, an expense or - Doc 17 Phases
+ * B2b and D2b - a lead or an opportunity of the business. Another business's
+ * record, or one of another kind, is a 404, as on its own page; so is a lead
+ * or an opportunity the user does not see. The route's middleware has
+ * already checked the app, the View permission and the location.
  */
 class DiscussedRecords
 {
@@ -28,16 +30,19 @@ class DiscussedRecords
         protected ExpenseService $expenseService,
         protected CrmLeadService $crmLeadService,
         protected LeadVisibility $leadVisibility,
+        protected CrmOpportunityService $crmOpportunityService,
+        protected OpportunityVisibility $opportunityVisibility,
     ) {}
 
-    /** $family is the route's: "sales", "purchases", "expenses" or "crm". $kind is a sales route's {kind}. */
+    /** $family is the route's: "sales", "purchases", "expenses", "crm" (leads) or "opportunities". $kind is a sales route's {kind}. */
     public function find(Workspace $workspace, string $family, ?string $kind, int $id): DiscussedRecord
     {
         return match ($family) {
-            'sales'     => $this->sales($workspace, (string) $kind, $id),
-            'purchases' => $this->purchase($workspace, $id),
-            'expenses'  => $this->expense($workspace, $id),
-            'crm'       => $this->lead($workspace, $id),
+            'sales'         => $this->sales($workspace, (string) $kind, $id),
+            'purchases'     => $this->purchase($workspace, $id),
+            'expenses'      => $this->expense($workspace, $id),
+            'crm'           => $this->lead($workspace, $id),
+            'opportunities' => $this->opportunity($workspace, $id),
         };
     }
 
@@ -48,6 +53,15 @@ class DiscussedRecords
 
         return new DiscussedRecord($lead, 'crm', 'crm.leads.view', $this->crmLeadService->describe($lead), "/crm/leads/{$lead->id}",
             fn (User $user) => $this->leadVisibility->sees($workspace, $user, $lead));
+    }
+
+    /** An opportunity the signed-in user sees, the same way. */
+    private function opportunity(Workspace $workspace, int $id): DiscussedRecord
+    {
+        $opportunity = $this->crmOpportunityService->find($workspace, app(Request::class)->user(), $id);
+
+        return new DiscussedRecord($opportunity, 'opportunities', 'crm.opportunities.view', $this->crmOpportunityService->describe($opportunity), "/crm/opportunities/{$opportunity->id}",
+            fn (User $user) => $this->opportunityVisibility->sees($workspace, $user, $opportunity));
     }
 
     private function sales(Workspace $workspace, string $kind, int $id): DiscussedRecord

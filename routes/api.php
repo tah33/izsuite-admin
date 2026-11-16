@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\CrmLeadController;
 use App\Http\Controllers\Api\CrmLeadConversionController;
 use App\Http\Controllers\Api\CrmLeadDuplicateController;
 use App\Http\Controllers\Api\CrmLeadFlowController;
+use App\Http\Controllers\Api\CrmOpportunityAttachmentController;
 use App\Http\Controllers\Api\CrmOpportunityClosingController;
 use App\Http\Controllers\Api\CrmOpportunityController;
 use App\Http\Controllers\Api\CrmOpportunityFlowController;
@@ -914,6 +915,16 @@ Route::prefix('v1')->group(function () {
         Route::post('/{id}/reopen', [CrmOpportunityClosingController::class, 'reopen'])->whereNumber('id')->name('api.crm.opportunities.reopen');
         Route::post('/{id}/archive', [CrmOpportunityFlowController::class, 'archive'])->whereNumber('id')->name('api.crm.opportunities.archive');
         Route::post('/{id}/restore', [CrmOpportunityFlowController::class, 'restore'])->whereNumber('id')->name('api.crm.opportunities.restore');
+
+        // Its files, comments and activity timeline (Phase D2b), Doc 14's.
+        Route::get('/{id}/attachments', [CrmOpportunityAttachmentController::class, 'index'])->whereNumber('id')->name('api.crm.opportunities.attachments.index');
+        Route::post('/{id}/attachments', [CrmOpportunityAttachmentController::class, 'store'])->whereNumber('id')->name('api.crm.opportunities.attachments.store');
+        Route::delete('/{id}/attachments/{fileId}', [CrmOpportunityAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.crm.opportunities.attachments.destroy');
+        Route::get('/{id}/activity', RecordActivityController::class)->whereNumber('id')->defaults('family', 'opportunities')->name('api.crm.opportunities.activity');
+        Route::get('/{id}/comments', [RecordCommentController::class, 'index'])->whereNumber('id')->defaults('family', 'opportunities')->name('api.crm.opportunities.comments.index');
+        Route::get('/{id}/comments/people', [RecordCommentController::class, 'people'])->whereNumber('id')->defaults('family', 'opportunities')->name('api.crm.opportunities.comments.people');
+        Route::post('/{id}/comments', [RecordCommentController::class, 'store'])->whereNumber('id')->defaults('family', 'opportunities')->middleware('idempotent')->name('api.crm.opportunities.comments.store');
+        Route::delete('/{id}/comments/{commentId}', [RecordCommentController::class, 'destroy'])->whereNumber(['id', 'commentId'])->defaults('family', 'opportunities')->name('api.crm.opportunities.comments.destroy');
     });
 
     /* ----------------------------------------------------------

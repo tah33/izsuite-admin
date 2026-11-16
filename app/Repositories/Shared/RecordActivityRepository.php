@@ -4,6 +4,7 @@ namespace App\Repositories\Shared;
 
 use App\Models\Shared\ActivityLog;
 use App\Models\User\CrmLead;
+use App\Models\User\CrmOpportunity;
 use App\Models\User\Expense;
 use App\Models\User\ExpensePayment;
 use App\Models\User\Purchase;
@@ -52,6 +53,12 @@ class RecordActivityRepository
     public function forLead(CrmLead $lead, int $limit): Collection
     {
         return $this->entries($lead->workspace_id, fn (Builder $query) => $this->about($query, CrmLead::class, [$lead->id]), $limit);
+    }
+
+    /** An opportunity's own entries (Phase D2b): added, changed, given, moved, won or lost, reopened, archived, its comments and files. */
+    public function forOpportunity(CrmOpportunity $opportunity, int $limit): Collection
+    {
+        return $this->entries($opportunity->workspace_id, fn (Builder $query) => $this->about($query, CrmOpportunity::class, [$opportunity->id]), $limit);
     }
 
     /** @param  list<int>|Builder  $ids */

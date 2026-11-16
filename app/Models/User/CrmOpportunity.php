@@ -3,6 +3,7 @@
 namespace App\Models\User;
 
 use App\Models\Concerns\AtLocation;
+use App\Models\Concerns\HasFiles;
 use App\Models\Concerns\RecordsAuthors;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,11 +17,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * to stage, each stage it is at kept (see CrmStageVisit). Phase D2a wins,
  * loses, reopens and archives them: how one ended is kept on it until it is
  * reopened, and an archived one no longer changes until it is restored.
- * Nothing about an opportunity is a sale.
+ * Phase D2b gives it files in the "attachments" collection, comments and a
+ * timeline. Nothing about an opportunity is a sale.
  */
 class CrmOpportunity extends Model
 {
     use AtLocation;
+    use HasFiles;
     use RecordsAuthors;
 
     public const OPEN = 'open';

@@ -4,6 +4,7 @@ namespace App\Services\Api\Files;
 
 use App\Models\User\Contact;
 use App\Models\User\CrmLead;
+use App\Models\User\CrmOpportunity;
 use App\Models\User\Expense;
 use App\Models\User\ExpensePayment;
 use App\Models\User\Item;
@@ -17,6 +18,7 @@ use App\Models\User\Workspace;
 use App\Models\User\WorkspaceFile;
 use App\Repositories\User\WorkspaceFileRepository;
 use App\Services\Crm\LeadVisibility;
+use App\Services\Crm\OpportunityVisibility;
 use App\Services\Files\FileStorage;
 use App\Services\Shared\LocationAccess;
 use App\Services\Shared\WorkspaceAccess;
@@ -40,6 +42,7 @@ class FileLinkService
         SupplierPayment::class => 'purchases.payments.view',
         ExpensePayment::class  => 'expenses.payments.view',
         CrmLead::class         => 'crm.leads.view',
+        CrmOpportunity::class  => 'crm.opportunities.view',
         // The full Sales app's (Doc 16).
         SalesDelivery::class   => 'sales.deliveries.view',
         SalesReturn::class     => 'sales.returns.view',
@@ -54,6 +57,7 @@ class FileLinkService
         Expense::class         => RouteRecords::EXPENSE,
         ExpensePayment::class  => RouteRecords::EXPENSE_PAYMENT,
         CrmLead::class         => RouteRecords::CRM_LEAD,
+        CrmOpportunity::class  => RouteRecords::CRM_OPPORTUNITY,
         SalesDelivery::class   => RouteRecords::SALES_DELIVERY,
         SalesReturn::class     => RouteRecords::SALES_RETURN,
     ];
@@ -64,14 +68,15 @@ class FileLinkService
         protected WorkspaceAccess $access,
         protected LocationAccess $locationAccess,
         protected LeadVisibility $leadVisibility,
+        protected OpportunityVisibility $opportunityVisibility,
     ) {}
 
     /**
      * One of the business's files, if the user may see the record it is
      * attached to - a sales document's by its kind - at its location; a
-     * lead's, only if they see the lead (Doc 17 Phase B2b). The logo and a
-     * template's signature are every member's. Another business's file
-     * answers like one that does not exist.
+     * lead's or an opportunity's, only if they see it (Doc 17 Phases B2b and
+     * D2b). The logo and a template's signature are every member's. Another
+     * business's file answers like one that does not exist.
      */
     public function find(Workspace $workspace, int $id): WorkspaceFile
     {
@@ -94,6 +99,12 @@ class FileLinkService
             $lead = $this->workspaceFileRepository->attachableOf($file);
 
             abort_unless($lead && $this->leadVisibility->sees($workspace, app(Request::class)->user(), $lead), 404, 'File not found.');
+        }
+
+        if ($file->attachable_type === CrmOpportunity::class) {
+            $opportunity = $this->workspaceFileRepository->attachableOf($file);
+
+            abort_unless($opportunity && $this->opportunityVisibility->sees($workspace, app(Request::class)->user(), $opportunity), 404, 'File not found.');
         }
 
         return $file;

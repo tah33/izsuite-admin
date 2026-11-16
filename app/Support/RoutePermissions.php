@@ -371,6 +371,15 @@ final class RoutePermissions
             'api.crm.opportunities.reopen'  => 'crm.opportunities.reopen',
             'api.crm.opportunities.archive' => 'crm.opportunities.manage',
             'api.crm.opportunities.restore' => 'crm.opportunities.manage',
+            // Its files, comments and timeline (Phase D2b): whoever sees it reads and comments; files are changed with Create and Edit.
+            'api.crm.opportunities.attachments.index'   => 'crm.opportunities.view',
+            'api.crm.opportunities.attachments.store'   => 'crm.opportunities.manage',
+            'api.crm.opportunities.attachments.destroy' => 'crm.opportunities.manage',
+            'api.crm.opportunities.activity'            => 'crm.opportunities.view',
+            'api.crm.opportunities.comments.index'      => 'crm.opportunities.view',
+            'api.crm.opportunities.comments.people'     => 'crm.opportunities.view',
+            'api.crm.opportunities.comments.store'      => 'crm.opportunities.view',
+            'api.crm.opportunities.comments.destroy'    => 'crm.opportunities.view',
             // Customer advances and credit applied to invoices (Doc 16 Phase D1).
             'api.sales.advances.index'                 => 'sales.advances.view',
             'api.sales.advances.show'                  => 'sales.advances.view',

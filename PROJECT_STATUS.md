@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-16
-- **Code:** Doc 17 Phase D2a (won, lost, reopening and archiving) is committed: frontend `3f475e6` on `nuxt`, and on `main` the admin commit right after `e7e967d`.
-- **Tests:** 952 backend tests pass (last full run 2026-11-16, on the first PC, on this code).
-- **Next step:** Doc 17 Phase D2b: an opportunity's files, comments and timeline (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase D2b (an opportunity's files, comments and timeline) is committed: frontend `b514ca8` on `nuxt`, and on `main` the admin commit right after `f052a9d`.
+- **Tests:** 955 backend tests pass (last full run 2026-11-16, on the first PC, on this code).
+- **Next step:** Doc 17 Phase D3: pipelines (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase D2a the latest is 000170. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase D2b the latest is 000170. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase D2b.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase D3.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check and Phases A to C done, D1 and D2a built (2026-11-16), Phase D2b next** |
+| **17** | **CRM** | **In progress: gap check and Phases A to C, D1 and D2 done (D2b built 2026-11-16), Phase D3 next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase D2b)
+### 5. Doc 17: CRM (next: Phase D3)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -1759,6 +1759,28 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - Archive from More: "Opportunity archived.", the Lost and Archived pills, the archived banner, and only Restore. The list showed it only under Archived (open, lost and all left it out). Restore brought it back, still lost.
   - The opportunity, its stages, the CRM lists, the app's state, the sign-in and the activity were then put back.
 
+**Phase D2b: an opportunity's files, comments and timeline** (sections 17.12 and 17.13) is built, with these defaults - Doc 14's, as leads have them (Phase B2b). Phase D2 is done.
+
+- **Attachments:** a proposal, requirements, photos.
+  - Seen by whoever sees the opportunity.
+  - Added and removed with Create and Edit, in any status but archived.
+  - Counted toward storage. Not in Documents (section 17.31).
+- **Comments with mentions:** whoever sees it comments, in any status. A mention offers only the people who see the opportunity, and tells them under Comments and mentions.
+- **Its timeline**, from the Activity Log, newest first: adding it, its changes, owners, stage moves, won and lost, reopening, archiving, its files and comments.
+- **The lead it came from** keeps its own files, comments and timeline, on its page: the opportunity links to it.
+- **A legal hold** stops its files and comments being removed, as for leads.
+- **Found while checking:** the timeline listed what a stage move's save touched ("Stage ID: 1 → 2", "Stage entered at" in UTC).
+  - A move now shows the stages by name and the probability.
+  - Won, lost and reopened show the status, stage, probability, and the value or lost reason, competitor and follow-up day.
+  - Archiving, restoring and giving it to someone show no list: their words say it.
+  - An edit's list stays as for every record: the fields it changed.
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with CRM switched on by hand:
+  - "Chowdhury & Sons - office fit-out" was added through the API. Its page had the Attachments panel and the Comments and Activity panel.
+  - A PDF dropped into Upload showed "Attachment added." and its row. A comment posted showed with Comments 1.
+  - Change Stage to Qualified, then Proposal. Activity listed the moves, the comment, the attachment and the adding, newest first. The second move read "Stage: Qualified → Proposal, Probability: 25 → 50".
+  - Archived, the panel kept only Download, with no Upload or Remove, and the comment box stayed.
+  - The opportunity, its file (and the stored copy), the comment, the CRM lists, the app's state, the sign-in and the activity were then put back.
+
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## Testing checklist
@@ -1777,6 +1799,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phases C1, C2, C3 | 000166, 000167, 000168 |
 | Doc 17: Phase D1 | 000169 |
 | Doc 17: Phase D2a | 000170 |
+| Doc 17: Phase D2b | none |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -1941,6 +1964,18 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] Archive (under More) takes it out of the Open, Won, Lost and All lists. The Archived filter shows it. On its page only Restore is offered, and Restore brings it back as it was.
 - [ ] A lost reason an opportunity was lost for cannot be deleted in Settings → CRM; switching it off works.
 - [ ] The Activity Log has each step ('Marked opportunity "…" won', '… lost: …', 'Reopened … at …', 'Archived …', 'Restored …').
+
+**Phase D2b: an opportunity's files, comments and timeline**
+
+**Before you start:** an open opportunity owned by you, a member who sees every opportunity (View plus View All CRM Records), and one who sees only their own.
+
+- [ ] Upload a file on its page. It is listed, it downloads, and Storage & Usage counts it. Remove takes it away again.
+- [ ] As the member who sees every opportunity: the file opens, but there is no Upload or Remove without Create and Edit.
+- [ ] As the member who sees only their own: the opportunity, its files and its comments are not found, even through a file's link.
+- [ ] A comment mentioning both members tells only the one who sees the opportunity (bell and e-mail), with a link to its comments.
+- [ ] Activity lists, newest first, its adding, each move ("Stage: … → …", "Probability: … → …"), won or lost, reopening, archiving, its files and comments.
+- [ ] Archived: no Upload or Remove, but comments still work. Won or lost: files can still be added.
+- [ ] Under a legal hold, removing its file or comment is refused.
 
 ## How we work
 
@@ -2177,7 +2212,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase C2, possible duplicate leads | `a36021e` | `0b6e9ef` | 000167 |
 | Doc 17: Phase C3, merging contacts | `56ca093` | `cdb6659` | 000168 |
 | Doc 17: Phase D1, opportunities themselves | `56ca093` | `cdb6659` | 000169 |
-| Doc 17: Phase D2a, won, lost, reopening and archiving | the commit after `e7e967d` | `3f475e6` | 000170 |
+| Doc 17: Phase D2a, won, lost, reopening and archiving | `f052a9d` | `3f475e6` | 000170 |
+| Doc 17: Phase D2b, an opportunity's files, comments and timeline | the commit after `f052a9d` | `b514ca8` | none |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -2543,6 +2579,10 @@ These are easy to undo by mistake.
   - `CrmOpportunityRules`: open is edit, stage, win, lose, archive; won or lost is reopen, archive; archived is only restore.
   - The ending's columns are `CrmOpportunity::OUTCOME_FIELDS`, cleared by reopening. Winning sets `expected_value` to the final value, and the resource's `outcome` and `archived` carry the rest.
   - The list leaves archived ones out unless its status is `archived`.
+- An opportunity's records (Doc 17 Phase D2b, no migration):
+  - Doc 14's family for it is `opportunities`: the routes' default, in `DiscussedRecords` (with `OpportunityVisibility::sees()` for mentions), `RecordActivityService` / `RecordActivityRepository::forOpportunity()` and `FileLinkService`. The frontend's RecordDiscussion takes `family="crm"`, the app.
+  - `CrmOpportunityService::findForFiles()` refuses an archived one. Comments take any status.
+  - `ActivityLogService::record()` takes `changes` when given, else works them out from the save (`SettingChanges::of()`). The opportunity's steps give theirs through `App\Services\Crm\CrmOpportunityChanges`, or `[]` for none.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left

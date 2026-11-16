@@ -9,6 +9,7 @@ use App\Models\User\Workspace;
 use App\Repositories\User\CrmOpportunityRepository;
 use App\Repositories\User\CrmOptionRepository;
 use App\Services\Api\Sales\RefusesConflicts;
+use App\Services\Crm\CrmOpportunityChanges;
 use App\Services\Crm\CrmOpportunityRules;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\BusinessCalendar;
@@ -51,6 +52,8 @@ class CrmOpportunityClosing
 
         $this->ensureNotLater($workspace, $data['closed_on']);
 
+        $was = $this->snapshot($opportunity);
+
         $this->move($opportunity, $user, $stage, [
             'status'         => CrmOpportunity::WON,
             'probability'    => 100,
@@ -62,6 +65,7 @@ class CrmOpportunityClosing
 
         ActivityLogService::record('updated', 'Marked '.$this->service->describe($opportunity).' won', $opportunity, [
             'source' => 'api', 'status' => CrmOpportunity::WON, 'value' => (string) $opportunity->expected_value, 'closed_on' => $data['closed_on'],
+            'changes' => $this->changes($was, $opportunity, $stage, ['value' => [$was['value'], (string) $opportunity->expected_value], 'won_reason' => [null, $data['reason'] ?? null]]),
         ]);
 
         return $this->shown($workspace, $opportunity);
@@ -80,6 +84,8 @@ class CrmOpportunityClosing
 
         $this->ensureNotLater($workspace, $data['closed_on']);
 
+        $was = $this->snapshot($opportunity);
+
         $this->move($opportunity, $user, $stage, [
             'status'          => CrmOpportunity::LOST,
             'probability'     => 0,
@@ -93,6 +99,11 @@ class CrmOpportunityClosing
 
         ActivityLogService::record('updated', 'Marked '.$this->service->describe($opportunity).' lost: '.Str::limit($reason->name, 80), $opportunity, [
             'source' => 'api', 'status' => CrmOpportunity::LOST, 'lost_reason_id' => $reason->id, 'closed_on' => $data['closed_on'],
+            'changes' => $this->changes($was, $opportunity, $stage, [
+                'lost_reason'  => [null, $reason->name],
+                'competitor'   => [null, $data['competitor'] ?? null],
+                'follow_up_on' => [null, $data['follow_up_on'] ?? null],
+            ]),
         ]);
 
         return $this->shown($workspace, $opportunity);
@@ -111,6 +122,8 @@ class CrmOpportunityClosing
             throw ValidationException::withMessages(['stage_id' => "Choose one of the pipeline's open stages."]);
         }
 
+        $was = $this->snapshot($opportunity);
+
         $this->move($opportunity, $user, $stage, [
             'status'      => CrmOpportunity::OPEN,
             'probability' => $stage->probability,
@@ -119,9 +132,36 @@ class CrmOpportunityClosing
 
         ActivityLogService::record('updated', 'Reopened '.$this->service->describe($opportunity)." at {$stage->name}", $opportunity, [
             'source' => 'api', 'status' => CrmOpportunity::OPEN, 'to_stage' => $stage->id,
+            'changes' => $this->changes($was, $opportunity, $stage),
         ]);
 
         return $this->shown($workspace, $opportunity);
+    }
+
+    /** @return array{status: string, stage: ?string, probability: int, value: string} where it stood before a step */
+    private function snapshot(CrmOpportunity $opportunity): array
+    {
+        return [
+            'status'      => ucfirst($opportunity->status),
+            'stage'       => $opportunity->stage?->name,
+            'probability' => $opportunity->probability,
+            'value'       => (string) $opportunity->expected_value,
+        ];
+    }
+
+    /**
+     * What the step changed, for its timeline (Phase D2b): its status, stage
+     * and probability, and $more - by name, not by the ids and times its
+     * save touched.
+     */
+    private function changes(array $was, CrmOpportunity $opportunity, CrmStage $stage, array $more = []): array
+    {
+        return CrmOpportunityChanges::of([
+            'status'      => [$was['status'], ucfirst($opportunity->status)],
+            'stage'       => [$was['stage'], $stage->name],
+            'probability' => [$was['probability'], $opportunity->probability],
+            ...$more,
+        ]);
     }
 
     /** $id - one $user sees - while it may take $action. */

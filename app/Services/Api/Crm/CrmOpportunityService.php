@@ -101,6 +101,18 @@ class CrmOpportunityService
         return $this->shown($workspace, $this->find($workspace, $user, $id));
     }
 
+    /** One whose files are added or removed (Phase D2b): in any status, but not archived - restored first. */
+    public function findForFiles(Workspace $workspace, User $user, int $id): CrmOpportunity
+    {
+        $opportunity = $this->find($workspace, $user, $id);
+
+        if ($opportunity->isArchived()) {
+            $this->refuse('An archived opportunity is restored before it changes.');
+        }
+
+        return $opportunity;
+    }
+
     /** $opportunity with its weighted values, for its page - after its last save. */
     public function shown(Workspace $workspace, CrmOpportunity $opportunity): CrmOpportunity
     {
@@ -238,7 +250,7 @@ class CrmOpportunityService
         $opportunity = $this->opportunities->loadShown($opportunity);
 
         if ($gaveAway) {
-            ActivityLogService::record('updated', 'Gave '.$this->describe($opportunity)." to {$opportunity->owner?->name}", $opportunity, ['source' => 'api', 'owner_id' => $ownerId]);
+            ActivityLogService::record('updated', 'Gave '.$this->describe($opportunity)." to {$opportunity->owner?->name}", $opportunity, ['source' => 'api', 'owner_id' => $ownerId, 'changes' => []]);
             $this->assignments->notify($workspace, $opportunity, $user);
         }
 

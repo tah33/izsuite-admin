@@ -7,6 +7,7 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\CrmOpportunityRepository;
 use App\Services\Api\Sales\RefusesConflicts;
+use App\Services\Crm\CrmOpportunityChanges;
 use App\Services\Crm\CrmOpportunityRules;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Support\Facades\DB;
@@ -60,6 +61,7 @@ class CrmOpportunityFlow
         }
 
         $probability = $this->service->probability($data, $stage->probability);
+        $before      = $opportunity->probability;
 
         DB::transaction(function () use ($opportunity, $user, $stage, $probability) {
             // Moved by someone else meanwhile: theirs stands, and this one says so.
@@ -71,11 +73,13 @@ class CrmOpportunityFlow
             $this->opportunities->update($opportunity, ['stage_id' => $stage->id, 'probability' => $probability, 'stage_entered_at' => now()]);
         });
 
+        // Its timeline names the stages, not their ids (Phase D2b).
         ActivityLogService::record('updated', 'Moved '.$this->service->describe($opportunity)." from {$from?->name} to {$stage->name}", $opportunity, [
             'source'      => 'api',
             'from_stage'  => $from?->id,
             'to_stage'    => $stage->id,
             'probability' => $probability,
+            'changes'     => CrmOpportunityChanges::of(['stage' => [$from?->name, $stage->name], 'probability' => [$before, $probability]]),
         ]);
 
         return $this->service->shown($workspace, $this->opportunities->loadShown($opportunity));
@@ -91,8 +95,9 @@ class CrmOpportunityFlow
 
         $this->opportunities->update($opportunity, ['archived_at' => $archived ? now() : null, 'archived_by' => $archived ? $user->id : null]);
 
+        // Its words say it all: no columns of who and when in its timeline.
         ActivityLogService::record('updated', ($archived ? 'Archived ' : 'Restored ').$this->service->describe($opportunity), $opportunity, [
-            'source' => 'api', 'archived' => $archived,
+            'source' => 'api', 'archived' => $archived, 'changes' => [],
         ]);
 
         return $this->service->shown($workspace, $this->opportunities->loadShown($opportunity));

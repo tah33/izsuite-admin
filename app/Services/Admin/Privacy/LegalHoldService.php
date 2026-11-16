@@ -49,6 +49,8 @@ class LegalHoldService
         'api.sales.price-lists.destroy',
         // A lead's files and comments (Doc 17 Phase B2b); leads themselves are never deleted.
         'api.crm.leads.attachments.destroy', 'api.crm.leads.comments.destroy',
+        // An opportunity's (Phase D2b); opportunities themselves are never deleted either.
+        'api.crm.opportunities.attachments.destroy', 'api.crm.opportunities.comments.destroy',
     ];
 
     public function __construct(
