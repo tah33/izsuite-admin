@@ -3,7 +3,7 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-16
-- **Code:** Doc 17 Phases C3 (merging contacts) and D1 (opportunities themselves) are committed: frontend `cdb6659` on `nuxt`, and on `main` the admin commit right after `a36021e`.
+- **Code:** Doc 17 Phases C3 (merging contacts) and D1 (opportunities themselves) are committed and pushed: admin `56ca093` on `main`, frontend `cdb6659` on `nuxt`.
 - **Tests:** 948 backend tests pass (last full run 2026-11-16, on the first PC, on this code).
 - **Next step:** Doc 17 Phase D2: won, lost, reopening and archiving (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
@@ -12,7 +12,24 @@ Update this file at the end of every phase and commit it with that phase.
 
 ## Starting on another PC
 
-1. Do the [setup](#setting-up-a-new-pc) below.
+1. On a new PC, do the [setup](#setting-up-a-new-pc) below. On a PC set up already, bring it up to date first:
+   - pull both repos (`main` and `nuxt`);
+   - back up its database if its data matters (the command is under [the setup](#setting-up-a-new-pc), "To bring the same test data");
+   - run the new migrations, then restart the queue workers, so they run the new code;
+   - restart the frontend, so new pages and components show.
+
+   ```bash
+   cd /d/projects/izsuite/izsuite-admin        # izsuite-backend on the second PC
+   git pull
+   docker compose exec -T app php artisan migrate:status | grep -i pending   # what is still to run
+   docker compose exec app php artisan migrate
+   docker compose exec app php artisan queue:restart
+   cd ../izsuite-antigravity                   # izsuite-frontend on the second PC
+   git pull
+   docker compose restart
+   ```
+
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase D1 the latest is 000169. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
    > Read PROJECT_STATUS.md, then start Doc 17 Phase D2.
@@ -1721,6 +1738,16 @@ Manual tests for each phase, to work through one by one once a doc is finished, 
 
 Use a test business. Some tests need a second person with a limited role: in Settings → Users & Roles, make the role, then invite someone with it.
 
+**Before testing on a PC,** bring it up to date as [Starting on another PC](#starting-on-another-pc) says: pull, migrate, restart the queue and the frontend. Each block below needs its phase's migration:
+
+| Block | Migration |
+|---|---|
+| Doc 16: the fix of 2026-11-16 | none |
+| Doc 17: Phases A1, A2 | 000162, 000163 |
+| Doc 17: Phases B1, B2a, B2b | 000164, 000165, none |
+| Doc 17: Phases C1, C2, C3 | 000166, 000167, 000168 |
+| Doc 17: Phase D1 | 000169 |
+
 ### Doc 16: Sales (the fix of 2026-11-16)
 
 **Before you start:** the full Sales app on, two active locations, and a member whose role views sales orders, deliveries and returns, at one location only (Settings → Users & Roles, then their Locations).
@@ -2105,8 +2132,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Fixes: Doc 16's records at their own locations, and the data export's Doc 16 and 17 tables | `78c00df` | | none |
 | Doc 17: Phase C1, converting a lead | `a4c0ab6` | `02e95eb` | 000166 |
 | Doc 17: Phase C2, possible duplicate leads | `a36021e` | `0b6e9ef` | 000167 |
-| Doc 17: Phase C3, merging contacts | the commit after `a36021e` | `cdb6659` | 000168 |
-| Doc 17: Phase D1, opportunities themselves | the commit after `a36021e` | `cdb6659` | 000169 |
+| Doc 17: Phase C3, merging contacts | `56ca093` | `cdb6659` | 000168 |
+| Doc 17: Phase D1, opportunities themselves | `56ca093` | `cdb6659` | 000169 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
