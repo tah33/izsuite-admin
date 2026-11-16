@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\CrmLeadController;
 use App\Http\Controllers\Api\CrmLeadConversionController;
 use App\Http\Controllers\Api\CrmLeadDuplicateController;
 use App\Http\Controllers\Api\CrmLeadFlowController;
+use App\Http\Controllers\Api\CrmOpportunityClosingController;
 use App\Http\Controllers\Api\CrmOpportunityController;
 use App\Http\Controllers\Api\CrmOpportunityFlowController;
 use App\Http\Controllers\Api\CrmOptionController;
@@ -907,6 +908,12 @@ Route::prefix('v1')->group(function () {
         Route::get('/{id}', [CrmOpportunityController::class, 'show'])->whereNumber('id')->name('api.crm.opportunities.show');
         Route::put('/{id}', [CrmOpportunityController::class, 'update'])->whereNumber('id')->name('api.crm.opportunities.update');
         Route::post('/{id}/stage', [CrmOpportunityFlowController::class, 'stage'])->whereNumber('id')->name('api.crm.opportunities.stage');
+        // How it ends (Phase D2a): won or lost, reopened, archived and restored.
+        Route::post('/{id}/win', [CrmOpportunityClosingController::class, 'win'])->whereNumber('id')->name('api.crm.opportunities.win');
+        Route::post('/{id}/lose', [CrmOpportunityClosingController::class, 'lose'])->whereNumber('id')->name('api.crm.opportunities.lose');
+        Route::post('/{id}/reopen', [CrmOpportunityClosingController::class, 'reopen'])->whereNumber('id')->name('api.crm.opportunities.reopen');
+        Route::post('/{id}/archive', [CrmOpportunityFlowController::class, 'archive'])->whereNumber('id')->name('api.crm.opportunities.archive');
+        Route::post('/{id}/restore', [CrmOpportunityFlowController::class, 'restore'])->whereNumber('id')->name('api.crm.opportunities.restore');
     });
 
     /* ----------------------------------------------------------

@@ -19,13 +19,15 @@ class CrmOpportunityOptionsResource extends JsonResource
         $named = fn ($record) => ['id' => $record->id, 'name' => $record->name];
 
         return [
-            'stages'      => $this->resource['stages']->map(fn ($stage) => [...$named($stage), 'probability' => $stage->probability])->values(),
-            'all_stages'  => $this->resource['all_stages']->map($named)->values(),
-            'sources'     => $this->resource['sources']->map($named)->values(),
-            'teams'       => $this->resource['teams']->map($named)->values(),
-            'owners'      => $this->resource['owners'],
-            'location_id' => $this->resource['location_id'],
-            'owner_id'    => $this->resource['owner_id'],
+            'stages'       => $this->resource['stages']->map(fn ($stage) => [...$named($stage), 'probability' => $stage->probability])->values(),
+            'all_stages'   => $this->resource['all_stages']->map($named)->values(),
+            'sources'      => $this->resource['sources']->map($named)->values(),
+            // Phase D2a: what an opportunity is lost for.
+            'lost_reasons' => $this->resource['lost_reasons']->map($named)->values(),
+            'teams'        => $this->resource['teams']->map($named)->values(),
+            'owners'       => $this->resource['owners'],
+            'location_id'  => $this->resource['location_id'],
+            'owner_id'     => $this->resource['owner_id'],
         ];
     }
 }

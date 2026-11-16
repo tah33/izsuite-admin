@@ -112,8 +112,8 @@ final class Permissions
 
         // CRM (Doc 17 section 17.30): each phase adds its own - Phase A1 its settings, B1 leads and whose records are seen.
         'crm.leads'    => ['Leads', 'crm', ['view' => self::VIEW, 'manage' => 'Create and Edit', 'assign' => 'Assign Leads', 'reopen' => 'Reopen Unqualified or Archived', 'convert' => 'Convert Leads']],
-        // Phase D1: opportunities - the stage they are at, and a probability other than the stage's, apart.
-        'crm.opportunities' => ['Opportunities', 'crm', ['view' => self::VIEW, 'manage' => 'Create and Edit', 'stage' => 'Change Stages', 'probability' => 'Change Probability']],
+        // Phase D1: opportunities - the stage they are at, and a probability other than the stage's, apart; D2a their ending.
+        'crm.opportunities' => ['Opportunities', 'crm', ['view' => self::VIEW, 'manage' => 'Create and Edit', 'stage' => 'Change Stages', 'probability' => 'Change Probability', 'close' => 'Mark Won or Lost', 'reopen' => 'Reopen Won or Lost']],
         // Without either, a user sees the CRM records they own (LeadVisibility).
         'crm.records'  => ['CRM Records', 'crm', ['team' => 'View Team Records', 'all' => 'View All CRM Records']],
         'crm.settings' => ['CRM Settings', 'crm', self::APP_SETTINGS],
@@ -311,8 +311,8 @@ final class Permissions
                 ...self::actionsOf('sales.advances', ['view', 'record', 'apply']),
                 // Their own leads (Doc 17 Phase B1).
                 'crm.leads.view', 'crm.leads.manage', 'crm.leads.convert',
-                // And their opportunities (Phase D1), without a probability of their own.
-                'crm.opportunities.view', 'crm.opportunities.manage', 'crm.opportunities.stage',
+                // And their opportunities (Phase D1), won or lost (D2a), without a probability of their own or reopening.
+                'crm.opportunities.view', 'crm.opportunities.manage', 'crm.opportunities.stage', 'crm.opportunities.close',
             ],
 
             'purchase_user' => [

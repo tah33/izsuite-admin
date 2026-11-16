@@ -148,6 +148,11 @@ class CrmSettingService
             $this->refuse('Leads or opportunities came from this source, so it stays. Switch it off instead.');
         }
 
+        // A lost opportunity keeps why it was lost (Phase D2a).
+        if ($option->kind === 'lost_reason' && $this->opportunities->usesLostReason($option)) {
+            $this->refuse('Opportunities were lost for this reason, so it stays. Switch it off instead.');
+        }
+
         $this->options->delete($option);
 
         ActivityLogService::record('deleted', "Deleted {$this->what($option)}", $option, ['source' => 'api']);

@@ -13,8 +13,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * stage of the business's pipeline, with what it may be worth before tax,
  * how likely it is and when it may close. Phase C1 makes them by converting
  * a lead; Phase D1 adds them by hand, changes them and moves them from stage
- * to stage, each stage it is at kept (see CrmStageVisit). Won and lost come
- * with Phase D2. Nothing about an opportunity is a sale.
+ * to stage, each stage it is at kept (see CrmStageVisit). Phase D2a wins,
+ * loses, reopens and archives them: how one ended is kept on it until it is
+ * reopened, and an archived one no longer changes until it is restored.
+ * Nothing about an opportunity is a sale.
  */
 class CrmOpportunity extends Model
 {
@@ -55,7 +57,20 @@ class CrmOpportunity extends Model
         'tags',
         'notes',
         'stage_entered_at',
+        // How it ended (Phase D2a), and archiving it.
+        'closed_on',
+        'closed_by',
+        'won_reason',
+        'lost_reason_id',
+        'lost_competitor',
+        'lost_notes',
+        'follow_up_on',
+        'archived_at',
+        'archived_by',
     ];
+
+    /** What reopening clears: how it ended. */
+    public const OUTCOME_FIELDS = ['closed_on', 'closed_by', 'won_reason', 'lost_reason_id', 'lost_competitor', 'lost_notes', 'follow_up_on'];
 
     /** The column default, so an opportunity just made reads the same as one fetched. */
     protected $attributes = [
@@ -77,7 +92,18 @@ class CrmOpportunity extends Model
         'competitors'         => 'array',
         'tags'                => 'array',
         'stage_entered_at'    => 'datetime',
+        'closed_on'           => 'date:Y-m-d',
+        'closed_by'           => 'integer',
+        'lost_reason_id'      => 'integer',
+        'follow_up_on'        => 'date:Y-m-d',
+        'archived_at'         => 'datetime',
+        'archived_by'         => 'integer',
     ];
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
+    }
 
     public function workspace(): BelongsTo
     {
@@ -123,6 +149,23 @@ class CrmOpportunity extends Model
     public function source(): BelongsTo
     {
         return $this->belongsTo(CrmOption::class, 'source_id');
+    }
+
+    /** Who marked it won or lost (Phase D2a). */
+    public function closer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'closed_by');
+    }
+
+    /** Why it was lost: Settings → CRM's list. */
+    public function lostReason(): BelongsTo
+    {
+        return $this->belongsTo(CrmOption::class, 'lost_reason_id');
+    }
+
+    public function archiver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'archived_by');
     }
 
     /** What it is for (Phase D1), in their order. */

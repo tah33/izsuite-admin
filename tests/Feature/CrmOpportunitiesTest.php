@@ -113,7 +113,7 @@ class CrmOpportunitiesTest extends TestCase
             ->assertJsonPath('data.competitors', ['Bose Ltd', 'Karim & Co'])
             ->assertJsonPath('data.interested_items.0.name', 'Shelving')
             ->assertJsonPath('data.visits.0.stage', 'Qualified')
-            ->assertJsonPath('data.actions', ['edit', 'stage']);
+            ->assertJsonPath('data.actions', ['edit', 'stage', 'win', 'lose', 'archive']);
 
         // A possible sale: the supplier is a customer as well now.
         $this->assertSame('both', $this->contact->fresh()->role);

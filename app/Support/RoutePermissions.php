@@ -365,6 +365,12 @@ final class RoutePermissions
             'api.crm.opportunities.store'   => 'crm.opportunities.manage',
             'api.crm.opportunities.update'  => 'crm.opportunities.manage',
             'api.crm.opportunities.stage'   => 'crm.opportunities.stage',
+            // How it ends (Phase D2a): won or lost, reopened, archived and restored.
+            'api.crm.opportunities.win'     => 'crm.opportunities.close',
+            'api.crm.opportunities.lose'    => 'crm.opportunities.close',
+            'api.crm.opportunities.reopen'  => 'crm.opportunities.reopen',
+            'api.crm.opportunities.archive' => 'crm.opportunities.manage',
+            'api.crm.opportunities.restore' => 'crm.opportunities.manage',
             // Customer advances and credit applied to invoices (Doc 16 Phase D1).
             'api.sales.advances.index'                 => 'sales.advances.view',
             'api.sales.advances.show'                  => 'sales.advances.view',

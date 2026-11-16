@@ -125,20 +125,23 @@ class CrmOpportunityService
      * What an opportunity's form and the page's filters choose from: the
      * pipeline's open stages switched on, with their probabilities, the lead
      * sources and sales teams switched on, the people it can be given to,
-     * and where a new one starts and who owns it.
+     * and where a new one starts and who owns it - and (Phase D2a) the lost
+     * reasons switched on.
      */
     public function options(Workspace $workspace, User $user): array
     {
         $pipeline = $this->pipeline($workspace);
+        $lists    = $this->options->getFor($workspace)->where('is_active', true);
 
         return [
-            'stages'      => $this->openStages($pipeline),
-            'all_stages'  => $pipeline->stages->where('is_active', true)->values(),
-            'sources'     => $this->options->getFor($workspace)->where('kind', 'lead_source')->where('is_active', true)->values(),
-            'teams'       => $this->teams->forWorkspace($workspace, true),
-            'owners'      => $this->assignments->owners($workspace),
-            'location_id' => $this->locationAccess->defaultFor($workspace),
-            'owner_id'    => $user->id,
+            'stages'       => $this->openStages($pipeline),
+            'all_stages'   => $pipeline->stages->where('is_active', true)->values(),
+            'sources'      => $lists->where('kind', 'lead_source')->values(),
+            'lost_reasons' => $lists->where('kind', 'lost_reason')->values(),
+            'teams'        => $this->teams->forWorkspace($workspace, true),
+            'owners'       => $this->assignments->owners($workspace),
+            'location_id'  => $this->locationAccess->defaultFor($workspace),
+            'owner_id'     => $user->id,
         ];
     }
 
@@ -188,7 +191,7 @@ class CrmOpportunityService
         $opportunity = $this->find($workspace, $user, $id);
 
         if (! $this->rules->allows($opportunity, 'edit')) {
-            $this->refuse('A won or lost opportunity is reopened before it is changed.');
+            $this->refuse($opportunity->isArchived() ? 'An archived opportunity is restored before it is changed.' : 'A won or lost opportunity is reopened before it is changed.');
         }
 
         EditConflicts::ensureUnchanged($opportunity, 'this opportunity');

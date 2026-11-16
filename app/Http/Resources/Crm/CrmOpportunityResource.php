@@ -26,6 +26,17 @@ class CrmOpportunityResource extends JsonResource
             'version'             => EditConflicts::version($this->resource),
             'status'              => $this->status,
             'actions'             => app(AllowedActions::class)->opportunity(app(CrmOpportunityRules::class)->actions($this->resource)),
+            // How it ended (Phase D2a): won or lost on a day, by someone - and why, against whom, and when to follow up.
+            'outcome'             => $this->closed_on ? [
+                'on'           => $this->closed_on->toDateString(),
+                'by'           => $this->closer?->name,
+                'won_reason'   => $this->won_reason,
+                'lost_reason'  => $named($this->lostReason),
+                'competitor'   => $this->lost_competitor,
+                'notes'        => $this->lost_notes,
+                'follow_up_on' => $this->follow_up_on?->toDateString(),
+            ] : null,
+            'archived'            => $this->archived_at ? ['at' => $this->archived_at->toIso8601String(), 'by' => $this->archiver?->name] : null,
             'name'                => $this->name,
             'contact'             => $this->contact ? [...$named($this->contact), 'contact_number' => $this->contact->contact_number] : null,
             'contact_person'      => $this->contact_person,

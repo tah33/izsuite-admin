@@ -139,12 +139,17 @@ class AllowedActions
         ]);
     }
 
-    /** An opportunity's (Doc 17 Phase D1), in either way of working. */
+    /** An opportunity's (Doc 17 Phases D1 and D2a), in either way of working. */
     public function opportunity(array $actions): array
     {
         return $this->keep($actions, [
-            'edit'  => 'crm.opportunities.manage',
-            'stage' => 'crm.opportunities.stage',
+            'edit'    => 'crm.opportunities.manage',
+            'stage'   => 'crm.opportunities.stage',
+            'win'     => 'crm.opportunities.close',
+            'lose'    => 'crm.opportunities.close',
+            'reopen'  => 'crm.opportunities.reopen',
+            'archive' => 'crm.opportunities.manage',
+            'restore' => 'crm.opportunities.manage',
         ]);
     }
 

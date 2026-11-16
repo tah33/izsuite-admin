@@ -8,7 +8,8 @@ use Illuminate\Validation\Rule;
 
 /**
  * The Opportunities page's search and filters (Doc 17 Phase D1): a status -
- * open when none, or all - a stage, and an owner ("me" for the user).
+ * open when none, all, or the archived ones (Phase D2a) - a stage, and an
+ * owner ("me" for the user).
  */
 class ListCrmOpportunitiesRequest extends FormRequest
 {
@@ -21,7 +22,7 @@ class ListCrmOpportunitiesRequest extends FormRequest
     {
         return [
             'search'   => ['nullable', 'string', 'max:100'],
-            'status'   => ['nullable', Rule::in(['all', ...CrmOpportunity::STATUSES])],
+            'status'   => ['nullable', Rule::in(['all', 'archived', ...CrmOpportunity::STATUSES])],
             'stage_id' => ['nullable', 'integer'],
             'owner_id' => ['nullable', 'regex:/^(me|[0-9]+)$/'],
         ];

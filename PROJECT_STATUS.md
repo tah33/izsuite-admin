@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-16
-- **Code:** Doc 17 Phases C3 (merging contacts) and D1 (opportunities themselves) are committed and pushed: admin `56ca093` on `main`, frontend `cdb6659` on `nuxt`.
-- **Tests:** 948 backend tests pass (last full run 2026-11-16, on the first PC, on this code).
-- **Next step:** Doc 17 Phase D2: won, lost, reopening and archiving (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase D2a (won, lost, reopening and archiving) is committed: frontend `3f475e6` on `nuxt`, and on `main` the admin commit right after `e7e967d`.
+- **Tests:** 952 backend tests pass (last full run 2026-11-16, on the first PC, on this code).
+- **Next step:** Doc 17 Phase D2b: an opportunity's files, comments and timeline (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase D1 the latest is 000169. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase D2a the latest is 000170. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase D2.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase D2b.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check and Phases A to C done, D1 built (2026-11-16), Phase D2 next** |
+| **17** | **CRM** | **In progress: gap check and Phases A to C done, D1 and D2a built (2026-11-16), Phase D2b next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase D2)
+### 5. Doc 17: CRM (next: Phase D2b)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -1730,6 +1730,35 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - The list showed Proposal 60% and $900.00 in the Weighted (USD) column. Stage, search, "mine" and status filters answered as expected.
   - The opportunity, its stages, the CRM lists, the app's state, the sign-in and the activity were then put back.
 
+**Phase D2** was split on starting it (2026-11-16): D2a, won, lost, reopening and archiving; D2b, an opportunity's files, comments and timeline.
+
+**Phase D2a: won, lost, reopening and archiving** (sections 17.15 and 17.16) is built, with these defaults:
+
+- **Mark Won**, on an open opportunity, with a new Mark Won or Lost permission:
+  - the won date (today to start, never a later day);
+  - the final value, the expected value to start; it becomes its value;
+  - a won reason, optional.
+  - It moves to the pipeline's won stage at 100%, kept in its stage history. It is not a sale: sales come from invoices.
+  - Its sales document, and winning one from a confirmed order, come with Phase F's links to sales documents.
+- **Mark Lost**, with the same permission:
+  - the lost date;
+  - a lost reason from Settings → CRM's list, needed;
+  - the competitor, one of its own or typed in, optional;
+  - notes, and a possible follow-up date.
+  - It moves to the lost stage at 0%.
+- **Reopen**, with a new Reopen Won or Lost permission: back to an open stage - the last one it was at, or another - at that stage's probability. Its won or lost details are cleared; the Activity Log and the stage history keep them.
+- **Archive**, with Create and Edit, in any status: it leaves the lists and no longer changes until it is restored. The list's Archived filter finds it, and reports keep it.
+- **Its page** shows how it ended: the date, who marked it, the value and reason, or the lost reason, competitor, notes and follow-up date.
+- Each step is logged. The Sales User template gets Mark Won or Lost, not Reopen.
+- A lost reason an opportunity was lost for stays in Settings → CRM: it is switched off, not deleted.
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with CRM switched on by hand:
+  - "Elahi Foods - cold room" ($4,200 at Proposal, competitor Frost Tech) was added through the API. Its page offered More (Archive), Edit, Change Stage, Mark Lost and Mark Won.
+  - Mark Won started at today (no later day allowed) and $4,200.00. At $3,900 with a reason: "Marked won.", a Won card with the date, who marked it, $3,900.00 and the reason, 100%, and the stage history Won then Proposal. Only Reopen and Archive were left.
+  - Reopen started at Proposal (50%): "Reopened at Proposal.", the Won card gone, the history Proposal, Won, Proposal.
+  - Mark Lost listed the nine lost reasons and offered Frost Tech as the competitor. Saved with notes and a follow-up day: "Marked lost.", a Lost card with each, 0%, $0.00.
+  - Archive from More: "Opportunity archived.", the Lost and Archived pills, the archived banner, and only Restore. The list showed it only under Archived (open, lost and all left it out). Restore brought it back, still lost.
+  - The opportunity, its stages, the CRM lists, the app's state, the sign-in and the activity were then put back.
+
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## Testing checklist
@@ -1747,6 +1776,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phases B1, B2a, B2b | 000164, 000165, none |
 | Doc 17: Phases C1, C2, C3 | 000166, 000167, 000168 |
 | Doc 17: Phase D1 | 000169 |
+| Doc 17: Phase D2a | 000170 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -1898,6 +1928,19 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] The list searches by name or contact, and filters by status, stage and owner.
 - [ ] Converting a qualified lead gives its opportunity the lead's interested items and a first stage. The lead's Converted card links to it.
 - [ ] Settings → CRM will not remove a stage an opportunity is at or has been at; switching it off works.
+
+**Phase D2a: won, lost, reopening and archiving**
+
+**Before you start:** an open opportunity with a competitor, and a member whose role has Opportunities View and Mark Won or Lost, but not Reopen.
+
+- [ ] Mark Won starts at today and the expected value. A later day is refused. Saved with another value and a reason, the opportunity is Won at 100%, its value is the final one, and a Won card shows the day, who marked it and the reason.
+- [ ] Once won or lost it cannot be edited, moved or marked again. Only Reopen and Archive are offered.
+- [ ] Reopen goes back to the last open stage it was at, with that stage's probability. The Won or Lost card is gone, and the stage history keeps every step.
+- [ ] Mark Lost needs a lost reason and offers the opportunity's competitors. A follow-up day before the lost day is refused. Lost at 0%, its card shows the reason, competitor, notes and follow-up day.
+- [ ] As the member: Mark Won and Mark Lost work, Reopen is not offered.
+- [ ] Archive (under More) takes it out of the Open, Won, Lost and All lists. The Archived filter shows it. On its page only Restore is offered, and Restore brings it back as it was.
+- [ ] A lost reason an opportunity was lost for cannot be deleted in Settings → CRM; switching it off works.
+- [ ] The Activity Log has each step ('Marked opportunity "…" won', '… lost: …', 'Reopened … at …', 'Archived …', 'Restored …').
 
 ## How we work
 
@@ -2134,6 +2177,7 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase C2, possible duplicate leads | `a36021e` | `0b6e9ef` | 000167 |
 | Doc 17: Phase C3, merging contacts | `56ca093` | `cdb6659` | 000168 |
 | Doc 17: Phase D1, opportunities themselves | `56ca093` | `cdb6659` | 000169 |
+| Doc 17: Phase D2a, won, lost, reopening and archiving | the commit after `e7e967d` | `3f475e6` | 000170 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -2494,6 +2538,11 @@ These are easy to undo by mistake.
   - `OpportunityForecast` sets `weighted_value` and `base_weighted_value` on loaded records, one rate read per currency, via `ExchangeRateService::rateOn()` for the business's today. Set on a record, they would be saved with it, so the service's `find()` stays plain and `show()` / `shown()` add them.
   - Each stage it is at is a `crm_stage_visits` row (`CrmStageVisit`, the open one with no `left_at`), made by `CrmOpportunityRepository::enterStage()`. Interested items are `crm_opportunity_items`, checked by LeadInterests.
   - CustomerPicker's `active-contact` prop lists active contacts of any role (`status=active`).
+- How an opportunity ends (Doc 17 Phase D2a, migration 000170):
+  - `CrmOpportunityClosing` wins, loses and reopens, moving it to the pipeline's first won or lost stage switched on, or back to an open one, under a row lock. `CrmOpportunityFlow` archives and restores.
+  - `CrmOpportunityRules`: open is edit, stage, win, lose, archive; won or lost is reopen, archive; archived is only restore.
+  - The ending's columns are `CrmOpportunity::OUTCOME_FIELDS`, cleared by reopening. Winning sets `expected_value` to the final value, and the resource's `outcome` and `archived` carry the rest.
+  - The list leaves archived ones out unless its status is `archived`.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -2599,4 +2648,5 @@ Each of these is yours to settle.
 - Doc 17 Phase C2: migration 000167 adds a lead's match keys - filling them in for the leads there are - and `crm_duplicate_reviews`. Deploy the frontend with it.
 - Doc 17 Phase C3: migration 000168 adds `merged_into_id`, `merged_at` and `merged_by` to contacts. Nothing changes until someone merges. Merge Contacts is a new permission: give it to custom roles that need it. Deploy the frontend with it.
 - Doc 17 Phase D1: migration 000169 adds an opportunity's person, competitors and tags, `crm_opportunity_items` and `crm_stage_visits` (each opportunity there is starts at its stage), and gives Opportunities in the sidebar its View permission. The Opportunities permissions are new: give them to custom roles that need them (the Sales User template has View, Create and Edit, Change Stages). Deploy the frontend with it.
+- Doc 17 Phase D2a: migration 000170 adds how an opportunity ended (won or lost on, by, the won reason, the lost reason, competitor, notes and follow-up day) and its archiving. Mark Won or Lost and Reopen Won or Lost are new permissions: give them to custom roles that need them (the Sales User template has Mark Won or Lost). Deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

@@ -23,12 +23,15 @@ class CrmOpportunityRepository
         'contact:id,name,contact_number', 'owner:id,first_name,last_name', 'team:id,name', 'location:id,name', 'source:id,name',
         'stage:id,name,probability,category', 'pipeline.stages', 'lead:id,name', 'creator:id,first_name,last_name',
         'interestedItems', 'stageVisits.stage:id,name', 'stageVisits.mover:id,first_name,last_name',
+        // How it ended, and who archived it (Phase D2a).
+        'closer:id,first_name,last_name', 'lostReason:id,name', 'archiver:id,first_name,last_name',
     ];
 
     /**
      * The Opportunities page: open ones by expected closing date, soonest
      * first - or those of one status, or all of them - searched by their name
-     * or their contact's, by stage and by owner.
+     * or their contact's, by stage and by owner. Archived ones only show
+     * with the "archived" status (Phase D2a), whatever theirs.
      */
     public function paginateFor(Workspace $workspace, array $filters, array $scope, int $perPage): LengthAwarePaginator
     {
@@ -39,8 +42,9 @@ class CrmOpportunityRepository
             ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $query->where(fn (Builder $query) => $query
                 ->where('name', 'like', "%{$search}%")
                 ->orWhereHas('contact', fn (Builder $query) => $query->where('name', 'like', "%{$search}%"))))
+            ->when($status === 'archived', fn (Builder $query) => $query->whereNotNull('archived_at'), fn (Builder $query) => $query->whereNull('archived_at'))
             ->when($status === null || $status === '', fn (Builder $query) => $query->where('status', CrmOpportunity::OPEN))
-            ->when($status && $status !== 'all', fn (Builder $query) => $query->where('status', $status))
+            ->when($status && ! in_array($status, ['all', 'archived'], true), fn (Builder $query) => $query->where('status', $status))
             ->when($filters['stage_id'] ?? null, fn (Builder $query, $id) => $query->where('stage_id', $id))
             ->when($filters['owner_id'] ?? null, fn (Builder $query, $id) => $query->where('owner_id', $id))
             ->orderBy('expected_close_date')
@@ -121,6 +125,12 @@ class CrmOpportunityRepository
     public function usesSource(CrmOption $source): bool
     {
         return CrmOpportunity::query()->where('source_id', $source->id)->exists();
+    }
+
+    /** Whether an opportunity was lost for $reason (Phase D2a): one that was is switched off, never deleted. */
+    public function usesLostReason(CrmOption $reason): bool
+    {
+        return CrmOpportunity::query()->where('lost_reason_id', $reason->id)->exists();
     }
 
     /**
