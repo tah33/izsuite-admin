@@ -5,6 +5,7 @@ namespace App\Services\Api\Crm;
 use App\Models\User\CrmOption;
 use App\Models\User\Workspace;
 use App\Repositories\User\CrmLeadRepository;
+use App\Repositories\User\CrmOpportunityRepository;
 use App\Repositories\User\CrmOptionRepository;
 use App\Repositories\User\CrmPipelineRepository;
 use App\Repositories\User\CrmSettingRepository;
@@ -39,6 +40,7 @@ class CrmSettingService
         protected CrmPipelineRepository $pipelines,
         protected WorkspaceRepository $workspaces,
         protected CrmLeadRepository $leads,
+        protected CrmOpportunityRepository $opportunities,
     ) {}
 
     /**
@@ -141,9 +143,9 @@ class CrmSettingService
             $this->refuse('izSuite uses this one, so it cannot be deleted. Switch it off instead.');
         }
 
-        // A lead keeps the source it came from (Doc 17 section 17.8).
-        if ($option->kind === 'lead_source' && $this->leads->usesSource($option)) {
-            $this->refuse('Leads came from this source, so it stays. Switch it off instead.');
+        // A lead keeps the source it came from (Doc 17 section 17.8), and so does an opportunity (Phase D1).
+        if ($option->kind === 'lead_source' && ($this->leads->usesSource($option) || $this->opportunities->usesSource($option))) {
+            $this->refuse('Leads or opportunities came from this source, so it stays. Switch it off instead.');
         }
 
         $this->options->delete($option);

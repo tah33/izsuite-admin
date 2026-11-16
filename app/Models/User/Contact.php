@@ -22,6 +22,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * as billing" is the billing one, and its own fields stay empty. Its tax
  * treatment is one of Doc 11's (see TaxTreatment), or none. Its attachments
  * are files in the "attachments" collection.
+ *
+ * One merged into another (Doc 17 Phase C3, see ContactMergeService) is kept,
+ * archived, with its financial records: merged_into_id names the one it was
+ * merged into, and it no longer changes.
  */
 class Contact extends Model
 {
@@ -116,6 +120,7 @@ class Contact extends Model
         'supplier_payment_terms'   => 'integer',
         'tax_treatment'            => TaxTreatment::class,
         'is_active'                => 'boolean',
+        'merged_at'                => 'datetime',
     ];
 
     public static function formatNumber(int $number): string
@@ -138,6 +143,12 @@ class Contact extends Model
     public function isSupplier(): bool
     {
         return $this->role !== self::ROLE_CUSTOMER;
+    }
+
+    /** Merged into another contact (Doc 17 Phase C3): kept for its records, no longer changed. */
+    public function isMerged(): bool
+    {
+        return $this->merged_into_id !== null;
     }
 
     /**
@@ -188,5 +199,23 @@ class Contact extends Model
     public function expenses(): HasMany
     {
         return $this->hasMany(Expense::class);
+    }
+
+    /** The contact it was merged into, if it was. */
+    public function mergedInto(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'merged_into_id');
+    }
+
+    /** Who merged it. */
+    public function merger(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'merged_by');
+    }
+
+    /** The contacts merged into it, the latest first. */
+    public function mergedContacts(): HasMany
+    {
+        return $this->hasMany(self::class, 'merged_into_id')->latest('merged_at')->latest('id');
     }
 }

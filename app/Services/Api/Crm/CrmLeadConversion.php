@@ -123,6 +123,14 @@ class CrmLeadConversion
                 'stage_entered_at'    => now(),
             ]);
 
+            // What the lead was interested in, and its first stage (Phase D1).
+            $this->opportunities->replaceItems($opportunity, $lead->interestedItems->map(fn ($item) => [
+                'item_id'  => $item->item_id,
+                'name'     => $item->name,
+                'quantity' => $item->quantity,
+            ])->all());
+            $this->opportunities->enterStage($opportunity, $stage->id, $user->id);
+
             $this->leads->update($lead, [
                 'status'         => CrmLead::CONVERTED,
                 'contact_id'     => $contact->id,
@@ -158,7 +166,14 @@ class CrmLeadConversion
     private function contact(Workspace $workspace, mixed $id): ?Contact
     {
         if ($id !== null) {
-            return $this->contacts->findFor($workspace, (int) $id) ?? throw ValidationException::withMessages(['contact_id' => 'Choose one of your contacts.']);
+            $contact = $this->contacts->findFor($workspace, (int) $id) ?? throw ValidationException::withMessages(['contact_id' => 'Choose one of your contacts.']);
+
+            // One merged into another (Doc 17 Phase C3) is kept only for its records.
+            if ($contact->isMerged()) {
+                throw ValidationException::withMessages(['contact_id' => 'That contact was merged into another. Choose the one it was merged into.']);
+            }
+
+            return $contact;
         }
 
         if (! $this->access->can('contacts.create')) {

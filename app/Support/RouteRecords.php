@@ -33,6 +33,8 @@ class RouteRecords
 
     public const CRM_LEAD = 'crm_lead';
 
+    public const CRM_OPPORTUNITY = 'crm_opportunity';
+
     // The full Sales app's own records (Doc 16), each at its own location.
     public const SALES_DELIVERY = 'sales_delivery';
 
@@ -72,6 +74,7 @@ class RouteRecords
         'api.payment-accounts.'   => self::PAYMENT_ACCOUNT,
         'api.account-transfers.'  => self::ACCOUNT_TRANSFER,
         'api.crm.leads.'          => self::CRM_LEAD,
+        'api.crm.opportunities.'  => self::CRM_OPPORTUNITY,
     ];
 
     /** The kind of record route $name takes by its {id} - null for none at a location. */

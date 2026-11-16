@@ -37,10 +37,41 @@ class ContactService
         return $this->contactRepository->paginateFor($workspace, $filters, $perPage, $workspace->usesTaxes() && $this->access->can('taxes.view'));
     }
 
-    /** For its own page: with who added it and who last changed it (Doc 14 section 14.5). */
+    /**
+     * For its own page: with who added it and who last changed it (Doc 14
+     * section 14.5), and the contact it was merged into or those merged into
+     * it (Doc 17 Phase C3).
+     */
     public function find(Workspace $workspace, int $id): Contact
     {
-        return $this->recordAuthorRepository->load($this->findOwned($workspace, $id));
+        return $this->recordAuthorRepository->load($this->contactRepository->loadMerges($this->findOwned($workspace, $id)));
+    }
+
+    /** One to change - edit, archive, delete, give attachments: not one merged into another. */
+    public function findChangeable(Workspace $workspace, int $id): Contact
+    {
+        $contact = $this->findOwned($workspace, $id);
+
+        $this->ensureChangeable($contact);
+
+        return $contact;
+    }
+
+    /**
+     * A contact merged into another (Doc 17 Phase C3) is kept as it was, for
+     * its records: the one it was merged into is the one that changes.
+     */
+    public function ensureChangeable(Contact $contact): void
+    {
+        if (! $contact->isMerged()) {
+            return;
+        }
+
+        $into = $this->contactRepository->loadMerges($contact)->mergedInto;
+
+        throw new HttpResponseException(response()->json([
+            'message' => 'This contact was merged into '.($into ? $this->quoted($into) : 'another contact').', so it no longer changes.',
+        ], 409));
     }
 
     /**
@@ -81,7 +112,7 @@ class ContactService
      */
     public function update(Workspace $workspace, int $id, array $data): Contact
     {
-        $contact         = $this->findOwned($workspace, $id);
+        $contact         = $this->findChangeable($workspace, $id);
 
         // Changed by someone else since it was opened: refused (Doc 14 section 22).
         EditConflicts::ensureUnchanged($contact, 'this contact');
@@ -104,7 +135,7 @@ class ContactService
     /** Active: offered for new transactions. Inactive: kept, with its history, but not offered. */
     public function setActive(Workspace $workspace, int $id, bool $active): Contact
     {
-        $contact = $this->findOwned($workspace, $id);
+        $contact = $this->findChangeable($workspace, $id);
 
         $this->contactRepository->update($contact, ['is_active' => $active]);
 
@@ -119,7 +150,7 @@ class ContactService
     /** Only an unused contact can be deleted (Doc 03 section 13): one on a sales document, a purchase or an expense is deactivated instead. */
     public function delete(Workspace $workspace, int $id): void
     {
-        $contact = $this->findOwned($workspace, $id);
+        $contact = $this->findChangeable($workspace, $id);
 
         if ($this->salesDocumentRepository->usesContact($contact)) {
             throw new HttpResponseException(response()->json([
@@ -143,6 +174,13 @@ class ContactService
         if ($this->crmOpportunityRepository->usesContact($contact)) {
             throw new HttpResponseException(response()->json([
                 'message' => 'This contact has CRM opportunities, so it cannot be deleted. Deactivate it instead.',
+            ], 409));
+        }
+
+        // Doc 17 Phase C3: the contacts merged into it point at it for good.
+        if ($this->contactRepository->hasMergedContacts($contact)) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'Other contacts were merged into this one, so it cannot be deleted. Deactivate it instead.',
             ], 409));
         }
 

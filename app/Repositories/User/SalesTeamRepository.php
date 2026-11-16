@@ -3,6 +3,7 @@
 namespace App\Repositories\User;
 
 use App\Models\User\CrmLead;
+use App\Models\User\CrmOpportunity;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesTeam;
 use App\Models\User\Workspace;
@@ -63,11 +64,12 @@ class SalesTeamRepository
         $team->delete();
     }
 
-    /** Whether a sales document or a lead (Doc 17 Phase B1) names $team. */
+    /** Whether a sales document, a lead (Doc 17 Phase B1) or an opportunity (Phase D1) names $team. */
     public function isUsed(SalesTeam $team): bool
     {
         return SalesDocument::query()->where('sales_team_id', $team->id)->exists()
-            || CrmLead::query()->where('sales_team_id', $team->id)->exists();
+            || CrmLead::query()->where('sales_team_id', $team->id)->exists()
+            || CrmOpportunity::query()->where('sales_team_id', $team->id)->exists();
     }
 
     /**

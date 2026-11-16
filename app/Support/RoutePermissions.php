@@ -89,6 +89,10 @@ final class RoutePermissions
             'api.contacts.attachments.destroy' => 'contacts.edit',
             'api.contacts.destroy'             => 'contacts.delete',
             'api.contacts.export'              => 'contacts.export',
+            // Merging another contact into one (Doc 17 Phase C3).
+            'api.contacts.merge.candidates'    => 'contacts.merge',
+            'api.contacts.merge.preview'       => 'contacts.merge',
+            'api.contacts.merge'               => 'contacts.merge',
 
             'api.items.index'              => 'items.view',
             'api.items.show'               => 'items.view',
@@ -354,6 +358,13 @@ final class RoutePermissions
             'api.crm.leads.comments.people'     => 'crm.leads.view',
             'api.crm.leads.comments.store'      => 'crm.leads.view',
             'api.crm.leads.comments.destroy'    => 'crm.leads.view',
+            // Opportunities (Phase D1): who sees which is OpportunityVisibility's; moving one between stages is its own.
+            'api.crm.opportunities.index'   => 'crm.opportunities.view',
+            'api.crm.opportunities.options' => 'crm.opportunities.view',
+            'api.crm.opportunities.show'    => 'crm.opportunities.view',
+            'api.crm.opportunities.store'   => 'crm.opportunities.manage',
+            'api.crm.opportunities.update'  => 'crm.opportunities.manage',
+            'api.crm.opportunities.stage'   => 'crm.opportunities.stage',
             // Customer advances and credit applied to invoices (Doc 16 Phase D1).
             'api.sales.advances.index'                 => 'sales.advances.view',
             'api.sales.advances.show'                  => 'sales.advances.view',

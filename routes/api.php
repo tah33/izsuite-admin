@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\BusinessTaxController;
 use App\Http\Controllers\Api\BusinessUsageController;
 use App\Http\Controllers\Api\ContactAttachmentController;
 use App\Http\Controllers\Api\ContactController;
+use App\Http\Controllers\Api\ContactMergeController;
 use App\Http\Controllers\Api\ContactMessageController;
 use App\Http\Controllers\Api\CountryController;
 use App\Http\Controllers\Api\SalesOverviewController;
@@ -26,6 +27,8 @@ use App\Http\Controllers\Api\CrmLeadController;
 use App\Http\Controllers\Api\CrmLeadConversionController;
 use App\Http\Controllers\Api\CrmLeadDuplicateController;
 use App\Http\Controllers\Api\CrmLeadFlowController;
+use App\Http\Controllers\Api\CrmOpportunityController;
+use App\Http\Controllers\Api\CrmOpportunityFlowController;
 use App\Http\Controllers\Api\CrmOptionController;
 use App\Http\Controllers\Api\CrmPipelineController;
 use App\Http\Controllers\Api\CrmSettingController;
@@ -516,6 +519,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/contacts/{id}/attachments', [ContactAttachmentController::class, 'index'])->whereNumber('id')->name('api.contacts.attachments.index');
         Route::post('/contacts/{id}/attachments', [ContactAttachmentController::class, 'store'])->whereNumber('id')->name('api.contacts.attachments.store');
         Route::delete('/contacts/{id}/attachments/{fileId}', [ContactAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.contacts.attachments.destroy');
+        // Merging another contact into one (Doc 17 Phase C3): its likely copies, a preview, the merge.
+        Route::get('/contacts/{id}/merge/candidates', [ContactMergeController::class, 'candidates'])->whereNumber('id')->name('api.contacts.merge.candidates');
+        Route::get('/contacts/{id}/merge', [ContactMergeController::class, 'preview'])->whereNumber('id')->name('api.contacts.merge.preview');
+        Route::post('/contacts/{id}/merge', [ContactMergeController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.contacts.merge');
 
         Route::get('/items', [ItemController::class, 'index'])->name('api.items.index');
         Route::get('/items/export', [ExportController::class, 'items'])->name('api.items.export');
@@ -886,6 +893,20 @@ Route::prefix('v1')->group(function () {
         Route::get('/{id}/comments/people', [RecordCommentController::class, 'people'])->whereNumber('id')->defaults('family', 'crm')->name('api.crm.leads.comments.people');
         Route::post('/{id}/comments', [RecordCommentController::class, 'store'])->whereNumber('id')->defaults('family', 'crm')->middleware('idempotent')->name('api.crm.leads.comments.store');
         Route::delete('/{id}/comments/{commentId}', [RecordCommentController::class, 'destroy'])->whereNumber(['id', 'commentId'])->defaults('family', 'crm')->name('api.crm.leads.comments.destroy');
+    });
+
+    /* ----------------------------------------------------------
+     | CRM's opportunities (Doc 17 Phase D1), in either way of working:
+     | the Opportunities page, one opportunity, adding and changing one,
+     | and moving it to another stage.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm/opportunities')->group(function () {
+        Route::get('/', [CrmOpportunityController::class, 'index'])->name('api.crm.opportunities.index');
+        Route::get('/options', [CrmOpportunityController::class, 'options'])->name('api.crm.opportunities.options');
+        Route::post('/', [CrmOpportunityController::class, 'store'])->middleware('idempotent')->name('api.crm.opportunities.store');
+        Route::get('/{id}', [CrmOpportunityController::class, 'show'])->whereNumber('id')->name('api.crm.opportunities.show');
+        Route::put('/{id}', [CrmOpportunityController::class, 'update'])->whereNumber('id')->name('api.crm.opportunities.update');
+        Route::post('/{id}/stage', [CrmOpportunityFlowController::class, 'stage'])->whereNumber('id')->name('api.crm.opportunities.stage');
     });
 
     /* ----------------------------------------------------------

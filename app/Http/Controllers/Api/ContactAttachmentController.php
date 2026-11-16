@@ -15,7 +15,8 @@ use Illuminate\Http\Request;
 /**
  * A contact's attachments (Doc 03 sections 5 and 9): documents kept with it,
  * counted toward the business's storage. They download through
- * GET /files/{id}/link.
+ * GET /files/{id}/link. A contact merged into another (Doc 17 Phase C3)
+ * gave its attachments to that one, and takes no more.
  */
 class ContactAttachmentController extends Controller
 {
@@ -43,7 +44,7 @@ class ContactAttachmentController extends Controller
     {
         try {
             $workspace = $this->currentWorkspace($request);
-            $contact   = $this->contactService->find($workspace, $id);
+            $contact   = $this->contactService->findChangeable($workspace, $id);
             $files     = $this->recordFileService->add($workspace, $contact, FileCollection::Attachments, $request->uploads(), $request->field(), $this->record($contact));
 
             return response()->json([
@@ -60,7 +61,7 @@ class ContactAttachmentController extends Controller
     public function destroy(Request $request, int $id, int $fileId): JsonResponse
     {
         try {
-            $contact = $this->contactService->find($this->currentWorkspace($request), $id);
+            $contact = $this->contactService->findChangeable($this->currentWorkspace($request), $id);
             $file    = $this->recordFileService->find($contact, FileCollection::Attachments, $fileId);
 
             $this->recordFileService->remove($contact, FileCollection::Attachments, $file, $this->record($contact));

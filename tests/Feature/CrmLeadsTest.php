@@ -254,7 +254,7 @@ class CrmLeadsTest extends TestCase
         $this->add(['source_id' => $source, 'sales_team_id' => $team])->assertCreated()->assertJsonPath('data.team.name', 'North');
 
         $this->deleteJson("/api/v1/business-settings/crm/options/{$source}")->assertStatus(409)
-            ->assertJsonPath('message', 'Leads came from this source, so it stays. Switch it off instead.');
+            ->assertJsonPath('message', 'Leads or opportunities came from this source, so it stays. Switch it off instead.');
         $this->deleteJson("/api/v1/business-settings/sales-teams/{$team}")->assertUnprocessable()
             ->assertJsonValidationErrors(['team' => 'Sales documents or leads name this team, so it stays: switch it off instead.']);
         $this->assertSame(1, CrmLead::query()->count());

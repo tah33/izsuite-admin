@@ -25,6 +25,8 @@ final class NotificationKinds
         'customers'    => ['Customer responses', 'A customer accepting or declining a quotation, or commenting on a document, through its link.', false, true],
         // Doc 17 Phase B1: CRM's leads.
         'leads'        => ['Leads', 'A lead given to you to follow up.', false, true],
+        // Doc 17 Phase D1.
+        'opportunities' => ['Opportunities', 'An opportunity given to you to follow up.', false, true],
         // Doc 15 sections 15.5 and 15.6: from the admin panel.
         'izsuite'      => ['Messages from izSuite', 'Notices from izSuite about the business, such as a change to its status. Always on; the owner gets them by e-mail as well.', true, false],
     ];

@@ -4,6 +4,7 @@ namespace App\Repositories\User;
 
 use App\Models\User\AccountTransfer;
 use App\Models\User\CrmLead;
+use App\Models\User\CrmOpportunity;
 use App\Models\User\CustomerAdvance;
 use App\Models\User\Expense;
 use App\Models\User\ExpensePayment;
@@ -33,6 +34,7 @@ class RecordLocationRepository
         RouteRecords::EXPENSE_PAYMENT  => ExpensePayment::class,
         RouteRecords::PAYMENT_ACCOUNT  => PaymentAccount::class,
         RouteRecords::CRM_LEAD         => CrmLead::class,
+        RouteRecords::CRM_OPPORTUNITY  => CrmOpportunity::class,
         RouteRecords::SALES_DELIVERY   => SalesDelivery::class,
         RouteRecords::SALES_RETURN     => SalesReturn::class,
         RouteRecords::CUSTOMER_ADVANCE => CustomerAdvance::class,

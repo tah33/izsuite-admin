@@ -86,6 +86,9 @@ class BusinessDataExport
         'price-list-locations' => ['price_list_locations', 'price_list_id', 'price_lists', ['price_list_id', 'location_id']],
         'sales-team-members'   => ['sales_team_members', 'sales_team_id', 'sales_teams', ['sales_team_id', 'user_id']],
         'crm-pipeline-stages'  => ['crm_stages', 'crm_pipeline_id', 'crm_pipelines'],
+        // Doc 17 Phase D1: what an opportunity is for, and each stage it was at.
+        'opportunity-items'    => ['crm_opportunity_items', 'crm_opportunity_id', 'crm_opportunities'],
+        'opportunity-stages'   => ['crm_stage_visits', 'crm_opportunity_id', 'crm_opportunities'],
         'purchase-lines'       => ['purchase_lines', 'purchase_id', 'purchases'],
         'expense-lines'        => ['expense_lines', 'expense_id', 'expenses'],
     ];

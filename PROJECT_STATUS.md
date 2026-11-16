@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-16
-- **Code:** Doc 17 Phase C2 (possible duplicate leads) is committed: frontend `0b6e9ef` on `nuxt`, and on `main` the admin commit right after `a4c0ab6`.
-- **Tests:** 939 backend tests pass (last full run 2026-11-16, on the first PC, on this code).
-- **Next step:** Doc 17 Phase C3: merging contacts (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phases C3 (merging contacts) and D1 (opportunities themselves) are committed: frontend `cdb6659` on `nuxt`, and on `main` the admin commit right after `a36021e`.
+- **Tests:** 948 backend tests pass (last full run 2026-11-16, on the first PC, on this code).
+- **Next step:** Doc 17 Phase D2: won, lost, reopening and archiving (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -15,7 +15,7 @@ Update this file at the end of every phase and commit it with that phase.
 1. Do the [setup](#setting-up-a-new-pc) below.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase C3.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase D2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -42,7 +42,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check and Phases A and B done, C1 and C2 built (2026-11-16), Phase C3 next** |
+| **17** | **CRM** | **In progress: gap check and Phases A to C done, D1 built (2026-11-16), Phase D2 next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1387,7 +1387,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase C3)
+### 5. Doc 17: CRM (next: Phase D2)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -1639,11 +1639,79 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - Link marked the contact Linked. The first lead was then no longer flagged, while the second still was for its contact. Take Back flagged the contact again.
   - The leads, the decisions, the CRM lists, the app's state, the sign-in and the activity were then put back.
 
-**Phase C3: merging contacts** (section 17.21), suggested defaults:
+**Phase C3: merging contacts** (section 17.21) is built, with these defaults. Phase C is done.
 
-- With a new Merge Contacts permission: one contact is kept, and the other's details fill only what the kept one lacks.
-- Its leads, opportunities, comments, files and history move to the kept one; its financial documents stay where they are and are listed, so nothing financial moves silently.
-- The merged contact is archived, not deleted, and the merge is logged on both.
+- **Merge Contacts**, a new permission in the Contacts group (Contacts: Merge), needing Edit. Contacts are shared by every app, so it works with or without CRM. Only the owner and administrators have it to start; no other template gets it.
+- **Starting a merge:** More → Merge Contacts on a contact's page.
+  - The contact's possible copies come first: Doc 03's check by name, phone, e-mail or tax ID, with what matched. Any other contact can be chosen too.
+  - The user says which of the two is kept.
+  - A preview follows, then the merge. A merge cannot be undone.
+- **The kept contact gains only what it lacks:**
+  - each detail it has none of: the trading name, person and job title, e-mail, phone, website, language, default currencies, payment terms and tax information;
+  - an alternative phone, if it has none: the other's number it does not already have;
+  - the other's address, billing and shipping together, only when it has no address (a country alone does not count). Two addresses are never mixed.
+  - Its role widens to both when one is a customer and the other a supplier.
+  - Its tags gain the other's, up to 20. Its notes gain the other's under "Merged from C-000nn Name:", while they fit in 5,000 characters; otherwise they stay on the other only.
+  - Its type, name and credit control stay its own.
+- **What moves to the kept contact:**
+  - the other's leads and opportunities;
+  - its attachments;
+  - its places on price lists, except a list the kept one is already on;
+  - the decisions about it as a lead's possible duplicate, except where that lead already decided about the kept one.
+  - Contacts have no comments or timeline of their own, so nothing else moves. The Activity Log is never rewritten.
+- **What stays with the other contact:** its financial records: sales documents and customer payments, advances, purchases and supplier payments, expenses and their payments. The preview lists how many of each, so nothing financial moves silently.
+- **The other contact is archived, merged into the kept one:**
+  - Its page says into which, when and by whom, and the Contacts list marks it "Merged".
+  - It no longer changes: it cannot be edited, archived or restored, deleted, given attachments, or merged again.
+  - It is no longer offered as a possible duplicate, in lead matches, for lead conversion, or for linking.
+  - The kept contact's page has a Merged Contacts card. A contact others were merged into cannot be deleted.
+- **The Activity Log** has the merge on both contacts: 'Merged contact "B" (C-00022) into "A" (C-00021)'.
+- **Checked in the browser** on the first PC, as `user@izsuite.io`:
+  - Rahman Stores (C-00021, a customer) and Rahman Store (C-00022, a supplier with an attachment) were added. Merge Contacts on the first offered the second ("the same e-mail").
+  - The preview listed the person, website, supplier terms, the other phone as Alternative Phone, Role Both and the tag importer, the notes added, 1 attachment moving and nothing financial staying.
+  - After the merge, the kept page said "Contacts merged.", showed each of those, the Merged Contacts card, both notes and the moved file. It no longer offered Delete.
+  - The merged page showed the Merged pill and the "Merged into Rahman Stores (C-00021) on 16/11/2026" banner. It had no Edit, Archive, Merge, Delete or Upload, and its Edit address showed the banner instead of the form. The list marked it Merged without Edit or Delete. The contact picker for merging and converting left it out.
+  - Keeping the other contact (Nusrat Jahan into Nusrat Jahan Mitu) opened the kept one's page with "Contacts merged.".
+  - The contacts, the file, the numbers, the sign-in and the activity were then put back.
+
+**Phase D: opportunities and pipelines** was split on starting it (2026-11-16):
+- D1, opportunities themselves: the Opportunities page, an opportunity's page, adding and editing one, its owner, its stage moves and probability, and the forecast.
+- D2, won, lost, reopening and archiving, with an opportunity's files, comments and timeline.
+- D3, pipelines: several of them, each stage's stale-after period and required fields, a pipeline for chosen teams or locations.
+- D4, the kanban and calendar views.
+
+**Phase D1: opportunities themselves** (sections 17.12 to 17.14) is built, with these defaults:
+
+- **An opportunity's fields:**
+  - required: name, contact, stage (an open stage of the business's pipeline), owner, location, expected value before tax, currency and expected closing date;
+  - optional: the person to deal with there, interested items, sales team, probability, priority, lead source, competitors (up to ten names), next action, customer requirements, tags and notes.
+  - Campaigns wait for Marketing, custom fields for Phase I, the lost reason for D2.
+  - Its contact is any active contact not merged into another. A supplier becomes a customer as well, as on converting a lead.
+- **Permissions**, a new Opportunities group: View, Create and Edit, Change Stages, Change Probability. The Sales User template gets the first three.
+- **Who sees which:** as with leads: their own; their teams' with View Team Records; every one with View All CRM Records; only at their locations.
+  - Creating and editing include giving it to someone else: an active member who may view opportunities at its location. They hear of it under a new Opportunities notification kind.
+- **The Opportunities page:**
+  - open ones by expected closing date, soonest first, an overdue one marked;
+  - searched by name or contact, and filtered by status, stage and owner;
+  - showing the stage with its probability, the expected and weighted values, and the closing date.
+- **An opportunity's page:**
+  - its details, the lead it came from, and its interested items;
+  - its value: the expected value, the probability, and the weighted value (expected × probability), also in the base currency at today's rate as an estimate;
+  - its stages: where it is now, and each stage it has been at, with when, by whom and how long.
+  - Actions: Edit, Change Stage.
+- **Changing its stage:** to another open stage, with Change Stages. Each move is kept with the time spent at the stage before, and logged. The probability becomes the new stage's.
+- **Probability:** the stage's by default, and changed by hand only with Change Probability, on adding, editing or moving.
+- **Converting a lead** now gives its opportunity the lead's interested items and its first stage.
+- **Kept as they are:** an opportunity is never deleted. Its contact, location and stage stay protected, and the data export includes its stages and items.
+  - A stage an opportunity is at, or has been at, is switched off rather than removed from the pipeline.
+  - A lead source or sales team an opportunity names is not deleted.
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with CRM switched on by hand:
+  - The Opportunities page started empty. Add Opportunity started at New (10%) with the user as owner.
+  - "Bose Electronics - shop fit-out" was added for Bose Electronics at $1,500, with a person to deal with, a next action and a competitor. Its page said "Opportunity added." and showed $150.00 weighted, the six stages, and one stage row: New, now, by the user.
+  - Change Stage offered Qualified, Proposal and Negotiation, with the probability box saying "50, the stage's" for Proposal. After the move: "Moved to Proposal.", 50%, $750.00, and the history Proposal (now) then New.
+  - Edit showed the stage as text, with every field filled in. A probability of 60 and a tag saved: "Opportunity saved.", 60%, $900.00.
+  - The list showed Proposal 60% and $900.00 in the Weighted (USD) column. Stage, search, "mine" and status filters answered as expected.
+  - The opportunity, its stages, the CRM lists, the app's state, the sign-in and the activity were then put back.
 
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
@@ -1775,6 +1843,34 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] A member who sees only their own leads is not shown other people's leads as matches. Without Contacts View, no contacts are shown.
 - [ ] A role without Create and Edit sees the card but no buttons.
 - [ ] The Activity Log keeps each decision ("Linked lead … to contact …", "Marked … as not a duplicate of …", "Took back the decision about …").
+
+**Phase C3: merging contacts**
+
+**Before you start:** two copies of one contact sharing an e-mail or phone: one a customer with an address, notes and a tag; the other a supplier with a website, notes, another tag, an attachment and, if Sales is on, a draft invoice. CRM on, with a lead converted into the second.
+
+- [ ] More → Merge Contacts on the first lists the second first, with what matched. Another contact can be chosen instead; one already merged is not offered.
+- [ ] Review Merge shows what the kept one gains (only what it lacks), its role becoming Both, the tags and notes, what moves (the lead, the opportunity, the attachment) and what stays (the invoice).
+- [ ] After the merge, the kept contact has those details, both notes, the attachment, a Merged Contacts card, and no Delete. The lead and its opportunity now name the kept contact.
+- [ ] The merged contact's page says "Merged into …" with the date and who did it. It has no Edit, Archive, Merge, Delete or Upload, and still lists its invoice.
+- [ ] The Contacts list shows it as Merged, without Edit or Delete. Adding a contact with its name gives no duplicate warning about it.
+- [ ] Keeping the other contact instead opens the other's page after the merge.
+- [ ] A role with Contacts Edit but not Merge has no Merge Contacts in the menu.
+- [ ] The Activity Log has the merge on both contacts ('Merged contact "…" (C-…) into "…" (C-…)').
+
+**Phase D1: opportunities themselves**
+
+**Before you start:** CRM on, a second currency with today's rate (Settings → Currencies), a supplier contact, and a member whose role has Opportunities View, Create and Edit and Change Stages, but not Change Probability.
+
+- [ ] Add Opportunity starts at the first open stage with you as owner. Only open stages are offered, and only active contacts.
+- [ ] Saved for the supplier, the contact becomes Both. The page shows the expected value, the probability and the weighted value, also in the base currency at today's rate.
+- [ ] A closing date already past shows Overdue, on the page and in the list.
+- [ ] Change Stage offers the other open stages. Afterwards the probability is the new stage's, and the stage history shows each stage with when, by whom and how long.
+- [ ] As the member: no Probability box on the form or in Change Stage. Moving is refused without Change Stages.
+- [ ] Giving it to someone else tells them (bell and e-mail, under Opportunities). Someone who may not view opportunities cannot be chosen.
+- [ ] Members see their own opportunities, their teams' with View Team Records, or all with View All CRM Records, only at their locations.
+- [ ] The list searches by name or contact, and filters by status, stage and owner.
+- [ ] Converting a qualified lead gives its opportunity the lead's interested items and a first stage. The lead's Converted card links to it.
+- [ ] Settings → CRM will not remove a stage an opportunity is at or has been at; switching it off works.
 
 ## How we work
 
@@ -2008,7 +2104,9 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase B2b, a lead's files, comments and timeline | `78c00df` | `7812131` | none |
 | Fixes: Doc 16's records at their own locations, and the data export's Doc 16 and 17 tables | `78c00df` | | none |
 | Doc 17: Phase C1, converting a lead | `a4c0ab6` | `02e95eb` | 000166 |
-| Doc 17: Phase C2, possible duplicate leads | the commit after `a4c0ab6` | `0b6e9ef` | 000167 |
+| Doc 17: Phase C2, possible duplicate leads | `a36021e` | `0b6e9ef` | 000167 |
+| Doc 17: Phase C3, merging contacts | the commit after `a36021e` | `cdb6659` | 000168 |
+| Doc 17: Phase D1, opportunities themselves | the commit after `a36021e` | `cdb6659` | 000169 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -2358,6 +2456,17 @@ These are easy to undo by mistake.
   - A lead keeps `match_email`, `match_phone` and `match_business`, filled by its model's `saving` hook through `App\Support\LeadMatchKeys` (tidied as `ContactDuplicates` tidies a contact's).
   - `LeadDuplicates` finds a lead's matches: leads by those keys (`CrmLeadRepository::matching()`, as `LeadVisibility` lets the user see them), and contacts (`ContactRepository::matchingAny()`). It also works out the Leads page's flags, three queries for a whole page.
   - Decisions are `crm_duplicate_reviews` (`CrmDuplicateReview`). Between two leads one is kept on each. `CrmLeadDuplicateService` makes and takes them back and logs them, and `CrmLeadConversion` puts a linked contact first.
+- Merging contacts (Doc 17 Phase C3, migration 000168):
+  - A merged contact has `merged_into_id`, `merged_at` and `merged_by` (`Contact::isMerged()`, relations `mergedInto`, `merger`, `mergedContacts`).
+  - `ContactMergeService` checks and merges under row locks. `ContactMergeFields` works out what the kept one gains (pure, no queries). `ContactMergeRepository` counts and moves the records with plain updates, reading what the kept one has first, because MySQL refuses to update a table through a subquery of itself.
+  - `ContactService::findChangeable()` / `ensureChangeable()` answer 409 for a merged contact: edit, archive, restore, delete and attachments use them.
+  - `ContactRepository::possibleDuplicatesOf()` and `matchingAny()` leave merged contacts out, so Doc 03's warnings, imports, lead matches and conversion do too. `GET /contacts?unmerged=1` is the pickers' list, and CustomerPicker's `unmerged` prop asks for it.
+- Opportunities (Doc 17 Phase D1, migration 000169):
+  - `CrmOpportunityService` and `CrmOpportunityFlow` (stage moves under a row lock), `CrmOpportunityRules` (open: edit, stage), `AllowedActions::opportunity()`.
+  - `OpportunityVisibility` is LeadVisibility's scope without the queue. `OpportunityAssignments` does what LeadAssignments does, under the `opportunities` notice kind.
+  - `OpportunityForecast` sets `weighted_value` and `base_weighted_value` on loaded records, one rate read per currency, via `ExchangeRateService::rateOn()` for the business's today. Set on a record, they would be saved with it, so the service's `find()` stays plain and `show()` / `shown()` add them.
+  - Each stage it is at is a `crm_stage_visits` row (`CrmStageVisit`, the open one with no `left_at`), made by `CrmOpportunityRepository::enterStage()`. Interested items are `crm_opportunity_items`, checked by LeadInterests.
+  - CustomerPicker's `active-contact` prop lists active contacts of any role (`status=active`).
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -2410,6 +2519,7 @@ Each of these is yours to settle.
 - Should an advance paid back to the customer be a refund of its own (money out, with its receipt), rather than a reversal? Today it is reversed, which takes it out of the account's balance as if it never came.
 - Should Settings → CRM let a business rename lead statuses (17.26 lists "Lead statuses" there)? Doc 17 Phase B1 keeps the seven fixed, since 17.7's rules hang on them.
 - May a member take a lead from the queue without Assign Leads? Today only someone who may assign leads sees the queue and gives its leads out.
+- Should a merge be able to move the other contact's financial records too, when the user ticks it (section 17.21 forbids only moving them silently)? Doc 17 Phase C3 leaves them on the merged contact. That contact's statement, credit exposure and open invoices stay apart from the kept one's.
 
 ## Deploying to a server
 
@@ -2460,4 +2570,6 @@ Each of these is yours to settle.
 - The fix of Doc 16's record locations (2026-11-16): backend only, no migration.
 - Doc 17 Phase C1: migration 000166 adds `crm_opportunities` and a lead's conversion columns. Deploy the frontend with it. Existing roles need Convert Leads granted (Settings → Users & Roles).
 - Doc 17 Phase C2: migration 000167 adds a lead's match keys - filling them in for the leads there are - and `crm_duplicate_reviews`. Deploy the frontend with it.
+- Doc 17 Phase C3: migration 000168 adds `merged_into_id`, `merged_at` and `merged_by` to contacts. Nothing changes until someone merges. Merge Contacts is a new permission: give it to custom roles that need it. Deploy the frontend with it.
+- Doc 17 Phase D1: migration 000169 adds an opportunity's person, competitors and tags, `crm_opportunity_items` and `crm_stage_visits` (each opportunity there is starts at its stage), and gives Opportunities in the sidebar its View permission. The Opportunities permissions are new: give them to custom roles that need them (the Sales User template has View, Create and Edit, Change Stages). Deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

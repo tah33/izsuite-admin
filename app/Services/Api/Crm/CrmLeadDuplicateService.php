@@ -97,6 +97,7 @@ class CrmLeadDuplicateService
 
         $contact = $this->access->can('contacts.view') ? $this->contacts->findFor($workspace, $id) : null;
 
-        return $contact ? 'contact "'.Str::limit($contact->name, 100).'"' : throw ValidationException::withMessages(['id' => 'Choose one of your contacts.']);
+        // Not one merged into another (Doc 17 Phase C3): the one it was merged into holds its decisions.
+        return $contact && ! $contact->isMerged() ? 'contact "'.Str::limit($contact->name, 100).'"' : throw ValidationException::withMessages(['id' => 'Choose one of your contacts.']);
     }
 }

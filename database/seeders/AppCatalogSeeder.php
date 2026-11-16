@@ -213,6 +213,7 @@ class AppCatalogSeeder extends Seeder
         '/sales/overview'     => 'sales.values.view',
         '/contacts?role=customer' => 'contacts.view',
         '/crm/leads'          => 'crm.leads.view',
+        '/crm/opportunities'  => 'crm.opportunities.view',
         '/purchases'          => 'purchases.purchases.view',
         '/purchases/payments' => 'purchases.payments.view',
         '/expenses'           => 'expenses.expenses.view',

@@ -65,6 +65,23 @@ class ContactResource extends JsonResource
             'tax_exemption_number'     => $this->tax_exemption_number,
             'notes'                    => $this->notes,
             'is_active'                => $this->is_active,
+            // Merged into another contact (Doc 17 Phase C3): archived, and no longer changed.
+            'merged'                   => $this->merged_into_id !== null,
+
+            // On its own page: the contact it was merged into - when and by whom - or those merged into it
+            'merged_into' => $this->whenLoaded('mergedInto', fn () => $this->mergedInto ? [
+                'id'             => $this->mergedInto->id,
+                'contact_number' => $this->mergedInto->contact_number,
+                'name'           => $this->mergedInto->name,
+                'merged_at'      => $this->merged_at?->toIso8601String(),
+                'merged_by'      => $this->merger?->name,
+            ] : null),
+            'merged_contacts' => $this->whenLoaded('mergedContacts', fn () => $this->mergedContacts->map(fn ($contact) => [
+                'id'             => $contact->id,
+                'contact_number' => $contact->contact_number,
+                'name'           => $contact->name,
+                'merged_at'      => $contact->merged_at?->toIso8601String(),
+            ])->all()),
 
             // Who added it and who last changed it (Doc 14 section 14.5), where it was read with them
             'authors' => $this->whenLoaded('creator', fn () => [

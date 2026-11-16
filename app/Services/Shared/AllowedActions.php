@@ -139,6 +139,15 @@ class AllowedActions
         ]);
     }
 
+    /** An opportunity's (Doc 17 Phase D1), in either way of working. */
+    public function opportunity(array $actions): array
+    {
+        return $this->keep($actions, [
+            'edit'  => 'crm.opportunities.manage',
+            'stage' => 'crm.opportunities.stage',
+        ]);
+    }
+
     /** Whether the business the request is for has the full Sales app on. */
     /** Settings > Sales's Customer Advances, read once a request. */
     private function advancesOn(): bool

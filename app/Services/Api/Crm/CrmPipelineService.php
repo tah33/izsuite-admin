@@ -37,12 +37,12 @@ class CrmPipelineService
             'is_active'   => (bool) ($stage['is_active'] ?? true),
         ], $data['stages']);
 
-        // A stage left out is removed - unless opportunities are in it (Phase C1): those stay where they are.
+        // A stage left out is removed - unless opportunities are in it (Phase C1) or were (Phase D1): those stay, with their history.
         $removed = $pipeline->stages->pluck('id')->diff(array_filter(array_column($stages, 'id')))->values()->all();
         $inUse   = $this->opportunities->stagesInUse($removed);
 
         if ($inUse !== []) {
-            throw ValidationException::withMessages(['stages' => 'Opportunities are in "'.$pipeline->stages->whereIn('id', $inUse)->pluck('name')->implode('", "').'", so it stays: switch it off instead.']);
+            throw ValidationException::withMessages(['stages' => 'Opportunities are or were at "'.$pipeline->stages->whereIn('id', $inUse)->pluck('name')->implode('", "').'", so it stays: switch it off instead.']);
         }
 
         DB::transaction(function () use ($pipeline, $data, $stages) {

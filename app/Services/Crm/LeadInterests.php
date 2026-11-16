@@ -3,6 +3,7 @@
 namespace App\Services\Crm;
 
 use App\Models\User\CrmLead;
+use App\Models\User\CrmOpportunity;
 use App\Models\User\Workspace;
 use App\Repositories\User\ItemRepository;
 use App\Support\Decimal;
@@ -49,8 +50,8 @@ class LeadInterests
         return $rows;
     }
 
-    /** Whether $rows differ from what $lead has: the log names the change. */
-    public function changed(CrmLead $lead, array $rows): bool
+    /** Whether $rows differ from what $lead - or an opportunity (Phase D1) - has: the log names the change. */
+    public function changed(CrmLead|CrmOpportunity $lead, array $rows): bool
     {
         $had = $lead->interestedItems->map(fn ($item) => [$item->item_id, $item->name, $item->quantity === null ? null : (string) $item->quantity])->all();
 

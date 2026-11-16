@@ -1,0 +1,29 @@
+<?php
+
+namespace App\Http\Requests\Api\Crm;
+
+use App\Models\User\CrmOpportunity;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+/**
+ * The Opportunities page's search and filters (Doc 17 Phase D1): a status -
+ * open when none, or all - a stage, and an owner ("me" for the user).
+ */
+class ListCrmOpportunitiesRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'search'   => ['nullable', 'string', 'max:100'],
+            'status'   => ['nullable', Rule::in(['all', ...CrmOpportunity::STATUSES])],
+            'stage_id' => ['nullable', 'integer'],
+            'owner_id' => ['nullable', 'regex:/^(me|[0-9]+)$/'],
+        ];
+    }
+}

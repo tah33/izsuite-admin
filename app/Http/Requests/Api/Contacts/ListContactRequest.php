@@ -31,6 +31,7 @@ class ListContactRequest extends FormRequest
             'tax_treatment' => ['nullable', Rule::enum(TaxTreatment::class)],
             'for_sale'      => ['nullable', 'boolean'],
             'for_purchase'  => ['nullable', 'boolean'],
+            'unmerged'      => ['nullable', 'boolean'],
             'per_page' => ['nullable', 'integer', 'in:10,15,25,50,100'],
             'page'     => ['nullable', 'integer', 'min:1'],
         ];

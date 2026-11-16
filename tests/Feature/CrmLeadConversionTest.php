@@ -176,6 +176,6 @@ class CrmLeadConversionTest extends TestCase
         $pipeline = $this->getJson('/api/v1/business-settings/crm')->json('data.pipelines.0');
         $without  = array_values(array_filter($pipeline['stages'], fn (array $stage) => $stage['name'] !== 'Qualified'));
         $this->putJson("/api/v1/business-settings/crm/pipelines/{$pipeline['id']}", ['name' => $pipeline['name'], 'stages' => $without])->assertUnprocessable()
-            ->assertJsonValidationErrors(['stages' => 'Opportunities are in "Qualified", so it stays: switch it off instead.']);
+            ->assertJsonValidationErrors(['stages' => 'Opportunities are or were at "Qualified", so it stays: switch it off instead.']);
     }
 }
