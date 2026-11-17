@@ -7,6 +7,7 @@ use App\Models\Shared\ActivityLog;
 use App\Models\Shared\RecordComment;
 use App\Models\User\Contact;
 use App\Models\User\CrmActivity;
+use App\Models\User\CrmEmail;
 use App\Models\User\CrmLead;
 use App\Models\User\CrmOpportunity;
 use App\Models\User\SalesDocument;
@@ -31,6 +32,7 @@ use Illuminate\Support\Collection;
  * - the activities done or cancelled: calls with their direction and
  *   outcome, meetings and the rest, for whoever may view activities;
  * - notes: the comments on a lead or an opportunity, the team's own;
+ * - the e-mails sent from it (Phase F3a), and whether each went;
  * - its changes, from the Activity Log: added, changed, given to someone,
  *   moved between stages, won, lost, reopened, archived, converted;
  * - its files, added and removed;
@@ -50,7 +52,7 @@ class CrmTimelineService
     public const SHOWN = 100;
 
     /** What it can be narrowed to. */
-    public const SHOWS = ['all', 'activities', 'notes', 'changes', 'files', 'documents'];
+    public const SHOWS = ['all', 'activities', 'notes', 'emails', 'changes', 'files', 'documents'];
 
     public function __construct(
         protected CrmTimelineRepository $timeline,
@@ -105,6 +107,15 @@ class CrmTimelineService
             $entries = $entries->concat($ended->map(fn (CrmActivity $activity) => [
                 'kind' => 'activity', 'at' => $activity->completed_at ?? $activity->cancelled_at, 'record' => $activity,
                 'for'  => $named('opportunity', $activity->opportunity_id) ?? $named('lead', $activity->lead_id),
+            ]));
+        }
+
+        // Phase F3a: the e-mails sent from them.
+        if ($wants('emails')) {
+            $sent    = $this->timeline->emails($workspace, ['lead_id' => $about[CrmLead::class], 'opportunity_id' => $about[CrmOpportunity::class], 'contact_id' => $contact ? [$contact->id] : []], self::SHOWN);
+            $entries = $entries->concat($sent->map(fn (CrmEmail $email) => [
+                'kind' => 'email', 'at' => $email->created_at, 'record' => $email,
+                'for'  => $named('opportunity', $email->opportunity_id) ?? $named('lead', $email->lead_id),
             ]));
         }
 

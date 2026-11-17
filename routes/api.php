@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\CrmLeadFlowController;
 use App\Http\Controllers\Api\CrmOpportunityAttachmentController;
 use App\Http\Controllers\Api\CrmOpportunityClosingController;
 use App\Http\Controllers\Api\CrmActivityController;
+use App\Http\Controllers\Api\CrmEmailController;
 use App\Http\Controllers\Api\CrmTimelineController;
 use App\Http\Controllers\Api\CrmOpportunityController;
 use App\Http\Controllers\Api\CrmOpportunityDocumentController;
@@ -962,6 +963,16 @@ Route::prefix('v1')->group(function () {
      */
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->group(function () {
         Route::get('/crm/timeline/{kind}/{id}', CrmTimelineController::class)->where('kind', 'lead|opportunity|contact')->whereNumber('id')->name('api.crm.timeline');
+    });
+
+    /*
+     | E-mail from a lead, an opportunity or a contact (Doc 17 Phase F3a): what
+     | its form starts with, and sending it - through the queue, kept on the
+     | record's timeline.
+     */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm/emails')->group(function () {
+        Route::get('/draft/{kind}/{id}', [CrmEmailController::class, 'draft'])->where('kind', 'lead|opportunity|contact')->whereNumber('id')->name('api.crm.emails.draft');
+        Route::post('/', [CrmEmailController::class, 'store'])->middleware(['throttle:30,1', 'idempotent'])->name('api.crm.emails.store');
     });
 
     /* ----------------------------------------------------------

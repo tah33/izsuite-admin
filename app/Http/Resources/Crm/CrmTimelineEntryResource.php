@@ -14,6 +14,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * - an activity done or cancelled: its type, subject, a call's direction,
  *   the outcome and how long it took, and who ended it;
  * - a note: its words, the people it mentions and its author;
+ * - an e-mail (Phase F3a): to whom, its subject, message and attachments'
+ *   names, whether it went, and who sent it;
  * - a change or a file: what was done, by whom - izSuite itself when no user
  *   did it - what it was (a stage move, a new owner, won, lost, another
  *   status) and each value it changed;
@@ -44,6 +46,19 @@ class CrmTimelineEntryResource extends JsonResource
                 'outcome'          => $record->outcome,
                 'duration_minutes' => $record->duration_minutes,
                 'for'              => $this['for'],
+            ],
+            // Phase F3a: an e-mail sent from it - to whom, what it said and carried, and whether it went.
+            'email' => [
+                ...$entry,
+                'by'          => $record->sender?->name,
+                'subject'     => $record->subject,
+                'to'          => $record->to,
+                'cc'          => $record->cc ?? [],
+                'attachments' => array_column($record->attachments ?? [], 'name'),
+                'status'      => $record->status,
+                'failure'     => $record->failure,
+                'body'        => $record->body,
+                'for'         => $this['for'],
             ],
             'note' => [
                 ...$entry,

@@ -374,6 +374,9 @@ final class RoutePermissions
             'api.crm.activities.update'    => 'crm.activities.manage',
             'api.crm.activities.complete'  => 'crm.activities.manage',
             'api.crm.activities.cancel'    => 'crm.activities.manage',
+            // Phase F3a: e-mail from a lead, an opportunity or a contact - the record's own view permission checked too (CrmEmailService).
+            'api.crm.emails.draft' => 'crm.emails.send',
+            'api.crm.emails.store' => 'crm.emails.send',
             // Phase E3: a record's timeline, for whoever sees the record - its activities only with View Activities (CrmTimelineService).
             'api.crm.timeline' => fn (Request $request) => match ((string) $request->route('kind')) {
                 'lead'        => 'crm.leads.view',

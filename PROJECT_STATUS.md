@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-17
-- **Code:** Doc 17 Phase F2 (an opportunity won when its order is confirmed) is committed: frontend `2401e51` on `nuxt`, and on `main` the admin commit right after `d6971af`.
-- **Tests:** 982 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
-- **Next step:** Doc 17 Phase F3: e-mail from a lead, an opportunity or a contact (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase F3a (e-mail from a lead, an opportunity or a contact) is committed: frontend `6f7bea7` on `nuxt`, and on `main` the admin commit right after `9144e8a`.
+- **Tests:** 985 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
+- **Next step:** Doc 17 Phase F3b: e-mail templates (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase F2 the latest is 000176. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase F3a the latest is 000177. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase F3.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase F3b.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check, Phases A to E, F1 and F2 done (F2 built 2026-11-17), Phase F3 next** |
+| **17** | **CRM** | **In progress: gap check, Phases A to E, F1, F2 and F3a done (F3a built 2026-11-17), Phase F3b next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase F3)
+### 5. Doc 17: CRM (next: Phase F3b)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -1963,6 +1963,25 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - The opportunity then read Won, 100%, "Won 17 Nov 2026, marked by izSuite User", Final Value $1,800.00, Won Reason "Sales order SO-00001 confirmed". Its timeline put the win - a trophy, in green - above the order's confirmation and making.
   - The member, refused the opportunity's page (403), confirmed SO-00002 of a second one: "Sales order SO-00002 confirmed.", naming no opportunity to them. That opportunity was won at 850.00, marked by them.
   - The opportunities, orders, contact, CRM lists and settings, member, the apps (Sales Lite back), the sign-in, the numbering and the activity were then put back.
+**Phase F3: e-mail from a lead, an opportunity or a contact** was split on starting it (2026-11-17): F3a, sending one, with the record's documents and files, kept on its timeline; F3b, e-mail templates.
+
+**Phase F3a: e-mail from a lead, an opportunity or a contact** (section 17.19) is built, with these defaults:
+
+- **Send E-mail** is on the record's timeline - a lead's and an opportunity's Timeline tab, a contact's Timeline card - for whoever may send e-mail (a new permission, CRM → E-mail: Send E-mail, in the Sales User template) and sees the record. Not from a converted or archived lead, an archived opportunity or a merged contact.
+- **The form** starts with the record's address - a lead's own, an opportunity's contact's, a contact's - and a message with a greeting to its person (else its name) and the sender's and business's names. The subject and message are the user's; Cc takes up to five addresses.
+- **Attach:** the record's sales documents that have gone out - an opportunity's made from it, a contact's - but no draft, void or cancelled one, of the kinds the user may view, as PDFs made as it is sent; and its files. Up to five of each, the files 15 MB together. A lead has no documents.
+- **It goes** from the queue as document e-mails do: from the platform's address under the business's sender name, with replies to the business's reply-to address (Settings → Email). Tried three times, it then says Not Sent, and why in a word.
+- **Kept on the timeline,** under a new E-mails filter: its subject, Sending, Sent or Not Sent, to and Cc, what it carried, its message folded, and by whom. On a contact's, an opportunity's or a lead's e-mail names it. The log entry naming it stays in Settings → Activity Log, not shown twice.
+- **Contacts:** merging moves a contact's e-mails, and one with e-mails is deactivated, not deleted. A lead's stay with it once converted, and show on its contact's timeline through it.
+- **Replies and synchronisation** wait for an e-mail integration: replies go to the business's own inbox.
+- **A slip:** the dev database was backed up just after migration 000177 ran - it only adds `crm_emails` - not before it, as the rules ask. Nothing was at risk.
+- **Checked in the browser** on the second PC, as `user@izsuite.io` with CRM switched on by hand, and as a throwaway member who sees every opportunity but may not send e-mail:
+  - An opportunity for "Browser Check Traders" (Rahim Uddin, rahim@browsercheck.test) had a quotation made from it and sent (QUO-00001), and a PDF attached. Its Timeline tab had E-mails among its filters, and Send E-mail.
+  - The form started with rahim@browsercheck.test and "Dear Rahim Uddin, … Kind regards, izSuite User, Billing Starter", offering "Quotation QUO-00001 (PDF)" and "floor-plan.pdf (44 bytes)". Sent with a subject, a copy address and both: "E-mail to rahim@browsercheck.test is on its way."
+  - The dev queue sent it in 14 seconds, mostly the PDF's making. The dev mail log held it: to Rahim, copied to accounts@browsercheck.test, replies to Billing Starter, carrying Quotation-QUO-00001.pdf and floor-plan.pdf. The timeline went from Sending to Sent, with its recipients, attachments and message; Changes did not list it again.
+  - The contact's Timeline card had Send E-mail, and showed the e-mail "for Browser Check Traders - racking", linking to it.
+  - As the member: no Send E-mail, and the API refused one (403); they saw the e-mail, Sent.
+  - The e-mail, opportunity, quotation, file, contact, CRM lists, member, the app's state, the sign-in, the numbering and the activity were then put back.
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## Testing checklist
@@ -1990,6 +2009,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase E3 | none |
 | Doc 17: Phase F1 | 000175 |
 | Doc 17: Phase F2 | 000176 |
+| Doc 17: Phase F3a | 000177 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -2275,6 +2295,18 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] An opportunity in another currency than its order is won at its own value.
 - [ ] As the member, confirm an order of another opportunity: it is won, marked by them, though they cannot open it.
 
+**Phase F3a: e-mail from a lead, an opportunity or a contact**
+
+**Before you start:** CRM and Sales on, the queue running (see Deploying to a server), a contact with an e-mail address you can read, an opportunity for them with a sent quotation and a file, and a member whose role sees opportunities but has no Send E-mail.
+
+- [ ] The opportunity's Timeline tab has E-mails and Send E-mail. The form starts with the contact's address and "Dear …", and offers the quotation (PDF) and the file - not a draft document.
+- [ ] Send it with a subject, a copy address and both attached: "E-mail to … is on its way." It arrives under your business's name, with replies to its address, carrying both.
+- [ ] On the timeline it goes from Sending to Sent, with whom it went to, what it carried and its message. Changes does not list it.
+- [ ] The contact's Timeline card has Send E-mail, and the opportunity's e-mail names it.
+- [ ] A lead's goes to its own address, with no documents. A converted or archived lead, an archived opportunity and a merged contact have no Send E-mail.
+- [ ] A contact with e-mails is deactivated, not deleted; merged, its e-mails move.
+- [ ] As the member: no Send E-mail, but the e-mails show.
+
 ## How we work
 
 Each document goes the same way:
@@ -2524,7 +2556,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase E2, reminders and telling someone given an activity | `66e50b2` | `8193f53` | 000174 |
 | Doc 17: Phase E3, the timeline of a lead, an opportunity and a contact | `27fa34d` | `412898e` | none |
 | Doc 17: Phase F1, sales documents made from an opportunity | `d6971af` | `2cd5594` | 000175 |
-| Doc 17: Phase F2, an opportunity won when its order is confirmed | the commit after `d6971af` | `2401e51` | 000176 |
+| Doc 17: Phase F2, an opportunity won when its order is confirmed | `9144e8a` | `2401e51` | 000176 |
+| Doc 17: Phase F3a, e-mail from a lead, an opportunity or a contact | the commit after `9144e8a` | `6f7bea7` | 000177 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -2940,6 +2973,11 @@ These are easy to undo by mistake.
 - An opportunity won by its order (Doc 17 Phase F2, migration 000176): `crm_settings.win_on_order` (`CrmSetting`, on by default; `CrmSettingService::winsOnOrder()`), saved with the operating mode (`SaveCrmSettingsRequest`, `CrmSettingsResource`).
   - `SalesDocumentFlow::confirm()` calls `CrmOpportunityClosing::winFromOrder()` once the order is confirmed and logged. It finds the opportunity for the business, whoever confirms (`CrmOpportunityRepository::findInBusiness()`), and wins it as `win()` does - its won stage, 100%, `closed_on` today, the order's `net_total` when the currencies match. What would refuse it - a won stage's needs, a conflict - is swallowed, so the order is confirmed either way. Its log entry carries `sales_document_id`.
   - Frontend: SettingsCrm's checkbox and `useCrmSettings().saveGeneral()` (it was `saveMode()`).
+- E-mail from CRM records (Doc 17 Phase F3a, migration 000177): `crm_emails` (`CrmEmail`, its `FOR` as an activity's), `CrmEmailService` behind `GET /crm/emails/draft/{kind}/{id}` and `POST /crm/emails` (`CrmEmailController`, `SendCrmEmailRequest`), and the permission `crm.emails.send`.
+  - Sending queues `SendCrmEmail`. `App\Services\Crm\CrmMailer` makes each document's PDF (`DocumentPdf::sales()`), reads each file (`FileStorage::contents()`) and sends `App\Mail\RecordMail` - several attachments, the `emails.document` views - under `EmailSettingService::senderName()` and `replyTo()`. A file gone throws `AttachmentMissing`; `failed()` words the failure.
+  - What can be attached: `OpportunityDocuments::madeFor()` less drafts, void and cancelled documents, and the record's `attachments` files.
+  - The log entry carries `email_id`, so the timeline (`CrmTimelineRepository::emails()`, its `emails` part) shows the e-mail instead. `ContactMergeRepository` moves `crm_emails`; `ContactService` keeps a contact with any from being deleted.
+  - Frontend: `useCrmEmails()`, CrmEmailModal with CrmEmailAttachments, CrmTimelineEmail, and CrmTimeline's `canEmail`.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -2965,6 +3003,7 @@ These are easy to undo by mistake.
 - A customer's address on a response is what Laravel sees: behind a proxy it is the proxy's until its address is trusted (see Deploying), and on dev it is Docker's gateway.
 - An opportunity cannot move to another pipeline. Edited to a team or location its pipeline is not for, it stays where it is (Doc 17 Phase D3b).
 - The Opportunities page's Pipeline and Stage filters offer only pipelines switched on. A switched-off pipeline's opportunities show under Any pipeline (the board can still pick one).
+- Replies to a CRM e-mail reach the business's own inbox and are not read back; there are no templates yet (Phase F3b), nor scheduled sending or tracked opening. Send E-mail is on the timeline, so on a lead's and an opportunity's page it is under the Comments card's Timeline tab (Doc 17 Phase F3a).
 - Only a sales order's confirmation wins an opportunity, so with Sales Lite one is won by hand; and cancelling the order later leaves it won (Doc 17 Phase F2).
 - A document's link to its opportunity is set when it is made: changing its customer later, or the opportunity's contact, leaves it linked, and nothing unlinks one. Documents made before Phase F1 have none. The card's "turn on Sales" path was not checked in the browser: the dev business runs Sales Lite (Doc 17 Phase F1).
 - A timeline shows the newest 100 of each part, with no paging further back. Planning or changing an activity shows only in Settings → Activity Log, and a contact's Timeline card is read when their page opens, so an activity completed in the card above it shows once a filter is chosen again (Doc 17 Phase E3).
@@ -3063,4 +3102,5 @@ Each of these is yours to settle.
 - Doc 17 Phase E3: no migration. Deploy the frontend with it (a lead's and an opportunity's Comments card shows Timeline, and a contact's page gains a Timeline card). An activity's steps logged before it name no activity, so they show among a timeline's changes as well as the activity itself.
 - Doc 17 Phase F1: migration 000175 adds a sales document's opportunity (`opportunity_id`). Documents made before it have none. Deploy the frontend with it (an opportunity's page gains Sales Documents, and the sales form starts from an opportunity).
 - Doc 17 Phase F2: migration 000176 adds Settings → CRM's "Win an opportunity when its sales order is confirmed", on for every business. Deploy the frontend with it.
+- Doc 17 Phase F3a: migration 000177 adds `crm_emails`, and a new permission, CRM → E-mail: Send E-mail, given to the Sales User template; give it to custom roles in Settings → Users & Roles. Its e-mails go through the queue: restart the workers after deploying (`php artisan queue:restart`). Deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

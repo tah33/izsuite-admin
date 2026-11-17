@@ -126,6 +126,14 @@ class FileStorage
     }
 
     /** Where anyone may open a public file - or its thumbnail, when it has one. Null for a private file. */
+    /** What $file holds - for an e-mail to carry it (Doc 17 Phase F3a). Null when it is gone. */
+    public function contents(WorkspaceFile $file): ?string
+    {
+        $disk = Storage::disk($file->disk);
+
+        return $disk->exists($file->path) ? (string) $disk->get($file->path) : null;
+    }
+
     public function url(WorkspaceFile $file, bool $thumbnail = false): ?string
     {
         if (! $file->isPublic()) {

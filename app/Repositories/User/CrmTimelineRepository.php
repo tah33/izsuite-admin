@@ -5,6 +5,7 @@ namespace App\Repositories\User;
 use App\Models\Shared\ActivityLog;
 use App\Models\Shared\RecordComment;
 use App\Models\User\CrmActivity;
+use App\Models\User\CrmEmail;
 use App\Models\User\Workspace;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -13,7 +14,8 @@ use Illuminate\Support\Collection;
  * What the timeline of a lead, an opportunity or a contact is made of (Doc
  * 17 section 17.18 - Phase E3), each read newest first up to a limit: the
  * Activity Log entries about the records, the activities done or cancelled
- * for them, and the comments on them. Sales documents come through
+ * for them, the comments on them and the e-mails sent from them (Phase
+ * F3a). Sales documents come through
  * OpportunityDocuments::madeFor().
  */
 class CrmTimelineRepository
@@ -44,6 +46,7 @@ class CrmTimelineRepository
             })
             ->whereNull('properties->comment_id')
             ->whereNull('properties->activity_id')
+            ->whereNull('properties->email_id')
             ->when($files === true, fn (Builder $query) => $query->whereNotNull('properties->file'))
             ->when($files === false, fn (Builder $query) => $query->whereNull('properties->file'))
             ->with('user')
@@ -61,6 +64,35 @@ class CrmTimelineRepository
      *
      * @param  array<string, list<int>>  $for
      */
+    /**
+     * The e-mails sent from the records of $for - their ids by the e-mail's
+     * column (lead_id, opportunity_id, contact_id) - the newest first, each
+     * with who sent it (Phase F3a).
+     *
+     * @param  array<string, list<int>>  $for
+     */
+    public function emails(Workspace $workspace, array $for, int $limit): Collection
+    {
+        $for = array_filter($for);
+
+        if ($for === []) {
+            return collect();
+        }
+
+        return CrmEmail::query()
+            ->where('workspace_id', $workspace->id)
+            ->where(function (Builder $query) use ($for) {
+                foreach ($for as $column => $ids) {
+                    $query->orWhereIn($column, $ids);
+                }
+            })
+            ->with('sender')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->get();
+    }
+
     public function endedActivities(Workspace $workspace, array $for, int $limit): Collection
     {
         $for = array_filter($for);
