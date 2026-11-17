@@ -82,6 +82,20 @@ class CrmOpportunityService
      */
     public function list(Workspace $workspace, User $user, array $filters, int $perPage): LengthAwarePaginator
     {
+        $page = $this->opportunities->paginateFor($workspace, $this->filters($workspace, $user, $filters), $this->visibility->scopeFor($workspace, $user), $perPage);
+
+        $this->mark($workspace, $page->items());
+
+        return $page;
+    }
+
+    /**
+     * $filters as the list reads them - and (Phase D4) the board and the
+     * calendar: "me" for the owner is $user, and the "stale" status (Phase
+     * D3a) gets each open stage's moment: one that entered it before is stale.
+     */
+    public function filters(Workspace $workspace, User $user, array $filters): array
+    {
         if (($filters['owner_id'] ?? null) === 'me') {
             $filters['owner_id'] = $user->id;
         }
@@ -93,11 +107,7 @@ class CrmOpportunityService
                 ->all();
         }
 
-        $page = $this->opportunities->paginateFor($workspace, $filters, $this->visibility->scopeFor($workspace, $user), $perPage);
-
-        $this->mark($workspace, $page->items());
-
-        return $page;
+        return $filters;
     }
 
     /** Another business's opportunity - or one $user does not see - answers like one that does not exist. */
@@ -140,9 +150,10 @@ class CrmOpportunityService
      * Their weighted values (OpportunityForecast), whether an open one's
      * closing day has passed - the business's today - and (Phase D3a) its
      * full days at its stage, and whether that is more than the stage's
-     * stale-after period.
+     * stale-after period. The board's cards and the calendar (Phase D4) are
+     * marked the same way.
      */
-    private function mark(Workspace $workspace, array $opportunities): void
+    public function mark(Workspace $workspace, array $opportunities): void
     {
         $this->forecast->attach($workspace, $opportunities);
 

@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-17
-- **Code:** Doc 17 Phase D3b (several pipelines, each for chosen teams or locations) is committed: frontend `78b7464` on `nuxt`, and on `main` the admin commit right after `6059052`.
-- **Tests:** 962 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
-- **Next step:** Doc 17 Phase D4: the kanban and calendar views (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase D4 (the board and calendar views) is committed: frontend `9927a2c` on `nuxt`, and on `main` the admin commit right after `11fc750`.
+- **Tests:** 966 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
+- **Next step:** Doc 17 Phase E: activities and the timeline (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase D3b the latest is 000172. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase D4 the latest is 000172. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase D4.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase E.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check and Phases A to C and D1 to D3 done (D3b built 2026-11-17), Phase D4 next** |
+| **17** | **CRM** | **In progress: gap check and Phases A to D done (D4 built 2026-11-17), Phase E next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase D4)
+### 5. Doc 17: CRM (next: Phase E)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -1832,6 +1832,30 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - Editing an opportunity showed no Pipeline field.
   - The pipelines, opportunities, lead, contacts, team, location, member, the app's state, the sign-in and the activity were then put back.
 
+**Phase D4: the board and calendar views** (section 17.14) is built, with these defaults. Phase D is done.
+
+- **The Opportunities page** has List, Board and Calendar side by side. The view is kept in the address (`?view=board`), so a reload or a link keeps it. Each shows only the opportunities the user sees, as the list does, and no archived one.
+- **The board** is one pipeline's: the first switched on to start, and a Pipeline choice once the business has several - a switched-off one marked "(off)", still showing what is in it. It is searched and filtered by owner as the list is.
+  - A column for each stage switched on, in the pipeline's order, and for a switched-off stage while an opportunity is at it, marked Off.
+  - An open stage's column holds its open opportunities, the soonest to close first. Won and Lost hold those closed in the last 30 days, the latest first.
+  - Each column shows how many it holds and what they are worth in the base currency at today's rates: weighted by probability while open, whole in Won and Lost. Those in a currency without a rate today are left out and counted ("1 without a rate today").
+  - A column shows up to 50 cards; the list has the rest.
+  - A card shows the name, contact, value and probability, the closing day (or, won or lost, the day it closed), Overdue and Stale, and the owner. Its name opens the opportunity.
+- **Moving a card:** an open one is dragged to another open stage's column to move there, at that stage's probability. Dropped on Won or Lost, it opens Mark Won or Mark Lost. Its ⋯ menu offers Change Stage, Mark Won and Mark Lost too, for keyboards and touch screens.
+  - Each needs its permission: Change Stages to move, Mark Won or Lost to close. A column the user may not move it to does not take the card. A won or lost card does not move: it is reopened from its page.
+  - A refusal is shown above the board, and the card stays: "Proposal needs Customer Requirements filled in first."
+- **The calendar** is a month of the list - its search, status, pipeline, stage and owner filters, the open ones to start - each opportunity on its expected closing day. It opens on the business's this month, with Previous, Today and Next, and its weeks start on the day Settings → Regional says.
+  - Overdue ones are marked amber, won green and lost grey. A day shows three, and the rest on asking. A month shows up to 500, saying so when there are more.
+- **Checked in the browser** on the second PC, as `user@izsuite.io` with CRM switched on by hand, and as a throwaway member who sees their own opportunities and may change their stages but not mark them won or lost:
+  - The board's columns held New 2, Qualified 1, Proposal 1 (Overdue), Negotiation 0, Won 1 and Lost 1, with "Weighted $200.00" for New and "Last 30 days $1,500.00" for Won. Open cards could be dragged; won and lost ones could not.
+  - Dragging "Uddin Traders - shelving" onto Qualified lit the column up and gave "Moved to Qualified.". With Proposal needing Customer Requirements, a card dropped there gave "Proposal needs Customer Requirements filled in first." and stayed in New.
+  - Dropped on Won, "Rahman Stores - racking" opened Mark Won with today and its value; marked, it led the Won column ($4,500.00). Change Stage from a card's menu moved another to Negotiation.
+  - Search narrowed the board to the one card. The List view still listed the open ones.
+  - The calendar opened on November 2026, Monday first, with today marked and "Karim Mart - counters" amber on the 10th. Next showed December's one, Today came back, and All opportunities added the won (green) and lost (grey) ones on their days.
+  - As the member, the board held only their own card, with no Owner filter. Its menu offered only Change Stage; Won and Lost did not take it, and Qualified did. Their calendar held only theirs.
+  - At phone width, the board scrolled sideways inside its card and the calendar fitted, with no sideways scroll of the page.
+  - The opportunities, the CRM lists and pipeline, the contact, member, the app's state, the sign-in and the activity were then put back.
+
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## Testing checklist
@@ -1853,6 +1877,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase D2b | none |
 | Doc 17: Phase D3a | 000171 |
 | Doc 17: Phase D3b | 000172 |
+| Doc 17: Phase D4 | none |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -2058,6 +2083,22 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] Switch the team's pipeline off. It shows Off, has no Delete once an opportunity is in it, and the form and the filter no longer offer it. Its opportunities stay, and still change stage.
 - [ ] As the member, the form offers only the pipelines for their location (and for every location), and adding a pipeline is refused.
 
+**Phase D4: the board and calendar views**
+
+**Before you start:** CRM on, opportunities at several stages - one past its closing day, one won and one lost in the last month, one won longer ago - and a member whose role views opportunities and changes stages, but does not mark them won or lost, with one of their own.
+
+- [ ] Opportunities has List, Board and Calendar. Reloading keeps the one chosen.
+- [ ] The board has a column per stage. Each says how many it holds and what they are worth in the base currency: weighted while open, whole in Won and Lost. The one won longer ago is not there.
+- [ ] Cards in an open column are the soonest to close first, with Overdue and Stale where they apply. Won and Lost show the day each closed.
+- [ ] Drag a card to another open stage: "Moved to …", and the totals change. To a stage that needs a detail it lacks: refused, naming it, and the card stays.
+- [ ] Drop a card on Won: Mark Won opens with today and its value. Mark it, and it leads the Won column. Drop one on Lost: Mark Lost opens.
+- [ ] A card's ⋯ menu offers Change Stage, Mark Won and Mark Lost, and each works as on the opportunity's page.
+- [ ] With a second pipeline, the board's Pipeline choice shows its columns; a switched-off one is marked (off). Switch a stage off while one is at it: its column stays, marked Off.
+- [ ] Search and the owner filter narrow the board as they narrow the list.
+- [ ] The calendar opens on this month, its weeks starting as Settings → Regional says. Each opportunity is on its closing day, the overdue one amber. Previous, Next and Today move between months.
+- [ ] The calendar's filters work as the list's: All opportunities adds the won (green) and lost (grey) ones.
+- [ ] As the member: only their own on the board and the calendar, no Owner filter, and their card's menu offers only Change Stage. Won and Lost do not take their card.
+
 ## How we work
 
 Each document goes the same way:
@@ -2119,6 +2160,7 @@ Each document goes the same way:
 - A `WorkspaceDropdown` option is picked by clicking the `button` inside its `li`, not the `li` itself.
 - Another project's dev server on the host can take `localhost:3000` (Node on `0.0.0.0:3000`), and the browser then opens that site instead. Open izSuite at `http://127.0.0.1:3000`, which Docker holds; the API takes it, as no CORS origin list is set. Its sign-in is separate from `localhost`'s.
 - A collection's `each()` stops at the first callback that returns false. An arrow function returns its assignment's value, so `->each(fn ($row) => $row->in_use = …)` stops at the first row given false and leaves the rest unset. Use a block closure (Doc 17 Phase D3b's tests caught it).
+- In the Claude browser pane, `left_click_drag` does not start an HTML5 drag, so a dragged card never drops. Check a drop from a script instead: dispatch `dragstart` on the card, then `dragover` and `drop` on the column, with one `DataTransfer` (Doc 17 Phase D4's board).
 - `ActivityLogService::record()` puts an entry down to whoever is signed in, even in a test that acts as someone across requests. Something no one in the business did (a customer through a link) goes through `recordCustomer()`.
 
 ### Checking the app as a limited member
@@ -2297,7 +2339,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase D2a, won, lost, reopening and archiving | `f052a9d` | `3f475e6` | 000170 |
 | Doc 17: Phase D2b, an opportunity's files, comments and timeline | `2414d2c` | `b514ca8` | none |
 | Doc 17: Phase D3a, stale stages and the fields a stage needs | `6059052` | `6b69a39` | 000171 |
-| Doc 17: Phase D3b, several pipelines for chosen teams or locations | the commit after `6059052` | `78b7464` | 000172 |
+| Doc 17: Phase D3b, several pipelines for chosen teams or locations | `11fc750` | `78b7464` | 000172 |
+| Doc 17: Phase D4, the board and calendar views | the commit after `11fc750` | `9927a2c` | none |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -2681,6 +2724,13 @@ These are easy to undo by mistake.
   - The opportunity options' `pipelines` (whom each is for, with its open stages) replaced `stages`, and `all_stages` carry their `pipeline_id`. The conversion preview's `stages` went the same way. `CrmOpportunityService::pipeline()` is gone.
   - CrmOpportunityFormMain keeps the form's pipeline and stage to ones that fit as its team and location change. `useSalesTeams()` keeps its list in shared state, so Settings → CRM's pipeline cards choose from the teams its Sales Teams card loads.
   - DataPager's `plural` prop, for a noun that does not just add s.
+- The board and the calendar (Doc 17 Phase D4, no migration):
+  - `CrmOpportunityViews` (behind `CrmOpportunityViewController`, `GET crm/opportunities/board` and `/calendar`, under View Opportunities) builds both. `CARDS_PER_COLUMN`, `CLOSED_DAYS` and `CALENDAR_LIMIT` are its limits; the frontend's `BOARD_CLOSED_DAYS` repeats the 30.
+  - `CrmOpportunityRepository::filtered()` is the list's query - visibility, search, status, stage, pipeline, owner - shared by `paginateFor()`, `closingBetween()` (the calendar) and `onBoard()`. `CrmOpportunityService::filters()` ("me", the stale moments) and `mark()` (forecast, overdue, stale) are public for the same reason.
+  - The board reads its pipeline's opportunities with a few columns (`onBoard()`), groups and sorts them in PHP for each column's order, count and `OpportunityForecast::total()`, then reads only the cards it shows (`cards()`).
+  - A card moves through the existing steps: `POST …/stage` when dropped on an open stage, and Mark Won or Mark Lost (CrmOpportunityWinModal, CrmOpportunityLoseModal) after reading the opportunity, as its menu's Change Stage does with CrmOpportunityStageModal. A modal is opened a tick after it mounts, so its own `watch(open)` sets its defaults.
+  - Dragging is HTML5 drag and drop; the card's menu is the way on touch screens. The calendar's weeks are worked out in `utils/crmCalendar.ts`, in UTC.
+  - The Opportunities page is a frame (`pages/crm/opportunities/index.vue`) around CrmOpportunityList, CrmOpportunityBoard and CrmOpportunityCalendar, with the options read once for all three.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -2705,7 +2755,8 @@ These are easy to undo by mistake.
 - The customer's link page answers in English, even for a document in another language: only Download PDF is translated there.
 - A customer's address on a response is what Laravel sees: behind a proxy it is the proxy's until its address is trusted (see Deploying), and on dev it is Docker's gateway.
 - An opportunity cannot move to another pipeline. Edited to a team or location its pipeline is not for, it stays where it is (Doc 17 Phase D3b).
-- The Opportunities page's Pipeline and Stage filters offer only pipelines switched on. A switched-off pipeline's opportunities show under Any pipeline.
+- The Opportunities page's Pipeline and Stage filters offer only pipelines switched on. A switched-off pipeline's opportunities show under Any pipeline (the board can still pick one).
+- The board keeps each column in the list's order: cards are not reordered by hand. Nothing changes a closing day by dragging it on the calendar, and the board's column of 50 has no link to the rest in the list (Doc 17 Phase D4).
 
 ## Open decisions
 
@@ -2792,4 +2843,5 @@ Each of these is yours to settle.
 - Doc 17 Phase D2b: no migration. Deploy the frontend with it (an opportunity's page gains its files, comments and timeline).
 - Doc 17 Phase D3a: migration 000171 adds each stage's stale-after days and the details it needs. Nothing changes until Settings → CRM sets them. Deploy the frontend with it.
 - Doc 17 Phase D3b: migration 000172 adds `team_ids` and `location_ids` to `crm_pipelines`. Each pipeline there is stays for every team and location until Settings → CRM changes it. Deploy the frontend with it.
+- Doc 17 Phase D4: no migration. Deploy the frontend with it (the Opportunities page gains Board and Calendar).
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

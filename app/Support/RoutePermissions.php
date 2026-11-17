@@ -363,6 +363,8 @@ final class RoutePermissions
             // Opportunities (Phase D1): who sees which is OpportunityVisibility's; moving one between stages is its own.
             'api.crm.opportunities.index'   => 'crm.opportunities.view',
             'api.crm.opportunities.options' => 'crm.opportunities.view',
+            'api.crm.opportunities.board'   => 'crm.opportunities.view',
+            'api.crm.opportunities.calendar' => 'crm.opportunities.view',
             'api.crm.opportunities.show'    => 'crm.opportunities.view',
             'api.crm.opportunities.store'   => 'crm.opportunities.manage',
             'api.crm.opportunities.update'  => 'crm.opportunities.manage',

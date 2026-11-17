@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\CrmLeadFlowController;
 use App\Http\Controllers\Api\CrmOpportunityAttachmentController;
 use App\Http\Controllers\Api\CrmOpportunityClosingController;
 use App\Http\Controllers\Api\CrmOpportunityController;
+use App\Http\Controllers\Api\CrmOpportunityViewController;
 use App\Http\Controllers\Api\CrmOpportunityFlowController;
 use App\Http\Controllers\Api\CrmOptionController;
 use App\Http\Controllers\Api\CrmPipelineController;
@@ -908,6 +909,9 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm/opportunities')->group(function () {
         Route::get('/', [CrmOpportunityController::class, 'index'])->name('api.crm.opportunities.index');
         Route::get('/options', [CrmOpportunityController::class, 'options'])->name('api.crm.opportunities.options');
+        // Phase D4: one pipeline's board, and a month's calendar.
+        Route::get('/board', [CrmOpportunityViewController::class, 'board'])->name('api.crm.opportunities.board');
+        Route::get('/calendar', [CrmOpportunityViewController::class, 'calendar'])->name('api.crm.opportunities.calendar');
         Route::post('/', [CrmOpportunityController::class, 'store'])->middleware('idempotent')->name('api.crm.opportunities.store');
         Route::get('/{id}', [CrmOpportunityController::class, 'show'])->whereNumber('id')->name('api.crm.opportunities.show');
         Route::put('/{id}', [CrmOpportunityController::class, 'update'])->whereNumber('id')->name('api.crm.opportunities.update');
