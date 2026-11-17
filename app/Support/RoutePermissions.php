@@ -374,6 +374,12 @@ final class RoutePermissions
             'api.crm.activities.update'    => 'crm.activities.manage',
             'api.crm.activities.complete'  => 'crm.activities.manage',
             'api.crm.activities.cancel'    => 'crm.activities.manage',
+            // Phase E3: a record's timeline, for whoever sees the record - its activities only with View Activities (CrmTimelineService).
+            'api.crm.timeline' => fn (Request $request) => match ((string) $request->route('kind')) {
+                'lead'        => 'crm.leads.view',
+                'opportunity' => 'crm.opportunities.view',
+                default       => 'contacts.view',
+            },
             'api.crm.opportunities.show'    => 'crm.opportunities.view',
             'api.crm.opportunities.store'   => 'crm.opportunities.manage',
             'api.crm.opportunities.update'  => 'crm.opportunities.manage',

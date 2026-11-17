@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-17
-- **Code:** Doc 17 Phase E2 (reminders, and telling someone given an activity) is committed: frontend `8193f53` on `nuxt`, and on `main` the admin commit right after `ea90899`.
-- **Tests:** 974 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
-- **Next step:** Doc 17 Phase E3: the timeline of a lead, an opportunity and a contact (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase E3 (the timeline of a lead, an opportunity and a contact) is committed: frontend `412898e` on `nuxt`, and on `main` the admin commit right after `66e50b2`.
+- **Tests:** 977 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
+- **Next step:** Doc 17 Phase F: Sales and the contact's profile (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase E2 the latest is 000174. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase E3 the latest is 000174. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase E3.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase F.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check, Phases A to D, E1 and E2 done (E2 built 2026-11-17), Phase E3 next** |
+| **17** | **CRM** | **In progress: gap check, Phases A to E done (E3 built 2026-11-17), Phase F next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase E3)
+### 5. Doc 17: CRM (next: Phase F)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -1904,6 +1904,29 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - Settings → Notifications & Email listed Activities, on in the bell and by e-mail; so did the user's own.
   - The activities, opportunity, contact, CRM lists, member, notifications, the app's state, the sign-in and the activity were then put back.
 
+**Phase E3: the timeline of a lead, an opportunity and a contact** (section 17.18) is built, with these defaults. Phase E is done.
+
+- **One timeline, newest first,** of what happened with the record:
+  - **activities done or cancelled:** a call with its direction (incoming or outgoing), how long it took and its outcome; a meeting, task, e-mail or any other type with theirs; and who ended it. What is still planned stays on the Activities card;
+  - **notes:** the comments on a lead or an opportunity, with the people they mention;
+  - **changes,** from the Activity Log: added, changed, given to someone, moved between stages, won, lost, reopened, archived, converted - each marked by what it was (a stage move, a new owner, won, lost, another status), with the values it changed;
+  - **files** attached and removed;
+  - and on a contact's, **their sales documents** - quotations, proforma invoices, sales orders, invoices and credit notes - each opening its page, with its status, and its total for those who see Sales' values. Only the kinds the user may view, at the locations they may use.
+- **Filters:** All, Activities, Notes, Changes, Files, and on a contact's Documents. Activities shows for those who may view activities, Documents for those who may view a kind of sales document.
+- **Where:** a lead's and an opportunity's Comments card has Timeline as its second tab, instead of Activity. A contact's page has a Timeline card, the width of the page, below its Activities card, while CRM is on.
+- **A contact's** gathers their own activities and changes, and those of their opportunities and of the leads converted into them - only those the user sees (their own, their teams', or all, at their locations). An activity or a note there names the opportunity or lead it is about, with a link. A contact has no comments of their own.
+- **An activity's steps** - planned, changed, completed, cancelled - stay in Settings → Activity Log, now naming the activity. The timeline shows the activity itself instead, as it shows a comment instead of "Commented on …".
+- **The newest 100** of each part, and of all together, are shown.
+- **The team's own:** the timeline and its notes go on no document, PDF, e-mail or customer link.
+- **Who sees it:** whoever sees the record - a lead with View Leads, an opportunity with View Opportunities, each as they see it, and a contact with View Contacts - with its activities only for those who may view activities. With CRM off its records stay readable, as an app's do once turned off, but its pages hide.
+- **Found while checking:** an activity read "Call Call Rahim …", a cancelled one said Cancelled twice, and a draft document said Draft twice ("Draft Quotation", "Draft"). The type is now a pill, as on the Activities card; a cancelled one's line says "Cancelled by …"; a draft has no status pill. Links in an entry now look like links.
+- **Checked in the browser** on the second PC, as `user@izsuite.io` with CRM switched on by hand, and as a throwaway member who may view contacts and their own opportunities:
+  - An opportunity for "Browser Check Traders" had a call done (outgoing, 15 minutes, with its outcome), a meeting cancelled, a comment, a move to Proposal and a PDF attached. Its Timeline tab listed, newest first and each with its icon: the file, the move ("2 changes"), the note, the cancelled meeting, the call ("Outgoing · 15 min", its outcome, "Done by izSuite User"), and the opportunity being added. Activities, Notes, Changes and Files each narrowed it.
+  - The contact's page had the Timeline card: a draft quotation opening its page, with $1,800.00; the contact's own e-mail, done; and the opportunity's entries, its note "on" and its activities "for" the opportunity, each linking to it. Its filters included Documents.
+  - A lead's Timeline tab listed its task done with its outcome, and the lead being added.
+  - The quotation's own Activity tab still listed its steps, an edit with "1 change", through the change list both timelines now share.
+  - As the member, the contact's Timeline card offered All, Notes, Changes and Files - no Activities card, no Documents - and said "Nothing has happened here yet."; the owner's opportunity's timeline was not found for them, and a lead's was refused.
+  - The opportunity, lead, activities, quotation, comment, file, contact, CRM lists, member, the app's state, the sign-in and the activity were then put back.
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## Testing checklist
@@ -1928,6 +1951,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase D4 | none |
 | Doc 17: Phase E1 | 000173 |
 | Doc 17: Phase E2 | 000174 |
+| Doc 17: Phase E3 | none |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -2018,7 +2042,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] Mention someone (type @):
   - [ ] only people who see the lead are offered;
   - [ ] they get a bell notification (and an e-mail) linking to the lead's comments.
-- [ ] The Activity tab lists what was done to the lead, newest first: added, changed, assigned (with the previous owner), its steps, comments and files.
+- [ ] The Timeline tab lists what happened with the lead, newest first: added, changed, assigned (with the previous owner), its steps, its comments as notes, and its files.
 - [ ] With Settings → CRM on Opportunities Only, a lead's comments and files can be read but not added.
 
 **Phase C1: converting a lead**
@@ -2101,7 +2125,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] As the member who sees every opportunity: the file opens, but there is no Upload or Remove without Create and Edit.
 - [ ] As the member who sees only their own: the opportunity, its files and its comments are not found, even through a file's link.
 - [ ] A comment mentioning both members tells only the one who sees the opportunity (bell and e-mail), with a link to its comments.
-- [ ] Activity lists, newest first, its adding, each move ("Stage: … → …", "Probability: … → …"), won or lost, reopening, archiving, its files and comments.
+- [ ] Timeline lists, newest first, its adding, each move ("Stage: … → …", "Probability: … → …"), won or lost, reopening, archiving, its files, and its comments as notes.
 - [ ] Archived: no Upload or Remove, but comments still work. Won or lost: files can still be added.
 - [ ] Under a legal hold, removing its file or comment is refused.
 
@@ -2157,7 +2181,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] Plan Activity on the Activities page: pick an opportunity by name, a call at a time already past today, outgoing. It is listed, Overdue.
 - [ ] The opportunity's page has an Activities card with it. Plan Activity there has For fixed to the opportunity; a meeting shows no Direction.
 - [ ] Complete the call: it waits for an outcome. With one, and Plan a follow-up ticked, the card lists the follow-up planned and the call Completed with its outcome.
-- [ ] Edit a planned one's time: "Activity saved." The opportunity's Activity timeline shows each step, the edit in the business's time.
+- [ ] Edit a planned one's time: "Activity saved." Settings → Activity Log shows each step, the edit in the business's time.
 - [ ] Cancel one from the Activities page: it asks, then shows Cancelled under All activities. A completed or cancelled one has no menu.
 - [ ] The status filter's Due today and Overdue, the type filter and the search narrow the list.
 - [ ] Settings → CRM's Activity Types: switch Task to Need Outcome, and completing a task waits for one. Add a type with "Completing one needs an outcome" ticked; once an activity is of it, it cannot be deleted.
@@ -2176,6 +2200,18 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] Give an activity to the member: their bell and inbox have "… gave you an activity: …". Saving it unchanged tells them nothing; giving it to yourself tells no one.
 - [ ] Complete one with a follow-up given to the member: they hear of the follow-up.
 - [ ] As the member, switch Activities' e-mail off in My Profile: the next notice reaches only the bell.
+
+**Phase E3: the timeline of a lead, an opportunity and a contact**
+
+**Before you start:** CRM and Sales on, a customer with an opportunity, and a member whose role views contacts and opportunities (their own only), but not activities or sales documents.
+
+- [ ] On the opportunity, complete a call with a direction, a duration and an outcome, cancel a meeting, post a comment, move it to another stage and attach a file. Its Comments card's Timeline tab lists them newest first, each with its icon: the call with "Outgoing · 15 min" and its outcome, the cancelled meeting, the note, the move with its changes, the file. What is still planned is not there.
+- [ ] Activities, Notes, Changes and Files each show only that part.
+- [ ] Lose it, reopen it, win it: each shows marked, the win and the loss in green and red.
+- [ ] The customer's page has a Timeline card: their sales documents, each opening its page, with its status and total; their own activities; and the opportunity's activities and notes, naming it with a link. Documents shows only the documents.
+- [ ] Convert a lead into the customer: the lead's adding, qualifying and converting show on the customer's timeline.
+- [ ] A lead's Timeline tab shows its activities done, notes, changes and files.
+- [ ] As the member: the customer's Timeline card has no Activities or Documents, and none of the owner's opportunity; their own opportunity's entries show.
 
 ## How we work
 
@@ -2423,7 +2459,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase D3b, several pipelines for chosen teams or locations | `11fc750` | `78b7464` | 000172 |
 | Doc 17: Phase D4, the board and calendar views | `4254ba1` | `9927a2c` | none |
 | Doc 17: Phase E1, activities | `ea90899` | `9642be7` | 000173 |
-| Doc 17: Phase E2, reminders and telling someone given an activity | the commit after `ea90899` | `8193f53` | 000174 |
+| Doc 17: Phase E2, reminders and telling someone given an activity | `66e50b2` | `8193f53` | 000174 |
+| Doc 17: Phase E3, the timeline of a lead, an opportunity and a contact | the commit after `66e50b2` | `412898e` | none |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -2824,6 +2861,13 @@ These are easy to undo by mistake.
   - An activity's `remind_minutes` (`CrmActivity::REMINDERS`, `DEFAULT_REMINDER` 15 when left out), `remind_at` (UTC, null once due when planned) and `reminded_at`. `CrmActivityService::reminder()` works out `remind_at`; a change of moment clears `reminded_at`. Their changes stay out of the timeline's list.
   - `App\Services\Crm\ActivityNotices`: `assigned()` (from planning, changing the assignee and a follow-up) and `remindDue()`, behind `crm:remind-activities` (every minute). `CrmActivityRepository::dueReminders()` reads every business's due ones and `claimReminder()` marks one sent for the first run only.
   - The kind is `activities` in `NotificationKinds` (triggers `activities.assigned` and `activities.reminder`); a notice's subject is the activity. Notification tests that list every kind name it.
+- The timeline (Doc 17 Phase E3, no migration) is `CrmTimelineService`, behind `GET /crm/timeline/{kind}/{id}?show=` (`CrmTimelineController`, `CrmTimelineRequest`): `kind` lead, opportunity or contact; `show` all, activities, notes, changes, files or documents. A closure in `RoutePermissions` picks its permission by kind.
+  - `CrmTimelineRepository` reads each part up to `SHOWN` (100): `logEntries()` - the Activity Log entries about the records, without those carrying `comment_id` or `activity_id`, `properties->file` telling files from changes - `endedActivities()`, `comments()` and `documents()`. The service merges them newest first and keeps 100.
+  - A contact's gathers `CrmLeadRepository::ofContact()` and `CrmOpportunityRepository::ofContact()`: the leads converted into it and its opportunities that the user sees.
+  - `CrmActivityService` puts `activity_id` in each step's log entry, from Phase E3 on.
+  - `CrmTimelineEntryResource` shapes each kind. A change's `mark` (won, lost, status, stage, owner) comes from its entry's `status`, `to_stage` and `owner_id`; an activity's `type_key` picks its icon.
+  - Frontend: `useCrmTimeline()`, `utils/crmTimeline.ts` (the filters and icons), CrmTimeline with CrmTimelineEntry, CrmTimelineCard on a contact's page, and RecordDiscussion's `timeline` prop on a lead's and an opportunity's. `RecordChangeList` folds an entry's changes, for this timeline and Doc 14's.
+  - A lead's and an opportunity's `/activity` routes (Doc 14's record timeline) are still there, though their pages now read this one.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -2849,6 +2893,7 @@ These are easy to undo by mistake.
 - A customer's address on a response is what Laravel sees: behind a proxy it is the proxy's until its address is trusted (see Deploying), and on dev it is Docker's gateway.
 - An opportunity cannot move to another pipeline. Edited to a team or location its pipeline is not for, it stays where it is (Doc 17 Phase D3b).
 - The Opportunities page's Pipeline and Stage filters offer only pipelines switched on. A switched-off pipeline's opportunities show under Any pipeline (the board can still pick one).
+- A timeline shows the newest 100 of each part, with no paging further back. Planning or changing an activity shows only in Settings → Activity Log, and a contact's Timeline card is read when their page opens, so an activity completed in the card above it shows once a filter is chosen again (Doc 17 Phase E3).
 - A reminder cannot be snoozed, and goes only to the activity's assignee; there is no reminder for the owner of the record it is for (Doc 17 Phase E2).
 - An activity, once completed or cancelled, is not reopened; activities are not on the opportunities' board or calendar; the Activities page searches subjects and record names, not places or descriptions; and its For link to a record the user does not see leads to a not-found page (Doc 17 Phase E1).
 - The board keeps each column in the list's order: cards are not reordered by hand. Nothing changes a closing day by dragging it on the calendar, and the board's column of 50 has no link to the rest in the list (Doc 17 Phase D4).
@@ -2939,6 +2984,7 @@ Each of these is yours to settle.
 - Doc 17 Phase D3a: migration 000171 adds each stage's stale-after days and the details it needs. Nothing changes until Settings → CRM sets them. Deploy the frontend with it.
 - Doc 17 Phase D3b: migration 000172 adds `team_ids` and `location_ids` to `crm_pipelines`. Each pipeline there is stays for every team and location until Settings → CRM changes it. Deploy the frontend with it.
 - Doc 17 Phase D4: no migration. Deploy the frontend with it (the Opportunities page gains Board and Calendar).
-- Doc 17 Phase E2: migration 000174 adds an activity's reminder. Activities planned before it have none. Reminders need the scheduler running (`crm:remind-activities` every minute) and their e-mails the queue workers; restart them after deploying (`php artisan queue:restart`). Deploy the frontend with it.
 - Doc 17 Phase E1: migration 000173 adds `crm_activities`, whether an activity type needs an outcome (izSuite's Call, Meeting, Demonstration and Site Visit do), and Activities in CRM's sidebar. The Activities permissions are new: give them to custom roles that need them (the Sales User template has both). Deploy the frontend with it.
+- Doc 17 Phase E2: migration 000174 adds an activity's reminder. Activities planned before it have none. Reminders need the scheduler running (`crm:remind-activities` every minute) and their e-mails the queue workers; restart them after deploying (`php artisan queue:restart`). Deploy the frontend with it.
+- Doc 17 Phase E3: no migration. Deploy the frontend with it (a lead's and an opportunity's Comments card shows Timeline, and a contact's page gains a Timeline card). An activity's steps logged before it name no activity, so they show among a timeline's changes as well as the activity itself.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

@@ -97,6 +97,18 @@ class CrmLeadRepository
             ->keyBy('id');
     }
 
+    /**
+     * The leads converted into $contactId that $scope sees, by id, with their
+     * names: what its timeline gathers (Phase E3).
+     */
+    public function ofContact(Workspace $workspace, array $scope, int $contactId): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->visible($workspace, $scope)
+            ->where('contact_id', $contactId)
+            ->get(['id', 'name'])
+            ->keyBy('id');
+    }
+
     public function update(CrmLead $lead, array $data): CrmLead
     {
         $lead->update($data);

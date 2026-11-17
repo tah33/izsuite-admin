@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\CrmLeadFlowController;
 use App\Http\Controllers\Api\CrmOpportunityAttachmentController;
 use App\Http\Controllers\Api\CrmOpportunityClosingController;
 use App\Http\Controllers\Api\CrmActivityController;
+use App\Http\Controllers\Api\CrmTimelineController;
 use App\Http\Controllers\Api\CrmOpportunityController;
 use App\Http\Controllers\Api\CrmOpportunityViewController;
 use App\Http\Controllers\Api\CrmOpportunityFlowController;
@@ -949,6 +950,15 @@ Route::prefix('v1')->group(function () {
         Route::put('/{id}', [CrmActivityController::class, 'update'])->whereNumber('id')->name('api.crm.activities.update');
         Route::post('/{id}/complete', [CrmActivityController::class, 'complete'])->whereNumber('id')->name('api.crm.activities.complete');
         Route::post('/{id}/cancel', [CrmActivityController::class, 'cancel'])->whereNumber('id')->name('api.crm.activities.cancel');
+    });
+
+    /*
+     | The timeline of a lead, an opportunity or a contact (Doc 17 Phase E3):
+     | its activities done, notes, changes, files and a contact's sales
+     | documents, newest first, for whoever sees the record.
+     */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->group(function () {
+        Route::get('/crm/timeline/{kind}/{id}', CrmTimelineController::class)->where('kind', 'lead|opportunity|contact')->whereNumber('id')->name('api.crm.timeline');
     });
 
     /* ----------------------------------------------------------

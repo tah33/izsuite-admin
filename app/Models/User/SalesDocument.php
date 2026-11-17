@@ -199,6 +199,12 @@ class SalesDocument extends Model
         return $this->belongsTo(SalesTeam::class);
     }
 
+    /** Who made it, when a user did. */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
     public function contact(): BelongsTo
     {
         return $this->belongsTo(Contact::class);

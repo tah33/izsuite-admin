@@ -31,7 +31,9 @@ use Illuminate\Validation\ValidationException;
  * the user sees, changing a planned one, and completing it - with an outcome
  * where its type needs one, and a follow-up planned straight after - or
  * cancelling it. Days and times are the business's; an activity is due at a
- * moment, kept in UTC. Each step is logged on the record it is for.
+ * moment, kept in UTC. Each step is logged on the record it is for, naming
+ * the activity (activity_id), which the record's timeline shows instead
+ * (Phase E3).
  */
 class CrmActivityService
 {
@@ -144,7 +146,7 @@ class CrmActivityService
                 'created_by'            => $user->id,
             ]);
 
-            ActivityLogService::record('created', 'Planned '.$this->describe($activity), $record, ['source' => 'api', 'changes' => []]);
+            ActivityLogService::record('created', 'Planned '.$this->describe($activity), $record, ['source' => 'api', 'activity_id' => $activity->id, 'changes' => []]);
 
             return $activity;
         });
@@ -173,7 +175,7 @@ class CrmActivityService
 
             $this->activities->update($activity, $fields);
 
-            ActivityLogService::record('updated', 'Updated '.$this->describe($activity), $activity->regarding(), ['source' => 'api', 'changes' => $this->readable($workspace, SettingChanges::of($activity))]);
+            ActivityLogService::record('updated', 'Updated '.$this->describe($activity), $activity->regarding(), ['source' => 'api', 'activity_id' => $activity->id, 'changes' => $this->readable($workspace, SettingChanges::of($activity))]);
         });
 
         // Phase E2: someone newly given it hears of it.
@@ -206,7 +208,7 @@ class CrmActivityService
             }
 
             $this->activities->update($activity, ['status' => CrmActivity::COMPLETED, 'outcome' => $outcome, 'completed_at' => now(), 'completed_by' => $user->id]);
-            ActivityLogService::record('updated', 'Completed '.$this->describe($activity), $activity->regarding(), ['source' => 'api', 'outcome' => $outcome, 'changes' => []]);
+            ActivityLogService::record('updated', 'Completed '.$this->describe($activity), $activity->regarding(), ['source' => 'api', 'activity_id' => $activity->id, 'outcome' => $outcome, 'changes' => []]);
 
             if (empty($data['follow_up'])) {
                 return null;
@@ -221,7 +223,7 @@ class CrmActivityService
                 'follow_up_of' => $activity->id,
                 'created_by'   => $user->id,
             ]);
-            ActivityLogService::record('created', 'Planned '.$this->describe($next).', following up '.$this->describe($activity), $activity->regarding(), ['source' => 'api', 'changes' => []]);
+            ActivityLogService::record('created', 'Planned '.$this->describe($next).', following up '.$this->describe($activity), $activity->regarding(), ['source' => 'api', 'activity_id' => $next->id, 'changes' => []]);
 
             return $next;
         });
@@ -245,7 +247,7 @@ class CrmActivityService
             }
 
             $this->activities->update($activity, ['status' => CrmActivity::CANCELLED, 'cancelled_at' => now(), 'cancelled_by' => $user->id]);
-            ActivityLogService::record('updated', 'Cancelled '.$this->describe($activity), $activity->regarding(), ['source' => 'api', 'changes' => []]);
+            ActivityLogService::record('updated', 'Cancelled '.$this->describe($activity), $activity->regarding(), ['source' => 'api', 'activity_id' => $activity->id, 'changes' => []]);
         });
 
         return $this->shown($workspace, $activity);

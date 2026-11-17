@@ -119,6 +119,18 @@ class CrmOpportunityRepository
     }
 
     /** Made through the business, so its workspace is never read from $data. */
+    /**
+     * $contactId's opportunities that $scope sees, by id, with their names:
+     * what its timeline gathers (Phase E3).
+     */
+    public function ofContact(Workspace $workspace, array $scope, int $contactId): Collection
+    {
+        return $this->visible($workspace, $scope)
+            ->where('contact_id', $contactId)
+            ->get(['id', 'name'])
+            ->keyBy('id');
+    }
+
     public function create(Workspace $workspace, array $data): CrmOpportunity
     {
         return $workspace->crmOpportunities()->create($data);
