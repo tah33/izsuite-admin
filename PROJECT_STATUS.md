@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-17
-- **Code:** Doc 17 Phase F1 (sales documents made from an opportunity) is committed: frontend `2cd5594` on `nuxt`, and on `main` the admin commit right after `27fa34d`.
-- **Tests:** 980 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
-- **Next step:** Doc 17 Phase F2: an opportunity won when its order is confirmed (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase F2 (an opportunity won when its order is confirmed) is committed: frontend `2401e51` on `nuxt`, and on `main` the admin commit right after `d6971af`.
+- **Tests:** 982 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
+- **Next step:** Doc 17 Phase F3: e-mail from a lead, an opportunity or a contact (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase F1 the latest is 000175. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase F2 the latest is 000176. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase F2.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase F3.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check, Phases A to E and F1 done (F1 built 2026-11-17), Phase F2 next** |
+| **17** | **CRM** | **In progress: gap check, Phases A to E, F1 and F2 done (F2 built 2026-11-17), Phase F3 next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase F2)
+### 5. Doc 17: CRM (next: Phase F3)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -1948,6 +1948,21 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - The card listed Invoice INV-00001 ($2,000.00, Issued) and Quotation QUO-00001 ($2,000.00, Converted). The Timeline's Documents listed the invoice issued and made, and the quotation sent and made, newest first.
   - As the member: the card listed only the invoice, with no total and no Create; the invoice's page named the opportunity; the quotation was refused them; their Documents timeline had the invoice's two entries, without totals.
   - The opportunity, item, documents, contact, CRM lists, member, the app's state, the sign-in, the numbering and the activity were then put back.
+**Phase F2: an opportunity won when its order is confirmed** (section 17.27) is built, with these defaults:
+
+- **Settings → CRM** has "Win an opportunity when its sales order is confirmed", below the operating mode: on to start.
+- **When a sales order made from an opportunity is confirmed** (the full Sales app's), while CRM is on and the setting is on, the opportunity - if it is still open, and not archived - is won:
+  - that day, in the business's time, at the order's value before tax when they share a currency, else at its own value;
+  - with the reason "Sales order SO-00001 confirmed", going to its pipeline's won stage at 100%;
+  - by whoever confirmed the order, whether or not they see the opportunity or may close one. Its timeline says "Marked opportunity … won: sales order SO-00001 was confirmed".
+- **Left as it is:** one already won, lost or archived; one whose won stage needs details it lacks, or whose pipeline has no won stage switched on; one someone else changed at that moment. Nothing about the opportunity stops the order being confirmed.
+- **Afterwards:** cancelling, holding or completing the order changes nothing on the opportunity; it is reopened by hand. Sales Lite has no sales orders, so there an opportunity is won by hand.
+- **Checked in the browser** on the second PC, as `user@izsuite.io` with CRM switched on by hand and the business's Sales Lite swapped for the full Sales app, and as a throwaway member who may only view and confirm sales orders:
+  - Settings → CRM showed the setting ticked. Unticked and saved, then ticked again: "CRM settings saved." each time.
+  - On an opportunity worth $2,000.00, Create offered Sales Order too. Its form, made from the opportunity, was priced at 4 racks × 450.00 ($1,800.00); Save and Confirm gave "Sales order SO-00001 confirmed."
+  - The opportunity then read Won, 100%, "Won 17 Nov 2026, marked by izSuite User", Final Value $1,800.00, Won Reason "Sales order SO-00001 confirmed". Its timeline put the win - a trophy, in green - above the order's confirmation and making.
+  - The member, refused the opportunity's page (403), confirmed SO-00002 of a second one: "Sales order SO-00002 confirmed.", naming no opportunity to them. That opportunity was won at 850.00, marked by them.
+  - The opportunities, orders, contact, CRM lists and settings, member, the apps (Sales Lite back), the sign-in, the numbering and the activity were then put back.
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## Testing checklist
@@ -1974,6 +1989,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase E2 | 000174 |
 | Doc 17: Phase E3 | none |
 | Doc 17: Phase F1 | 000175 |
+| Doc 17: Phase F2 | 000176 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -2248,6 +2264,17 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] As the member: only the invoice, with no total and no Create; the invoice's page names the opportunity.
 - [ ] On a test business without Sales, the card says to turn it on, linking to the Apps Center.
 
+**Phase F2: an opportunity won when its order is confirmed**
+
+**Before you start:** the full Sales app and CRM on, an open opportunity, and a member whose role views and confirms sales orders, with no CRM access.
+
+- [ ] Settings → CRM shows "Win an opportunity when its sales order is confirmed", ticked. Untick it and save ("CRM settings saved."), then tick it again.
+- [ ] From the opportunity's Sales Documents, Create → Sales Order, then Save and Confirm: the opportunity is Won, 100%, today, at the order's value before tax, with "Sales order SO-… confirmed" as its reason. Its timeline shows the win above the confirmation.
+- [ ] With the setting off, confirming such an order leaves its opportunity open.
+- [ ] Lose an opportunity after making its order, then confirm the order: the order is confirmed, and the opportunity stays lost.
+- [ ] An opportunity in another currency than its order is won at its own value.
+- [ ] As the member, confirm an order of another opportunity: it is won, marked by them, though they cannot open it.
+
 ## How we work
 
 Each document goes the same way:
@@ -2496,7 +2523,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase E1, activities | `ea90899` | `9642be7` | 000173 |
 | Doc 17: Phase E2, reminders and telling someone given an activity | `66e50b2` | `8193f53` | 000174 |
 | Doc 17: Phase E3, the timeline of a lead, an opportunity and a contact | `27fa34d` | `412898e` | none |
-| Doc 17: Phase F1, sales documents made from an opportunity | the commit after `27fa34d` | `2cd5594` | 000175 |
+| Doc 17: Phase F1, sales documents made from an opportunity | `d6971af` | `2cd5594` | 000175 |
+| Doc 17: Phase F2, an opportunity won when its order is confirmed | the commit after `d6971af` | `2401e51` | 000176 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -2909,6 +2937,9 @@ These are easy to undo by mistake.
   - `SaveSalesDocumentRequest` checks a new document's `opportunity_id`; `SalesDocumentService::create()` keeps it and `update()` leaves it. `SalesConversionService::header()` carries it; `duplicate()` clears it.
   - `GET /sales/{kind}/defaults?opportunity_id=` adds `opportunity` (`SalesFormService::opportunity()`): its contact as `customer`, its currency, and its `location_id`, `salesperson_id`, `sales_team_id` and `lines`.
   - Frontend: CrmOpportunityDocuments on the opportunity's page, `?opportunity=` in `useSalesDocumentForm()` (`fromOpportunity()`), SalesDocumentAside's Opportunity, and `.alert-info` in `main.css`.
+- An opportunity won by its order (Doc 17 Phase F2, migration 000176): `crm_settings.win_on_order` (`CrmSetting`, on by default; `CrmSettingService::winsOnOrder()`), saved with the operating mode (`SaveCrmSettingsRequest`, `CrmSettingsResource`).
+  - `SalesDocumentFlow::confirm()` calls `CrmOpportunityClosing::winFromOrder()` once the order is confirmed and logged. It finds the opportunity for the business, whoever confirms (`CrmOpportunityRepository::findInBusiness()`), and wins it as `win()` does - its won stage, 100%, `closed_on` today, the order's `net_total` when the currencies match. What would refuse it - a won stage's needs, a conflict - is swallowed, so the order is confirmed either way. Its log entry carries `sales_document_id`.
+  - Frontend: SettingsCrm's checkbox and `useCrmSettings().saveGeneral()` (it was `saveMode()`).
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -2934,6 +2965,7 @@ These are easy to undo by mistake.
 - A customer's address on a response is what Laravel sees: behind a proxy it is the proxy's until its address is trusted (see Deploying), and on dev it is Docker's gateway.
 - An opportunity cannot move to another pipeline. Edited to a team or location its pipeline is not for, it stays where it is (Doc 17 Phase D3b).
 - The Opportunities page's Pipeline and Stage filters offer only pipelines switched on. A switched-off pipeline's opportunities show under Any pipeline (the board can still pick one).
+- Only a sales order's confirmation wins an opportunity, so with Sales Lite one is won by hand; and cancelling the order later leaves it won (Doc 17 Phase F2).
 - A document's link to its opportunity is set when it is made: changing its customer later, or the opportunity's contact, leaves it linked, and nothing unlinks one. Documents made before Phase F1 have none. The card's "turn on Sales" path was not checked in the browser: the dev business runs Sales Lite (Doc 17 Phase F1).
 - A timeline shows the newest 100 of each part, with no paging further back. Planning or changing an activity shows only in Settings → Activity Log, and a contact's Timeline card is read when their page opens, so an activity completed in the card above it shows once a filter is chosen again (Doc 17 Phase E3).
 - A reminder cannot be snoozed, and goes only to the activity's assignee; there is no reminder for the owner of the record it is for (Doc 17 Phase E2).
@@ -3030,4 +3062,5 @@ Each of these is yours to settle.
 - Doc 17 Phase E2: migration 000174 adds an activity's reminder. Activities planned before it have none. Reminders need the scheduler running (`crm:remind-activities` every minute) and their e-mails the queue workers; restart them after deploying (`php artisan queue:restart`). Deploy the frontend with it.
 - Doc 17 Phase E3: no migration. Deploy the frontend with it (a lead's and an opportunity's Comments card shows Timeline, and a contact's page gains a Timeline card). An activity's steps logged before it name no activity, so they show among a timeline's changes as well as the activity itself.
 - Doc 17 Phase F1: migration 000175 adds a sales document's opportunity (`opportunity_id`). Documents made before it have none. Deploy the frontend with it (an opportunity's page gains Sales Documents, and the sales form starts from an opportunity).
+- Doc 17 Phase F2: migration 000176 adds Settings → CRM's "Win an opportunity when its sales order is confirmed", on for every business. Deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

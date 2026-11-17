@@ -21,14 +21,18 @@ class CrmSetting extends Model
     protected $fillable = [
         'mode',
         'qualification_required',
+        // Phase F2: confirming a sales order made from an opportunity wins it.
+        'win_on_order',
     ];
 
     protected $attributes = [
-        'mode' => 'leads',
+        'mode'         => 'leads',
+        'win_on_order' => true,
     ];
 
     protected $casts = [
         'qualification_required' => 'array',
+        'win_on_order'           => 'boolean',
     ];
 
     public function workspace(): BelongsTo

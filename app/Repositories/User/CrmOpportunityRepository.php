@@ -141,6 +141,12 @@ class CrmOpportunityRepository
         return $opportunity->load(['contact', 'interestedItems.item.components.component']);
     }
 
+    /** $workspace's opportunity $id, whoever may see it: one won when its sales order is confirmed (Phase F2). */
+    public function findInBusiness(Workspace $workspace, int $id): ?CrmOpportunity
+    {
+        return CrmOpportunity::query()->where('workspace_id', $workspace->id)->with(self::SHOWN_WITH)->find($id);
+    }
+
     public function create(Workspace $workspace, array $data): CrmOpportunity
     {
         return $workspace->crmOpportunities()->create($data);

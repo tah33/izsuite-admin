@@ -9,7 +9,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /**
  * Settings > CRM (Doc 17 Phase A1): the mode, each list by its kind in its
  * order - (Phase A2) the pipelines and their stages - and (Phase B2a) what a
- * lead needs filled in before it is qualified.
+ * lead needs filled in before it is qualified, and (Phase F2) whether
+ * confirming a sales order made from an opportunity wins it.
  */
 class CrmSettingsResource extends JsonResource
 {
@@ -20,6 +21,7 @@ class CrmSettingsResource extends JsonResource
         return [
             'mode'                   => $this->resource['settings']->mode,
             'qualification_required' => $this->resource['settings']->qualificationRequired(),
+            'win_on_order'           => $this->resource['settings']->win_on_order,
             'lists'     => collect(array_keys(CrmOption::KINDS))
                 ->mapWithKeys(fn (string $kind) => [$kind => CrmOptionResource::collection($options->where('kind', $kind)->values())])
                 ->all(),

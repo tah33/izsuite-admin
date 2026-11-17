@@ -77,6 +77,12 @@ class CrmSettingService
         return $this->settings->forWorkspace($workspace)->usesLeads();
     }
 
+    /** Whether confirming a sales order made from an opportunity wins it (Phase F2). */
+    public function winsOnOrder(Workspace $workspace): bool
+    {
+        return $this->settings->forWorkspace($workspace)->win_on_order;
+    }
+
     /** The lists and the first pipeline started if they never were - before a lead's form offers its sources too (Phase B1). */
     public function start(Workspace $workspace): void
     {
@@ -93,10 +99,10 @@ class CrmSettingService
     public function save(Workspace $workspace, array $data): array
     {
         $saved  = $this->settings->forWorkspace($workspace);
-        $before = ['mode' => $saved->mode, 'qualification_required' => $saved->qualificationRequired()];
+        $before = ['mode' => $saved->mode, 'qualification_required' => $saved->qualificationRequired(), 'win_on_order' => $saved->win_on_order];
 
-        $settings = $this->settings->save($workspace, Arr::only($data, ['mode', 'qualification_required']));
-        $after    = ['mode' => $settings->mode, 'qualification_required' => $settings->qualificationRequired()];
+        $settings = $this->settings->save($workspace, Arr::only($data, ['mode', 'qualification_required', 'win_on_order']));
+        $after    = ['mode' => $settings->mode, 'qualification_required' => $settings->qualificationRequired(), 'win_on_order' => $settings->win_on_order];
 
         ActivityLogService::record('updated', 'Updated the CRM settings', $workspace, [
             'source'  => 'api',

@@ -13,6 +13,7 @@ use App\Repositories\User\LocationRepository;
 use App\Repositories\User\SalesDeliveryRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Services\Api\BusinessSetup\ExchangeRateService;
+use App\Services\Api\Crm\CrmOpportunityClosing;
 use App\Services\Documents\DocumentNumbers;
 use App\Services\Documents\DocumentTemplates;
 use App\Services\Sales\SalesCalculator;
@@ -65,6 +66,7 @@ class SalesDocumentFlow
         protected SalesDeliveryRepository $salesDeliveryRepository,
         protected SalesOrderDeposits $salesOrderDeposits,
         protected CustomerCredit $customerCredit,
+        protected CrmOpportunityClosing $opportunityClosing,
     ) {}
 
     /**
@@ -104,7 +106,12 @@ class SalesDocumentFlow
             'updated_by'      => $user->id,
         ]));
 
-        return $this->creditLogged($document, 'Confirmed '.$this->salesDocumentService->describe($document), $credit, $creditReason);
+        $document = $this->creditLogged($document, 'Confirmed '.$this->salesDocumentService->describe($document), $credit, $creditReason);
+
+        // The CRM opportunity it was made from, won as it is confirmed (Doc 17 Phase F2).
+        $this->opportunityClosing->winFromOrder($workspace, $user, $document);
+
+        return $document;
     }
 
     /** A confirmed sales order put on hold, with an optional reason: nothing more is done on it until it is resumed. */

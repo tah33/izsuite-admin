@@ -4,6 +4,7 @@ namespace App\Services\Api\Crm;
 
 use App\Models\User\CrmOpportunity;
 use App\Models\User\CrmStage;
+use App\Models\User\SalesDocument;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\CrmOpportunityRepository;
@@ -14,9 +15,12 @@ use App\Services\Crm\CrmOpportunityRules;
 use App\Services\Crm\StageRequirements;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\BusinessCalendar;
+use App\Services\User\Apps\WorkspaceApps;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * How an opportunity ends (Doc 17 section 17.16 - Phase D2a), with Mark Won
@@ -32,6 +36,9 @@ use Illuminate\Validation\ValidationException;
  *   another is chosen - at that stage's probability, its ending cleared.
  *
  * Each goes into its stage history and the Activity Log.
+ *
+ * Phase F2: an opportunity is won too when a sales order made from it is
+ * confirmed, if Settings → CRM says so (winFromOrder()).
  */
 class CrmOpportunityClosing
 {
@@ -44,6 +51,7 @@ class CrmOpportunityClosing
         protected CrmOpportunityRules $rules,
         protected BusinessCalendar $calendar,
         protected StageRequirements $requirements,
+        protected CrmSettingService $settings,
     ) {}
 
     /** $data is validated (see CrmOpportunityWinRequest): closed_on, value, reason. */
@@ -71,6 +79,56 @@ class CrmOpportunityClosing
         ]);
 
         return $this->shown($workspace, $opportunity);
+    }
+
+    /**
+     * The opportunity a sales order was made from, won as the order is
+     * confirmed (Phase F2), while CRM is on and Settings → CRM says so: today,
+     * at the order's value before tax when they share a currency, with the
+     * order as its reason, by whoever confirmed it - whether or not they see
+     * the opportunity. Only an open one, not archived; one whose won stage
+     * needs what it lacks - or that changed meanwhile - stays as it is, to be
+     * won by hand. Nothing here stops the order being confirmed.
+     */
+    public function winFromOrder(Workspace $workspace, User $user, SalesDocument $order): ?CrmOpportunity
+    {
+        if (! $order->opportunity_id || ! WorkspaceApps::for($workspace)->has('crm') || ! $this->settings->winsOnOrder($workspace)) {
+            return null;
+        }
+
+        $opportunity = $this->opportunities->findInBusiness($workspace, $order->opportunity_id);
+
+        if (! $opportunity || ! $this->rules->allows($opportunity, 'win')) {
+            return null;
+        }
+
+        $today  = $this->calendar->today($workspace)->toDateString();
+        $reason = "Sales order {$order->number} confirmed";
+
+        try {
+            $stage = $this->closingStage($opportunity, CrmStage::WON);
+            $was   = $this->snapshot($opportunity);
+            $value = $order->currency === $opportunity->currency ? (string) $order->net_total : (string) $opportunity->expected_value;
+
+            $this->move($opportunity, $user, $stage, [
+                'status'         => CrmOpportunity::WON,
+                'probability'    => 100,
+                'expected_value' => $value,
+                'closed_on'      => $today,
+                'closed_by'      => $user->id,
+                'won_reason'     => $reason,
+            ]);
+        } catch (ValidationException|HttpException|HttpResponseException) {
+            // Its won stage needs what it lacks, or it changed meanwhile (refuse()): left as it is.
+            return null;
+        }
+
+        ActivityLogService::record('updated', 'Marked '.$this->service->describe($opportunity)." won: sales order {$order->number} was confirmed", $opportunity, [
+            'source' => 'api', 'status' => CrmOpportunity::WON, 'value' => $value, 'closed_on' => $today, 'sales_document_id' => $order->id,
+            'changes' => $this->changes($was, $opportunity, $stage, ['value' => [$was['value'], $value], 'won_reason' => [null, $reason]]),
+        ]);
+
+        return $opportunity;
     }
 
     /** $data is validated (see CrmOpportunityLoseRequest): closed_on, lost_reason_id, competitor, notes, follow_up_on. */
