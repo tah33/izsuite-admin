@@ -98,6 +98,22 @@ class CrmLeadRepository
     }
 
     /**
+     * The leads converted into $contactId that $scope sees, the first
+     * converted first, each with its source: where the contact came from
+     * (Phase F4).
+     */
+    public function convertedInto(Workspace $workspace, array $scope, int $contactId): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->visible($workspace, $scope)
+            ->where('contact_id', $contactId)
+            ->whereNotNull('converted_at')
+            ->with('source:id,name')
+            ->orderBy('converted_at')
+            ->orderBy('id')
+            ->get(['id', 'name', 'source_id', 'converted_at']);
+    }
+
+    /**
      * The leads converted into $contactId that $scope sees, by id, with their
      * names: what its timeline gathers (Phase E3).
      */

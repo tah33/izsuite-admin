@@ -378,6 +378,8 @@ final class RoutePermissions
             'api.crm.activities.update'    => 'crm.activities.manage',
             'api.crm.activities.complete'  => 'crm.activities.manage',
             'api.crm.activities.cancel'    => 'crm.activities.manage',
+            // Phase F4: a contact's CRM part, for whoever sees contacts - its leads and opportunities as they may see them (CrmContactSummaryService).
+            'api.crm.contacts.summary' => 'contacts.view',
             // Phase F3a: e-mail from a lead, an opportunity or a contact - the record's own view permission checked too (CrmEmailService).
             'api.crm.emails.draft' => 'crm.emails.send',
             'api.crm.emails.store' => 'crm.emails.send',

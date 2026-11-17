@@ -118,7 +118,22 @@ class CrmOpportunityRepository
         return $this->visible($workspace, $scope)->with(self::SHOWN_WITH)->find($id);
     }
 
-    /** Made through the business, so its workspace is never read from $data. */
+    /**
+     * $contactId's opportunities that $scope sees, archived ones aside, the
+     * first added first, each with its stage and source: what its profile
+     * shows (Phase F4).
+     */
+    public function forContactProfile(Workspace $workspace, array $scope, int $contactId): Collection
+    {
+        return $this->visible($workspace, $scope)
+            ->where('contact_id', $contactId)
+            ->whereNull('archived_at')
+            ->with(['stage:id,name', 'source:id,name'])
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get();
+    }
+
     /**
      * $contactId's opportunities that $scope sees, by id, with their names:
      * what its timeline gathers (Phase E3).
@@ -147,6 +162,7 @@ class CrmOpportunityRepository
         return CrmOpportunity::query()->where('workspace_id', $workspace->id)->with(self::SHOWN_WITH)->find($id);
     }
 
+    /** Made through the business, so its workspace is never read from $data. */
     public function create(Workspace $workspace, array $data): CrmOpportunity
     {
         return $workspace->crmOpportunities()->create($data);

@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\CrmLeadFlowController;
 use App\Http\Controllers\Api\CrmOpportunityAttachmentController;
 use App\Http\Controllers\Api\CrmOpportunityClosingController;
 use App\Http\Controllers\Api\CrmActivityController;
+use App\Http\Controllers\Api\CrmContactSummaryController;
 use App\Http\Controllers\Api\CrmEmailController;
 use App\Http\Controllers\Api\CrmEmailTemplateController;
 use App\Http\Controllers\Api\CrmTimelineController;
@@ -968,6 +969,8 @@ Route::prefix('v1')->group(function () {
      */
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->group(function () {
         Route::get('/crm/timeline/{kind}/{id}', CrmTimelineController::class)->where('kind', 'lead|opportunity|contact')->whereNumber('id')->name('api.crm.timeline');
+        // Phase F4: the CRM part of a contact's profile - where they came from, and their opportunities.
+        Route::get('/crm/contacts/{id}/summary', CrmContactSummaryController::class)->whereNumber('id')->name('api.crm.contacts.summary');
     });
 
     /*

@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-17
-- **Code:** Doc 17 Phase F3b (e-mail templates) is committed: frontend `a58d4f2` on `nuxt`, and on `main` the admin commit right after `7ec724c`.
-- **Tests:** 987 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
-- **Next step:** Doc 17 Phase F4: the CRM part of a contact's profile (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase F4 (the CRM part of a contact's profile) is committed: frontend `9ff76c5` on `nuxt`, and on `main` the admin commit right after `e814d61`.
+- **Tests:** 989 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
+- **Next step:** Doc 17 Phase G: Overview, Forecast and follow-up (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase F3b the latest is 000178. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase F4 the latest is 000178. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase F4.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase G.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check, Phases A to E and F1 to F3 done (F3b built 2026-11-17), Phase F4 next** |
+| **17** | **CRM** | **In progress: gap check, Phases A to F done (F4 built 2026-11-17), Phase G next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase F4)
+### 5. Doc 17: CRM (next: Phase G)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -1995,6 +1995,21 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - As the member: no CRM tab in Settings, and adding a template was refused (403); their form offered the template, signed with their own name.
   - Delete gave "Template deleted.", and the card was empty again.
   - The template, e-mail, opportunity, contact, CRM lists, member, the app's state, the sign-in and the activity were then put back.
+**Phase F4: the CRM part of a contact's profile** (section 17.20) is built, with these defaults. Phase F is done.
+
+- **A contact's page** has an Opportunities card, while CRM is on, for whoever may view opportunities or leads - below their sales documents, payments and balance, above the Activities and Timeline cards:
+  - **Open, Won and Lost:** how many of each; the open ones' value and weighted value, and the won ones' value, in the base currency at today's rate - an estimate, as the forecast's. One in a currency without a rate today is left out of the totals, and counted.
+  - **Lead source:** the source of the first lead converted into them, linking to the lead - else that of their first opportunity with one.
+  - **Their opportunities:** the open ones by their expected closing day, then the won and lost, the latest ended first, each with its stage and probability, value and day, opening its page. Archived ones are left out, as the lists leave them; up to 50.
+  - Only what the user sees: their own records, their teams' or all, at their locations. Without View Leads, there is no lead source from a lead.
+- **Add Opportunity** on the card - for whoever may create opportunities, while the contact is active and not merged - opens the form with them chosen.
+- Their planned activities (Phase E1) and timeline (Phase E3) were on the page already, beside their sales documents and balance.
+- **Found while checking:** the card's long subtitle pushed Add Opportunity below it; it is shorter now.
+- **Checked in the browser** on the second PC, as `user@izsuite.io` with CRM switched on by hand, and as a throwaway member who views contacts and the opportunities they own:
+  - "Browser Check Traders" had a lead, Karim Ahmed from Website, converted into them, and opportunities open, won, lost and archived. The Opportunities card, between Payments Received and Activities, read Open 2 ($2,900.00, weighted $290.00), Won 1 ($1,500.00), Lost 1, and "Lead source: Website · converted from the lead Karim Ahmed". It listed racking (closing 20 Dec 2026), shelving (31 Dec), lockers (lost 17 Nov) and chairs (won 17 Nov) - not the archived one.
+  - Add Opportunity opened the form with Browser Check Traders chosen; saved, the opportunity was theirs.
+  - As the member, the card showed only the one given to them (Open 1, $600.00, weighted $60.00), with no lead source and no Add Opportunity.
+  - The opportunities, lead, contact, CRM lists, member, notifications, the app's state, the sign-in and the activity were then put back.
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## Testing checklist
@@ -2024,6 +2039,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase F2 | 000176 |
 | Doc 17: Phase F3a | 000177 |
 | Doc 17: Phase F3b | 000178 |
+| Doc 17: Phase F4 | none |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -2331,6 +2347,16 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] From a lead, `{opportunity_name}` is empty and `{company_name}` is the lead's business.
 - [ ] As the member: no CRM tab in Settings; their form offers the template, signed with their name.
 
+**Phase F4: the CRM part of a contact's profile**
+
+**Before you start:** CRM on, a contact with a lead converted into them and opportunities open, won and lost - one in another currency - and a member whose role views contacts and the opportunities they own.
+
+- [ ] The contact's page has Opportunities above Activities: the Open, Won and Lost counts, the open ones' value and weighted value, and the won ones' value, in the base currency.
+- [ ] It names the lead source, linking to the lead converted into them.
+- [ ] The list has the open ones by closing day, then the won and lost, the latest first; an archived one is not there.
+- [ ] Add Opportunity opens the form with the contact chosen.
+- [ ] As the member: only their own opportunities, no lead source, and no Add Opportunity.
+
 ## How we work
 
 Each document goes the same way:
@@ -2582,7 +2608,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase F1, sales documents made from an opportunity | `d6971af` | `2cd5594` | 000175 |
 | Doc 17: Phase F2, an opportunity won when its order is confirmed | `9144e8a` | `2401e51` | 000176 |
 | Doc 17: Phase F3a, e-mail from a lead, an opportunity or a contact | `7ec724c` | `6f7bea7` | 000177 |
-| Doc 17: Phase F3b, e-mail templates | the commit after `7ec724c` | `a58d4f2` | 000178 |
+| Doc 17: Phase F3b, e-mail templates | `e814d61` | `a58d4f2` | 000178 |
+| Doc 17: Phase F4, the CRM part of a contact's profile | the commit after `e814d61` | `9ff76c5` | none |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -3006,6 +3033,8 @@ These are easy to undo by mistake.
 - E-mail templates (Doc 17 Phase F3b, migration 000178): `crm_email_templates` (`CrmEmailTemplate`, its `PLACEHOLDERS`), `CrmEmailTemplateService` behind `/business-settings/crm/email-templates` (`CrmEmailTemplateController`, `SaveCrmEmailTemplateRequest`, `crm.settings.manage`), and Settings → CRM's `email_templates`.
   - `CrmEmailService::draft()` returns them as `templates`, filled for the record and sender by `placeholders()` and `fill()`.
   - Frontend: SettingsCrmEmailTemplates with CrmEmailTemplateModal (its placeholder chips), `useCrmSettings().saveTemplate()` and `deleteTemplate()`, and CrmEmailModal's Template list.
+- A contact's CRM part (Doc 17 Phase F4, no migration): `CrmContactSummaryService` behind `GET /crm/contacts/{id}/summary` (`CrmContactSummaryController`, `CrmContactSummaryResource`, `contacts.view`). It reads `CrmOpportunityRepository::forContactProfile()` and `CrmLeadRepository::convertedInto()` within the user's scopes, and totals with `OpportunityForecast::total()`.
+  - Frontend: CrmContactSummary on the contact's page (`useCrmContactSummary()`), and CrmOpportunityForm's `?contact=&contact_name=`.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -3031,6 +3060,7 @@ These are easy to undo by mistake.
 - A customer's address on a response is what Laravel sees: behind a proxy it is the proxy's until its address is trusted (see Deploying), and on dev it is Docker's gateway.
 - An opportunity cannot move to another pipeline. Edited to a team or location its pipeline is not for, it stays where it is (Doc 17 Phase D3b).
 - The Opportunities page's Pipeline and Stage filters offer only pipelines switched on. A switched-off pipeline's opportunities show under Any pipeline (the board can still pick one).
+- A contact's Opportunities card lists up to 50 and leaves archived ones out, and its lead source is the first converted lead's, however many there were (Doc 17 Phase F4).
 - A business starts with no e-mail templates, and a placeholder with nothing to stand for - an opportunity's name on a lead's e-mail - is left empty (Doc 17 Phase F3b).
 - Replies to a CRM e-mail reach the business's own inbox and are not read back; there is no scheduled sending or tracked opening. Send E-mail is on the timeline, so on a lead's and an opportunity's page it is under the Comments card's Timeline tab (Doc 17 Phase F3a).
 - Only a sales order's confirmation wins an opportunity, so with Sales Lite one is won by hand; and cancelling the order later leaves it won (Doc 17 Phase F2).
@@ -3133,4 +3163,5 @@ Each of these is yours to settle.
 - Doc 17 Phase F2: migration 000176 adds Settings → CRM's "Win an opportunity when its sales order is confirmed", on for every business. Deploy the frontend with it.
 - Doc 17 Phase F3a: migration 000177 adds `crm_emails`, and a new permission, CRM → E-mail: Send E-mail, given to the Sales User template; give it to custom roles in Settings → Users & Roles. Its e-mails go through the queue: restart the workers after deploying (`php artisan queue:restart`). Deploy the frontend with it.
 - Doc 17 Phase F3b: migration 000178 adds `crm_email_templates`; businesses start with none. Deploy the frontend with it.
+- Doc 17 Phase F4: no migration. Deploy the frontend with it (a contact's page gains its Opportunities card, and Add Opportunity there starts with them).
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.
