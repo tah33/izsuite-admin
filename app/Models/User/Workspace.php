@@ -349,6 +349,12 @@ class Workspace extends Model
         return $this->hasMany(CrmOpportunity::class);
     }
 
+    /** Its CRM activities (Doc 17 Phase E1). */
+    public function crmActivities(): HasMany
+    {
+        return $this->hasMany(CrmActivity::class);
+    }
+
     /** How each kind of document is numbered - a row only where a default was changed. */
     public function documentNumbering(): HasMany
     {

@@ -114,6 +114,8 @@ final class Permissions
         'crm.leads'    => ['Leads', 'crm', ['view' => self::VIEW, 'manage' => 'Create and Edit', 'assign' => 'Assign Leads', 'reopen' => 'Reopen Unqualified or Archived', 'convert' => 'Convert Leads']],
         // Phase D1: opportunities - the stage they are at, and a probability other than the stage's, apart; D2a their ending.
         'crm.opportunities' => ['Opportunities', 'crm', ['view' => self::VIEW, 'manage' => 'Create and Edit', 'stage' => 'Change Stages', 'probability' => 'Change Probability', 'close' => 'Mark Won or Lost', 'reopen' => 'Reopen Won or Lost']],
+        // Phase E1: activities - planning, changing, completing and cancelling them are Create and Edit.
+        'crm.activities' => ['Activities', 'crm', ['view' => self::VIEW, 'manage' => 'Create and Edit']],
         // Without either, a user sees the CRM records they own (LeadVisibility).
         'crm.records'  => ['CRM Records', 'crm', ['team' => 'View Team Records', 'all' => 'View All CRM Records']],
         'crm.settings' => ['CRM Settings', 'crm', self::APP_SETTINGS],
@@ -313,6 +315,8 @@ final class Permissions
                 'crm.leads.view', 'crm.leads.manage', 'crm.leads.convert',
                 // And their opportunities (Phase D1), won or lost (D2a), without a probability of their own or reopening.
                 'crm.opportunities.view', 'crm.opportunities.manage', 'crm.opportunities.stage', 'crm.opportunities.close',
+                // And their activities (Phase E1).
+                'crm.activities.view', 'crm.activities.manage',
             ],
 
             'purchase_user' => [

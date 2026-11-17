@@ -15,6 +15,8 @@ class CrmOptionResource extends JsonResource
             'name'      => $this->name,
             'is_active' => (bool) $this->is_active,
             'starter'   => $this->isStarter(),
+            // An activity type's (Doc 17 Phase E1).
+            'needs_outcome' => $this->when($this->kind === 'activity_type', fn () => (bool) $this->needs_outcome),
         ];
     }
 }

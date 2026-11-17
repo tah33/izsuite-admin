@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\CrmLeadDuplicateController;
 use App\Http\Controllers\Api\CrmLeadFlowController;
 use App\Http\Controllers\Api\CrmOpportunityAttachmentController;
 use App\Http\Controllers\Api\CrmOpportunityClosingController;
+use App\Http\Controllers\Api\CrmActivityController;
 use App\Http\Controllers\Api\CrmOpportunityController;
 use App\Http\Controllers\Api\CrmOpportunityViewController;
 use App\Http\Controllers\Api\CrmOpportunityFlowController;
@@ -932,6 +933,22 @@ Route::prefix('v1')->group(function () {
         Route::get('/{id}/comments/people', [RecordCommentController::class, 'people'])->whereNumber('id')->defaults('family', 'opportunities')->name('api.crm.opportunities.comments.people');
         Route::post('/{id}/comments', [RecordCommentController::class, 'store'])->whereNumber('id')->defaults('family', 'opportunities')->middleware('idempotent')->name('api.crm.opportunities.comments.store');
         Route::delete('/{id}/comments/{commentId}', [RecordCommentController::class, 'destroy'])->whereNumber(['id', 'commentId'])->defaults('family', 'opportunities')->name('api.crm.opportunities.comments.destroy');
+    });
+
+    /*
+     | CRM's activities (Doc 17 Phase E1): the Activities page, a lead's, an
+     | opportunity's or a contact's, and planning, changing, completing and
+     | cancelling one. A record's are seen by whoever sees the record.
+     */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm/activities')->group(function () {
+        Route::get('/', [CrmActivityController::class, 'index'])->name('api.crm.activities.index');
+        Route::get('/options', [CrmActivityController::class, 'options'])->name('api.crm.activities.options');
+        Route::get('/regarding', [CrmActivityController::class, 'regarding'])->name('api.crm.activities.regarding');
+        Route::get('/for/{kind}/{id}', [CrmActivityController::class, 'forRecord'])->where('kind', 'lead|opportunity|contact')->whereNumber('id')->name('api.crm.activities.for');
+        Route::post('/', [CrmActivityController::class, 'store'])->middleware('idempotent')->name('api.crm.activities.store');
+        Route::put('/{id}', [CrmActivityController::class, 'update'])->whereNumber('id')->name('api.crm.activities.update');
+        Route::post('/{id}/complete', [CrmActivityController::class, 'complete'])->whereNumber('id')->name('api.crm.activities.complete');
+        Route::post('/{id}/cancel', [CrmActivityController::class, 'cancel'])->whereNumber('id')->name('api.crm.activities.cancel');
     });
 
     /* ----------------------------------------------------------

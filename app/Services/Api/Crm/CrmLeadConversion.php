@@ -63,6 +63,7 @@ class CrmLeadConversion
         protected WorkspaceAccess $access,
         protected CrmDuplicateReviewRepository $reviews,
         protected \App\Services\Crm\PipelineChoice $pipelineChoice,
+        protected \App\Repositories\User\CrmActivityRepository $activities,
     ) {}
 
     /**
@@ -138,6 +139,8 @@ class CrmLeadConversion
                 'quantity' => $item->quantity,
             ])->all());
             $this->opportunities->enterStage($opportunity, $stage->id, $user->id);
+            // Phase E1: its activities, planned and done, are the opportunity's now as well.
+            $this->activities->carryToOpportunity($lead, $opportunity);
 
             $this->leads->update($lead, [
                 'status'         => CrmLead::CONVERTED,

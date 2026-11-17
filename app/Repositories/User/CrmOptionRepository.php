@@ -31,7 +31,12 @@ class CrmOptionRepository
 
         foreach (CrmOption::STARTER as $kind => $names) {
             foreach (array_keys($names) as $index => $key) {
-                $rows[] = ['workspace_id' => $workspace->id, 'kind' => $kind, 'key' => $key, 'name' => $names[$key], 'position' => $index + 1, 'is_active' => true, 'created_at' => $now, 'updated_at' => $now];
+                $rows[] = [
+                    'workspace_id' => $workspace->id, 'kind' => $kind, 'key' => $key, 'name' => $names[$key], 'position' => $index + 1, 'is_active' => true,
+                    // Doc 17 Phase E1: the activity types worth an outcome once done.
+                    'needs_outcome' => $kind === 'activity_type' && in_array($key, CrmOption::NEEDS_OUTCOME, true),
+                    'created_at' => $now, 'updated_at' => $now,
+                ];
             }
         }
 

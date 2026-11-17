@@ -33,22 +33,29 @@ class CrmOption extends Model
         ],
     ];
 
+    /** The starting activity types whose completing needs an outcome (Doc 17 Phase E1) - the business can change each. */
+    public const NEEDS_OUTCOME = ['call', 'meeting', 'demonstration', 'site_visit'];
+
     protected $fillable = [
         'kind',
         'key',
         'name',
         'position',
         'is_active',
+        // An activity type's (Doc 17 Phase E1): completing one of it needs an outcome.
+        'needs_outcome',
     ];
 
     protected $casts = [
         'position'  => 'integer',
         'is_active' => 'boolean',
+        'needs_outcome' => 'boolean',
     ];
 
     // The columns' defaults, so one just made reads as it was saved.
     protected $attributes = [
         'is_active' => true,
+        'needs_outcome' => false,
     ];
 
     public function workspace(): BelongsTo

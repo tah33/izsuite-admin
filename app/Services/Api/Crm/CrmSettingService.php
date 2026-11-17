@@ -42,6 +42,7 @@ class CrmSettingService
         protected WorkspaceRepository $workspaces,
         protected CrmLeadRepository $leads,
         protected CrmOpportunityRepository $opportunities,
+        protected \App\Repositories\User\CrmActivityRepository $activities,
     ) {}
 
     /**
@@ -123,7 +124,7 @@ class CrmSettingService
         // Added to before they were ever read, the lists still start with Doc 17's examples.
         $this->start($workspace);
 
-        $option = $this->options->create($workspace, Arr::only($data, ['kind', 'name', 'is_active']));
+        $option = $this->options->create($workspace, Arr::only($data, $data['kind'] === 'activity_type' ? ['kind', 'name', 'is_active', 'needs_outcome'] : ['kind', 'name', 'is_active']));
 
         ActivityLogService::record('created', "Added {$this->what($option)}", $option, ['source' => 'api']);
 
@@ -135,7 +136,7 @@ class CrmSettingService
     {
         $option = $this->find($workspace, $id);
 
-        $this->options->update($option, Arr::only($data, ['name', 'is_active']));
+        $this->options->update($option, Arr::only($data, $option->kind === 'activity_type' ? ['name', 'is_active', 'needs_outcome'] : ['name', 'is_active']));
 
         ActivityLogService::record('updated', "Updated {$this->what($option)}", $option, [
             'source' => 'api',
@@ -161,6 +162,11 @@ class CrmSettingService
         // A lost opportunity keeps why it was lost (Phase D2a).
         if ($option->kind === 'lost_reason' && $this->opportunities->usesLostReason($option)) {
             $this->refuse('Opportunities were lost for this reason, so it stays. Switch it off instead.');
+        }
+
+        // An activity keeps its type (Phase E1).
+        if ($option->kind === 'activity_type' && $this->activities->usesType($option)) {
+            $this->refuse('Activities are of this type, so it stays. Switch it off instead.');
         }
 
         $this->options->delete($option);

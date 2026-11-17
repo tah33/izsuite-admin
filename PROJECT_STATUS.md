@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-17
-- **Code:** Doc 17 Phase D4 (the board and calendar views) is committed: frontend `9927a2c` on `nuxt`, and on `main` the admin commit right after `11fc750`.
-- **Tests:** 966 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
-- **Next step:** Doc 17 Phase E: activities and the timeline (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase E1 (activities) is committed: frontend `9642be7` on `nuxt`, and on `main` the admin commit right after `4254ba1`.
+- **Tests:** 971 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
+- **Next step:** Doc 17 Phase E2: reminders, and telling someone given an activity (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase D4 the latest is 000172. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase E1 the latest is 000173. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase E.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase E2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check and Phases A to D done (D4 built 2026-11-17), Phase E next** |
+| **17** | **CRM** | **In progress: gap check, Phases A to D and E1 done (E1 built 2026-11-17), Phase E2 next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase E)
+### 5. Doc 17: CRM (next: Phase E2)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -1856,6 +1856,35 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - At phone width, the board scrolled sideways inside its card and the calendar fitted, with no sideways scroll of the page.
   - The opportunities, the CRM lists and pipeline, the contact, member, the app's state, the sign-in and the activity were then put back.
 
+**Phase E: activities and the timeline** was split on starting it (2026-11-17): E1, activities themselves - their record, completing and cancelling them, a record's Activities card and the Activities page; E2, reminders in the bell and by e-mail, and telling someone given an activity; E3, the timeline of a lead, an opportunity and a contact.
+
+**Phase E1: activities** (section 17.17) is built, with these defaults:
+
+- **An activity** is of one of Settings → CRM's activity types switched on, with a subject, for one lead, opportunity or contact (fixed once planned), given to one member, and due at a day and time in the business's time zone (kept in UTC). Optional: a duration in minutes (5 to 1440), a priority, a place, a description, and for a call (izSuite's Call type) its direction, outgoing or incoming.
+  - It can be given to an active member who may view activities - at its record's location, when it has one - or the business's owner. Planning, it is the user's to start.
+- **Planned, then completed or cancelled,** both final. A planned one is Overdue once its time has passed.
+  - Completing it needs an outcome when its type says so; otherwise the outcome is optional. A follow-up can be planned straight after for the same record: a task for tomorrow at the same time, given to the same person, to start.
+  - Only a planned one is changed or cancelled. Cancelling asks first.
+- **Settings → CRM's Activity Types** say whether completing one needs an outcome (the Outcome column, Need Outcome / Outcome Optional, and a tick when adding one). izSuite's Call, Meeting, Demonstration and Site Visit need one to start. A type an activity is of is switched off, not deleted.
+- **Where they show:**
+  - a lead's, an opportunity's and a contact's page has an Activities card: the planned ones, the soonest due first, then those done or cancelled, the latest first, for whoever sees the record and may view activities. Plan Activity there is for that record (not for a converted or archived lead, an archived opportunity or a merged contact);
+  - the **Activities page** (CRM's sidebar, after Opportunities): Planned to start - the soonest due first, the overdue marked - or Due today, Overdue, Completed, Cancelled or All; by type; searched by subject or what it is for; My activities to start, or anyone's or a member's for those who see their team's or all records. Its Plan Activity picks what one is for: a lead, an opportunity or a contact the user may see, found by name.
+- **Who sees which:** the Activities page shows a member's own - those given to them - and, with View Team Records, their teams' members', or with View All CRM Records every one, at the locations they may use (a contact's, with no location, at any). A record's card shows all of its activities to whoever sees the record.
+- **Permissions:** Activities, View and Create and Edit (completing and cancelling included). The Sales User template has both.
+- **A lead's activities go with it into its opportunity** on conversion, planned and done, and stay on the lead's card too. A contact with activities is deactivated, not deleted; merging contacts moves them.
+- Planning, changing, completing and cancelling one are logged on the record it is for, so they show in its Activity timeline. A change reads in the business's time, with the type and the person by name ("Due at: 2026-11-16 15:00 → 2026-11-19 09:30").
+- **Found while checking:** the Activities page's picker said "Search opportunitys"; and a new activity's day and hour came from the browser's clock, not the business's time zone (a business with none set runs on UTC). Both are fixed.
+- **Checked in the browser** on the second PC, as `user@izsuite.io` with CRM switched on by hand (the business on UTC, the browser in Dhaka), and as a throwaway member who may view opportunities and plan and complete activities, seeing their own records only:
+  - CRM's sidebar listed Leads, Opportunities, Activities and Customers. The Activities page opened on Planned, Any type and My activities, with "Nothing planned".
+  - Plan Activity on the Activities page found the opportunity "Uddin Traders - warehouse racking", and planned a call at 10:00, outgoing: "Activity planned.", listed as due "17 Nov 2026, 10:00".
+  - On the opportunity's page, Plan Activity had For fixed to it and started at the next full hour in UTC; a meeting planned with a place hid the call-only Direction. Complete on the call waited for an outcome ("A Call needs its outcome once it is done."); with one and a follow-up ticked - a task for tomorrow at 10:00, filled in - it gave "Activity completed, and its follow-up planned." The card then listed the meeting, the task, and the call as Completed with its outcome.
+  - Edit moved the meeting to 08:30 ("Activity saved."). The opportunity's Activity timeline listed each step, the edit as "Due at: 2026-11-17 07:00:00 → 2026-11-17 08:30:00" (since read in the business's time, as above).
+  - On the Activities page, Cancel Activity asked first, then gave "Activity cancelled."; All activities showed the follow-up, the completed call with its outcome and the cancelled meeting.
+  - Settings → CRM's Activity Types showed the Outcome column; Need Outcome on Task gave "Saved." and Needed.
+  - A lead's email activity went with it into its opportunity on conversion, showing on both pages; the converted lead's card had no Plan Activity. The contact's page had the card, the width of the page.
+  - As the member, the sidebar's CRM showed Opportunities and Activities, and the Activities page only the site visit given to them, Overdue, with no Assigned to filter. They could plan only for opportunities (none of their own to pick), not contacts (403); the owner's opportunity's activities were not found for them; and completing the site visit asked for its outcome first ("A Site Visit needs its outcome once it is done."), then gave "Activity completed."
+  - The activities, opportunities, lead, contacts, CRM lists, member, the app's state, the sign-in and the activity were then put back.
+
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## Testing checklist
@@ -1878,6 +1907,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase D3a | 000171 |
 | Doc 17: Phase D3b | 000172 |
 | Doc 17: Phase D4 | none |
+| Doc 17: Phase E1 | 000173 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -2099,6 +2129,22 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] The calendar's filters work as the list's: All opportunities adds the won (green) and lost (grey) ones.
 - [ ] As the member: only their own on the board and the calendar, no Owner filter, and their card's menu offers only Change Stage. Won and Lost do not take their card.
 
+**Phase E1: activities**
+
+**Before you start:** CRM on, a lead, an opportunity and a contact, and a member whose role views opportunities and plans activities (Activities: View, Create and Edit) but sees only their own records. Give the owner's role Activities too if it is a custom one.
+
+- [ ] CRM's sidebar has Activities after Opportunities. The page opens on Planned, My activities.
+- [ ] Plan Activity on the Activities page: pick an opportunity by name, a call at a time already past today, outgoing. It is listed, Overdue.
+- [ ] The opportunity's page has an Activities card with it. Plan Activity there has For fixed to the opportunity; a meeting shows no Direction.
+- [ ] Complete the call: it waits for an outcome. With one, and Plan a follow-up ticked, the card lists the follow-up planned and the call Completed with its outcome.
+- [ ] Edit a planned one's time: "Activity saved." The opportunity's Activity timeline shows each step, the edit in the business's time.
+- [ ] Cancel one from the Activities page: it asks, then shows Cancelled under All activities. A completed or cancelled one has no menu.
+- [ ] The status filter's Due today and Overdue, the type filter and the search narrow the list.
+- [ ] Settings → CRM's Activity Types: switch Task to Need Outcome, and completing a task waits for one. Add a type with "Completing one needs an outcome" ticked; once an activity is of it, it cannot be deleted.
+- [ ] Plan one for a lead, then convert the lead: it shows on the new opportunity's card and still on the lead's, which has no Plan Activity now.
+- [ ] A contact's page has the card. A contact with activities cannot be deleted; merged into another, its activities move.
+- [ ] As the member: only activities given to them, no Assigned to filter; Plan Activity offers only what they may see; completing theirs works.
+
 ## How we work
 
 Each document goes the same way:
@@ -2160,6 +2206,8 @@ Each document goes the same way:
 - A `WorkspaceDropdown` option is picked by clicking the `button` inside its `li`, not the `li` itself.
 - Another project's dev server on the host can take `localhost:3000` (Node on `0.0.0.0:3000`), and the browser then opens that site instead. Open izSuite at `http://127.0.0.1:3000`, which Docker holds; the API takes it, as no CORS origin list is set. Its sign-in is separate from `localhost`'s.
 - A collection's `each()` stops at the first callback that returns false. An arrow function returns its assignment's value, so `->each(fn ($row) => $row->in_use = …)` stops at the first row given false and leaves the rest unset. Use a block closure (Doc 17 Phase D3b's tests caught it).
+- A new export added to a file in `utils/` or `composables/` is not auto-imported by the running dev server: the page fails at run time with "… is not defined". `docker restart izsuite-frontend`, as for a new component.
+- In a PHP edit script, a JavaScript template literal (`` `${x}` ``) inside a double-quoted PHP string is read by PHP as interpolation and stops the script part-way, after the edits before it were written. Put such text in single-quoted strings.
 - In the Claude browser pane, `left_click_drag` does not start an HTML5 drag, so a dragged card never drops. Check a drop from a script instead: dispatch `dragstart` on the card, then `dragover` and `drop` on the column, with one `DataTransfer` (Doc 17 Phase D4's board).
 - `ActivityLogService::record()` puts an entry down to whoever is signed in, even in a test that acts as someone across requests. Something no one in the business did (a customer through a link) goes through `recordCustomer()`.
 
@@ -2340,7 +2388,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase D2b, an opportunity's files, comments and timeline | `2414d2c` | `b514ca8` | none |
 | Doc 17: Phase D3a, stale stages and the fields a stage needs | `6059052` | `6b69a39` | 000171 |
 | Doc 17: Phase D3b, several pipelines for chosen teams or locations | `11fc750` | `78b7464` | 000172 |
-| Doc 17: Phase D4, the board and calendar views | the commit after `11fc750` | `9927a2c` | none |
+| Doc 17: Phase D4, the board and calendar views | `4254ba1` | `9927a2c` | none |
+| Doc 17: Phase E1, activities | the commit after `4254ba1` | `9642be7` | 000173 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -2731,6 +2780,12 @@ These are easy to undo by mistake.
   - A card moves through the existing steps: `POST …/stage` when dropped on an open stage, and Mark Won or Mark Lost (CrmOpportunityWinModal, CrmOpportunityLoseModal) after reading the opportunity, as its menu's Change Stage does with CrmOpportunityStageModal. A modal is opened a tick after it mounts, so its own `watch(open)` sets its defaults.
   - Dragging is HTML5 drag and drop; the card's menu is the way on touch screens. The calendar's weeks are worked out in `utils/crmCalendar.ts`, in UTC.
   - The Opportunities page is a frame (`pages/crm/opportunities/index.vue`) around CrmOpportunityList, CrmOpportunityBoard and CrmOpportunityCalendar, with the options read once for all three.
+- Activities (Doc 17 Phase E1, migration 000173):
+  - `crm_activities` (`CrmActivity`): one of `lead_id`, `opportunity_id` or `contact_id` when planned - a converted lead's keep `lead_id` and gain `opportunity_id` (`CrmActivityRepository::carryToOpportunity()`, from `CrmLeadConversion`). `regarding()` is the opportunity first. `location_id` is the record's, null for a contact's. `due_at` is UTC; `CrmActivityService::mark()` sets `due_on`, `due_time` (the business's) and `overdue`.
+  - `CrmActivityService` (behind `CrmActivityController`) plans, changes, completes (with `follow_up`) and cancels; `ActivityVisibility` decides who sees one - the Activities page by `assigned_to`, a record's card by the record's own visibility - and `ActivityAssignments` who it can be given to.
+  - Activity types are `crm_options` of kind `activity_type`, with `needs_outcome` (`CrmOption::NEEDS_OUTCOME` for the starters). The key `call` marks a call, which alone keeps a `call_direction`.
+  - Each step is logged on the record (`ActivityLogService::record()` with the lead, opportunity or contact as subject); an edit's changes are made readable (`readable()`): the due moment in the business's time, the type and the assignee by name.
+  - Frontend: `useCrmActivities()`, `utils/crmActivities.ts` (`businessNextHour()` for the business's time zone), CrmActivitiesCard on the three record pages, the Activities page, and CrmActivityDialogs - plan, edit, complete, cancel - shared by both.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -2756,6 +2811,7 @@ These are easy to undo by mistake.
 - A customer's address on a response is what Laravel sees: behind a proxy it is the proxy's until its address is trusted (see Deploying), and on dev it is Docker's gateway.
 - An opportunity cannot move to another pipeline. Edited to a team or location its pipeline is not for, it stays where it is (Doc 17 Phase D3b).
 - The Opportunities page's Pipeline and Stage filters offer only pipelines switched on. A switched-off pipeline's opportunities show under Any pipeline (the board can still pick one).
+- An activity, once completed or cancelled, is not reopened; activities are not on the opportunities' board or calendar; the Activities page searches subjects and record names, not places or descriptions; and its For link to a record the user does not see leads to a not-found page (Doc 17 Phase E1).
 - The board keeps each column in the list's order: cards are not reordered by hand. Nothing changes a closing day by dragging it on the calendar, and the board's column of 50 has no link to the rest in the list (Doc 17 Phase D4).
 
 ## Open decisions
@@ -2844,4 +2900,5 @@ Each of these is yours to settle.
 - Doc 17 Phase D3a: migration 000171 adds each stage's stale-after days and the details it needs. Nothing changes until Settings → CRM sets them. Deploy the frontend with it.
 - Doc 17 Phase D3b: migration 000172 adds `team_ids` and `location_ids` to `crm_pipelines`. Each pipeline there is stays for every team and location until Settings → CRM changes it. Deploy the frontend with it.
 - Doc 17 Phase D4: no migration. Deploy the frontend with it (the Opportunities page gains Board and Calendar).
+- Doc 17 Phase E1: migration 000173 adds `crm_activities`, whether an activity type needs an outcome (izSuite's Call, Meeting, Demonstration and Site Visit do), and Activities in CRM's sidebar. The Activities permissions are new: give them to custom roles that need them (the Sales User template has both). Deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.
