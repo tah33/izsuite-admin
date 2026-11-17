@@ -40,7 +40,7 @@ class CrmOpportunityRepository
         $status = $filters['status'] ?? null;
 
         return $this->visible($workspace, $scope)
-            ->with(['contact:id,name', 'stage:id,name,stale_after_days', 'owner:id,first_name,last_name'])
+            ->with(['contact:id,name', 'pipeline:id,name', 'stage:id,name,stale_after_days', 'owner:id,first_name,last_name'])
             ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $query->where(fn (Builder $query) => $query
                 ->where('name', 'like', "%{$search}%")
                 ->orWhereHas('contact', fn (Builder $query) => $query->where('name', 'like', "%{$search}%"))))
@@ -49,6 +49,7 @@ class CrmOpportunityRepository
             ->when($status === 'stale', fn (Builder $query) => $this->stale($query, $filters['stale_since'] ?? []))
             ->when($status && ! in_array($status, ['all', 'archived', 'stale'], true), fn (Builder $query) => $query->where('status', $status))
             ->when($filters['stage_id'] ?? null, fn (Builder $query, $id) => $query->where('stage_id', $id))
+            ->when($filters['pipeline_id'] ?? null, fn (Builder $query, $id) => $query->where('pipeline_id', $id))
             ->when($filters['owner_id'] ?? null, fn (Builder $query, $id) => $query->where('owner_id', $id))
             ->orderBy('expected_close_date')
             ->orderBy('id')

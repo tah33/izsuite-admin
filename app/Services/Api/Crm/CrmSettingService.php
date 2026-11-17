@@ -3,6 +3,7 @@
 namespace App\Services\Api\Crm;
 
 use App\Models\User\CrmOption;
+use App\Models\User\CrmPipeline;
 use App\Models\User\Workspace;
 use App\Repositories\User\CrmLeadRepository;
 use App\Repositories\User\CrmOpportunityRepository;
@@ -53,10 +54,19 @@ class CrmSettingService
     {
         $this->start($workspace);
 
+        // Phase D3b: each saying whether opportunities are or were in it, so it stays.
+        $pipelines = $this->pipelines->getFor($workspace);
+        $used      = $this->pipelines->usedIds($pipelines);
+
+        // A block, not an arrow: each() stops at a callback that returns false.
+        $pipelines->each(function (CrmPipeline $pipeline) use ($used) {
+            $pipeline->in_use = in_array($pipeline->id, $used, true);
+        });
+
         return [
             'settings'  => $this->settings->forWorkspace($workspace),
             'options'   => $this->options->getFor($workspace),
-            'pipelines' => $this->pipelines->getFor($workspace),
+            'pipelines' => $pipelines,
         ];
     }
 

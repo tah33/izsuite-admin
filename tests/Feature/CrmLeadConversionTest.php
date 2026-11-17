@@ -87,8 +87,9 @@ class CrmLeadConversionTest extends TestCase
         $preview = $this->getJson("/api/v1/crm/leads/{$lead}/conversion")->assertOk()->json('data');
 
         $this->assertSame([], $preview['matches']);
-        $this->assertSame(['New', 'Qualified', 'Proposal', 'Negotiation'], array_column($preview['stages'], 'name'));
-        $this->assertSame(['name' => 'Uddin Traders', 'stage_id' => $this->stage('New'), 'expected_value' => '1500.00', 'currency' => $this->business->base_currency, 'expected_close_date' => '2026-12-20'], $preview['defaults']);
+        // Phase D3b: the pipelines for the lead's team and location - the one there is - with their open stages, and the first to start.
+        $this->assertSame([['Sales Pipeline', ['New', 'Qualified', 'Proposal', 'Negotiation']]], array_map(fn (array $row) => [$row['name'], array_column($row['stages'], 'name')], $preview['pipelines']));
+        $this->assertSame(['name' => 'Uddin Traders', 'pipeline_id' => $preview['pipelines'][0]['id'], 'stage_id' => $this->stage('New'), 'expected_value' => '1500.00', 'currency' => $this->business->base_currency, 'expected_close_date' => '2026-12-20'], $preview['defaults']);
         $this->assertTrue($preview['can_create_contact']);
 
         $this->convert($lead, null)->assertOk()

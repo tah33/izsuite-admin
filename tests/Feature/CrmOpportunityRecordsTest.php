@@ -53,7 +53,7 @@ class CrmOpportunityRecordsTest extends TestCase
         $this->postJson('/api/v1/apps/crm/activate')->assertOk();
 
         $contact           = $this->business->contacts()->create(['contact_type' => 'business', 'role' => 'customer', 'name' => 'Uddin Traders']);
-        $stage             = $this->getJson('/api/v1/crm/opportunities/options')->json('data.stages.0.id');
+        $stage             = $this->getJson('/api/v1/crm/opportunities/options')->json('data.pipelines.0.stages.0.id');
         $this->opportunity = $this->postJson('/api/v1/crm/opportunities', [
             'name' => 'Uddin Traders - shelving', 'contact_id' => $contact->id, 'stage_id' => $stage,
             'expected_value' => '2000', 'currency' => $this->business->base_currency, 'expected_close_date' => '2026-12-20',
@@ -138,7 +138,7 @@ class CrmOpportunityRecordsTest extends TestCase
 
     public function test_its_timeline_reads_its_activity_newest_first(): void
     {
-        $proposal = collect($this->getJson('/api/v1/crm/opportunities/options')->json('data.stages'))->firstWhere('name', 'Proposal')['id'];
+        $proposal = collect($this->getJson('/api/v1/crm/opportunities/options')->json('data.pipelines.0.stages'))->firstWhere('name', 'Proposal')['id'];
         $this->postJson("/api/v1/crm/opportunities/{$this->opportunity}/stage", ['stage_id' => $proposal])->assertOk();
         $this->postJson("/api/v1/crm/opportunities/{$this->opportunity}/comments", ['body' => 'Sent the proposal.'])->assertCreated();
 

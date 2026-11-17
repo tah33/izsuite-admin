@@ -299,6 +299,9 @@ Route::prefix('v1')->group(function () {
             Route::delete('/options/{id}', [CrmOptionController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.options.destroy');
             // A pipeline and its stages (Doc 17 Phase A2).
             Route::put('/pipelines/{id}', [CrmPipelineController::class, 'update'])->whereNumber('id')->name('api.business-settings.crm.pipelines.update');
+            // Several pipelines (Doc 17 Phase D3b).
+            Route::post('/pipelines', [CrmPipelineController::class, 'store'])->middleware('idempotent')->name('api.business-settings.crm.pipelines.store');
+            Route::delete('/pipelines/{id}', [CrmPipelineController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.pipelines.destroy');
         });
 
         // Sales teams (Doc 16 Phase A): the full Sales app's - and, since Doc

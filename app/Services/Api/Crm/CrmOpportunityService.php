@@ -20,6 +20,7 @@ use App\Services\Crm\LeadInterests;
 use App\Services\Crm\OpportunityAssignments;
 use App\Services\Crm\OpportunityForecast;
 use App\Services\Crm\OpportunityVisibility;
+use App\Services\Crm\PipelineChoice;
 use App\Services\Crm\StageRequirements;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\BusinessCalendar;
@@ -71,6 +72,7 @@ class CrmOpportunityService
         protected WorkspaceAccess $access,
         protected BusinessCalendar $calendar,
         protected StageRequirements $requirements,
+        protected PipelineChoice $pipelineChoice,
     ) {}
 
     /**
@@ -167,12 +169,13 @@ class CrmOpportunityService
      */
     public function options(Workspace $workspace, User $user): array
     {
-        $pipeline = $this->pipeline($workspace);
-        $lists    = $this->options->getFor($workspace)->where('is_active', true);
+        $lists  = $this->options->getFor($workspace)->where('is_active', true);
+        // Phase D3b: the pipelines switched on, each with its open stages - and every stage of theirs switched on, to filter by.
+        $active = $this->pipelineChoice->active($workspace);
 
         return [
-            'stages'       => $this->openStages($pipeline),
-            'all_stages'   => $pipeline->stages->where('is_active', true)->values(),
+            'all_stages'   => $active->flatMap(fn (CrmPipeline $row) => $row->stages->where('is_active', true))->values(),
+            'pipelines'    => $this->pipelineChoice->described($active),
             'sources'      => $lists->where('kind', 'lead_source')->values(),
             'lost_reasons' => $lists->where('kind', 'lost_reason')->values(),
             'teams'        => $this->teams->forWorkspace($workspace, true),
@@ -186,7 +189,8 @@ class CrmOpportunityService
     public function create(Workspace $workspace, User $user, array $data): CrmOpportunity
     {
         $fields   = $this->checked($workspace, $data);
-        $pipeline = $this->pipeline($workspace);
+        // Phase D3b: the pipeline asked for - or the first that fits - for its sales team and location.
+        $pipeline = $this->pipelineChoice->choose($workspace, isset($data['pipeline_id']) ? (int) $data['pipeline_id'] : null, $fields['sales_team_id'] ?? null, $fields['location_id'] ?? null);
         $stage    = $this->openStages($pipeline)->firstWhere('id', (int) $data['stage_id'])
             ?? throw ValidationException::withMessages(['stage_id' => "Choose one of the pipeline's open stages."]);
         $ownerId  = (int) ($data['owner_id'] ?? $user->id);
@@ -307,14 +311,6 @@ class CrmOpportunityService
         }
 
         return $given;
-    }
-
-    /** The business's pipeline - its first, the only one until Phase D3 - its lists started if Settings → CRM never was. */
-    public function pipeline(Workspace $workspace): CrmPipeline
-    {
-        $this->settings->start($workspace);
-
-        return $this->pipelines->getFor($workspace)->first();
     }
 
     /** @return Collection<int, CrmStage> its open stages switched on, in order */

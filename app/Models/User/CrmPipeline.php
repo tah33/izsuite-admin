@@ -29,11 +29,16 @@ class CrmPipeline extends Model
         'name',
         'position',
         'is_active',
+        // Phase D3b: the sales teams and locations it is for - none, all of them.
+        'team_ids',
+        'location_ids',
     ];
 
     protected $casts = [
-        'position'  => 'integer',
-        'is_active' => 'boolean',
+        'position'     => 'integer',
+        'is_active'    => 'boolean',
+        'team_ids'     => 'array',
+        'location_ids' => 'array',
     ];
 
     // The columns' defaults, so one just made reads as it was saved.
@@ -51,5 +56,17 @@ class CrmPipeline extends Model
     public function stages(): HasMany
     {
         return $this->hasMany(CrmStage::class)->orderBy('position')->orderBy('id');
+    }
+
+    /**
+     * Whether an opportunity of $teamId's sales team at $locationId may be in
+     * it (Phase D3b): it is for all teams, or that one among those chosen -
+     * and likewise for locations. An opportunity without a team fits only a
+     * pipeline for all teams; without a location, one for all locations.
+     */
+    public function fits(?int $teamId, ?int $locationId): bool
+    {
+        return ($this->team_ids === null || $this->team_ids === [] || ($teamId !== null && in_array($teamId, $this->team_ids, true)))
+            && ($this->location_ids === null || $this->location_ids === [] || ($locationId !== null && in_array($locationId, $this->location_ids, true)));
     }
 }

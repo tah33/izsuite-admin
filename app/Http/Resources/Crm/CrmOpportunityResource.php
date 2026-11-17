@@ -41,6 +41,8 @@ class CrmOpportunityResource extends JsonResource
             'contact'             => $this->contact ? [...$named($this->contact), 'contact_number' => $this->contact->contact_number] : null,
             'contact_person'      => $this->contact_person,
             'lead'                => $named($this->lead),
+            // Phase D3b: the pipeline it is in.
+            'pipeline'            => $this->pipeline ? $named($this->pipeline) : null,
             'stage'               => $this->stage ? [...$named($this->stage), 'category' => $this->stage->category, 'stale_after_days' => $this->stage->stale_after_days] : null,
             // The pipeline's stages switched on - and the one it is at - in order: where it stands among them.
             'stages'              => ($this->pipeline?->stages ?? collect())

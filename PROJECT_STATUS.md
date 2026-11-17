@@ -2,10 +2,10 @@
 
 What is done, what comes next, and how to carry on from another PC.
 
-- **Last updated:** 2026-11-16
-- **Code:** Doc 17 Phase D3a (stale stages and the fields a stage needs) is committed: frontend `6b69a39` on `nuxt`, and on `main` the admin commit right after `2414d2c`.
-- **Tests:** 959 backend tests pass (last full run 2026-11-16, on the first PC, on this code).
-- **Next step:** Doc 17 Phase D3b: several pipelines, each for chosen teams or locations (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Last updated:** 2026-11-17
+- **Code:** Doc 17 Phase D3b (several pipelines, each for chosen teams or locations) is committed: frontend `78b7464` on `nuxt`, and on `main` the admin commit right after `6059052`.
+- **Tests:** 962 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
+- **Next step:** Doc 17 Phase D4: the kanban and calendar views (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase D3a the latest is 000171. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase D3b the latest is 000172. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase D3b.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase D4.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check and Phases A to C, D1, D2 and D3a done (D3a built 2026-11-16), Phase D3b next** |
+| **17** | **CRM** | **In progress: gap check and Phases A to C and D1 to D3 done (D3b built 2026-11-17), Phase D4 next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase D3b)
+### 5. Doc 17: CRM (next: Phase D4)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -1804,6 +1804,34 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - Back at Qualified, with its arrival put 6 days back in the database, the Opportunities page marked it "Stale, 6 days". The Stale filter listed only it, not a second one added that day. Its page read "At Qualified for 6 days, stale after 5 days." with Stale.
   - The opportunities, the CRM lists and pipeline, the app's state, the sign-in and the activity were then put back.
 
+**Phase D3b: several pipelines, each for chosen teams or locations** (sections 17.13 and 17.24) is built, with these defaults. Phase D3 is done.
+
+- **Settings → CRM** lists the pipelines under a Pipelines header, which says what decides where an opportunity goes:
+  - **Add Pipeline** asks for a name, used once in the business, and whom it is for. It starts switched on, last in the list, with the starter stages (New, Qualified, Proposal, Negotiation, Won and Lost) to change in its own card.
+  - Each pipeline's card has **Switched On**, and **Sales Teams** and **Locations**: all of them, or only those ticked. Locations show once the business has more than one. "Only those ticked" with none ticked is refused in the form ("Tick a team, or choose All.").
+  - All sales teams includes an opportunity with no team. A pipeline for chosen teams takes only opportunities of those teams.
+  - A switched-off pipeline shows Off by its name. New opportunities cannot go in it; those in it stay, and still move between its stages.
+  - **Delete Pipeline** shows while no opportunity is or ever was in it, a lead converted into it included. Otherwise it is switched off instead.
+  - **One pipeline switched on stays for every team and location,** so every opportunity has somewhere to go. Switching it off, narrowing it or deleting it is refused: "One pipeline switched on must stay for every sales team and location, so every opportunity has somewhere to go." Its card has no Delete while it is the only one.
+- **Where an opportunity goes:** a pipeline switched on that is for its sales team and location.
+  - Adding one, the form offers those that fit, in Settings → CRM's order, and starts at the first. The Pipeline field shows once the business has several switched on. Changing its team or location to ones the chosen pipeline is not for moves the form to the first that fits, at its first open stage.
+  - Through the API, a pipeline left out is the first that fits. One switched off, or not for its team and location, is refused: "Choose a pipeline switched on that is for its sales team and location." A stage of another pipeline is refused as before.
+  - Converting a lead offers the pipelines for the lead's team and location, the first to start.
+  - An opportunity stays in its pipeline when edited to another team or location. Moving it to another pipeline is not built (see [Small things left](#small-things-left)).
+- **The Opportunities page,** while there are several pipelines switched on, has a Pipeline filter. The Stage filter names each stage with its pipeline ("Sales Pipeline · New") until one pipeline is chosen, then lists only that pipeline's. Each row names its pipeline under its stage, and an opportunity's page says which pipeline it stands in.
+- **Found while checking:** the list's foot read "1–3 of 3 opportunitys", and Deliveries' "deliverys". The pager now takes a noun's own plural. And with several cards, each pipeline's Name field had the same id, so every Name label led to the first card's; each card has its own now.
+- **Checked in the browser** on the second PC, as `user@izsuite.io` with CRM switched on by hand, a sales team (Wholesale Desk) and a second location (Chattogram Branch), and as a throwaway member who adds opportunities at Chattogram Branch only:
+  - Settings → CRM: the starter pipeline narrowed to Wholesale Desk was refused under Switched On with the message above. With no team ticked, the form said "Tick a team, or choose All."
+  - Add Pipeline "Wholesale" for Wholesale Desk gave "Pipeline "Wholesale" added." and its card: six stages, Wholesale Desk ticked, and Delete. The starter pipeline had no Delete.
+  - "Projects" for Chattogram Branch and "Spare" for everyone were added through the API. Every card then had Delete, the starter's too. Spare was deleted from its card, and the starter lost Delete again.
+  - Adding an opportunity at Chattogram Branch with no team offered Sales Pipeline and Projects; with Wholesale Desk, Wholesale too. Moving the location to Main Location took the form from Projects back to Sales Pipeline. Added in Wholesale at Qualified, its page read "Where it stands in Wholesale".
+  - Converting a qualified lead of Wholesale Desk offered all three pipelines. It converted into Wholesale at Qualified.
+  - The Opportunities page named each row's pipeline. "Sales Pipeline · Proposal" listed one; choosing Wholesale then cleared that stage, listed its two and offered its own stages.
+  - Wholesale switched off: "Pipeline saved." and Off by its name, with no Delete, as opportunities were in it. The filter and the form no longer offered it, and its two opportunities stayed listed under it.
+  - As the member, the form offered Sales Pipeline and Projects, and an opportunity added in Projects was the only one listed for them. Adding a pipeline was refused (403), and adding into the switched-off Wholesale through the API gave the refusal above.
+  - Editing an opportunity showed no Pipeline field.
+  - The pipelines, opportunities, lead, contacts, team, location, member, the app's state, the sign-in and the activity were then put back.
+
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## Testing checklist
@@ -1824,6 +1852,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase D2a | 000170 |
 | Doc 17: Phase D2b | none |
 | Doc 17: Phase D3a | 000171 |
+| Doc 17: Phase D3b | 000172 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -2014,6 +2043,21 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] After more than a day at the stage with the 1-day period, the opportunity shows Stale with its days, in the list and on its page ("At … for 2 days, stale after 1 day."). The Stale filter lists only stale ones. Moved to another stage, it is no longer stale.
 - [ ] Emptying a detail a stage needs, once the opportunity is there, is saved and leaves it where it is.
 
+**Phase D3b: several pipelines, each for chosen teams or locations**
+
+**Before you start:** CRM on, two active locations, a sales team, a contact, a qualified lead of that team, and a member whose role adds opportunities (View, Create and Edit) at one location only.
+
+- [ ] Settings → CRM has a Pipelines header with Add Pipeline. The first pipeline's card has Switched On, Sales Teams and Locations, and no Delete.
+- [ ] Narrowing the first pipeline to a team, or switching it off, is refused under Switched On: one for every team and location must stay on.
+- [ ] Add a pipeline for the team. It comes last, switched on, with the six starter stages and Delete. Another of the same name is refused.
+- [ ] Add one for one location, and one for everyone. The first pipeline gains Delete while that other for everyone is there; delete it, and the first loses Delete again.
+- [ ] Adding an opportunity, Pipeline offers those for its team and location, each with its own stages. Choosing the team adds the team's pipeline. Moving the location off a location's pipeline moves the form to the first that fits, at its first stage.
+- [ ] Added in the team's pipeline, its page says it stands in that pipeline. Editing it shows no Pipeline field.
+- [ ] Converting the lead offers the pipelines for its team and location, and it converts into the one chosen.
+- [ ] The Opportunities page has a Pipeline filter, names the stages with their pipeline until one is chosen, and shows each row's pipeline under its stage. Choosing a pipeline clears a stage of another.
+- [ ] Switch the team's pipeline off. It shows Off, has no Delete once an opportunity is in it, and the form and the filter no longer offer it. Its opportunities stay, and still change stage.
+- [ ] As the member, the form offers only the pipelines for their location (and for every location), and adding a pipeline is refused.
+
 ## How we work
 
 Each document goes the same way:
@@ -2074,6 +2118,7 @@ Each document goes the same way:
 - `last_value` is a reserved word in MySQL 8: quote it (`` `last_value` ``) when putting `workspace_sequences` back by hand.
 - A `WorkspaceDropdown` option is picked by clicking the `button` inside its `li`, not the `li` itself.
 - Another project's dev server on the host can take `localhost:3000` (Node on `0.0.0.0:3000`), and the browser then opens that site instead. Open izSuite at `http://127.0.0.1:3000`, which Docker holds; the API takes it, as no CORS origin list is set. Its sign-in is separate from `localhost`'s.
+- A collection's `each()` stops at the first callback that returns false. An arrow function returns its assignment's value, so `->each(fn ($row) => $row->in_use = …)` stops at the first row given false and leaves the rest unset. Use a block closure (Doc 17 Phase D3b's tests caught it).
 - `ActivityLogService::record()` puts an entry down to whoever is signed in, even in a test that acts as someone across requests. Something no one in the business did (a customer through a link) goes through `recordCustomer()`.
 
 ### Checking the app as a limited member
@@ -2251,7 +2296,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase D1, opportunities themselves | `56ca093` | `cdb6659` | 000169 |
 | Doc 17: Phase D2a, won, lost, reopening and archiving | `f052a9d` | `3f475e6` | 000170 |
 | Doc 17: Phase D2b, an opportunity's files, comments and timeline | `2414d2c` | `b514ca8` | none |
-| Doc 17: Phase D3a, stale stages and the fields a stage needs | the commit after `2414d2c` | `6b69a39` | 000171 |
+| Doc 17: Phase D3a, stale stages and the fields a stage needs | `6059052` | `6b69a39` | 000171 |
+| Doc 17: Phase D3b, several pipelines for chosen teams or locations | the commit after `6059052` | `78b7464` | 000172 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -2627,6 +2673,14 @@ These are easy to undo by mistake.
   - Stale is worked out on reading, never stored: `CrmOpportunityService::mark()` sets `days_at_stage` and `stale` from `stage_entered_at`, and the list's `status=stale` is the open ones past their stage's period (`CrmOpportunityRepository::stale()`).
   - `SettingChanges` counts an empty list as none, as it does empty text.
   - The frontend's `STAGE_NEEDS`, `filledNeeds()` and `stageNeeds()` (`utils/crmOpportunities.ts`) mirror the API's check for CrmStageNeedsNote, in Change Stage, Mark Won, Mark Lost and Reopen.
+- Several pipelines (Doc 17 Phase D3b, migration 000172):
+  - `crm_pipelines.team_ids` and `location_ids` are JSON lists, null for all; `CrmPipeline::fits()` reads them, and `pipelineFits()` in the frontend's `utils/crmOpportunities.ts` mirrors it.
+  - `App\Services\Crm\PipelineChoice` decides where an opportunity goes. `choose()` takes the one asked for or the first that fits, else refuses under `pipeline_id` (`opportunity.pipeline_id` when converting). `active()` lists those switched on, and `forForms()` / `described()` give what a form offers.
+  - `CrmPipelineService::ensureOneForAll()` keeps one pipeline switched on for every team and location, refusing under `is_active`.
+  - Delete only while no opportunity is or was in it: `CrmPipelineRepository::isUsed()` for one, `usedIds()` for the list. The resource's `removable` reads `in_use`, set by `CrmSettingService::show()` and `CrmPipelineService::save()`; a new one has none. The frontend also hides Delete on the last pipeline switched on for everyone.
+  - The opportunity options' `pipelines` (whom each is for, with its open stages) replaced `stages`, and `all_stages` carry their `pipeline_id`. The conversion preview's `stages` went the same way. `CrmOpportunityService::pipeline()` is gone.
+  - CrmOpportunityFormMain keeps the form's pipeline and stage to ones that fit as its team and location change. `useSalesTeams()` keeps its list in shared state, so Settings → CRM's pipeline cards choose from the teams its Sales Teams card loads.
+  - DataPager's `plural` prop, for a noun that does not just add s.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -2650,6 +2704,8 @@ These are easy to undo by mistake.
 - A customer's credit exposure counts invoices dated up to today, as Outstanding Invoices does, so one dated ahead is left out until its day.
 - The customer's link page answers in English, even for a document in another language: only Download PDF is translated there.
 - A customer's address on a response is what Laravel sees: behind a proxy it is the proxy's until its address is trusted (see Deploying), and on dev it is Docker's gateway.
+- An opportunity cannot move to another pipeline. Edited to a team or location its pipeline is not for, it stays where it is (Doc 17 Phase D3b).
+- The Opportunities page's Pipeline and Stage filters offer only pipelines switched on. A switched-off pipeline's opportunities show under Any pipeline.
 
 ## Open decisions
 
@@ -2735,4 +2791,5 @@ Each of these is yours to settle.
 - Doc 17 Phase D2a: migration 000170 adds how an opportunity ended (won or lost on, by, the won reason, the lost reason, competitor, notes and follow-up day) and its archiving. Mark Won or Lost and Reopen Won or Lost are new permissions: give them to custom roles that need them (the Sales User template has Mark Won or Lost). Deploy the frontend with it.
 - Doc 17 Phase D2b: no migration. Deploy the frontend with it (an opportunity's page gains its files, comments and timeline).
 - Doc 17 Phase D3a: migration 000171 adds each stage's stale-after days and the details it needs. Nothing changes until Settings → CRM sets them. Deploy the frontend with it.
+- Doc 17 Phase D3b: migration 000172 adds `team_ids` and `location_ids` to `crm_pipelines`. Each pipeline there is stays for every team and location until Settings → CRM changes it. Deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

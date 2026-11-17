@@ -62,6 +62,7 @@ class CrmLeadConversion
         protected RowLockRepository $rows,
         protected WorkspaceAccess $access,
         protected CrmDuplicateReviewRepository $reviews,
+        protected \App\Services\Crm\PipelineChoice $pipelineChoice,
     ) {}
 
     /**
@@ -71,16 +72,18 @@ class CrmLeadConversion
      */
     public function preview(Workspace $workspace, User $user, int $id): array
     {
-        $lead   = $this->allowed($workspace, $user, $id);
-        $stages = $this->openStages($this->pipeline($workspace));
+        $lead      = $this->allowed($workspace, $user, $id);
+        // Phase D3b: the pipelines for the lead's sales team and location, each with its open stages - the first to start, at its first.
+        $pipelines = $this->pipelineChoice->forForms($workspace, true, $lead->sales_team_id, $lead->location_id);
 
         return [
             'matches'            => $this->matches($workspace, $lead),
-            'stages'             => $stages,
+            'pipelines'          => $pipelines,
             'can_create_contact' => $this->access->can('contacts.create'),
             'defaults'           => [
                 'name'                => $lead->business_name ?: $lead->name,
-                'stage_id'            => $stages->first()?->id,
+                'pipeline_id'         => $pipelines[0]['id'] ?? null,
+                'stage_id'            => $pipelines[0]['stages'][0]['id'] ?? null,
                 'expected_value'      => $lead->estimated_value,
                 'currency'            => $lead->currency ?? $workspace->base_currency,
                 'expected_close_date' => $lead->expected_purchase_date?->toDateString(),
@@ -92,7 +95,7 @@ class CrmLeadConversion
     public function convert(Workspace $workspace, User $user, int $id, array $data): CrmLead
     {
         $lead     = $this->allowed($workspace, $user, $id);
-        $pipeline = $this->pipeline($workspace);
+        $pipeline = $this->pipelineChoice->choose($workspace, isset($data['opportunity']['pipeline_id']) ? (int) $data['opportunity']['pipeline_id'] : null, $lead->sales_team_id, $lead->location_id, 'opportunity.pipeline_id');
         $stage    = $this->openStages($pipeline)->firstWhere('id', (int) $data['opportunity']['stage_id'])
             ?? throw ValidationException::withMessages(['opportunity.stage_id' => "Choose one of the pipeline's open stages."]);
         $contact  = $this->contact($workspace, $data['contact_id'] ?? null);
@@ -186,14 +189,6 @@ class CrmLeadConversion
         }
 
         return null;
-    }
-
-    /** The business's pipeline: its first, the only one until Phase D. */
-    private function pipeline(Workspace $workspace): CrmPipeline
-    {
-        $this->settings->start($workspace);
-
-        return $this->pipelines->getFor($workspace)->first();
     }
 
     /** @return Collection<int, CrmStage> its open stages switched on, in order */

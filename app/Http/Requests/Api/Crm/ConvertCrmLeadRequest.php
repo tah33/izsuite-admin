@@ -34,6 +34,8 @@ class ConvertCrmLeadRequest extends FormRequest
             'opportunity'                     => ['required', 'array'],
             'opportunity.name'                => ['required', 'string', 'max:255'],
             'opportunity.stage_id'            => ['required', 'integer'],
+            // Phase D3b: the pipeline it goes in - the first for the lead's team and location, left out.
+            'opportunity.pipeline_id'         => ['nullable', 'integer'],
             'opportunity.expected_value'      => ['required', 'numeric', 'min:0', 'max:9999999999999.99', 'decimal:0,2'],
             'opportunity.currency'            => ['required', Rule::in($workspace?->currencyCodes() ?? [])],
             'opportunity.expected_close_date' => ['required', 'date_format:Y-m-d'],
