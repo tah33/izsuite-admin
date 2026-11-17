@@ -8,6 +8,7 @@ use App\Models\User\CrmLead;
 use App\Models\User\CrmOpportunity;
 use App\Models\User\CrmOption;
 use App\Models\User\Workspace;
+use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -113,6 +114,33 @@ class CrmActivityRepository
     public function carryToOpportunity(CrmLead $lead, CrmOpportunity $opportunity): void
     {
         CrmActivity::query()->where('lead_id', $lead->id)->update(['opportunity_id' => $opportunity->id, 'updated_at' => now()]);
+    }
+
+    /**
+     * Every business's planned activities whose reminder's moment has come by
+     * $now and was never sent (Phase E2), the earliest first - at most
+     * $limit - with what their notices name and who decides who sees them.
+     *
+     * @return Collection<int, CrmActivity>
+     */
+    public function dueReminders(CarbonInterface $now, int $limit): Collection
+    {
+        return CrmActivity::query()
+            ->where('status', CrmActivity::PLANNED)
+            ->whereNotNull('remind_at')
+            ->where('remind_at', '<=', $now)
+            ->whereNull('reminded_at')
+            ->with(['workspace', 'assignee', 'type:id,name', 'contact:id,name', 'lead:id,name,location_id,owner_id,sales_team_id', 'opportunity:id,name,location_id,owner_id,sales_team_id'])
+            ->orderBy('remind_at')
+            ->orderBy('id')
+            ->limit($limit)
+            ->get();
+    }
+
+    /** Marks $activity's reminder sent: true for the one run that did so first. */
+    public function claimReminder(CrmActivity $activity): bool
+    {
+        return CrmActivity::query()->whereKey($activity->id)->whereNull('reminded_at')->update(['reminded_at' => now()]) === 1;
     }
 
     /** Whether an activity is for $contact: one that has one is deactivated, never deleted. */

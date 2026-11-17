@@ -12,6 +12,7 @@ use App\Repositories\User\CrmActivityRepository;
 use App\Repositories\User\CrmOptionRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Crm\ActivityAssignments;
+use App\Services\Crm\ActivityNotices;
 use App\Services\Crm\ActivityVisibility;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\BusinessCalendar;
@@ -22,7 +23,6 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -48,6 +48,7 @@ class CrmActivityService
         protected ActivityAssignments $assignments,
         protected BusinessCalendar $calendar,
         protected WorkspaceAccess $access,
+        protected ActivityNotices $notices,
     ) {}
 
     /** The Activities page (see CrmActivityRepository::paginateFor), "me" given for whom it is given to being the user. */
@@ -134,8 +135,10 @@ class CrmActivityService
         $record = $this->record($workspace, $user, $kind, (int) $data[CrmActivity::FOR[$kind]], true);
 
         $activity = DB::transaction(function () use ($workspace, $user, $data, $kind, $record) {
+            $fields   = $this->fields($workspace, $data, $record->getAttribute('location_id'), $user->id);
             $activity = $this->activities->create($workspace, [
-                ...$this->fields($workspace, $data, $record->getAttribute('location_id'), $user->id),
+                ...$fields,
+                ...$this->reminder(array_key_exists('remind_minutes', $data) ? $data['remind_minutes'] : CrmActivity::DEFAULT_REMINDER, $fields['due_at']),
                 CrmActivity::FOR[$kind] => $record->getKey(),
                 'location_id'           => $record->getAttribute('location_id'),
                 'created_by'            => $user->id,
@@ -146,6 +149,9 @@ class CrmActivityService
             return $activity;
         });
 
+        // Phase E2: whom it is given to hears of it.
+        $this->notices->assigned($workspace, $activity, $user);
+
         return $this->shown($workspace, $activity);
     }
 
@@ -154,11 +160,26 @@ class CrmActivityService
     {
         $activity = $this->planned($workspace, $user, $id);
 
+        $before = $activity->assigned_to;
+
         DB::transaction(function () use ($workspace, $user, $data, $activity) {
-            $this->activities->update($activity, $this->fields($workspace, $data, $activity->location_id, $activity->assigned_to ?? $user->id));
+            $fields = $this->fields($workspace, $data, $activity->location_id, $activity->assigned_to ?? $user->id);
+            $fields = [...$fields, ...$this->reminder(array_key_exists('remind_minutes', $data) ? $data['remind_minutes'] : $activity->remind_minutes, $fields['due_at'])];
+
+            // A reminder that falls at another moment is sent again then.
+            if ($activity->remind_at?->getTimestamp() !== $fields['remind_at']?->getTimestamp()) {
+                $fields['reminded_at'] = null;
+            }
+
+            $this->activities->update($activity, $fields);
 
             ActivityLogService::record('updated', 'Updated '.$this->describe($activity), $activity->regarding(), ['source' => 'api', 'changes' => $this->readable($workspace, SettingChanges::of($activity))]);
         });
+
+        // Phase E2: someone newly given it hears of it.
+        if ($activity->assigned_to !== $before) {
+            $this->notices->assigned($workspace, $activity->load('assignee'), $user);
+        }
 
         return $this->shown($workspace, $activity);
     }
@@ -191,8 +212,10 @@ class CrmActivityService
                 return null;
             }
 
-            $next = $this->activities->create($workspace, [
-                ...$this->fields($workspace, $data['follow_up'], $activity->location_id, $user->id, 'follow_up.'),
+            $fields = $this->fields($workspace, $data['follow_up'], $activity->location_id, $user->id, 'follow_up.');
+            $next   = $this->activities->create($workspace, [
+                ...$fields,
+                ...$this->reminder(array_key_exists('remind_minutes', $data['follow_up']) ? $data['follow_up']['remind_minutes'] : CrmActivity::DEFAULT_REMINDER, $fields['due_at']),
                 ...collect(CrmActivity::FOR)->mapWithKeys(fn (string $column) => [$column => $activity->{$column}])->all(),
                 'location_id'  => $activity->location_id,
                 'follow_up_of' => $activity->id,
@@ -202,6 +225,11 @@ class CrmActivityService
 
             return $next;
         });
+
+        // Phase E2: whom the follow-up is given to hears of it.
+        if ($followUp) {
+            $this->notices->assigned($workspace, $followUp, $user);
+        }
 
         return ['activity' => $this->shown($workspace, $activity), 'follow_up' => $followUp ? $this->shown($workspace, $followUp) : null];
     }
@@ -234,7 +262,7 @@ class CrmActivityService
     /** 'Call "Discuss the quotation"' - its type and subject, for the Activity Log. */
     public function describe(CrmActivity $activity): string
     {
-        return ($activity->type?->name ?? 'Activity').' "'.Str::limit($activity->subject, 100).'"';
+        return $activity->label();
     }
 
     /**
@@ -281,6 +309,21 @@ class CrmActivityService
     }
 
     /**
+     * Its reminder (Phase E2): $minutes before it is due - none, no reminder -
+     * falling at that moment, unless it is due already: one planned after its
+     * time, a call logged once made, has none.
+     *
+     * @return array{remind_minutes: int|null, remind_at: CarbonImmutable|null}
+     */
+    private function reminder(?int $minutes, CarbonImmutable $dueAt): array
+    {
+        return [
+            'remind_minutes' => $minutes,
+            'remind_at'      => $minutes === null || $dueAt->lte(now()) ? null : $dueAt->subMinutes($minutes),
+        ];
+    }
+
+    /**
      * $changes as a person reads them on the record's timeline: when it is
      * due in the business's time zone, not UTC, and its type and whom it is
      * given to by name.
@@ -291,6 +334,8 @@ class CrmActivityService
         $types  = $this->options->getFor($workspace)->where('kind', 'activity_type')->pluck('name', 'id');
         $people = collect($this->assignments->assignees($workspace))->pluck('name', 'id');
         $local  = fn ($moment) => $moment ? CarbonImmutable::parse($moment, 'UTC')->setTimezone($zone)->format('Y-m-d H:i') : $moment;
+
+        $changes = array_values(array_filter($changes, fn (array $change) => ! in_array($change['setting'], ['remind_at', 'reminded_at'], true)));
 
         return array_map(fn (array $change) => match ($change['setting']) {
             'due_at'      => [...$change, 'from' => $local($change['from']), 'to' => $local($change['to'])],

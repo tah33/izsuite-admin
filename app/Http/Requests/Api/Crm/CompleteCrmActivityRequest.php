@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Api\Crm;
 
+use App\Models\User\CrmActivity;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class CompleteCrmActivityRequest extends FormRequest
 {
@@ -27,6 +29,8 @@ class CompleteCrmActivityRequest extends FormRequest
             'follow_up.due_on'      => ['required_with:follow_up', 'date_format:Y-m-d', 'after_or_equal:2000-01-01', 'before:2100-01-01'],
             'follow_up.due_time'    => ['required_with:follow_up', 'date_format:H:i'],
             'follow_up.assigned_to' => ['nullable', 'integer'],
+            // Phase E2: left out, 15 minutes before.
+            'follow_up.remind_minutes' => ['nullable', 'integer', Rule::in(CrmActivity::REMINDERS)],
         ];
     }
 

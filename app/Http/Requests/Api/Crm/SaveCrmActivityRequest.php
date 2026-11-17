@@ -35,6 +35,8 @@ class SaveCrmActivityRequest extends FormRequest
             'assigned_to'      => ['nullable', 'integer'],
             'due_on'           => ['required', 'date_format:Y-m-d', 'after_or_equal:2000-01-01', 'before:2100-01-01'],
             'due_time'         => ['required', 'date_format:H:i'],
+            // Phase E2: how long before it is due its assignee is reminded; none, no reminder - left out when planning, 15 minutes.
+            'remind_minutes'   => ['nullable', 'integer', Rule::in(CrmActivity::REMINDERS)],
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:1440'],
             'priority'         => ['nullable', Rule::in(CrmActivity::PRIORITIES)],
             'place'            => ['nullable', 'string', 'max:255'],
@@ -60,6 +62,7 @@ class SaveCrmActivityRequest extends FormRequest
             'due_on'           => 'due date',
             'due_time'         => 'due time',
             'duration_minutes' => 'duration',
+            'remind_minutes'   => 'reminder',
             'assigned_to'      => 'assignee',
         ];
     }

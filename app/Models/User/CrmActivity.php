@@ -5,6 +5,7 @@ namespace App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Str;
 
 /**
  * A CRM activity (Doc 17 section 17.17 - Phase E1): a call, meeting, task or
@@ -13,6 +14,9 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * then completed - with an outcome where its type needs one, and perhaps a
  * follow-up planned straight after - or cancelled; both are final. A planned
  * one is overdue once its time has passed.
+ *
+ * Its assignee is told when it is given to them, and reminded before it is
+ * due unless it has no reminder (Phase E2).
  *
  * A lead's activities go with it into its opportunity on conversion, keeping
  * the lead too. Its location is its record's, for who may see it; a
@@ -33,6 +37,12 @@ class CrmActivity extends Model
     /** A call's direction: the activity type izSuite knows as a call (key "call") takes one. */
     public const DIRECTIONS = ['inbound', 'outbound'];
 
+    /** How long before it is due its assignee can be reminded (Phase E2), in minutes: none is no reminder. */
+    public const REMINDERS = [0, 5, 15, 30, 60, 1440];
+
+    /** A new one's reminder, unless it is given one or none. */
+    public const DEFAULT_REMINDER = 15;
+
     /** What an activity can be for, by the column that holds it. */
     public const FOR = ['lead' => 'lead_id', 'opportunity' => 'opportunity_id', 'contact' => 'contact_id'];
 
@@ -45,6 +55,9 @@ class CrmActivity extends Model
         'location_id',
         'assigned_to',
         'due_at',
+        'remind_minutes',
+        'remind_at',
+        'reminded_at',
         'duration_minutes',
         'priority',
         'place',
@@ -68,6 +81,9 @@ class CrmActivity extends Model
         'location_id'      => 'integer',
         'assigned_to'      => 'integer',
         'due_at'           => 'datetime',
+        'remind_minutes'   => 'integer',
+        'remind_at'        => 'datetime',
+        'reminded_at'      => 'datetime',
         'duration_minutes' => 'integer',
         'completed_at'     => 'datetime',
         'cancelled_at'     => 'datetime',
@@ -134,6 +150,12 @@ class CrmActivity extends Model
     public function followUp(): HasOne
     {
         return $this->hasOne(self::class, 'follow_up_of');
+    }
+
+    /** 'Call "Discuss the quotation"' - its type and subject, as the Activity Log and notices name it. */
+    public function label(): string
+    {
+        return ($this->type?->name ?? 'Activity').' "'.Str::limit($this->subject, 100).'"';
     }
 
     public function isPlanned(): bool

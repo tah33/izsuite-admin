@@ -29,6 +29,8 @@ class CrmActivityResource extends JsonResource
             'due_on'           => $this->due_on,
             'due_time'         => $this->due_time,
             'overdue'          => (bool) $this->overdue,
+            // Phase E2: minutes before it is due its assignee is reminded; null, none.
+            'remind_minutes'   => $this->remind_minutes,
             'duration_minutes' => $this->duration_minutes,
             'priority'         => $this->priority,
             'place'            => $this->place,

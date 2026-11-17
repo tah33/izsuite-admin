@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-17
-- **Code:** Doc 17 Phase E1 (activities) is committed: frontend `9642be7` on `nuxt`, and on `main` the admin commit right after `4254ba1`.
-- **Tests:** 971 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
-- **Next step:** Doc 17 Phase E2: reminders, and telling someone given an activity (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase E2 (reminders, and telling someone given an activity) is committed: frontend `8193f53` on `nuxt`, and on `main` the admin commit right after `ea90899`.
+- **Tests:** 974 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
+- **Next step:** Doc 17 Phase E3: the timeline of a lead, an opportunity and a contact (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase E1 the latest is 000173. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase E2 the latest is 000174. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase E2.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase E3.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check, Phases A to D and E1 done (E1 built 2026-11-17), Phase E2 next** |
+| **17** | **CRM** | **In progress: gap check, Phases A to D, E1 and E2 done (E2 built 2026-11-17), Phase E3 next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase E2)
+### 5. Doc 17: CRM (next: Phase E3)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -1885,6 +1885,25 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - As the member, the sidebar's CRM showed Opportunities and Activities, and the Activities page only the site visit given to them, Overdue, with no Assigned to filter. They could plan only for opportunities (none of their own to pick), not contacts (403); the owner's opportunity's activities were not found for them; and completing the site visit asked for its outcome first ("A Site Visit needs its outcome once it is done."), then gave "Activity completed."
   - The activities, opportunities, lead, contacts, CRM lists, member, the app's state, the sign-in and the activity were then put back.
 
+**Phase E2: reminders, and telling someone given an activity** (section 17.17) is built, with these defaults:
+
+- **A new notification kind, Activities,** in Settings → Notifications & Email and in each user's own, in the bell and by e-mail to start, each switched off as the other kinds are.
+- **Given an activity:** whom one is given to hears of it - "Rahim Uddin gave you an activity: Call "Discuss the quotation"", "Due 18 Nov 2026, 10:00, for Uddin Traders - racking" - when it is planned, given to someone else, or planned as a follow-up. Not when they gave it to themselves, and not when it is saved unchanged.
+- **Reminders:** each activity has a Reminder - no reminder, when it is due, or 5, 15 or 30 minutes, 1 hour or 1 day before; 15 minutes before to start, for a follow-up too.
+  - Its assignee is reminded once at that moment: "Reminder: Call "Discuss the quotation", due 18 Nov 2026, 10:00", "For Uddin Traders - racking".
+  - Moving it to another time, or changing the reminder, reminds again at the new moment. A completed or cancelled one is not reminded, and one planned after its time - a call logged once made - has none.
+  - Not to someone who may no longer be given activities, and not while CRM is off.
+  - `crm:remind-activities` sends them each minute, from the scheduler; the queue sends the e-mails.
+- A notice leads to the activity's record when its person sees it, else to the Activities page. Its day and time are the business's, in its date and time formats.
+- The activity's form has Reminder below the due time, and a planned one's line says "Reminder 15 minutes before".
+- **Checked in the browser** on the second PC, as `user@izsuite.io` with CRM switched on by hand (the business on UTC), with a throwaway member who may view and plan activities:
+  - Plan Activity on the opportunity's page started with Reminder "15 minutes before". A call at 07:35 with "When it is due" was listed as "Reminder when it is due".
+  - A site visit given to the member put "izSuite User gave you an activity: Site Visit "Measure the warehouse"" in their bell, with "Due 18 Nov 2026, 11:00, for Uddin Traders - warehouse racking", leading to the Activities page (they do not see the owner's opportunity).
+  - At 07:35:01 the dev scheduler ran `crm:remind-activities`, and the owner's bell showed "Reminder: Call "Call Rahim about the racking", due 17 Nov 2026, 07:35", "For Uddin Traders - warehouse racking", leading to the opportunity.
+  - Both notices' e-mails were sent: their deliveries read sent, and the dev mail log held them.
+  - Settings → Notifications & Email listed Activities, on in the bell and by e-mail; so did the user's own.
+  - The activities, opportunity, contact, CRM lists, member, notifications, the app's state, the sign-in and the activity were then put back.
+
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## Testing checklist
@@ -1908,6 +1927,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase D3b | 000172 |
 | Doc 17: Phase D4 | none |
 | Doc 17: Phase E1 | 000173 |
+| Doc 17: Phase E2 | 000174 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -2145,6 +2165,18 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] A contact's page has the card. A contact with activities cannot be deleted; merged into another, its activities move.
 - [ ] As the member: only activities given to them, no Assigned to filter; Plan Activity offers only what they may see; completing theirs works.
 
+**Phase E2: reminders, and telling someone given an activity**
+
+**Before you start:** the scheduler and the queue running (see Deploying to a server), CRM on, an opportunity, and a member whose role views and plans activities, with an e-mail address you can read.
+
+- [ ] Settings → Notifications & Email and My Profile's notifications list Activities, on in the bell and by e-mail.
+- [ ] Plan Activity starts with Reminder "15 minutes before". Plan a call two minutes from now with "When it is due": its line says "Reminder when it is due".
+- [ ] When its moment comes, the bell shows "Reminder: Call …, due …" leading to its record, and the e-mail arrives. It comes once.
+- [ ] Move it to a later time: it reminds again then. A completed or cancelled one, and one with No reminder, never reminds.
+- [ ] Give an activity to the member: their bell and inbox have "… gave you an activity: …". Saving it unchanged tells them nothing; giving it to yourself tells no one.
+- [ ] Complete one with a follow-up given to the member: they hear of the follow-up.
+- [ ] As the member, switch Activities' e-mail off in My Profile: the next notice reaches only the bell.
+
 ## How we work
 
 Each document goes the same way:
@@ -2206,6 +2238,7 @@ Each document goes the same way:
 - A `WorkspaceDropdown` option is picked by clicking the `button` inside its `li`, not the `li` itself.
 - Another project's dev server on the host can take `localhost:3000` (Node on `0.0.0.0:3000`), and the browser then opens that site instead. Open izSuite at `http://127.0.0.1:3000`, which Docker holds; the API takes it, as no CORS origin list is set. Its sign-in is separate from `localhost`'s.
 - A collection's `each()` stops at the first callback that returns false. An arrow function returns its assignment's value, so `->each(fn ($row) => $row->in_use = …)` stops at the first row given false and leaves the rest unset. Use a block closure (Doc 17 Phase D3b's tests caught it).
+- A notice's e-mail goes through the queue, and a reminder through the scheduler: on dev both run in their own containers (`izsuite-queue`, `izsuite-scheduler`), and `MAIL_MAILER=log` puts the e-mails in `storage/logs/laravel.log`. Run `php artisan crm:remind-activities` in `izsuite-api` to send due reminders at once.
 - A new export added to a file in `utils/` or `composables/` is not auto-imported by the running dev server: the page fails at run time with "… is not defined". `docker restart izsuite-frontend`, as for a new component.
 - In a PHP edit script, a JavaScript template literal (`` `${x}` ``) inside a double-quoted PHP string is read by PHP as interpolation and stops the script part-way, after the edits before it were written. Put such text in single-quoted strings.
 - In the Claude browser pane, `left_click_drag` does not start an HTML5 drag, so a dragged card never drops. Check a drop from a script instead: dispatch `dragstart` on the card, then `dragover` and `drop` on the column, with one `DataTransfer` (Doc 17 Phase D4's board).
@@ -2389,7 +2422,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase D3a, stale stages and the fields a stage needs | `6059052` | `6b69a39` | 000171 |
 | Doc 17: Phase D3b, several pipelines for chosen teams or locations | `11fc750` | `78b7464` | 000172 |
 | Doc 17: Phase D4, the board and calendar views | `4254ba1` | `9927a2c` | none |
-| Doc 17: Phase E1, activities | the commit after `4254ba1` | `9642be7` | 000173 |
+| Doc 17: Phase E1, activities | `ea90899` | `9642be7` | 000173 |
+| Doc 17: Phase E2, reminders and telling someone given an activity | the commit after `ea90899` | `8193f53` | 000174 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -2786,6 +2820,10 @@ These are easy to undo by mistake.
   - Activity types are `crm_options` of kind `activity_type`, with `needs_outcome` (`CrmOption::NEEDS_OUTCOME` for the starters). The key `call` marks a call, which alone keeps a `call_direction`.
   - Each step is logged on the record (`ActivityLogService::record()` with the lead, opportunity or contact as subject); an edit's changes are made readable (`readable()`): the due moment in the business's time, the type and the assignee by name.
   - Frontend: `useCrmActivities()`, `utils/crmActivities.ts` (`businessNextHour()` for the business's time zone), CrmActivitiesCard on the three record pages, the Activities page, and CrmActivityDialogs - plan, edit, complete, cancel - shared by both.
+- Reminders and notices (Doc 17 Phase E2, migration 000174):
+  - An activity's `remind_minutes` (`CrmActivity::REMINDERS`, `DEFAULT_REMINDER` 15 when left out), `remind_at` (UTC, null once due when planned) and `reminded_at`. `CrmActivityService::reminder()` works out `remind_at`; a change of moment clears `reminded_at`. Their changes stay out of the timeline's list.
+  - `App\Services\Crm\ActivityNotices`: `assigned()` (from planning, changing the assignee and a follow-up) and `remindDue()`, behind `crm:remind-activities` (every minute). `CrmActivityRepository::dueReminders()` reads every business's due ones and `claimReminder()` marks one sent for the first run only.
+  - The kind is `activities` in `NotificationKinds` (triggers `activities.assigned` and `activities.reminder`); a notice's subject is the activity. Notification tests that list every kind name it.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -2811,6 +2849,7 @@ These are easy to undo by mistake.
 - A customer's address on a response is what Laravel sees: behind a proxy it is the proxy's until its address is trusted (see Deploying), and on dev it is Docker's gateway.
 - An opportunity cannot move to another pipeline. Edited to a team or location its pipeline is not for, it stays where it is (Doc 17 Phase D3b).
 - The Opportunities page's Pipeline and Stage filters offer only pipelines switched on. A switched-off pipeline's opportunities show under Any pipeline (the board can still pick one).
+- A reminder cannot be snoozed, and goes only to the activity's assignee; there is no reminder for the owner of the record it is for (Doc 17 Phase E2).
 - An activity, once completed or cancelled, is not reopened; activities are not on the opportunities' board or calendar; the Activities page searches subjects and record names, not places or descriptions; and its For link to a record the user does not see leads to a not-found page (Doc 17 Phase E1).
 - The board keeps each column in the list's order: cards are not reordered by hand. Nothing changes a closing day by dragging it on the calendar, and the board's column of 50 has no link to the rest in the list (Doc 17 Phase D4).
 
@@ -2900,5 +2939,6 @@ Each of these is yours to settle.
 - Doc 17 Phase D3a: migration 000171 adds each stage's stale-after days and the details it needs. Nothing changes until Settings → CRM sets them. Deploy the frontend with it.
 - Doc 17 Phase D3b: migration 000172 adds `team_ids` and `location_ids` to `crm_pipelines`. Each pipeline there is stays for every team and location until Settings → CRM changes it. Deploy the frontend with it.
 - Doc 17 Phase D4: no migration. Deploy the frontend with it (the Opportunities page gains Board and Calendar).
+- Doc 17 Phase E2: migration 000174 adds an activity's reminder. Activities planned before it have none. Reminders need the scheduler running (`crm:remind-activities` every minute) and their e-mails the queue workers; restart them after deploying (`php artisan queue:restart`). Deploy the frontend with it.
 - Doc 17 Phase E1: migration 000173 adds `crm_activities`, whether an activity type needs an outcome (izSuite's Call, Meeting, Demonstration and Site Visit do), and Activities in CRM's sidebar. The Activities permissions are new: give them to custom roles that need them (the Sales User template has both). Deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.
