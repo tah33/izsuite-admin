@@ -18,7 +18,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  *   did it - what it was (a stage move, a new owner, won, lost, another
  *   status) and each value it changed;
  * - a sales document: which, its status, and its total for those who see
- *   Sales' values.
+ *   Sales' values - made, or later sent, issued or confirmed (Phase F1).
  *
  * On a contact's, an activity or a note names the lead or opportunity it is
  * about. Its resource is CrmTimelineService::timeline()'s entry.
@@ -28,7 +28,8 @@ class CrmTimelineEntryResource extends JsonResource
     public function toArray(Request $request): array
     {
         $record = $this['record'];
-        $entry  = ['key' => "{$this['kind']}-{$record->getKey()}", 'kind' => $this['kind'], 'at' => $this['at']?->toIso8601String()];
+        $step   = $this['step'] ?? null;
+        $entry  = ['key' => "{$this['kind']}-{$record->getKey()}".($step ? "-{$step}" : ''), 'kind' => $this['kind'], 'at' => $this['at']?->toIso8601String()];
 
         return match ($this['kind']) {
             'activity' => [
@@ -53,7 +54,13 @@ class CrmTimelineEntryResource extends JsonResource
             ],
             'document' => [
                 ...$entry,
-                'by'       => $record->creator?->name,
+                // Who made it; who confirmed a sales order. Sending and issuing name no one.
+                'by'       => match ($step) {
+                    'made'      => $record->creator?->name,
+                    'confirmed' => $record->confirmer?->name,
+                    default     => null,
+                },
+                'step'     => $step,
                 'document' => ['kind' => $record->type->kind(), 'id' => $record->id, 'number' => $record->number, 'revision' => $record->revision, 'is_deposit' => (bool) $record->is_deposit],
                 'status'   => $record->shown_status,
                 'total'    => $this['values'] ? (string) $record->grand_total : null,

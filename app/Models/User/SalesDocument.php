@@ -115,6 +115,8 @@ class SalesDocument extends Model
         'customer_snapshot',
         'template_snapshot',
         'source_id',
+        // The CRM opportunity it was made from (Doc 17 Phase F1), carried to what is converted from it.
+        'opportunity_id',
         'status_reason',
         // An invoice billing beyond what its sales order had left: why (Doc 16 Phase B2).
         'over_invoice_reason',
@@ -170,6 +172,7 @@ class SalesDocument extends Model
         'shipping_address'  => 'array',
         'template_snapshot' => 'array',
         'source_id'         => 'integer',
+        'opportunity_id'    => 'integer',
         'issued_at'         => 'datetime',
         'confirmed_at'      => 'datetime',
         'confirmed_by'      => 'integer',
@@ -199,10 +202,10 @@ class SalesDocument extends Model
         return $this->belongsTo(SalesTeam::class);
     }
 
-    /** Who made it, when a user did. */
-    public function creator(): BelongsTo
+    /** Who confirmed it - a sales order (Doc 16 section 16.9). */
+    public function confirmer(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(User::class, 'confirmed_by');
     }
 
     public function contact(): BelongsTo
@@ -225,6 +228,12 @@ class SalesDocument extends Model
     public function revisions(): HasMany
     {
         return $this->hasMany(SalesDocumentRevision::class)->orderBy('revision');
+    }
+
+    /** The CRM opportunity it was made from, or the document it was converted from was (Doc 17 Phase F1). */
+    public function opportunity(): BelongsTo
+    {
+        return $this->belongsTo(CrmOpportunity::class, 'opportunity_id');
     }
 
     /** The quotation or proforma it was converted from - or, for a credit note, the invoice it credits. */

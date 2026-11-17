@@ -131,6 +131,16 @@ class CrmOpportunityRepository
             ->keyBy('id');
     }
 
+    /**
+     * With what a sales document made from it starts with (Phase F1): its
+     * contact, and its interested items with their items - a combo's with
+     * its components, for its price.
+     */
+    public function loadForDocuments(CrmOpportunity $opportunity): CrmOpportunity
+    {
+        return $opportunity->load(['contact', 'interestedItems.item.components.component']);
+    }
+
     public function create(Workspace $workspace, array $data): CrmOpportunity
     {
         return $workspace->crmOpportunities()->create($data);

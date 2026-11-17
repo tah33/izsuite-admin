@@ -89,6 +89,8 @@ class SalesDocumentService
             $header = [
                 ...$this->header($workspace, $type, $data),
                 'type'           => $type,
+                // The CRM opportunity it is made from, checked by SaveSalesDocumentRequest (Doc 17 Phase F1).
+                'opportunity_id' => $data['opportunity_id'] ?? null,
                 'price_tax_mode' => $workspace->price_tax_mode,
                 'tax_rounding'   => $workspace->tax_rounding,
                 'created_by'     => $user->id,

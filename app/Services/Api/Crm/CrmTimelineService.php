@@ -17,6 +17,7 @@ use App\Repositories\User\CrmLeadRepository;
 use App\Repositories\User\CrmOpportunityRepository;
 use App\Repositories\User\CrmTimelineRepository;
 use App\Services\Crm\LeadVisibility;
+use App\Services\Crm\OpportunityDocuments;
 use App\Services\Crm\OpportunityVisibility;
 use App\Services\Sales\SalesDocumentRules;
 use App\Services\Shared\BusinessCalendar;
@@ -33,9 +34,10 @@ use Illuminate\Support\Collection;
  * - its changes, from the Activity Log: added, changed, given to someone,
  *   moved between stages, won, lost, reopened, archived, converted;
  * - its files, added and removed;
- * - and a contact's sales documents, of the kinds the user may view, at the
- *   locations they may use, with their totals for those who see Sales'
- *   values.
+ * - and a contact's sales documents, or those made from an opportunity
+ *   (Phase F1), of the kinds the user may view, at the locations they may
+ *   use, with their totals for those who see Sales' values: each when it was
+ *   made, and again when it was sent, issued or confirmed.
  *
  * A contact's gathers too what happened with its opportunities, and with the
  * leads converted into it, that the user sees. What is still planned is on
@@ -60,6 +62,7 @@ class CrmTimelineService
         protected LeadVisibility $leadVisibility,
         protected OpportunityVisibility $opportunityVisibility,
         protected CrmSettingService $settings,
+        protected OpportunityDocuments $opportunityDocuments,
         protected SalesDocumentRules $documentRules,
         protected BusinessCalendar $calendar,
         protected WorkspaceAccess $access,
@@ -113,12 +116,13 @@ class CrmTimelineService
             ]));
         }
 
-        if ($contact && $wants('documents')) {
-            $entries = $entries->concat($this->documents($workspace, $contact));
+        if ($kind !== 'lead' && $wants('documents')) {
+            $entries = $entries->concat($this->documents($workspace, $contact ? ['contact_id' => $contact->id] : ['opportunity_id' => $id]));
         }
 
         return $entries
-            ->sort(fn (array $a, array $b) => [$b['at']->getTimestamp(), $b['record']->getKey()] <=> [$a['at']->getTimestamp(), $a['record']->getKey()])
+            // A document sent, issued or confirmed as it was made comes after - above - its making.
+            ->sort(fn (array $a, array $b) => [$b['at']->getTimestamp(), $b['record']->getKey(), $b['later'] ?? false] <=> [$a['at']->getTimestamp(), $a['record']->getKey(), $a['later'] ?? false])
             ->take(self::SHOWN)
             ->values();
     }
@@ -157,17 +161,30 @@ class CrmTimelineService
         return [$leads, $opportunities, $contact];
     }
 
-    /** $contact's sales documents of the kinds the user may view, at the locations they may use, as entries. */
-    private function documents(Workspace $workspace, Contact $contact): Collection
+    /**
+     * The sales documents of a contact, or made from an opportunity - $where
+     * - that the user may see (OpportunityDocuments::madeFor()), as entries:
+     * each made, then, once numbered, sent (a quotation or proforma), issued
+     * (an invoice or credit note) or confirmed (a sales order).
+     */
+    private function documents(Workspace $workspace, array $where): Collection
     {
-        $types  = array_map(fn (DocumentType $type) => $type->value, $this->access->viewable(array_values(DocumentType::KINDS)));
         $today  = $this->calendar->today($workspace)->toDateString();
         $values = $this->access->seesValues('sales');
 
-        return $this->timeline->documents($workspace, $contact->id, $types, $this->access->locations(), self::SHOWN)
-            ->map(fn (SalesDocument $document) => [
-                'kind'   => 'document', 'at' => $document->created_at, 'for' => null, 'values' => $values,
-                'record' => $document->setAttribute('shown_status', $this->documentRules->status($document, $today)),
-            ]);
+        return $this->opportunityDocuments->madeFor($workspace, $where)->toBase()->flatMap(function (SalesDocument $document) use ($today, $values) {
+            $entry = ['kind' => 'document', 'for' => null, 'values' => $values, 'record' => $document->setAttribute('shown_status', $this->documentRules->status($document, $today))];
+            $steps = [[...$entry, 'at' => $document->created_at, 'step' => 'made']];
+
+            if ($document->issued_at) {
+                $steps[] = [...$entry, 'later' => true, 'at' => $document->confirmed_at ?? $document->issued_at, 'step' => match ($document->type) {
+                    DocumentType::Quotation, DocumentType::Proforma => 'sent',
+                    DocumentType::SalesOrder                        => 'confirmed',
+                    default                                         => 'issued',
+                }];
+            }
+
+            return $steps;
+        });
     }
 }

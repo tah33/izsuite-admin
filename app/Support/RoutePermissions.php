@@ -395,6 +395,8 @@ final class RoutePermissions
             'api.crm.opportunities.attachments.store'   => 'crm.opportunities.manage',
             'api.crm.opportunities.attachments.destroy' => 'crm.opportunities.manage',
             'api.crm.opportunities.activity'            => 'crm.opportunities.view',
+            // Phase F1: the sales documents made from it, those of the kinds the user views.
+            'api.crm.opportunities.documents'           => 'crm.opportunities.view',
             'api.crm.opportunities.comments.index'      => 'crm.opportunities.view',
             'api.crm.opportunities.comments.people'     => 'crm.opportunities.view',
             'api.crm.opportunities.comments.store'      => 'crm.opportunities.view',

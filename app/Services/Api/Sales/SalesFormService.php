@@ -13,6 +13,8 @@ use App\Repositories\User\SalesSettingRepository;
 use App\Repositories\User\SalesTeamRepository;
 use App\Repositories\User\TaxRateRepository;
 use App\Services\Api\BusinessSetup\ExchangeRateService;
+use App\Services\Crm\OpportunityDocuments;
+use App\Services\Shared\WorkspaceAccess;
 use App\Services\Shared\LocationAccess;
 use App\Services\User\Apps\WorkspaceApps;
 use Carbon\CarbonImmutable;
@@ -47,6 +49,8 @@ class SalesFormService
         protected SalesDocumentService $salesDocumentService,
         protected SalesLines $salesLines,
         protected SalesTeamRepository $salesTeams,
+        protected OpportunityDocuments $opportunityDocuments,
+        protected WorkspaceAccess $access,
     ) {}
 
     /**
@@ -59,8 +63,11 @@ class SalesFormService
     {
         $date     = $query['document_date'] ?? $this->salesDocumentService->today($workspace);
         $settings = $this->salesSettingRepository->forWorkspace($workspace);
-        $contact  = isset($query['contact_id']) ? $this->contactRepository->findFor($workspace, (int) $query['contact_id']) : null;
-        $currency = $query['currency'] ?? (in_array($contact?->sales_currency, $workspace->currencyCodes(), true) ? $contact->sales_currency : $workspace->base_currency);
+        $from     = $this->opportunity($workspace, $type, $query, $user);
+        $contact  = isset($query['contact_id']) ? $this->contactRepository->findFor($workspace, (int) $query['contact_id']) : ($from['contact'] ?? null);
+        $currency = $query['currency']
+            ?? (in_array($from['currency'] ?? null, $workspace->currencyCodes(), true) ? $from['currency'] : null)
+            ?? (in_array($contact?->sales_currency, $workspace->currencyCodes(), true) ? $contact->sales_currency : $workspace->base_currency);
         $terms    = $contact?->customer_payment_terms ?? $settings->payment_terms;
         $days     = fn (int $days) => CarbonImmutable::parse($date)->addDays($days)->toDateString();
         $taxes     = $workspace->usesTaxes();
@@ -92,6 +99,36 @@ class SalesFormService
             // section 10) - while they can still be sold to.
             'customer'           => $contact && $contact->is_active && $contact->isCustomer() ? $contact : null,
             ...$this->fullDefaults($workspace, $type, $settings, $user),
+            // The CRM opportunity it is made from (Doc 17 Phase F1), with what it starts with.
+            'opportunity'        => $from,
+        ];
+    }
+
+    /**
+     * The opportunity $query asks a new document to be made from, and what
+     * the document starts with - its location only where the user may use
+     * it, and with the full Sales app its owner as the salesperson (while a
+     * member) and its team - or null: none asked, or one the user does not
+     * see or may not make documents from (OpportunityDocuments).
+     */
+    private function opportunity(Workspace $workspace, DocumentType $type, array $query, ?User $user): ?array
+    {
+        $opportunity = isset($query['opportunity_id']) && $user && $type !== DocumentType::CreditNote
+            ? $this->opportunityDocuments->seen($workspace, $user, (int) $query['opportunity_id'])
+            : null;
+
+        if (! $opportunity || $this->opportunityDocuments->refusal($opportunity, null)) {
+            return null;
+        }
+
+        $start = $this->opportunityDocuments->start($opportunity);
+        $full  = WorkspaceApps::for($workspace)->has('sales', Edition::Full);
+
+        return [
+            ...$start,
+            'location_id'    => $start['location_id'] && $this->access->usesLocation($start['location_id']) ? $start['location_id'] : null,
+            'salesperson_id' => $full && $start['owner_id'] && $this->salesTeams->isMember($workspace, $start['owner_id']) ? $start['owner_id'] : null,
+            'sales_team_id'  => $full && $start['sales_team_id'] && $this->salesTeams->find($workspace, $start['sales_team_id']) ? $start['sales_team_id'] : null,
         ];
     }
 

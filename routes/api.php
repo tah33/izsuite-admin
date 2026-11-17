@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\CrmOpportunityClosingController;
 use App\Http\Controllers\Api\CrmActivityController;
 use App\Http\Controllers\Api\CrmTimelineController;
 use App\Http\Controllers\Api\CrmOpportunityController;
+use App\Http\Controllers\Api\CrmOpportunityDocumentController;
 use App\Http\Controllers\Api\CrmOpportunityViewController;
 use App\Http\Controllers\Api\CrmOpportunityFlowController;
 use App\Http\Controllers\Api\CrmOptionController;
@@ -930,6 +931,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/{id}/attachments', [CrmOpportunityAttachmentController::class, 'store'])->whereNumber('id')->name('api.crm.opportunities.attachments.store');
         Route::delete('/{id}/attachments/{fileId}', [CrmOpportunityAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.crm.opportunities.attachments.destroy');
         Route::get('/{id}/activity', RecordActivityController::class)->whereNumber('id')->defaults('family', 'opportunities')->name('api.crm.opportunities.activity');
+        // The sales documents made from it (Phase F1).
+        Route::get('/{id}/documents', CrmOpportunityDocumentController::class)->whereNumber('id')->name('api.crm.opportunities.documents');
         Route::get('/{id}/comments', [RecordCommentController::class, 'index'])->whereNumber('id')->defaults('family', 'opportunities')->name('api.crm.opportunities.comments.index');
         Route::get('/{id}/comments/people', [RecordCommentController::class, 'people'])->whereNumber('id')->defaults('family', 'opportunities')->name('api.crm.opportunities.comments.people');
         Route::post('/{id}/comments', [RecordCommentController::class, 'store'])->whereNumber('id')->defaults('family', 'opportunities')->middleware('idempotent')->name('api.crm.opportunities.comments.store');

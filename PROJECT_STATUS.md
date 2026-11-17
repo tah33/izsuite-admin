@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-17
-- **Code:** Doc 17 Phase E3 (the timeline of a lead, an opportunity and a contact) is committed: frontend `412898e` on `nuxt`, and on `main` the admin commit right after `66e50b2`.
-- **Tests:** 977 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
-- **Next step:** Doc 17 Phase F: Sales and the contact's profile (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase F1 (sales documents made from an opportunity) is committed: frontend `2cd5594` on `nuxt`, and on `main` the admin commit right after `27fa34d`.
+- **Tests:** 980 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
+- **Next step:** Doc 17 Phase F2: an opportunity won when its order is confirmed (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase E3 the latest is 000174. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase F1 the latest is 000175. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase F.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase F2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check, Phases A to E done (E3 built 2026-11-17), Phase F next** |
+| **17** | **CRM** | **In progress: gap check, Phases A to E and F1 done (F1 built 2026-11-17), Phase F2 next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase F)
+### 5. Doc 17: CRM (next: Phase F2)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -1927,6 +1927,27 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - The quotation's own Activity tab still listed its steps, an edit with "1 change", through the change list both timelines now share.
   - As the member, the contact's Timeline card offered All, Notes, Changes and Files - no Activities card, no Documents - and said "Nothing has happened here yet."; the owner's opportunity's timeline was not found for them, and a lead's was refused.
   - The opportunity, lead, activities, quotation, comment, file, contact, CRM lists, member, the app's state, the sign-in and the activity were then put back.
+**Phase F: Sales and the contact's profile** was split on starting it (2026-11-17): F1, sales documents made from an opportunity; F2, an opportunity won when its order is confirmed; F3, e-mail from a lead, an opportunity or a contact; F4, the CRM part of a contact's profile.
+
+**Phase F1: sales documents made from an opportunity** (section 17.27) is built, with these defaults:
+
+- **Create, on an opportunity's page:** a new Sales Documents card offers Quotation, Proforma Invoice, Sales Order (with the full Sales app) and Invoice - the kinds the user may create - while the opportunity is open or won and not archived. A lost one says to reopen it, an archived one to restore it. Without Sales, the card says to turn it on, linking to Sales in the Apps Center for whoever may open it.
+- **The document starts with the opportunity's** contact, currency, location (where the user may use it), owner as the salesperson and sales team (with the full Sales app), and a line for each interested item: the item at its sales price and tax, or the name typed in, unpriced. The form says it is made from the opportunity, with a link, and its back link leads there.
+- **Linked to it** (`opportunity_id`): the document, and what is made from it in turn - a quotation's invoice, an order's invoices and deposit invoices. A duplicated order is linked to nothing. The link is set when the document is made; saving it again leaves it.
+- **Made only** from an opportunity the user sees, while CRM is on, for its contact ("A document made from an opportunity is for its contact."), and never from a lost or archived one.
+- **Its value stays its own:** however many quotations it has, they add nothing to its value, the pipeline or the forecast. The card shows each document's own total.
+- **The card** lists the documents made from it, newest first - title, date, status and total - of the kinds the user may view, at the locations they may use, the total for those who see Sales' values.
+- **A document's page** names its opportunity under History, for whoever sees the opportunity while CRM is on.
+- **The timeline** - an opportunity's now, as a contact's - shows each document when it was made, and again when it was sent (a quotation or proforma), issued (an invoice or credit note) or confirmed (a sales order, by whom). An opportunity's timeline has Documents among its filters too.
+- **Found while building:** Phase E3 had given sales documents a second `creator()` relation beside their `HasAuthors` one; it is gone.
+- **Found while checking:** the form's note had no style (the shared stylesheet had no `alert-info`), a sent or issued entry on the timeline repeated its status as a pill, and the card's long subtitle pushed Create below it. All three are fixed.
+- **Checked in the browser** on the second PC, as `user@izsuite.io` with CRM switched on by hand, and as a throwaway member who sees every opportunity and views invoices only, without Sales' values:
+  - An opportunity for "Browser Check Traders", interested in 4 steel racks and "Installation" typed in, had the Sales Documents card: "None made from it yet.", with Create offering Quotation, Proforma Invoice and Invoice (Sales Lite).
+  - Create → Quotation opened the form with "Made from the opportunity Browser Check Traders - racking, and linked to it.", the customer, USD, the racks at 450.00 ($1,800.00) and Installation unpriced; its back link said Opportunity. Priced and saved with Save and Mark as Sent: "Quotation QUO-00001 marked as sent.", its History naming the opportunity.
+  - Convert to Invoice made a draft invoice naming the quotation and the opportunity; issued as INV-00001, it stayed linked.
+  - The card listed Invoice INV-00001 ($2,000.00, Issued) and Quotation QUO-00001 ($2,000.00, Converted). The Timeline's Documents listed the invoice issued and made, and the quotation sent and made, newest first.
+  - As the member: the card listed only the invoice, with no total and no Create; the invoice's page named the opportunity; the quotation was refused them; their Documents timeline had the invoice's two entries, without totals.
+  - The opportunity, item, documents, contact, CRM lists, member, the app's state, the sign-in, the numbering and the activity were then put back.
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## Testing checklist
@@ -1952,6 +1973,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase E1 | 000173 |
 | Doc 17: Phase E2 | 000174 |
 | Doc 17: Phase E3 | none |
+| Doc 17: Phase F1 | 000175 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -2213,6 +2235,19 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] A lead's Timeline tab shows its activities done, notes, changes and files.
 - [ ] As the member: the customer's Timeline card has no Activities or Documents, and none of the owner's opportunity; their own opportunity's entries show.
 
+**Phase F1: sales documents made from an opportunity**
+
+**Before you start:** Sales and CRM on, an item, an opportunity interested in it and in something typed in, and a member whose role sees all opportunities and views invoices, without Sales' values.
+
+- [ ] The opportunity's page has Sales Documents, "None made from it yet.", and Create with Quotation, Proforma Invoice and Invoice - and Sales Order on full Sales.
+- [ ] Create → Quotation: the form says it is made from the opportunity, with its customer, currency and interested items as lines - the item at its price, the typed name unpriced. Its back link leads to the opportunity.
+- [ ] Save it: its page's History names the opportunity, and the card lists it with its total and status.
+- [ ] Convert it to an invoice: the invoice names the opportunity too, and both are on the card. Issue the invoice: the opportunity's Timeline, under Documents, shows it issued above its making.
+- [ ] Choose another customer on a new document made from it: "A document made from an opportunity is for its contact."
+- [ ] Lose the opportunity: Create goes and the card says to reopen it. Archived, it says to restore it.
+- [ ] As the member: only the invoice, with no total and no Create; the invoice's page names the opportunity.
+- [ ] On a test business without Sales, the card says to turn it on, linking to the Apps Center.
+
 ## How we work
 
 Each document goes the same way:
@@ -2460,7 +2495,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase D4, the board and calendar views | `4254ba1` | `9927a2c` | none |
 | Doc 17: Phase E1, activities | `ea90899` | `9642be7` | 000173 |
 | Doc 17: Phase E2, reminders and telling someone given an activity | `66e50b2` | `8193f53` | 000174 |
-| Doc 17: Phase E3, the timeline of a lead, an opportunity and a contact | the commit after `66e50b2` | `412898e` | none |
+| Doc 17: Phase E3, the timeline of a lead, an opportunity and a contact | `27fa34d` | `412898e` | none |
+| Doc 17: Phase F1, sales documents made from an opportunity | the commit after `27fa34d` | `2cd5594` | 000175 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -2862,12 +2898,17 @@ These are easy to undo by mistake.
   - `App\Services\Crm\ActivityNotices`: `assigned()` (from planning, changing the assignee and a follow-up) and `remindDue()`, behind `crm:remind-activities` (every minute). `CrmActivityRepository::dueReminders()` reads every business's due ones and `claimReminder()` marks one sent for the first run only.
   - The kind is `activities` in `NotificationKinds` (triggers `activities.assigned` and `activities.reminder`); a notice's subject is the activity. Notification tests that list every kind name it.
 - The timeline (Doc 17 Phase E3, no migration) is `CrmTimelineService`, behind `GET /crm/timeline/{kind}/{id}?show=` (`CrmTimelineController`, `CrmTimelineRequest`): `kind` lead, opportunity or contact; `show` all, activities, notes, changes, files or documents. A closure in `RoutePermissions` picks its permission by kind.
-  - `CrmTimelineRepository` reads each part up to `SHOWN` (100): `logEntries()` - the Activity Log entries about the records, without those carrying `comment_id` or `activity_id`, `properties->file` telling files from changes - `endedActivities()`, `comments()` and `documents()`. The service merges them newest first and keeps 100.
+  - `CrmTimelineRepository` reads each part up to `SHOWN` (100): `logEntries()` - the Activity Log entries about the records, without those carrying `comment_id` or `activity_id`, `properties->file` telling files from changes - `endedActivities()` and `comments()`; the sales documents come through `OpportunityDocuments::madeFor()` (Phase F1). The service merges them newest first and keeps 100.
   - A contact's gathers `CrmLeadRepository::ofContact()` and `CrmOpportunityRepository::ofContact()`: the leads converted into it and its opportunities that the user sees.
   - `CrmActivityService` puts `activity_id` in each step's log entry, from Phase E3 on.
   - `CrmTimelineEntryResource` shapes each kind. A change's `mark` (won, lost, status, stage, owner) comes from its entry's `status`, `to_stage` and `owner_id`; an activity's `type_key` picks its icon.
   - Frontend: `useCrmTimeline()`, `utils/crmTimeline.ts` (the filters and icons), CrmTimeline with CrmTimelineEntry, CrmTimelineCard on a contact's page, and RecordDiscussion's `timeline` prop on a lead's and an opportunity's. `RecordChangeList` folds an entry's changes, for this timeline and Doc 14's.
   - A lead's and an opportunity's `/activity` routes (Doc 14's record timeline) are still there, though their pages now read this one.
+- Sales documents made from an opportunity (Doc 17 Phase F1, migration 000175): `sales_documents.opportunity_id` (`SalesDocument::opportunity()`).
+  - `App\Services\Crm\OpportunityDocuments`: `seen()` (one the user sees, while CRM is on), `refusal()` (lost, archived, another contact), `start()` (what a document starts with), `list()` (the card's, behind `GET /crm/opportunities/{id}/documents`, `CrmOpportunityDocumentController`), `madeFor()` (a contact's or an opportunity's documents the user may see - the timeline's too) and `shownLink()` (a document's `opportunity`).
+  - `SaveSalesDocumentRequest` checks a new document's `opportunity_id`; `SalesDocumentService::create()` keeps it and `update()` leaves it. `SalesConversionService::header()` carries it; `duplicate()` clears it.
+  - `GET /sales/{kind}/defaults?opportunity_id=` adds `opportunity` (`SalesFormService::opportunity()`): its contact as `customer`, its currency, and its `location_id`, `salesperson_id`, `sales_team_id` and `lines`.
+  - Frontend: CrmOpportunityDocuments on the opportunity's page, `?opportunity=` in `useSalesDocumentForm()` (`fromOpportunity()`), SalesDocumentAside's Opportunity, and `.alert-info` in `main.css`.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -2893,6 +2934,7 @@ These are easy to undo by mistake.
 - A customer's address on a response is what Laravel sees: behind a proxy it is the proxy's until its address is trusted (see Deploying), and on dev it is Docker's gateway.
 - An opportunity cannot move to another pipeline. Edited to a team or location its pipeline is not for, it stays where it is (Doc 17 Phase D3b).
 - The Opportunities page's Pipeline and Stage filters offer only pipelines switched on. A switched-off pipeline's opportunities show under Any pipeline (the board can still pick one).
+- A document's link to its opportunity is set when it is made: changing its customer later, or the opportunity's contact, leaves it linked, and nothing unlinks one. Documents made before Phase F1 have none. The card's "turn on Sales" path was not checked in the browser: the dev business runs Sales Lite (Doc 17 Phase F1).
 - A timeline shows the newest 100 of each part, with no paging further back. Planning or changing an activity shows only in Settings → Activity Log, and a contact's Timeline card is read when their page opens, so an activity completed in the card above it shows once a filter is chosen again (Doc 17 Phase E3).
 - A reminder cannot be snoozed, and goes only to the activity's assignee; there is no reminder for the owner of the record it is for (Doc 17 Phase E2).
 - An activity, once completed or cancelled, is not reopened; activities are not on the opportunities' board or calendar; the Activities page searches subjects and record names, not places or descriptions; and its For link to a record the user does not see leads to a not-found page (Doc 17 Phase E1).
@@ -2987,4 +3029,5 @@ Each of these is yours to settle.
 - Doc 17 Phase E1: migration 000173 adds `crm_activities`, whether an activity type needs an outcome (izSuite's Call, Meeting, Demonstration and Site Visit do), and Activities in CRM's sidebar. The Activities permissions are new: give them to custom roles that need them (the Sales User template has both). Deploy the frontend with it.
 - Doc 17 Phase E2: migration 000174 adds an activity's reminder. Activities planned before it have none. Reminders need the scheduler running (`crm:remind-activities` every minute) and their e-mails the queue workers; restart them after deploying (`php artisan queue:restart`). Deploy the frontend with it.
 - Doc 17 Phase E3: no migration. Deploy the frontend with it (a lead's and an opportunity's Comments card shows Timeline, and a contact's page gains a Timeline card). An activity's steps logged before it name no activity, so they show among a timeline's changes as well as the activity itself.
+- Doc 17 Phase F1: migration 000175 adds a sales document's opportunity (`opportunity_id`). Documents made before it have none. Deploy the frontend with it (an opportunity's page gains Sales Documents, and the sales form starts from an opportunity).
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

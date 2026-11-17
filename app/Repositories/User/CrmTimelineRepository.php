@@ -5,7 +5,6 @@ namespace App\Repositories\User;
 use App\Models\Shared\ActivityLog;
 use App\Models\Shared\RecordComment;
 use App\Models\User\CrmActivity;
-use App\Models\User\SalesDocument;
 use App\Models\User\Workspace;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -14,7 +13,8 @@ use Illuminate\Support\Collection;
  * What the timeline of a lead, an opportunity or a contact is made of (Doc
  * 17 section 17.18 - Phase E3), each read newest first up to a limit: the
  * Activity Log entries about the records, the activities done or cancelled
- * for them, the comments on them, and a contact's sales documents.
+ * for them, and the comments on them. Sales documents come through
+ * OpportunityDocuments::madeFor().
  */
 class CrmTimelineRepository
 {
@@ -112,28 +112,4 @@ class CrmTimelineRepository
             ->get();
     }
 
-    /**
-     * $contactId's sales documents of $types (DocumentType values) at
-     * $locationIds - null for any - the newest first, each with who made it.
-     *
-     * @param  list<string>  $types
-     * @param  list<int>|null  $locationIds
-     */
-    public function documents(Workspace $workspace, int $contactId, array $types, ?array $locationIds, int $limit): Collection
-    {
-        if ($types === []) {
-            return collect();
-        }
-
-        return SalesDocument::query()
-            ->where('workspace_id', $workspace->id)
-            ->where('contact_id', $contactId)
-            ->whereIn('type', $types)
-            ->atLocations($locationIds)
-            ->with('creator')
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->limit($limit)
-            ->get();
-    }
 }

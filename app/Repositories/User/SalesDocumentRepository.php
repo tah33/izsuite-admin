@@ -41,6 +41,8 @@ class SalesDocumentRepository
         'payments.account:id,name,currency',
         'activeLink', 'emails.sender:id,first_name,last_name',
         'sourceApp:id,name', 'creator:id,first_name,last_name',
+        // The CRM opportunity it was made from, and who sees that (Doc 17 Phase F1).
+        'opportunity:id,name,owner_id,sales_team_id,location_id',
         // What the customer did through its link (Doc 16 Phase G2).
         'customerResponses',
     ];
@@ -82,6 +84,35 @@ class SalesDocumentRepository
     }
 
     /** Read again after a save, with what its page shows. */
+    /**
+     * The documents of $types (DocumentType values) for the contact, or made
+     * from the CRM opportunity, that $where names - ['contact_id' => 7] or
+     * ['opportunity_id' => 3] - at $locationIds (null: any), the newest
+     * first, each with who made it and who confirmed it (Doc 17 Phases E3
+     * and F1).
+     *
+     * @param  array<string, int>  $where
+     * @param  list<string>  $types
+     * @param  list<int>|null  $locationIds
+     */
+    public function madeFor(Workspace $workspace, array $where, array $types, ?array $locationIds, int $limit): Collection
+    {
+        if ($types === []) {
+            return new Collection;
+        }
+
+        return SalesDocument::query()
+            ->where('workspace_id', $workspace->id)
+            ->where($where)
+            ->whereIn('type', $types)
+            ->atLocations($locationIds)
+            ->with(['creator:id,first_name,last_name', 'confirmer:id,first_name,last_name'])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->get();
+    }
+
     public function loadShown(SalesDocument $document): SalesDocument
     {
         return $document->load(self::SHOWN_WITH);

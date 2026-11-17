@@ -193,17 +193,19 @@ class CrmTimelineTest extends TestCase
         $invoice = $this->issuedInvoice();
 
         $timeline = $this->timeline('contact', $this->customer->id);
-        $this->assertSame(['document', 'document', 'activity', 'activity', 'note', 'change'], array_column($timeline, 'kind'));
+        $this->assertSame(['document', 'document', 'document', 'activity', 'activity', 'note', 'change'], array_column($timeline, 'kind'));
 
-        [$issued, $draft, $mine, $theirs, $note, $added] = $timeline;
-        $this->assertSame([['kind' => 'invoices', 'id' => $invoice, 'number' => 'INV-00001', 'revision' => 0, 'is_deposit' => false], 'issued', '335.50', 'USD'], [$issued['document'], $issued['status'], $issued['total'], $issued['currency']]);
-        $this->assertSame([['kind' => 'quotations', 'id' => $quotation, 'number' => null, 'revision' => 0, 'is_deposit' => false], 'draft', $this->user->name], [$draft['document'], $draft['status'], $draft['by']]);
+        // The invoice issued as it was made (Phase F1): its issue above its making, naming no one.
+        [$issued, $made, $draft, $mine, $theirs, $note, $added] = $timeline;
+        $this->assertSame([['kind' => 'invoices', 'id' => $invoice, 'number' => 'INV-00001', 'revision' => 0, 'is_deposit' => false], 'issued', 'issued', null, '335.50', 'USD'], [$issued['document'], $issued['step'], $issued['status'], $issued['by'], $issued['total'], $issued['currency']]);
+        $this->assertSame(['invoices', 'made', $this->user->name], [$made['document']['kind'], $made['step'], $made['by']]);
+        $this->assertSame([['kind' => 'quotations', 'id' => $quotation, 'number' => null, 'revision' => 0, 'is_deposit' => false], 'made', 'draft', $this->user->name], [$draft['document'], $draft['step'], $draft['status'], $draft['by']]);
         // The contact's own activity is about nothing else; the opportunity's call and note name it.
         $this->assertSame(['Send the catalogue', null], [$mine['subject'], $mine['for']]);
         $named = ['kind' => 'opportunity', 'id' => $this->opportunity, 'name' => 'Uddin Traders - racking'];
         $this->assertSame([['Call Rahim', $named], ['They need it before Eid.', $named]], [[$theirs['subject'], $theirs['for']], [$note['text'], $note['for']]]);
         $this->assertSame('Added opportunity "Uddin Traders - racking" for contact "Uddin Traders"', $added['text']);
-        $this->assertSame(['invoices', 'quotations'], array_column(array_column($this->timeline('contact', $this->customer->id, 'documents'), 'document'), 'kind'));
+        $this->assertSame(['invoices', 'invoices', 'quotations'], array_column(array_column($this->timeline('contact', $this->customer->id, 'documents'), 'document'), 'kind'));
 
         // A lead converted into it brings its own story.
         $lead = $this->postJson('/api/v1/crm/leads', ['name' => 'Karim Ahmed', 'business_name' => 'Uddin Traders', 'phone' => '+8801711000000', 'source_id' => $this->getJson('/api/v1/crm/leads/options')->json('data.sources.0.id'), 'customer_need' => 'Shelving'])->assertCreated()->json('data.id');
@@ -223,9 +225,9 @@ class CrmTimelineTest extends TestCase
         Sanctum::actingAs($this->member(['contacts.view', 'crm.opportunities.view', 'crm.leads.view']));
         $this->assertSame([], $this->timeline('contact', $this->customer->id));
         Sanctum::actingAs($this->member(['contacts.view', 'sales.invoices.view']));
-        $this->assertSame([['invoices', null]], array_map(fn (array $entry) => [$entry['document']['kind'], $entry['total']], $this->timeline('contact', $this->customer->id)));
+        $this->assertSame([['invoices', null], ['invoices', null]], array_map(fn (array $entry) => [$entry['document']['kind'], $entry['total']], $this->timeline('contact', $this->customer->id)));
         Sanctum::actingAs($this->member(['contacts.view', 'sales.invoices.view', 'sales.values.view', 'crm.activities.view']));
-        $this->assertSame(['document', 'activity'], array_column($this->timeline('contact', $this->customer->id), 'kind'));
+        $this->assertSame(['document', 'document', 'activity'], array_column($this->timeline('contact', $this->customer->id), 'kind'));
         $this->assertSame('335.50', $this->timeline('contact', $this->customer->id, 'documents')[0]['total']);
         Sanctum::actingAs($this->member(['crm.opportunities.view', 'crm.records.all']));
         $this->getJson("/api/v1/crm/timeline/contact/{$this->customer->id}")->assertForbidden();
@@ -235,6 +237,6 @@ class CrmTimelineTest extends TestCase
         $theirs = $this->businessOf(User::factory()->create())->contacts()->create(['contact_type' => 'business', 'role' => 'customer', 'name' => 'Theirs']);
         $this->getJson("/api/v1/crm/timeline/contact/{$theirs->id}")->assertNotFound();
         $this->postJson('/api/v1/apps/crm/deactivate')->assertOk();
-        $this->assertCount(10, $this->timeline('contact', $this->customer->id));
+        $this->assertCount(11, $this->timeline('contact', $this->customer->id));
     }
 }
