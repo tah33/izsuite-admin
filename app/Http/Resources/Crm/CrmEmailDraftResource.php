@@ -9,8 +9,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * What an e-mail from a lead, an opportunity or a contact starts with (Doc 17
- * Phase F3a): its address, its message, and what it can carry - the
- * record's sales documents, by name, and its files with their sizes.
+ * Phase F3a): its address, its message, the business's templates filled in
+ * for it (Phase F3b), and what it can carry - the record's sales documents,
+ * by name, and its files with their sizes.
  */
 class CrmEmailDraftResource extends JsonResource
 {
@@ -19,6 +20,8 @@ class CrmEmailDraftResource extends JsonResource
         return [
             'to'        => $this->resource['to'],
             'body'      => $this->resource['body'],
+            // Phase F3b: the business's templates, filled in for this record and sender.
+            'templates' => $this->resource['templates'],
             'documents' => $this->resource['documents']->map(fn (SalesDocument $document) => [
                 'id'         => $document->id,
                 'kind'       => $document->type->kind(),

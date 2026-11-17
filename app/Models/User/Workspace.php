@@ -355,6 +355,12 @@ class Workspace extends Model
         return $this->hasMany(CrmActivity::class);
     }
 
+    /** Its CRM e-mail templates (Doc 17 Phase F3b). */
+    public function crmEmailTemplates(): HasMany
+    {
+        return $this->hasMany(CrmEmailTemplate::class);
+    }
+
     /** How each kind of document is numbered - a row only where a default was changed. */
     public function documentNumbering(): HasMany
     {

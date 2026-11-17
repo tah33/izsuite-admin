@@ -7,6 +7,7 @@ use App\Enums\SalesDocumentStatus;
 use App\Jobs\SendCrmEmail;
 use App\Models\User\Contact;
 use App\Models\User\CrmEmail;
+use App\Models\User\CrmEmailTemplate;
 use App\Models\User\CrmLead;
 use App\Models\User\CrmOpportunity;
 use App\Models\User\SalesDocument;
@@ -15,6 +16,7 @@ use App\Models\User\Workspace;
 use App\Models\User\WorkspaceFile;
 use App\Repositories\User\ContactRepository;
 use App\Repositories\User\CrmEmailRepository;
+use App\Repositories\User\CrmEmailTemplateRepository;
 use App\Repositories\User\EmailSettingRepository;
 use App\Repositories\User\WorkspaceFileRepository;
 use App\Services\Api\Documents\EmailSettingService;
@@ -36,7 +38,8 @@ use Illuminate\Validation\ValidationException;
  * from the queue, from the platform's address under the business's sender
  * name with replies to the business, as the document e-mails do, and stays
  * on the record's timeline with whether it went. Replies and
- * synchronisation wait for an e-mail integration.
+ * synchronisation wait for an e-mail integration. Phase F3b: the business's
+ * templates, from Settings → CRM, fill its subject and message.
  *
  * Only from a record the user sees, while it is in use: not a converted or
  * archived lead, an archived opportunity or a merged contact.
@@ -55,24 +58,36 @@ class CrmEmailService
         protected EmailSettingRepository $emailSettings,
         protected EmailSettingService $emailSettingService,
         protected WorkspaceAccess $access,
+        protected CrmEmailTemplateRepository $templates,
     ) {}
 
     /**
      * What the form starts with for the lead, opportunity or contact - $kind
      * - that $id is: its address, a message with a greeting and the user's
-     * and business's names, and what it can carry.
+     * and business's names, the business's templates (Phase F3b) with their
+     * placeholders filled for it, and what it can carry.
      *
-     * @return array{to: ?string, body: string, documents: Collection<int, SalesDocument>, files: Collection<int, WorkspaceFile>}
+     * @return array{to: ?string, body: string, templates: list<array{id: int, name: string, subject: string, body: string}>, documents: Collection<int, SalesDocument>, files: Collection<int, WorkspaceFile>}
      */
     public function draft(Workspace $workspace, User $user, string $kind, int $id): array
     {
-        $record = $this->record($workspace, $user, $kind, $id);
-        [$address, $name] = $this->addressee($workspace, $record);
-        $sender = $this->emailSettingService->senderName($workspace, $this->emailSettings->forWorkspace($workspace));
+        $record  = $this->record($workspace, $user, $kind, $id);
+        $contact = match (true) {
+            $record instanceof CrmOpportunity => $this->contacts->findFor($workspace, $record->contact_id),
+            $record instanceof Contact        => $record,
+            default                           => null,
+        };
+        $values = $this->placeholders($workspace, $user, $record, $contact);
 
         return [
-            'to'        => $address,
-            'body'      => ($name ? "Dear {$name},\n\n" : '')."\n\nKind regards,\n{$user->name}\n{$sender}",
+            'to'        => $record instanceof CrmLead ? $record->email : $contact?->email,
+            'body'      => ($values['contact_name'] ? "Dear {$values['contact_name']},\n\n" : '')."\n\nKind regards,\n{$values['user_name']}\n{$values['business_name']}",
+            'templates' => $this->templates->getFor($workspace)->map(fn (CrmEmailTemplate $template) => [
+                'id'      => $template->id,
+                'name'    => $template->name,
+                'subject' => $this->fill($template->subject, $values),
+                'body'    => $this->fill($template->body, $values),
+            ])->all(),
             'documents' => $this->attachableDocuments($workspace, $record),
             'files'     => $this->files->inCollection($record, FileCollection::Attachments),
         ];
@@ -143,20 +158,32 @@ class CrmEmailService
     }
 
     /**
-     * Whom it goes to, to start, and the name its greeting uses: the person,
-     * else the business - an opportunity's contact's, read whole.
+     * What a template's placeholders (CrmEmailTemplate::PLACEHOLDERS) stand
+     * for, for $record - its $contact read whole - and $user: the person
+     * greeted (else the business), the business written to, the
+     * opportunity's name, the sender's name, and the business's sender name.
      *
-     * @return array{0: ?string, 1: ?string}
+     * @return array<string, string>
      */
-    private function addressee(Workspace $workspace, Model $record): array
+    private function placeholders(Workspace $workspace, User $user, Model $record, ?Contact $contact): array
     {
-        if ($record instanceof CrmOpportunity) {
-            $contact = $this->contacts->findFor($workspace, $record->contact_id);
+        return [
+            'contact_name'     => (string) match (true) {
+                $record instanceof CrmLead        => $record->name,
+                $record instanceof CrmOpportunity => $record->contact_person ?: $contact?->contact_person ?: $contact?->name,
+                default                           => $record->contact_person ?: $record->name,
+            },
+            'company_name'     => (string) ($record instanceof CrmLead ? ($record->business_name ?: $record->name) : $contact?->name),
+            'opportunity_name' => $record instanceof CrmOpportunity ? $record->name : '',
+            'user_name'        => $user->name,
+            'business_name'    => $this->emailSettingService->senderName($workspace, $this->emailSettings->forWorkspace($workspace)),
+        ];
+    }
 
-            return [$contact?->email, $record->contact_person ?: $contact?->contact_person ?: $contact?->name];
-        }
-
-        return $record instanceof CrmLead ? [$record->email, $record->name] : [$record->email, $record->contact_person ?: $record->name];
+    /** $text with each placeholder of $values filled in; one it does not know stays as it is. */
+    private function fill(string $text, array $values): string
+    {
+        return strtr($text, collect($values)->mapWithKeys(fn (string $value, string $key) => ['{'.$key.'}' => $value])->all());
     }
 
     /**

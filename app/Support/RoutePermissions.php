@@ -191,6 +191,10 @@ final class RoutePermissions
             'api.business-settings.crm.pipelines.update'       => 'crm.settings.manage',
             'api.business-settings.crm.pipelines.store'        => 'crm.settings.manage',
             'api.business-settings.crm.pipelines.destroy'      => 'crm.settings.manage',
+            // Phase F3b: its e-mail templates.
+            'api.business-settings.crm.email-templates.store'   => 'crm.settings.manage',
+            'api.business-settings.crm.email-templates.update'  => 'crm.settings.manage',
+            'api.business-settings.crm.email-templates.destroy' => 'crm.settings.manage',
             'api.business-settings.expenses.show'              => 'settings.view',
             'api.business-settings.expenses.update'            => 'expenses.settings.manage',
 

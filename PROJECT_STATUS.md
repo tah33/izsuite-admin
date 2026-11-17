@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-17
-- **Code:** Doc 17 Phase F3a (e-mail from a lead, an opportunity or a contact) is committed: frontend `6f7bea7` on `nuxt`, and on `main` the admin commit right after `9144e8a`.
-- **Tests:** 985 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
-- **Next step:** Doc 17 Phase F3b: e-mail templates (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase F3b (e-mail templates) is committed: frontend `a58d4f2` on `nuxt`, and on `main` the admin commit right after `7ec724c`.
+- **Tests:** 987 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
+- **Next step:** Doc 17 Phase F4: the CRM part of a contact's profile (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase F3a the latest is 000177. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase F3b the latest is 000178. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase F3b.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase F4.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check, Phases A to E, F1, F2 and F3a done (F3a built 2026-11-17), Phase F3b next** |
+| **17** | **CRM** | **In progress: gap check, Phases A to E and F1 to F3 done (F3b built 2026-11-17), Phase F4 next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase F3b)
+### 5. Doc 17: CRM (next: Phase F4)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -1982,6 +1982,19 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - The contact's Timeline card had Send E-mail, and showed the e-mail "for Browser Check Traders - racking", linking to it.
   - As the member: no Send E-mail, and the API refused one (403); they saw the e-mail, Sent.
   - The e-mail, opportunity, quotation, file, contact, CRM lists, member, the app's state, the sign-in, the numbering and the activity were then put back.
+**Phase F3b: e-mail templates** (section 17.19) is built, with these defaults. Phase F3 is done.
+
+- **Settings → CRM** has a new E-mail Templates card, below the lists: each template a name - the business's only one by it - a one-line subject and a message, added, edited and deleted by whoever manages CRM settings. A business starts with none.
+- **Placeholders:** `{contact_name}` (the person written to - or the business, without one), `{company_name}` (the business written to), `{opportunity_name}` (from an opportunity; nothing from a lead or a contact), `{user_name}` (who sends it) and `{business_name}` (the business's sender name). A chip puts one in the message where the cursor is; one the template does not know stays as written.
+- **On Send E-mail,** a Template list - "Write my own" to start - puts the chosen one's subject and message in, filled in for the record and the sender, to change before it goes. Whoever may send e-mail uses them, whether or not they manage settings.
+- **An e-mail keeps the text it went with:** changing or deleting a template changes no e-mail sent.
+- **Found while checking:** the template form's placeholder chips broke Settings ("500 - Vite Error"): a template literal's `{…}` inside `{{ }}` closed the tag early. The chips are now made by a small function, as Settings → Email's are.
+- **Checked in the browser** on the second PC, as `user@izsuite.io` with CRM switched on by hand, and as a throwaway member who may send e-mail but not manage CRM settings:
+  - Settings → CRM's E-mail Templates said "None yet. …". Add Template - `{contact_name}` put in by its chip - gave "Template added."; Edit, "Template saved."; another by the same name was refused ("The business has a template by that name already.").
+  - On an opportunity for "Browser Check Traders", Send E-mail's Template list offered "Write my own" and "Quotation follow-up". Choosing it gave "Your quotation for Browser Check Traders - racking, Browser Check Traders", and "Dear Rahim Uddin, How did Browser Check Traders find our quotation? … Kind regards, izSuite User, Billing Starter". Sent, the dev queue sent it.
+  - As the member: no CRM tab in Settings, and adding a template was refused (403); their form offered the template, signed with their own name.
+  - Delete gave "Template deleted.", and the card was empty again.
+  - The template, e-mail, opportunity, contact, CRM lists, member, the app's state, the sign-in and the activity were then put back.
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## Testing checklist
@@ -2010,6 +2023,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase F1 | 000175 |
 | Doc 17: Phase F2 | 000176 |
 | Doc 17: Phase F3a | 000177 |
+| Doc 17: Phase F3b | 000178 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -2307,6 +2321,16 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] A contact with e-mails is deactivated, not deleted; merged, its e-mails move.
 - [ ] As the member: no Send E-mail, but the e-mails show.
 
+**Phase F3b: e-mail templates**
+
+**Before you start:** CRM on, an opportunity whose contact has a person's name and an e-mail address you can read, and a member whose role sends e-mail but does not manage CRM settings.
+
+- [ ] Settings → CRM has E-mail Templates, "None yet." Add one using every placeholder chip: "Template added." Another by the same name is refused.
+- [ ] On the opportunity, Send E-mail offers it under Template. Choosing it fills the subject and message: the person, their business, the opportunity, your name and your business's.
+- [ ] Send it: it arrives as filled in. Edit or delete the template: the e-mail on the timeline stays as it went.
+- [ ] From a lead, `{opportunity_name}` is empty and `{company_name}` is the lead's business.
+- [ ] As the member: no CRM tab in Settings; their form offers the template, signed with their name.
+
 ## How we work
 
 Each document goes the same way:
@@ -2557,7 +2581,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase E3, the timeline of a lead, an opportunity and a contact | `27fa34d` | `412898e` | none |
 | Doc 17: Phase F1, sales documents made from an opportunity | `d6971af` | `2cd5594` | 000175 |
 | Doc 17: Phase F2, an opportunity won when its order is confirmed | `9144e8a` | `2401e51` | 000176 |
-| Doc 17: Phase F3a, e-mail from a lead, an opportunity or a contact | the commit after `9144e8a` | `6f7bea7` | 000177 |
+| Doc 17: Phase F3a, e-mail from a lead, an opportunity or a contact | `7ec724c` | `6f7bea7` | 000177 |
+| Doc 17: Phase F3b, e-mail templates | the commit after `7ec724c` | `a58d4f2` | 000178 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -2978,6 +3003,9 @@ These are easy to undo by mistake.
   - What can be attached: `OpportunityDocuments::madeFor()` less drafts, void and cancelled documents, and the record's `attachments` files.
   - The log entry carries `email_id`, so the timeline (`CrmTimelineRepository::emails()`, its `emails` part) shows the e-mail instead. `ContactMergeRepository` moves `crm_emails`; `ContactService` keeps a contact with any from being deleted.
   - Frontend: `useCrmEmails()`, CrmEmailModal with CrmEmailAttachments, CrmTimelineEmail, and CrmTimeline's `canEmail`.
+- E-mail templates (Doc 17 Phase F3b, migration 000178): `crm_email_templates` (`CrmEmailTemplate`, its `PLACEHOLDERS`), `CrmEmailTemplateService` behind `/business-settings/crm/email-templates` (`CrmEmailTemplateController`, `SaveCrmEmailTemplateRequest`, `crm.settings.manage`), and Settings → CRM's `email_templates`.
+  - `CrmEmailService::draft()` returns them as `templates`, filled for the record and sender by `placeholders()` and `fill()`.
+  - Frontend: SettingsCrmEmailTemplates with CrmEmailTemplateModal (its placeholder chips), `useCrmSettings().saveTemplate()` and `deleteTemplate()`, and CrmEmailModal's Template list.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -3003,7 +3031,8 @@ These are easy to undo by mistake.
 - A customer's address on a response is what Laravel sees: behind a proxy it is the proxy's until its address is trusted (see Deploying), and on dev it is Docker's gateway.
 - An opportunity cannot move to another pipeline. Edited to a team or location its pipeline is not for, it stays where it is (Doc 17 Phase D3b).
 - The Opportunities page's Pipeline and Stage filters offer only pipelines switched on. A switched-off pipeline's opportunities show under Any pipeline (the board can still pick one).
-- Replies to a CRM e-mail reach the business's own inbox and are not read back; there are no templates yet (Phase F3b), nor scheduled sending or tracked opening. Send E-mail is on the timeline, so on a lead's and an opportunity's page it is under the Comments card's Timeline tab (Doc 17 Phase F3a).
+- A business starts with no e-mail templates, and a placeholder with nothing to stand for - an opportunity's name on a lead's e-mail - is left empty (Doc 17 Phase F3b).
+- Replies to a CRM e-mail reach the business's own inbox and are not read back; there is no scheduled sending or tracked opening. Send E-mail is on the timeline, so on a lead's and an opportunity's page it is under the Comments card's Timeline tab (Doc 17 Phase F3a).
 - Only a sales order's confirmation wins an opportunity, so with Sales Lite one is won by hand; and cancelling the order later leaves it won (Doc 17 Phase F2).
 - A document's link to its opportunity is set when it is made: changing its customer later, or the opportunity's contact, leaves it linked, and nothing unlinks one. Documents made before Phase F1 have none. The card's "turn on Sales" path was not checked in the browser: the dev business runs Sales Lite (Doc 17 Phase F1).
 - A timeline shows the newest 100 of each part, with no paging further back. Planning or changing an activity shows only in Settings → Activity Log, and a contact's Timeline card is read when their page opens, so an activity completed in the card above it shows once a filter is chosen again (Doc 17 Phase E3).
@@ -3103,4 +3132,5 @@ Each of these is yours to settle.
 - Doc 17 Phase F1: migration 000175 adds a sales document's opportunity (`opportunity_id`). Documents made before it have none. Deploy the frontend with it (an opportunity's page gains Sales Documents, and the sales form starts from an opportunity).
 - Doc 17 Phase F2: migration 000176 adds Settings → CRM's "Win an opportunity when its sales order is confirmed", on for every business. Deploy the frontend with it.
 - Doc 17 Phase F3a: migration 000177 adds `crm_emails`, and a new permission, CRM → E-mail: Send E-mail, given to the Sales User template; give it to custom roles in Settings → Users & Roles. Its e-mails go through the queue: restart the workers after deploying (`php artisan queue:restart`). Deploy the frontend with it.
+- Doc 17 Phase F3b: migration 000178 adds `crm_email_templates`; businesses start with none. Deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

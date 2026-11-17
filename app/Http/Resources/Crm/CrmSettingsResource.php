@@ -9,8 +9,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /**
  * Settings > CRM (Doc 17 Phase A1): the mode, each list by its kind in its
  * order - (Phase A2) the pipelines and their stages - and (Phase B2a) what a
- * lead needs filled in before it is qualified, and (Phase F2) whether
- * confirming a sales order made from an opportunity wins it.
+ * lead needs filled in before it is qualified, (Phase F2) whether
+ * confirming a sales order made from an opportunity wins it, and (Phase
+ * F3b) its e-mail templates.
  */
 class CrmSettingsResource extends JsonResource
 {
@@ -26,6 +27,8 @@ class CrmSettingsResource extends JsonResource
                 ->mapWithKeys(fn (string $kind) => [$kind => CrmOptionResource::collection($options->where('kind', $kind)->values())])
                 ->all(),
             'pipelines' => CrmPipelineResource::collection($this->resource['pipelines']),
+            // Phase F3b.
+            'email_templates' => CrmEmailTemplateResource::collection($this->resource['email_templates']),
         ];
     }
 }

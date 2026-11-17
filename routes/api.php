@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\CrmOpportunityAttachmentController;
 use App\Http\Controllers\Api\CrmOpportunityClosingController;
 use App\Http\Controllers\Api\CrmActivityController;
 use App\Http\Controllers\Api\CrmEmailController;
+use App\Http\Controllers\Api\CrmEmailTemplateController;
 use App\Http\Controllers\Api\CrmTimelineController;
 use App\Http\Controllers\Api\CrmOpportunityController;
 use App\Http\Controllers\Api\CrmOpportunityDocumentController;
@@ -307,6 +308,10 @@ Route::prefix('v1')->group(function () {
             // Several pipelines (Doc 17 Phase D3b).
             Route::post('/pipelines', [CrmPipelineController::class, 'store'])->middleware('idempotent')->name('api.business-settings.crm.pipelines.store');
             Route::delete('/pipelines/{id}', [CrmPipelineController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.pipelines.destroy');
+            // Phase F3b: its e-mail templates.
+            Route::post('/email-templates', [CrmEmailTemplateController::class, 'store'])->middleware('idempotent')->name('api.business-settings.crm.email-templates.store');
+            Route::put('/email-templates/{id}', [CrmEmailTemplateController::class, 'update'])->whereNumber('id')->name('api.business-settings.crm.email-templates.update');
+            Route::delete('/email-templates/{id}', [CrmEmailTemplateController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.email-templates.destroy');
         });
 
         // Sales teams (Doc 16 Phase A): the full Sales app's - and, since Doc

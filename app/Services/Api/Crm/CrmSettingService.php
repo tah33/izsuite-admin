@@ -43,6 +43,7 @@ class CrmSettingService
         protected CrmLeadRepository $leads,
         protected CrmOpportunityRepository $opportunities,
         protected \App\Repositories\User\CrmActivityRepository $activities,
+        protected \App\Repositories\User\CrmEmailTemplateRepository $emailTemplates,
     ) {}
 
     /**
@@ -68,6 +69,8 @@ class CrmSettingService
             'settings'  => $this->settings->forWorkspace($workspace),
             'options'   => $this->options->getFor($workspace),
             'pipelines' => $pipelines,
+            // Phase F3b: its e-mail templates.
+            'email_templates' => $this->emailTemplates->getFor($workspace),
         ];
     }
 
