@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-18
-- **Code:** Doc 17 Phase G3b (the follow-up warnings on the CRM Overview) is committed: frontend `95ea5c7` on `nuxt`, and on `main` the admin commit right after `81bc263`.
-- **Tests:** 1003 backend tests pass (last full run 2026-11-18, on the first PC, on this code).
-- **Next step:** Doc 17 Phase G4: the Dashboard's CRM figures (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase G4 (the Dashboard's CRM figures) is committed: frontend `9fdefc0` on `nuxt`, and on `main` the admin commit right after `d7d5524`.
+- **Tests:** 1005 backend tests pass (last full run 2026-11-18, on the first PC, on this code).
+- **Next step:** Doc 17 Phase H: the CRM reports (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase G3b the latest is 000182. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase G4 the latest is 000182. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase G4.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase H.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check, Phases A to F and G1 to G3 done (G3b built 2026-11-18), Phase G4 next** |
+| **17** | **CRM** | **In progress: gap check and Phases A to G done (G4 built 2026-11-18), Phase H next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase G4)
+### 5. Doc 17: CRM (next: Phase H)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -2133,10 +2133,41 @@ The first PC's parts were taken out: both repos are D3b to F4 as the second PC b
   - Settings → CRM showed Closing Soon 30, Contact New Leads Within 2 and Recent Activity 14, with their hints. Saving 5 for the leads ("CRM settings saved.") put Leads Not Contacted at 0, "within 5 days".
   - The leads, opportunities, activity, CRM settings and lists, the app's state, the sign-in and the activity were then put back.
 
-**Phase G4: the Dashboard's CRM figures** (section 17.28), suggested defaults:
+**Phase G4: the Dashboard's CRM figures** (section 17.28) is built, with these defaults. Phase G, the Overview, Forecast and follow-up, is done.
 
-- **The Dashboard gains a CRM card,** for whoever may view opportunities while CRM is on: New Leads this month, Leads Awaiting Follow-up, Open Opportunities, Activities Due Today, Overdue Activities, Opportunities Closing Soon, Pipeline Value and Weighted Forecast.
-- Labelled as CRM, not sales, counted as the Overview counts them, only what the user sees. Each opens its page.
+- **The Dashboard gains a CRM card,** after the summary cards and the Sales Pipeline, while CRM is on, for whoever may view opportunities. It shows with or without Sales, Purchases and Expenses on. Its subtitle says it is not sales: operational CRM information, never in the sales totals.
+- **Its eight figures** are counted by the Overview's own code, only what the user sees, each opening the list it counts:
+  - **New Leads:** added in the Dashboard's period (This Month to start), on the Leads page's All leads, newest first;
+  - **Leads Awaiting Follow-up:** New or Assigned, not contacted yet, on a new Leads status, "Awaiting follow-up";
+  - **Open Opportunities**, on the Opportunities list as it opens;
+  - **Activities Due Today:** planned for the business's today, one overdue since this morning among them, on the Activities page's Due today, Anyone;
+  - **Overdue Activities**, on its Overdue, Anyone;
+  - **Opportunities Closing Soon:** expected to close within the closing-soon period (30 days to start), on a new Opportunities status, "Closing within 30 days", which the calendar takes too;
+  - **Pipeline Value** and **Weighted Forecast**, in the base currency at today's rates (those without a rate today left out and counted), on the Forecast page, whose total shows both.
+  - Awaiting follow-up and overdue activities are amber while they count any.
+- The lead figures show while the business uses leads, to whoever may view leads; the activity figures to whoever may view activities. New leads count the period; the rest stand as they are now.
+- **The Dashboard's location narrows them all.** The lists have no location filter, so with a location chosen a list can show more than its figure.
+- **Found while building:**
+  - The Overview's Overdue Activities showed to roles that may not view activities, opening a page they could not load. It now shows only to those who may, as on the Dashboard.
+  - The Activities page was missing from the pages a role must be allowed: a member without View Activities who typed its address got an error. They are now taken to their first page, as on the other CRM pages.
+  - The Sales Pipeline's figure styles moved to `main.css`, shared with the CRM card, at most four across.
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with CRM switched on by hand:
+  - The check data: three leads added that day (one in the queue, one assigned, one contacted since); opportunities at Proposal ($1,00,000.00, closing in ten days) and Qualified ($2,40,000.00, closing in February); a call due that evening and one overdue since yesterday.
+  - The Dashboard's CRM card, after the summary cards, read New Leads 3, Leads Awaiting Follow-up 2 (amber), Open Opportunities 2, Activities Due Today 1, Overdue Activities 1 (amber), Opportunities Closing Soon 1 ("Expected to close within 30 days"), Pipeline Value $3,40,000.00 and Weighted Forecast $1,10,000.00. At 1440 pixels wide it showed two rows of four.
+  - Leads Awaiting Follow-up opened the Leads page on "Awaiting follow-up" with the two. The Opportunities list on "Closing within 30 days" held the one, and the Activities page on Due today, Anyone, the evening call. The Forecast's total read 2, $3,40,000.00 and $1,10,000.00.
+  - The CRM Overview's figures matched, Overdue Activities 1 among them.
+  - The leads, opportunities, activities, CRM settings and lists, the app's state, the sign-in and the activity were then put back.
+
+**Phase H: the CRM reports** (section 17.29), suggested defaults:
+
+- **A CRM group on the shared Reports page,** while CRM is on, each report for whoever may view what it counts (leads, opportunities or activities), and only what they see.
+- Each report has the Reports page's period and export, and the Overview's filters that apply: location, sales team, owner, lead source, pipeline and stage.
+- Values are in the base currency at today's rates, labelled estimates, never sales: financial sales come only from issued invoices (17.29).
+- **In three parts:**
+  - **H1, leads:** Leads by Source, by Status and by Owner; Lead Response Time, from added to first contacted (Phase G3a); Lead Qualification Rate and Lead Conversion Rate, of the leads added in the period.
+  - **H2, opportunities:** Opportunities by Stage; Pipeline Value and Weighted Forecast, by stage, owner or closing month as the Forecast groups them; Stage Duration, the average days at each stage from the stage visits; Opportunities Closing Soon; Won and Lost Opportunities; Win Rate, won of those closed in the period; Lost Reasons.
+  - **H3, people and activity:** Sales Team Performance and Salesperson Performance (leads, opportunities won and lost, win rate, won value, activities done); Activity Completion (planned, done, cancelled, done on time); Overdue Activities; Opportunities Without Follow-up, open with no activity planned, as Phase G3b counts them.
+- **Campaign-to-Opportunity Results** waits for campaigns (Doc 21, Marketing). Until then, Leads by Source shows where leads and their opportunities came from.
 
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
@@ -2172,6 +2203,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase G2 | 000180 |
 | Doc 17: Phase G3a | 000181 |
 | Doc 17: Phase G3b | 000182 |
+| Doc 17: Phase G4 | none |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -2547,6 +2579,22 @@ On a fresh business, set the days in Settings → CRM to fit what you have, rath
 - [ ] An owner chosen on the Overview: the counts are theirs, and the links open the lists on that owner.
 - [ ] As the member: only their own in each count and list.
 
+**Phase G4: the Dashboard's CRM figures**
+
+**Before you start:** CRM on and using leads, with:
+- a lead in the queue and one with an owner, added this month and not contacted;
+- an open opportunity closing within 30 days and one closing later;
+- an activity due later today and one overdue;
+- a member whose role views the Dashboard and opportunities, but not leads or activities, with an opportunity of their own.
+
+- [ ] The Dashboard has a CRM card after the summary cards (and the Sales Pipeline, on full Sales): New Leads, Leads Awaiting Follow-up, Open Opportunities, Activities Due Today, Overdue Activities, Opportunities Closing Soon, Pipeline Value and Weighted Forecast. Its subtitle says they are not sales.
+- [ ] Its figures match the CRM Overview's: new leads, awaiting follow-up, open, closing soon, pipeline value, weighted forecast and overdue activities.
+- [ ] Each opens its list with the same records: Leads on All leads and on "Awaiting follow-up"; Opportunities as it opens and on "Closing within 30 days"; Activities on Due today and on Overdue, Anyone; the Forecast, whose total shows both values.
+- [ ] The Dashboard's range set to last month: New Leads counts last month's leads, and the rest stay.
+- [ ] With two locations, choosing one narrows every figure.
+- [ ] Switched to Opportunities Only, the lead figures go. With CRM switched off, the card goes.
+- [ ] As the member: the card shows only their own open opportunities and their values, without the lead and activity figures. The CRM Overview has no Overdue Activities card, and typing `/crm/activities` takes them to their first page.
+
 ## How we work
 
 Each document goes the same way:
@@ -2805,7 +2853,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase G1, the CRM Overview | `42ff146` | `e6140c6` | 000179 |
 | Doc 17: Phase G2, the Forecast page | `32064b6` | `481bb34` | 000180 |
 | Doc 17: Phase G3a, response tracking on a lead's and an opportunity's page | `81bc263` | `978548f` | 000181 |
-| Doc 17: Phase G3b, the follow-up warnings on the Overview | the commit after `81bc263` | `95ea5c7` | 000182 |
+| Doc 17: Phase G3b, the follow-up warnings on the Overview | `d7d5524` | `95ea5c7` | 000182 |
+| Doc 17: Phase G4, the Dashboard's CRM figures | the commit after `d7d5524` | `9fdefc0` | none |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -3249,6 +3298,20 @@ These are easy to undo by mistake.
   - Opportunities: `CrmOpportunity::FOLLOW_UP_STATUSES` (stale, no_activity, quiet). `CrmOpportunityRepository::filtered()` takes them, through `withoutNextActivity()` and `quiet()` (subqueries on `crm_activities` and `crm_emails`); `followUpCounts()` counts all three for the Overview.
   - `CrmOverviewService` adds `leads.unassigned`, `leads.uncontacted`, `follow_up` and both periods (`CrmOverviewResource`). The lead and opportunity options carry the days their filters are named with.
   - Frontend: CrmOverviewFollowUp (the Follow-up group, the Overdue Activities card moved into it; CrmOverviewCards takes `filters` instead of `ownerId`). The Leads page and CrmOpportunityList start from `?status=`, `?owner_id=`, `?source_id=`, `?pipeline_id=`, `?stage_id=`. The toolbars name the new statuses with the days. SettingsCrm's three periods.
+- The Dashboard's CRM figures (Doc 17 Phase G4, no migration): `DashboardService::summary()` takes the user and adds `crm` from `CrmOverviewService::dashboard()`, for the Dashboard's period and location (`DashboardResource`). It is there while CRM is on, for `crm.opportunities.view`.
+  - `dashboard()` shares the Overview's counting:
+    - `leadCounts()`: `CrmLeadRepository::overview()`, its new and awaiting (`CrmLead::AWAITING`);
+    - the open ones from `forOverview()`, with `value()` and `closingSoon()`;
+    - `activityCounts()`: `CrmActivityRepository::dueCount()` (the business's day, as the Activities page's Due Today) and `overdueCount()`, which share `planned()`.
+  - `FollowUpCutoffs::closingSoon()` (closing_from, closing_to) draws the one closing-soon line. It is used by:
+    - the Overview's and the Dashboard's closing soon, and `quiet()`;
+    - the Opportunities list's new `closing_soon` status (`CrmOpportunity::FOLLOW_UP_STATUSES`; `CrmOpportunityRepository::closingSoon()`). The opportunity options carry `closing_soon_days` again, to name it.
+  - The Leads list's `awaiting` status (`ListCrmLeadsRequest`, `CrmLeadRepository::paginateFor()`).
+  - The activity figures, the Dashboard's and the Overview's `overdue_activities`, need `crm.activities.view` (`CrmOverviewService::seesActivities()`), and are null otherwise.
+  - Frontend:
+    - DashboardCrm sits after DashboardPipeline, outside the chart's `v-if`, so it shows without Sales, Purchases and Expenses; its type is `useDashboard`'s `DashboardCrm`.
+    - `.dashboard-figures` and `.dashboard-figure` are in `main.css`, shared with DashboardPipeline, at most four across.
+    - `pagePermissions` has `/crm/activities` (`crm.activities.view`).
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -3382,4 +3445,5 @@ Each of these is yours to settle.
 - Doc 17 Phase G2: migration 000180 puts Forecast after Activities in CRM's menu, for whoever may view opportunities. Deploy the frontend with it.
 - Doc 17 Phase G3a: migration 000181 adds when each lead was first assigned and first contacted, and fills both for the leads that exist. Then `queue:restart`, and deploy the frontend with it.
 - Doc 17 Phase G3b: migration 000182 adds the two follow-up periods to Settings → CRM (2 and 14 days). Deploy the frontend with it.
+- Doc 17 Phase G4: no migration. Deploy the frontend with it (the Dashboard gains its CRM card, and the Leads and Opportunities lists a status each).
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

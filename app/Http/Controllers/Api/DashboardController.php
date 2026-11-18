@@ -19,7 +19,7 @@ class DashboardController extends Controller
     {
         try {
             return response()->json([
-                'data' => new DashboardResource($this->dashboardService->summary($this->currentWorkspace($request), $request->validated())),
+                'data' => new DashboardResource($this->dashboardService->summary($this->currentWorkspace($request), $request->user(), $request->validated())),
             ]);
 
         } catch (\Throwable $e) {

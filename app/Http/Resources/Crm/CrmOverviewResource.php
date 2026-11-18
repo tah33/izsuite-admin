@@ -10,8 +10,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * CrmOverviewService gives them: the period and currency they are in, the
  * closing-soon period, the leads' figures (null without them), the open,
  * closing-soon, won and lost opportunities - each value with how many were
- * left out for want of a rate - and the overdue activities. Phase G3b adds
- * the follow-up periods, the leads' warnings (in the queue, not contacted in
+ * left out for want of a rate - and the overdue activities (since Phase G4
+ * null for someone who may not view activities). Phase G3b adds the
+ * follow-up periods, the leads' warnings (in the queue, not contacted in
  * time) and the opportunities' (no activity planned, stale, quiet).
  */
 class CrmOverviewResource extends JsonResource

@@ -12,14 +12,17 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * the Transaction Overview, with a series for each app on, the newest
  * transactions of all of them, and the payment accounts' balances at the
  * end of the range. Totals are in the base currency; each listed record in
- * its own. A part the user's role may not see is null too, or left out of
- * the chart and the transactions. Wraps DashboardService::summary().
+ * its own. Since Doc 17 Phase G4, CRM's figures - null while CRM is off. A
+ * part the user's role may not see is null too, or left out of the chart
+ * and the transactions. Wraps DashboardService::summary().
  */
 class DashboardResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
         $sales = $this->resource['sales'];
+        $crm   = $this->resource['crm'];
+        $money = fn (array $value) => ['amount' => $value['total'], 'unrated' => $value['unrated']];
 
         return [
             'from'      => $this->resource['from'],
@@ -51,6 +54,14 @@ class DashboardResource extends JsonResource
             'chart'     => $this->resource['chart'],
             'recent'    => array_map(fn (array $row) => array_diff_key($row, ['created' => true]), $this->resource['recent']),
             'accounts'  => $this->resource['accounts'],
+            // Phase G4: the leads' figures null without them, the activities' for someone who may not view activities; values with how many were left out for want of a rate.
+            'crm'       => $crm ? [
+                'closing_soon_days' => $crm['closing_soon_days'],
+                'leads'             => $crm['leads'],
+                'open'              => ['count' => $crm['open']['count'], 'value' => $money($crm['open']['value']), 'weighted' => $money($crm['open']['weighted'])],
+                'closing_soon'      => $crm['closing_soon'],
+                'activities'        => $crm['activities'],
+            ] : null,
         ];
     }
 }

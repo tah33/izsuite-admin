@@ -12,12 +12,14 @@ use App\Models\User\Purchase;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesPayment;
 use App\Models\User\SupplierPayment;
+use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\AccountTransactionRepository;
 use App\Repositories\User\ExpenseReportRepository;
 use App\Repositories\User\PaymentAccountRepository;
 use App\Repositories\User\PurchaseReportRepository;
 use App\Repositories\User\SalesReportRepository;
+use App\Services\Api\Crm\CrmOverviewService;
 use App\Services\Reports\ReportPeriod;
 use App\Services\Reports\Sales\OutstandingInvoicesReport;
 use App\Services\Reports\Sales\SalesTrendReport;
@@ -37,13 +39,15 @@ use Illuminate\Support\Collection;
  * Expenses is on, the Transaction Overview with a series for each of them,
  * the newest transactions of all three, and each payment account's balance.
  * Totals are in the base currency; what is owed, and balances, as they
- * stood at the end of the range - or today, if it ends later.
+ * stood at the end of the range - or today, if it ends later. While CRM is
+ * on, its figures (Doc 17 section 17.28 - Phase G4), as the CRM Overview
+ * counts them: operational, never sales.
  *
  * Each part only for a role that may see it (Doc 12 sections 14 and 21): an
  * app's cards and series with its records' View and its Values, each kind of
  * transaction with its own View - its amount with its app's Values - the
- * balances with Payment Accounts' View and View Balances - null otherwise, as
- * for an app that is off.
+ * balances with Payment Accounts' View and View Balances, CRM's figures with
+ * View Opportunities - null otherwise, as for an app that is off.
  */
 class DashboardService
 {
@@ -66,10 +70,11 @@ class DashboardService
         protected PaymentAccountRepository $paymentAccountRepository,
         protected AccountTransactionRepository $accountTransactionRepository,
         protected WorkspaceAccess $access,
+        protected CrmOverviewService $crmOverview,
     ) {}
 
-    /** $input is validated (see DashboardRequest). */
-    public function summary(Workspace $workspace, array $input): array
+    /** $input is validated (see DashboardRequest); $user is the one it is for, whom CRM's figures count for. */
+    public function summary(Workspace $workspace, User $user, array $input): array
     {
         [$from, $to] = $this->reportPeriod->range($workspace, $input['range'] ?? null, $input['date_from'] ?? null, $input['date_to'] ?? null);
 
@@ -92,6 +97,10 @@ class DashboardService
                 : null,
             'recent'    => $this->recent($workspace, $filters['location_id'], $today, array_filter($sources, fn (string $family) => $apps->has($family), ARRAY_FILTER_USE_KEY)),
             'accounts'  => $this->access->can('payment_accounts.view') && $this->access->can('payment_accounts.balances') ? $this->accounts($workspace, $asOf) : null,
+            // Phase G4: CRM's, the leads it adds counted over the range, the rest as they stand now.
+            'crm'       => $apps->has('crm') && $this->access->can('crm.opportunities.view')
+                ? $this->crmOverview->dashboard($workspace, $user, $from, $to, isset($input['location_id']) ? (int) $input['location_id'] : null)
+                : null,
         ];
     }
 

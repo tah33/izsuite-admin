@@ -192,7 +192,7 @@ class CrmFollowUpWarningsTest extends TestCase
         // Thirty days of recent activity: the one called on 30 October has had some.
         $this->putJson('/api/v1/business-settings/crm', ['recent_activity_days' => 30])->assertOk()->assertJsonPath('data.recent_activity_days', 30);
         $this->overview()->assertJsonPath('data.follow_up.quiet', 0);
-        $this->getJson('/api/v1/crm/opportunities/options')->assertJsonPath('data.recent_activity_days', 30)->assertJsonMissingPath('data.closing_soon_days');
+        $this->getJson('/api/v1/crm/opportunities/options')->assertJsonPath('data.recent_activity_days', 30)->assertJsonPath('data.closing_soon_days', 30);
         $this->getJson('/api/v1/crm/opportunities?status=late')->assertUnprocessable()->assertJsonValidationErrors('status');
     }
 

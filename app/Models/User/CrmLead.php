@@ -44,6 +44,9 @@ class CrmLead extends Model
     /** Still being worked: edited, assigned, contacted or qualified. */
     public const OPEN = [self::NEW, self::ASSIGNED, self::CONTACTED, self::QUALIFIED];
 
+    /** Open and not contacted yet, awaiting follow-up: what the CRM Overview (Phase G1) and the Dashboard (Phase G4) count, and the Leads page lists. */
+    public const AWAITING = [self::NEW, self::ASSIGNED];
+
     /** Closed without a sale, until reopened. */
     public const REOPENABLE = [self::UNQUALIFIED, self::ARCHIVED];
 

@@ -94,7 +94,8 @@ class CrmOpportunityService
      * calendar: "me" for the owner is $user, and the "stale" status (Phase
      * D3a) gets each open stage's moment: one that entered it before is
      * stale. Phase G3b's "quiet" status gets the closing-soon days and the
-     * moment since which it has had no activity (FollowUpCutoffs).
+     * moment since which it has had no activity, and Phase G4's
+     * "closing_soon" the closing-soon days (FollowUpCutoffs).
      */
     public function filters(Workspace $workspace, User $user, array $filters): array
     {
@@ -102,15 +103,12 @@ class CrmOpportunityService
             $filters['owner_id'] = $user->id;
         }
 
-        if (($filters['status'] ?? null) === 'stale') {
-            $filters['stale_since'] = $this->cutoffs->staleSince($workspace);
-        }
-
-        if (($filters['status'] ?? null) === 'quiet') {
-            $filters = [...$filters, ...$this->cutoffs->quiet($workspace)];
-        }
-
-        return $filters;
+        return match ($filters['status'] ?? null) {
+            'stale'        => [...$filters, 'stale_since' => $this->cutoffs->staleSince($workspace)],
+            'quiet'        => [...$filters, ...$this->cutoffs->quiet($workspace)],
+            'closing_soon' => [...$filters, ...$this->cutoffs->closingSoon($workspace)],
+            default        => $filters,
+        };
     }
 
     /** Another business's opportunity - or one $user does not see - answers like one that does not exist. */
@@ -180,13 +178,15 @@ class CrmOpportunityService
      * sources and sales teams switched on, the people it can be given to,
      * and where a new one starts and who owns it - and (Phase D2a) the lost
      * reasons switched on, and (Phase G3b) the recent-activity days its
-     * "quiet" filter is named with.
+     * "quiet" filter is named with - and (Phase G4) the closing-soon days its
+     * "closing_soon" filter is.
      */
     public function options(Workspace $workspace, User $user): array
     {
-        $lists  = $this->options->getFor($workspace)->where('is_active', true);
+        $lists   = $this->options->getFor($workspace)->where('is_active', true);
         // Phase D3b: the pipelines switched on, each with its open stages - and every stage of theirs switched on, to filter by.
-        $active = $this->pipelineChoice->active($workspace);
+        $active  = $this->pipelineChoice->active($workspace);
+        $periods = $this->settings->periods($workspace);
 
         return [
             'all_stages'   => $active->flatMap(fn (CrmPipeline $row) => $row->stages->where('is_active', true))->values(),
@@ -197,7 +197,8 @@ class CrmOpportunityService
             'owners'       => $this->assignments->owners($workspace),
             'location_id'  => $this->locationAccess->defaultFor($workspace),
             'owner_id'     => $user->id,
-            'recent_activity_days' => $this->settings->periods($workspace)['recent_activity_days'],
+            'closing_soon_days'    => $periods['closing_soon_days'],
+            'recent_activity_days' => $periods['recent_activity_days'],
         ];
     }
 

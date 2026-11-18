@@ -162,12 +162,26 @@ class CrmActivityRepository
      */
     public function overdueCount(Workspace $workspace, array $scope, array $filters, CarbonInterface $now): int
     {
+        return $this->planned($workspace, $scope, $filters)->where('due_at', '<', $now)->count();
+    }
+
+    /**
+     * The Dashboard's activities due today (Phase G4): planned ones $scope
+     * sees, due from $from to $to - the business's day - narrowed as
+     * overdueCount()'s, as the Activities page's Due Today lists them.
+     */
+    public function dueCount(Workspace $workspace, array $scope, array $filters, CarbonInterface $from, CarbonInterface $to): int
+    {
+        return $this->planned($workspace, $scope, $filters)->whereBetween('due_at', [$from, $to])->count();
+    }
+
+    /** Planned ones $scope sees - given to $filters' owner_id, at its location_id, when they name one. */
+    private function planned(Workspace $workspace, array $scope, array $filters): Builder
+    {
         return $this->visible($workspace, $scope)
             ->where('status', CrmActivity::PLANNED)
-            ->where('due_at', '<', $now)
             ->when($filters['owner_id'] ?? null, fn (Builder $query, $id) => $query->where('assigned_to', $id))
-            ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('location_id', $id))
-            ->count();
+            ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('location_id', $id));
     }
 
     /**

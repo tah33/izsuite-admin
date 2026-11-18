@@ -98,7 +98,8 @@ class CrmOpportunityRepository
      * before $filters['stale_since'] says for it ([stage id => that moment]);
      * Phase G3b's "no_activity" those with none planned, and "quiet" those
      * closing from $filters['closing_from'] to ['closing_to'] with no
-     * activity since ['quiet_since'] (FollowUpCutoffs).
+     * activity since ['quiet_since'] (FollowUpCutoffs); Phase G4's
+     * "closing_soon" those closing in those days, whatever their activity.
      */
     private function filtered(Workspace $workspace, array $filters, array $scope): Builder
     {
@@ -114,6 +115,7 @@ class CrmOpportunityRepository
             ->when($status === 'stale', fn (Builder $query) => $this->stale($query, $filters['stale_since'] ?? []))
             ->when($status === 'no_activity', fn (Builder $query) => $this->withoutNextActivity($query))
             ->when($status === 'quiet', fn (Builder $query) => $this->quiet($query, $filters['closing_from'], $filters['closing_to'], $filters['quiet_since']))
+            ->when($status === 'closing_soon', fn (Builder $query) => $this->closingSoon($query, $filters['closing_from'], $filters['closing_to']))
             ->when($status && ! $following && ! in_array($status, ['all', 'archived'], true), fn (Builder $query) => $query->where('status', $status))
             ->when($filters['stage_id'] ?? null, fn (Builder $query, $id) => $query->where('stage_id', $id))
             ->when($filters['pipeline_id'] ?? null, fn (Builder $query, $id) => $query->where('pipeline_id', $id))
@@ -295,6 +297,12 @@ class CrmOpportunityRepository
             ->where('crm_activities.status', CrmActivity::PLANNED));
     }
 
+    /** Those expected to close from $from to $to, business days (Phase G4): as the CRM Overview counts those closing soon. */
+    private function closingSoon(Builder $query, string $from, string $to): void
+    {
+        $query->whereBetween('expected_close_date', [$from, $to]);
+    }
+
     /**
      * Those expected to close from $from to $to - business days - that have
      * gone without activity since $since (Phase G3b): added before it, with
@@ -303,8 +311,9 @@ class CrmOpportunityRepository
      */
     private function quiet(Builder $query, string $from, string $to, CarbonInterface $since): void
     {
-        $query->whereBetween('expected_close_date', [$from, $to])
-            ->where('crm_opportunities.created_at', '<', $since)
+        $this->closingSoon($query, $from, $to);
+
+        $query->where('crm_opportunities.created_at', '<', $since)
             ->whereNotExists(fn ($activities) => $activities->selectRaw('1')
                 ->from('crm_activities')
                 ->whereColumn('crm_activities.opportunity_id', 'crm_opportunities.id')

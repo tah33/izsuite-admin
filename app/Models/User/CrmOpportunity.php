@@ -35,11 +35,12 @@ class CrmOpportunity extends Model
     public const STATUSES = [self::OPEN, self::WON, self::LOST];
 
     /**
-     * The open ones a list can be narrowed to: stale at their stage (Phase
-     * D3a), with no activity planned, or closing soon without recent
-     * activity (Phase G3b) - what the CRM Overview warns about.
+     * The open ones a list can be narrowed to: closing soon (Phase G4, what
+     * the Dashboard counts), stale at their stage (Phase D3a), with no
+     * activity planned, or closing soon without recent activity (Phase G3b) -
+     * what the CRM Overview warns about.
      */
-    public const FOLLOW_UP_STATUSES = ['stale', 'no_activity', 'quiet'];
+    public const FOLLOW_UP_STATUSES = ['closing_soon', 'stale', 'no_activity', 'quiet'];
 
     /** As many competitors as one can name. */
     public const MAX_COMPETITORS = 10;

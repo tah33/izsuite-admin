@@ -18,8 +18,11 @@ use Carbon\CarbonInterface;
  *   stale-after period (Phase D3a).
  * - A lead not contacted in time was added longer ago than the lead response
  *   period and never contacted.
- * - A quiet opportunity closes soon - from the business's today to the end
- *   of the closing-soon period - and has gone without activity for the
+ * - An opportunity closes soon when it is expected to close from the
+ *   business's today to the end of the closing-soon period: as the Overview
+ *   has counted it since Phase G1, and (Phase G4) the Dashboard counts it and
+ *   the Opportunities page lists it.
+ * - A quiet opportunity closes soon and has gone without activity for the
  *   recent-activity period: added before it, with no activity done and no
  *   e-mail sent since.
  */
@@ -52,20 +55,29 @@ class FollowUpCutoffs
     }
 
     /**
-     * What makes an opportunity quiet: its expected closing day from
-     * closing_from to closing_to, and no activity since quiet_since.
+     * What makes an opportunity close soon: its expected closing day from
+     * closing_from to closing_to, both business days.
+     *
+     * @return array{closing_from: string, closing_to: string}
+     */
+    public function closingSoon(Workspace $workspace): array
+    {
+        $today = $this->calendar->today($workspace);
+
+        return [
+            'closing_from' => $today->toDateString(),
+            'closing_to'   => $today->addDays($this->settings->forWorkspace($workspace)->closing_soon_days)->toDateString(),
+        ];
+    }
+
+    /**
+     * What makes an opportunity quiet: closing soon (closing_from to
+     * closing_to), and no activity since quiet_since.
      *
      * @return array{closing_from: string, closing_to: string, quiet_since: CarbonInterface}
      */
     public function quiet(Workspace $workspace): array
     {
-        $settings = $this->settings->forWorkspace($workspace);
-        $today    = $this->calendar->today($workspace);
-
-        return [
-            'closing_from' => $today->toDateString(),
-            'closing_to'   => $today->addDays($settings->closing_soon_days)->toDateString(),
-            'quiet_since'  => now()->subDays($settings->recent_activity_days),
-        ];
+        return [...$this->closingSoon($workspace), 'quiet_since' => now()->subDays($this->settings->forWorkspace($workspace)->recent_activity_days)];
     }
 }

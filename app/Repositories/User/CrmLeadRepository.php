@@ -32,6 +32,8 @@ class CrmLeadRepository
      * all of them - searched by name, business, e-mail or phone, by owner and
      * by source. Phase G3b's "uncontacted" is the open ones not contacted in
      * time: added before $filters['uncontacted_before'] (FollowUpCutoffs).
+     * Phase G4's "awaiting" is those awaiting follow-up, as overview() counts
+     * them.
      */
     public function paginateFor(Workspace $workspace, array $filters, array $scope, int $perPage): LengthAwarePaginator
     {
@@ -46,7 +48,8 @@ class CrmLeadRepository
                 ->orWhere('phone', 'like', "%{$search}%")))
             ->when($status === null || $status === '', fn (Builder $query) => $query->whereIn('status', CrmLead::OPEN))
             ->when($status === 'uncontacted', fn (Builder $query) => $this->uncontacted($query, $filters['uncontacted_before']))
-            ->when($status && ! in_array($status, ['all', 'uncontacted'], true), fn (Builder $query) => $query->where('status', $status))
+            ->when($status === 'awaiting', fn (Builder $query) => $query->whereIn('status', CrmLead::AWAITING))
+            ->when($status && ! in_array($status, ['all', 'awaiting', 'uncontacted'], true), fn (Builder $query) => $query->where('status', $status))
             ->when($filters['owner_id'] ?? null, fn (Builder $query, $id) => $query->where('owner_id', $id))
             ->when($filters['source_id'] ?? null, fn (Builder $query, $id) => $query->where('source_id', $id))
             ->orderByDesc('created_at')
@@ -182,7 +185,6 @@ class CrmLeadRepository
         return CrmLead::query()->where('location_id', $location->id)->exists();
     }
 
-    /** $workspace's leads that $scope sees (LeadVisibility::scopeFor). */
     /**
      * The CRM Overview's lead figures (Phase G1) among those $scope sees,
      * narrowed by $filters (location_id, sales_team_id, owner_id, source_id):
@@ -199,7 +201,7 @@ class CrmLeadRepository
         return [
             'new'       => $leads()->whereBetween('created_at', [$from, $to])->count(),
             'converted' => $leads()->whereBetween('created_at', [$from, $to])->where('status', CrmLead::CONVERTED)->count(),
-            'awaiting'  => $leads()->whereIn('status', [CrmLead::NEW, CrmLead::ASSIGNED])->count(),
+            'awaiting'  => $leads()->whereIn('status', CrmLead::AWAITING)->count(),
             'qualified' => $leads()->where('status', CrmLead::QUALIFIED)->count(),
         ];
     }
@@ -238,6 +240,7 @@ class CrmLeadRepository
             ->when($filters['source_id'] ?? null, fn (Builder $query, $id) => $query->where('source_id', $id));
     }
 
+    /** $workspace's leads that $scope sees (LeadVisibility::scopeFor). */
     private function visible(Workspace $workspace, array $scope): Builder
     {
         return CrmLead::query()
