@@ -7,7 +7,11 @@ use App\Models\User\Workspace;
 use App\Repositories\User\ExpenseReportRepository;
 use App\Repositories\User\PurchaseReportRepository;
 use App\Repositories\User\SalesReportRepository;
+use App\Repositories\User\CrmSettingRepository;
 use App\Services\Reports\Accounts\AccountTransactionsReport;
+use App\Services\Reports\Crm\LeadRateReport;
+use App\Services\Reports\Crm\LeadResponseReport;
+use App\Services\Reports\Crm\LeadsByReport;
 use App\Services\Reports\Expenses\ExpensesByCategoryReport;
 use App\Services\Reports\Expenses\ExpenseSummaryReport;
 use App\Services\Reports\Purchases\OutstandingPurchasesReport;
@@ -48,10 +52,11 @@ use App\Services\User\Apps\WorkspaceApps;
  * Purchases or Expenses has; Contact Statement while any of the three has;
  * Tax Summary and Tax Details while taxes are on or tax history exists (Doc
  * 07 section 16); Payment Account Transactions always; the full Sales app's
- * while it is on (Doc 16 section 16.26). Each only for a role
- * that may see what it shows, values included (PARTS) - the tax reports with
- * Tax Information too, the account's with its balances; another is not
- * found.
+ * while it is on (Doc 16 section 16.26); CRM's while it is on (Doc 17 section
+ * 17.29), its lead reports while the business uses leads. Each only for a
+ * role that may see what it shows, values included (PARTS) - the tax reports
+ * with Tax Information too, the account's with its balances, CRM's with View
+ * CRM Reports and the view of what each counts (CRM); another is not found.
  */
 class ReportCatalog
 {
@@ -62,16 +67,21 @@ class ReportCatalog
         'taxes'     => 'Taxes',
         'contacts'  => 'Contacts',
         'accounts'  => 'Payment Accounts',
+        'crm'       => 'CRM',
     ];
 
     /** Keys a report was known by before, and the report each is now. */
     private const ALIASES = ['customer-statement' => 'contact-statement'];
 
-    /** The reports that are another one grouped one way, always (Doc 16 Phase H2a): the grouping each is built with. */
+    /** The reports that are another one grouped one way, always (Doc 16 Phase H2a, Doc 17 Phase H1): the grouping each is built with. */
     public const GROUPED = [
         'sales-by-customer' => 'customer', 'sales-by-item' => 'item', 'sales-by-category' => 'category', 'sales-by-brand' => 'brand',
         'sales-by-location' => 'location', 'sales-by-salesperson' => 'salesperson', 'sales-by-team' => 'team', 'sales-by-source' => 'source',
+        'leads-by-source'   => 'source', 'leads-by-owner' => 'owner', 'leads-by-status' => 'status',
     ];
+
+    /** What CRM's reports need (Doc 17 section 17.29): CRM on, View CRM Reports, and the view of what each counts. */
+    private const CRM = ['crm_leads' => 'crm.leads.view'];
 
     /**
      * What the full Sales app's reports need (Doc 16 section 16.26): the app
@@ -139,6 +149,13 @@ class ReportCatalog
         'tax-details'          => ['Tax Details', 'taxes', TaxDetailsReport::class, ['period', 'location', 'tax_treatment', 'tax'], "Each invoice's, credit note's, purchase's and expense's tax, in its own currency and the base currency.", 'taxes'],
         'contact-statement'    => ['Contact Statement', 'contacts', ContactStatementReport::class, ['period', 'contact', 'side', 'currency'], "A customer's or supplier's documents and payments, with a running balance.", 'contacts'],
         'account-transactions' => ['Payment Account Transactions', 'accounts', AccountTransactionsReport::class, ['period', 'payment_account'], "An account's money in and out, with its running balance.", null],
+        // CRM's (Doc 17 Phase H1): its leads, while the business uses them - the leads added in the period, none of them sales.
+        'leads-by-source'         => ['Leads by Source', 'crm', LeadsByReport::class, ['period', 'location', 'sales_team', 'owner'], 'The leads added in a period by the source each came with, and what became of them.', 'crm_leads'],
+        'leads-by-status'         => ['Leads by Status', 'crm', LeadsByReport::class, ['period', 'location', 'sales_team', 'owner', 'lead_source'], 'The leads added in a period by where each stands now.', 'crm_leads'],
+        'leads-by-owner'          => ['Leads by Owner', 'crm', LeadsByReport::class, ['period', 'location', 'sales_team', 'lead_source'], 'The leads added in a period by whom each is given to, and what became of them.', 'crm_leads'],
+        'lead-response-time'      => ['Lead Response Time', 'crm', LeadResponseReport::class, ['period', 'group_by', 'location', 'sales_team', 'owner', 'lead_source'], 'How soon the leads added in a period were first contacted, and how many in time.', 'crm_leads'],
+        'lead-qualification-rate' => ['Lead Qualification Rate', 'crm', LeadRateReport::class, ['period', 'group_by', 'location', 'sales_team', 'owner', 'lead_source'], 'The share of the leads added in a period that were qualified.', 'crm_leads'],
+        'lead-conversion-rate'    => ['Lead Conversion Rate', 'crm', LeadRateReport::class, ['period', 'group_by', 'location', 'sales_team', 'owner', 'lead_source'], 'The share of the leads added in a period that became opportunities.', 'crm_leads'],
     ];
 
     /**
@@ -160,6 +177,7 @@ class ReportCatalog
         protected PurchaseReportRepository $purchaseReportRepository,
         protected ExpenseReportRepository $expenseReportRepository,
         protected WorkspaceAccess $access,
+        protected CrmSettingRepository $crmSettings,
     ) {}
 
     /**
@@ -184,6 +202,8 @@ class ReportCatalog
                 || ($expenses && $this->expenseReportRepository->hasTaxHistory($workspace))),
             // The full Sales app's own (Doc 16 section 16.26): while it is on.
             ...array_fill_keys(array_keys(self::FULL_SALES), $apps->has('sales', Edition::Full)),
+            // CRM's (Doc 17 section 17.29): while it is on - the leads' while the business uses them.
+            'crm_leads' => $apps->has('crm') && $this->crmSettings->forWorkspace($workspace)->usesLeads(),
         ];
         $entries = [];
 
@@ -213,9 +233,9 @@ class ReportCatalog
         $names = [];
 
         foreach (self::REPORTS as [$name, , , , , $needs]) {
-            // The full Sales app's own count as Sales', marked as the full edition's (Doc 16 Phase H2a).
+            // The full Sales app's own count as Sales', marked as the full edition's (Doc 16 Phase H2a); CRM's as CRM's (Doc 17 Phase H1).
             $edition = array_key_exists($needs ?? '', self::FULL_SALES) ? 'full' : null;
-            $needs   = $edition ? 'sales' : $needs;
+            $needs   = $edition ? 'sales' : (array_key_exists($needs ?? '', self::CRM) ? 'crm' : $needs);
 
             if ($needs === $family || in_array($needs, $shared, true)) {
                 $names[] = ['name' => $name, 'shared' => $needs !== $family, 'edition' => $edition];
@@ -257,6 +277,7 @@ class ReportCatalog
             'sales', 'purchases', 'expenses' => $this->sees([$needs => true]),
             'sales_full', 'sales_costs', 'sales_lists', 'sales_quotes', 'sales_orders' => $this->sees(['sales' => true]) && (self::FULL_SALES[$needs] === null || $this->access->can(self::FULL_SALES[$needs])),
             'sales_deliveries', 'sales_returns' => $this->access->can(self::FULL_SALES[$needs]),
+            'crm_leads'  => $this->access->can('crm.reports.view') && $this->access->can(self::CRM[$needs]),
             'payables'   => $this->sees(['supplier_payments' => $purchases, 'expense_payments' => $expenses]),
             'taxes'      => $this->access->can('taxes.view') && $this->sees(['sales' => $sales, 'purchases' => $purchases, 'expenses' => $expenses]),
             // A statement for either side: a customer's, or a supplier's.

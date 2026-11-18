@@ -120,6 +120,8 @@ final class Permissions
         'crm.emails' => ['E-mail', 'crm', ['send' => 'Send E-mail']],
         // Without either, a user sees the CRM records they own (LeadVisibility).
         'crm.records'  => ['CRM Records', 'crm', ['team' => 'View Team Records', 'all' => 'View All CRM Records']],
+        // Phase H1: CRM's reports on the Reports page, each with the view of what it counts besides.
+        'crm.reports'  => ['CRM Reports', 'crm', ['view' => 'View CRM Reports']],
         'crm.settings' => ['CRM Settings', 'crm', self::APP_SETTINGS],
     ];
 
@@ -175,6 +177,8 @@ final class Permissions
         'crm.leads.convert'          => ['crm.leads.manage', 'contacts.view'],
         // An opportunity is for one of the business's contacts (Phase D1).
         'crm.opportunities.manage'   => ['contacts.view'],
+        // CRM's reports are on the Reports page (Phase H1).
+        'crm.reports.view'           => ['reports.view'],
         'purchases.purchases.create' => ['contacts.view', 'items.view'],
         'purchases.payments.record'  => ['purchases.purchases.view', 'payment_accounts.view'],
         'purchases.payments.reverse' => ['payment_accounts.view'],

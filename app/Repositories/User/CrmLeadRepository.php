@@ -224,6 +224,22 @@ class CrmLeadRepository
         ];
     }
 
+    /**
+     * What CRM's lead reports count (Phase H1): the leads $scope sees added
+     * between $from and $to, narrowed as overview()'s - each with its status,
+     * when it was added and first contacted, and the source, owner and sales
+     * team it is grouped by.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, CrmLead>
+     */
+    public function forReports(Workspace $workspace, array $scope, array $filters, CarbonInterface $from, CarbonInterface $to): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->narrowed($this->visible($workspace, $scope), $filters)
+            ->whereBetween('created_at', [$from, $to])
+            ->with(['source:id,name', 'owner:id,first_name,last_name', 'team:id,name'])
+            ->get(['id', 'status', 'source_id', 'owner_id', 'sales_team_id', 'created_at', 'first_contacted_at']);
+    }
+
     /** Open, never contacted (Phase G3a's first contact), and added before $before. */
     private function uncontacted(Builder $query, CarbonInterface $before): void
     {

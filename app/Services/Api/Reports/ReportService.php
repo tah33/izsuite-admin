@@ -117,8 +117,8 @@ class ReportService
     {
         $entry = $this->reportCatalog->find($workspace, $key);
 
-        // Its own name, for one that is another grouped one way (Doc 16 Phase H2a).
-        return [$entry['key'], app($entry['class'])->build($workspace, [...$this->filters($workspace, $entry['key'], $input), 'report_name' => $entry['name']])];
+        // Its own name and key, for one that is another grouped one way (Doc 16 Phase H2a) or one of a class's several (Doc 17 Phase H1).
+        return [$entry['key'], app($entry['class'])->build($workspace, [...$this->filters($workspace, $entry['key'], $input), 'report_name' => $entry['name'], 'report_key' => $entry['key']])];
     }
 
     /** Its rows, then its totals when it has them. */
@@ -130,9 +130,12 @@ class ReportService
     /**
      * The dates and filters a report is built with: the range, an as-of day,
      * the grouping - by category, unless told, for Expenses by Category, by
-     * month for the rest, and always its own for a "Sales by" report - and
-     * what it is narrowed to: with the contact, item, category, expense
-     * category and account named, each the business's own.
+     * month for the rest, and always its own for a "Sales by" or "Leads by"
+     * report - and what it is narrowed to: with the contact, item, category,
+     * expense category and account named, each the business's own. CRM's
+     * reports (Doc 17 Phase H1) also take a sales team, an owner and a lead
+     * source - ids of another business find nothing - and count what the
+     * signed-in user sees.
      */
     private function filters(Workspace $workspace, string $key, array $input): array
     {
@@ -154,6 +157,10 @@ class ReportService
             'payment_account_id'  => $input['payment_account_id'] ?? null,
             'tax_treatment'       => $input['tax_treatment'] ?? null,
             'tax'                 => $input['tax'] ?? null,
+            'sales_team_id'       => $input['sales_team_id'] ?? null,
+            'owner_id'            => $input['owner_id'] ?? null,
+            'lead_source_id'      => $input['lead_source_id'] ?? null,
+            'user'                => $this->access->user(),
             'week_start'          => $workspace->weekStartDay(),
             'date_format'         => $workspace->date_format,
         ];

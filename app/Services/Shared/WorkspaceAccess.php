@@ -98,6 +98,12 @@ class WorkspaceAccess
         return $request->user() !== null && $workspace instanceof Workspace ? $this->locationsOf($request->user(), $workspace) : [];
     }
 
+    /** The signed-in user the request is for: whom can() and locations() ask about - CRM's reports count what they see (Doc 17 Phase H1). */
+    public function user(): ?User
+    {
+        return app(Request::class)->user();
+    }
+
     /** Whether the signed-in user may see $family's values: its records' amounts, prices and totals (Doc 12 section 14). */
     public function seesValues(string $family): bool
     {
