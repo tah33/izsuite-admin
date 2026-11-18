@@ -29,7 +29,14 @@ use App\Http\Controllers\Api\CrmLeadDuplicateController;
 use App\Http\Controllers\Api\CrmLeadFlowController;
 use App\Http\Controllers\Api\CrmOpportunityAttachmentController;
 use App\Http\Controllers\Api\CrmOpportunityClosingController;
+use App\Http\Controllers\Api\CrmActivityController;
+use App\Http\Controllers\Api\CrmContactSummaryController;
+use App\Http\Controllers\Api\CrmEmailController;
+use App\Http\Controllers\Api\CrmEmailTemplateController;
+use App\Http\Controllers\Api\CrmTimelineController;
 use App\Http\Controllers\Api\CrmOpportunityController;
+use App\Http\Controllers\Api\CrmOpportunityDocumentController;
+use App\Http\Controllers\Api\CrmOpportunityViewController;
 use App\Http\Controllers\Api\CrmOpportunityFlowController;
 use App\Http\Controllers\Api\CrmOptionController;
 use App\Http\Controllers\Api\CrmPipelineController;
@@ -297,11 +304,15 @@ Route::prefix('v1')->group(function () {
             Route::post('/options', [CrmOptionController::class, 'store'])->name('api.business-settings.crm.options.store');
             Route::put('/options/{id}', [CrmOptionController::class, 'update'])->whereNumber('id')->name('api.business-settings.crm.options.update');
             Route::delete('/options/{id}', [CrmOptionController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.options.destroy');
-            // A pipeline and its stages (Doc 17 Phase A2) - and (Phase D3b1) more pipelines, one the default.
-            Route::post('/pipelines', [CrmPipelineController::class, 'store'])->name('api.business-settings.crm.pipelines.store');
+            // A pipeline and its stages (Doc 17 Phase A2).
             Route::put('/pipelines/{id}', [CrmPipelineController::class, 'update'])->whereNumber('id')->name('api.business-settings.crm.pipelines.update');
-            Route::post('/pipelines/{id}/default', [CrmPipelineController::class, 'makeDefault'])->whereNumber('id')->name('api.business-settings.crm.pipelines.default');
+            // Several pipelines (Doc 17 Phase D3b).
+            Route::post('/pipelines', [CrmPipelineController::class, 'store'])->middleware('idempotent')->name('api.business-settings.crm.pipelines.store');
             Route::delete('/pipelines/{id}', [CrmPipelineController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.pipelines.destroy');
+            // Phase F3b: its e-mail templates.
+            Route::post('/email-templates', [CrmEmailTemplateController::class, 'store'])->middleware('idempotent')->name('api.business-settings.crm.email-templates.store');
+            Route::put('/email-templates/{id}', [CrmEmailTemplateController::class, 'update'])->whereNumber('id')->name('api.business-settings.crm.email-templates.update');
+            Route::delete('/email-templates/{id}', [CrmEmailTemplateController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.email-templates.destroy');
         });
 
         // Sales teams (Doc 16 Phase A): the full Sales app's - and, since Doc
@@ -908,6 +919,9 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm/opportunities')->group(function () {
         Route::get('/', [CrmOpportunityController::class, 'index'])->name('api.crm.opportunities.index');
         Route::get('/options', [CrmOpportunityController::class, 'options'])->name('api.crm.opportunities.options');
+        // Phase D4: one pipeline's board, and a month's calendar.
+        Route::get('/board', [CrmOpportunityViewController::class, 'board'])->name('api.crm.opportunities.board');
+        Route::get('/calendar', [CrmOpportunityViewController::class, 'calendar'])->name('api.crm.opportunities.calendar');
         Route::post('/', [CrmOpportunityController::class, 'store'])->middleware('idempotent')->name('api.crm.opportunities.store');
         Route::get('/{id}', [CrmOpportunityController::class, 'show'])->whereNumber('id')->name('api.crm.opportunities.show');
         Route::put('/{id}', [CrmOpportunityController::class, 'update'])->whereNumber('id')->name('api.crm.opportunities.update');
@@ -924,10 +938,49 @@ Route::prefix('v1')->group(function () {
         Route::post('/{id}/attachments', [CrmOpportunityAttachmentController::class, 'store'])->whereNumber('id')->name('api.crm.opportunities.attachments.store');
         Route::delete('/{id}/attachments/{fileId}', [CrmOpportunityAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.crm.opportunities.attachments.destroy');
         Route::get('/{id}/activity', RecordActivityController::class)->whereNumber('id')->defaults('family', 'opportunities')->name('api.crm.opportunities.activity');
+        // The sales documents made from it (Phase F1).
+        Route::get('/{id}/documents', CrmOpportunityDocumentController::class)->whereNumber('id')->name('api.crm.opportunities.documents');
         Route::get('/{id}/comments', [RecordCommentController::class, 'index'])->whereNumber('id')->defaults('family', 'opportunities')->name('api.crm.opportunities.comments.index');
         Route::get('/{id}/comments/people', [RecordCommentController::class, 'people'])->whereNumber('id')->defaults('family', 'opportunities')->name('api.crm.opportunities.comments.people');
         Route::post('/{id}/comments', [RecordCommentController::class, 'store'])->whereNumber('id')->defaults('family', 'opportunities')->middleware('idempotent')->name('api.crm.opportunities.comments.store');
         Route::delete('/{id}/comments/{commentId}', [RecordCommentController::class, 'destroy'])->whereNumber(['id', 'commentId'])->defaults('family', 'opportunities')->name('api.crm.opportunities.comments.destroy');
+    });
+
+    /*
+     | CRM's activities (Doc 17 Phase E1): the Activities page, a lead's, an
+     | opportunity's or a contact's, and planning, changing, completing and
+     | cancelling one. A record's are seen by whoever sees the record.
+     */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm/activities')->group(function () {
+        Route::get('/', [CrmActivityController::class, 'index'])->name('api.crm.activities.index');
+        Route::get('/options', [CrmActivityController::class, 'options'])->name('api.crm.activities.options');
+        Route::get('/regarding', [CrmActivityController::class, 'regarding'])->name('api.crm.activities.regarding');
+        Route::get('/for/{kind}/{id}', [CrmActivityController::class, 'forRecord'])->where('kind', 'lead|opportunity|contact')->whereNumber('id')->name('api.crm.activities.for');
+        Route::post('/', [CrmActivityController::class, 'store'])->middleware('idempotent')->name('api.crm.activities.store');
+        Route::put('/{id}', [CrmActivityController::class, 'update'])->whereNumber('id')->name('api.crm.activities.update');
+        Route::post('/{id}/complete', [CrmActivityController::class, 'complete'])->whereNumber('id')->name('api.crm.activities.complete');
+        Route::post('/{id}/cancel', [CrmActivityController::class, 'cancel'])->whereNumber('id')->name('api.crm.activities.cancel');
+    });
+
+    /*
+     | The timeline of a lead, an opportunity or a contact (Doc 17 Phase E3):
+     | its activities done, notes, changes, files and a contact's sales
+     | documents, newest first, for whoever sees the record.
+     */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->group(function () {
+        Route::get('/crm/timeline/{kind}/{id}', CrmTimelineController::class)->where('kind', 'lead|opportunity|contact')->whereNumber('id')->name('api.crm.timeline');
+        // Phase F4: the CRM part of a contact's profile - where they came from, and their opportunities.
+        Route::get('/crm/contacts/{id}/summary', CrmContactSummaryController::class)->whereNumber('id')->name('api.crm.contacts.summary');
+    });
+
+    /*
+     | E-mail from a lead, an opportunity or a contact (Doc 17 Phase F3a): what
+     | its form starts with, and sending it - through the queue, kept on the
+     | record's timeline.
+     */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm/emails')->group(function () {
+        Route::get('/draft/{kind}/{id}', [CrmEmailController::class, 'draft'])->where('kind', 'lead|opportunity|contact')->whereNumber('id')->name('api.crm.emails.draft');
+        Route::post('/', [CrmEmailController::class, 'store'])->middleware(['throttle:30,1', 'idempotent'])->name('api.crm.emails.store');
     });
 
     /* ----------------------------------------------------------

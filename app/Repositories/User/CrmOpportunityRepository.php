@@ -11,6 +11,7 @@ use App\Models\User\Location;
 use App\Models\User\Workspace;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * A business's opportunities (Doc 17 Phases C1 and D1), each query of the
@@ -22,26 +23,83 @@ class CrmOpportunityRepository
     private const SHOWN_WITH = [
         'contact:id,name,contact_number', 'owner:id,first_name,last_name', 'team:id,name', 'location:id,name', 'source:id,name',
         'stage:id,name,probability,category,stale_after_days,required_fields', 'pipeline.stages', 'lead:id,name', 'creator:id,first_name,last_name',
-        // Each stage it was at, with its pipeline: it can have moved from another (Phase D3b1).
-        'interestedItems', 'stageVisits.stage:id,name,crm_pipeline_id', 'stageVisits.stage.pipeline:id,name', 'stageVisits.mover:id,first_name,last_name',
+        'interestedItems', 'stageVisits.stage:id,name', 'stageVisits.mover:id,first_name,last_name',
         // How it ended, and who archived it (Phase D2a).
         'closer:id,first_name,last_name', 'lostReason:id,name', 'archiver:id,first_name,last_name',
     ];
 
-    /**
-     * The Opportunities page: open ones by expected closing date, soonest
-     * first - or those of one status, or all of them - searched by their name
-     * or their contact's, by pipeline (Phase D3b1), stage and owner. Archived
-     * ones only show with the "archived" status (Phase D2a), whatever theirs.
-     * The "stale" status (Phase D3a) is the open ones that entered their
-     * stage before $filters['stale_since'] says for it: [stage id => that moment].
-     */
+    /** The Opportunities page: those $filters find (see filtered()), by expected closing date, soonest first. */
     public function paginateFor(Workspace $workspace, array $filters, array $scope, int $perPage): LengthAwarePaginator
+    {
+        return $this->filtered($workspace, $filters, $scope)
+            ->with(['contact:id,name', 'pipeline:id,name', 'stage:id,name,stale_after_days', 'owner:id,first_name,last_name'])
+            ->orderBy('expected_close_date')
+            ->orderBy('id')
+            ->paginate($perPage);
+    }
+
+    /**
+     * The calendar (Phase D4): those $filters find closing from $from to
+     * $to, by day - at most $limit of them - and how many there are.
+     *
+     * @return array{rows: Collection<int, CrmOpportunity>, count: int}
+     */
+    public function closingBetween(Workspace $workspace, array $filters, array $scope, string $from, string $to, int $limit): array
+    {
+        $query = $this->filtered($workspace, $filters, $scope)->whereBetween('expected_close_date', [$from, $to]);
+
+        return [
+            'count' => (clone $query)->count(),
+            'rows'  => $query->with(['contact:id,name', 'stage:id,name'])->orderBy('expected_close_date')->orderBy('id')->limit($limit)->get(),
+        ];
+    }
+
+    /**
+     * The board (Phase D4): $pipelineId's open opportunities that $scope
+     * sees and $filters find (search and owner, as the list's), and those won
+     * or lost since $closedSince - none archived - each with only what its
+     * column's order, count and total need.
+     *
+     * @return Collection<int, CrmOpportunity>
+     */
+    public function onBoard(Workspace $workspace, array $filters, array $scope, int $pipelineId, string $closedSince): Collection
+    {
+        return $this->filtered($workspace, ['search' => $filters['search'] ?? null, 'owner_id' => $filters['owner_id'] ?? null, 'status' => 'all'], $scope)
+            ->where('pipeline_id', $pipelineId)
+            ->where(fn (Builder $query) => $query->where('status', CrmOpportunity::OPEN)->orWhere('closed_on', '>=', $closedSince))
+            ->get(['id', 'stage_id', 'status', 'currency', 'expected_value', 'probability', 'expected_close_date', 'closed_on']);
+    }
+
+    /**
+     * The board's cards (Phase D4): those of $ids - found by onBoard(), so
+     * ones the user sees - with what a card shows.
+     *
+     * @param  list<int>  $ids
+     * @return Collection<int, CrmOpportunity>
+     */
+    public function cards(Workspace $workspace, array $ids): Collection
+    {
+        return CrmOpportunity::query()
+            ->where('workspace_id', $workspace->id)
+            ->whereIn('id', $ids)
+            ->with(['contact:id,name', 'stage:id,name,stale_after_days', 'owner:id,first_name,last_name'])
+            ->get();
+    }
+
+    /**
+     * Those $scope sees that $filters find, not yet ordered - the list's,
+     * the calendar's and the board's start: open ones, or those of one
+     * status, or all of them, searched by their name or their contact's, by
+     * stage, pipeline (Phase D3b) and owner. Archived ones only show with the
+     * "archived" status (Phase D2a), whatever theirs. The "stale" status
+     * (Phase D3a) is the open ones that entered their stage before
+     * $filters['stale_since'] says for it: [stage id => that moment].
+     */
+    private function filtered(Workspace $workspace, array $filters, array $scope): Builder
     {
         $status = $filters['status'] ?? null;
 
         return $this->visible($workspace, $scope)
-            ->with(['contact:id,name', 'pipeline:id,name', 'stage:id,name,stale_after_days', 'owner:id,first_name,last_name'])
             ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $query->where(fn (Builder $query) => $query
                 ->where('name', 'like', "%{$search}%")
                 ->orWhereHas('contact', fn (Builder $query) => $query->where('name', 'like', "%{$search}%"))))
@@ -49,18 +107,59 @@ class CrmOpportunityRepository
             ->when($status === null || $status === '' || $status === 'stale', fn (Builder $query) => $query->where('status', CrmOpportunity::OPEN))
             ->when($status === 'stale', fn (Builder $query) => $this->stale($query, $filters['stale_since'] ?? []))
             ->when($status && ! in_array($status, ['all', 'archived', 'stale'], true), fn (Builder $query) => $query->where('status', $status))
-            ->when($filters['pipeline_id'] ?? null, fn (Builder $query, $id) => $query->where('pipeline_id', $id))
             ->when($filters['stage_id'] ?? null, fn (Builder $query, $id) => $query->where('stage_id', $id))
-            ->when($filters['owner_id'] ?? null, fn (Builder $query, $id) => $query->where('owner_id', $id))
-            ->orderBy('expected_close_date')
-            ->orderBy('id')
-            ->paginate($perPage);
+            ->when($filters['pipeline_id'] ?? null, fn (Builder $query, $id) => $query->where('pipeline_id', $id))
+            ->when($filters['owner_id'] ?? null, fn (Builder $query, $id) => $query->where('owner_id', $id));
     }
 
     /** One of the opportunities $scope sees, with what its page shows. */
     public function findFor(Workspace $workspace, int $id, array $scope): ?CrmOpportunity
     {
         return $this->visible($workspace, $scope)->with(self::SHOWN_WITH)->find($id);
+    }
+
+    /**
+     * $contactId's opportunities that $scope sees, archived ones aside, the
+     * first added first, each with its stage and source: what its profile
+     * shows (Phase F4).
+     */
+    public function forContactProfile(Workspace $workspace, array $scope, int $contactId): Collection
+    {
+        return $this->visible($workspace, $scope)
+            ->where('contact_id', $contactId)
+            ->whereNull('archived_at')
+            ->with(['stage:id,name', 'source:id,name'])
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * $contactId's opportunities that $scope sees, by id, with their names:
+     * what its timeline gathers (Phase E3).
+     */
+    public function ofContact(Workspace $workspace, array $scope, int $contactId): Collection
+    {
+        return $this->visible($workspace, $scope)
+            ->where('contact_id', $contactId)
+            ->get(['id', 'name'])
+            ->keyBy('id');
+    }
+
+    /**
+     * With what a sales document made from it starts with (Phase F1): its
+     * contact, and its interested items with their items - a combo's with
+     * its components, for its price.
+     */
+    public function loadForDocuments(CrmOpportunity $opportunity): CrmOpportunity
+    {
+        return $opportunity->load(['contact', 'interestedItems.item.components.component']);
+    }
+
+    /** $workspace's opportunity $id, whoever may see it: one won when its sales order is confirmed (Phase F2). */
+    public function findInBusiness(Workspace $workspace, int $id): ?CrmOpportunity
+    {
+        return CrmOpportunity::query()->where('workspace_id', $workspace->id)->with(self::SHOWN_WITH)->find($id);
     }
 
     /** Made through the business, so its workspace is never read from $data. */

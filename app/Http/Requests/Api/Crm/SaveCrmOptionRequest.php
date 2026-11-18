@@ -33,6 +33,8 @@ class SaveCrmOptionRequest extends FormRequest
             'kind'      => $id ? ['prohibited'] : ['required', Rule::in(array_keys(CrmOption::KINDS))],
             'name'      => ['required', 'string', 'max:100', Rule::unique('crm_options', 'name')->where('workspace_id', $workspace?->id)->where($sameList)->ignore($id)],
             'is_active' => ['sometimes', 'boolean'],
+            // An activity type's (Doc 17 Phase E1): completing one needs an outcome.
+            'needs_outcome' => ['sometimes', 'boolean'],
         ];
     }
 

@@ -188,11 +188,13 @@ final class RoutePermissions
             'api.business-settings.crm.options.store'          => 'crm.settings.manage',
             'api.business-settings.crm.options.update'         => 'crm.settings.manage',
             'api.business-settings.crm.options.destroy'        => 'crm.settings.manage',
-            // Manage Pipelines and Stages, apart from the other CRM settings (Doc 17 Phase D3b1).
-            'api.business-settings.crm.pipelines.store'        => 'crm.settings.pipelines',
-            'api.business-settings.crm.pipelines.update'       => 'crm.settings.pipelines',
-            'api.business-settings.crm.pipelines.default'      => 'crm.settings.pipelines',
-            'api.business-settings.crm.pipelines.destroy'      => 'crm.settings.pipelines',
+            'api.business-settings.crm.pipelines.update'       => 'crm.settings.manage',
+            'api.business-settings.crm.pipelines.store'        => 'crm.settings.manage',
+            'api.business-settings.crm.pipelines.destroy'      => 'crm.settings.manage',
+            // Phase F3b: its e-mail templates.
+            'api.business-settings.crm.email-templates.store'   => 'crm.settings.manage',
+            'api.business-settings.crm.email-templates.update'  => 'crm.settings.manage',
+            'api.business-settings.crm.email-templates.destroy' => 'crm.settings.manage',
             'api.business-settings.expenses.show'              => 'settings.view',
             'api.business-settings.expenses.update'            => 'expenses.settings.manage',
 
@@ -365,6 +367,28 @@ final class RoutePermissions
             // Opportunities (Phase D1): who sees which is OpportunityVisibility's; moving one between stages is its own.
             'api.crm.opportunities.index'   => 'crm.opportunities.view',
             'api.crm.opportunities.options' => 'crm.opportunities.view',
+            'api.crm.opportunities.board'   => 'crm.opportunities.view',
+            'api.crm.opportunities.calendar' => 'crm.opportunities.view',
+            // Phase E1: activities.
+            'api.crm.activities.index'     => 'crm.activities.view',
+            'api.crm.activities.options'   => 'crm.activities.view',
+            'api.crm.activities.for'       => 'crm.activities.view',
+            'api.crm.activities.regarding' => 'crm.activities.manage',
+            'api.crm.activities.store'     => 'crm.activities.manage',
+            'api.crm.activities.update'    => 'crm.activities.manage',
+            'api.crm.activities.complete'  => 'crm.activities.manage',
+            'api.crm.activities.cancel'    => 'crm.activities.manage',
+            // Phase F4: a contact's CRM part, for whoever sees contacts - its leads and opportunities as they may see them (CrmContactSummaryService).
+            'api.crm.contacts.summary' => 'contacts.view',
+            // Phase F3a: e-mail from a lead, an opportunity or a contact - the record's own view permission checked too (CrmEmailService).
+            'api.crm.emails.draft' => 'crm.emails.send',
+            'api.crm.emails.store' => 'crm.emails.send',
+            // Phase E3: a record's timeline, for whoever sees the record - its activities only with View Activities (CrmTimelineService).
+            'api.crm.timeline' => fn (Request $request) => match ((string) $request->route('kind')) {
+                'lead'        => 'crm.leads.view',
+                'opportunity' => 'crm.opportunities.view',
+                default       => 'contacts.view',
+            },
             'api.crm.opportunities.show'    => 'crm.opportunities.view',
             'api.crm.opportunities.store'   => 'crm.opportunities.manage',
             'api.crm.opportunities.update'  => 'crm.opportunities.manage',
@@ -380,6 +404,8 @@ final class RoutePermissions
             'api.crm.opportunities.attachments.store'   => 'crm.opportunities.manage',
             'api.crm.opportunities.attachments.destroy' => 'crm.opportunities.manage',
             'api.crm.opportunities.activity'            => 'crm.opportunities.view',
+            // Phase F1: the sales documents made from it, those of the kinds the user views.
+            'api.crm.opportunities.documents'           => 'crm.opportunities.view',
             'api.crm.opportunities.comments.index'      => 'crm.opportunities.view',
             'api.crm.opportunities.comments.people'     => 'crm.opportunities.view',
             'api.crm.opportunities.comments.store'      => 'crm.opportunities.view',

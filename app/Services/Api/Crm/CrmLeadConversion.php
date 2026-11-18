@@ -6,6 +6,8 @@ use App\Models\User\Contact;
 use App\Models\User\CrmDuplicateReview;
 use App\Models\User\CrmLead;
 use App\Models\User\CrmOpportunity;
+use App\Models\User\CrmPipeline;
+use App\Models\User\CrmStage;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\Shared\RowLockRepository;
@@ -13,14 +15,15 @@ use App\Repositories\User\ContactRepository;
 use App\Repositories\User\CrmDuplicateReviewRepository;
 use App\Repositories\User\CrmLeadRepository;
 use App\Repositories\User\CrmOpportunityRepository;
+use App\Repositories\User\CrmPipelineRepository;
 use App\Services\Api\Contacts\ContactDuplicates;
 use App\Services\Api\Contacts\ContactService;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Crm\CrmLeadRules;
-use App\Services\Crm\PipelineChoices;
 use App\Services\Crm\StageRequirements;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\WorkspaceAccess;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -33,7 +36,7 @@ use Illuminate\Validation\ValidationException;
  *    chosen, or a new one made from the lead, for whoever may create
  *    contacts.
  * 2. The contact becomes a customer: a supplier becomes both.
- * 3. An opportunity is made at an open stage of a pipeline switched on,
+ * 3. An opportunity is made at an open stage of the business's pipeline,
  *    with the stage's probability, carrying over the lead's owner,
  *    location, team, priority, source, need, next action and notes.
  * 4. The lead is Converted, for good. Its files, comments and timeline stay
@@ -50,7 +53,8 @@ class CrmLeadConversion
         protected CrmLeadRepository $leads,
         protected CrmOpportunityRepository $opportunities,
         protected StageRequirements $requirements,
-        protected PipelineChoices $choices,
+        protected CrmPipelineRepository $pipelines,
+        protected CrmSettingService $settings,
         protected CrmLeadRules $rules,
         protected ContactDuplicates $contactDuplicates,
         protected ContactRepository $contacts,
@@ -58,19 +62,20 @@ class CrmLeadConversion
         protected RowLockRepository $rows,
         protected WorkspaceAccess $access,
         protected CrmDuplicateReviewRepository $reviews,
+        protected \App\Services\Crm\PipelineChoice $pipelineChoice,
+        protected \App\Repositories\User\CrmActivityRepository $activities,
     ) {}
 
     /**
-     * What Convert offers: the contacts that may be the lead's, (Phase D3b1)
-     * the pipelines switched on with their stages, what the opportunity
-     * starts with - the default pipeline's first open stage - and whether a
-     * new contact may be made.
+     * What Convert offers: the contacts that may be the lead's, the
+     * pipeline's open stages, what the opportunity starts with, and whether
+     * a new contact may be made.
      */
     public function preview(Workspace $workspace, User $user, int $id): array
     {
         $lead      = $this->allowed($workspace, $user, $id);
-        $pipelines = $this->choices->enterable($workspace);
-        $default   = $this->choices->default($pipelines);
+        // Phase D3b: the pipelines for the lead's sales team and location, each with its open stages - the first to start, at its first.
+        $pipelines = $this->pipelineChoice->forForms($workspace, true, $lead->sales_team_id, $lead->location_id);
 
         return [
             'matches'            => $this->matches($workspace, $lead),
@@ -78,7 +83,8 @@ class CrmLeadConversion
             'can_create_contact' => $this->access->can('contacts.create'),
             'defaults'           => [
                 'name'                => $lead->business_name ?: $lead->name,
-                'stage_id'            => $default ? $this->choices->openStages($default)->first()?->id : null,
+                'pipeline_id'         => $pipelines[0]['id'] ?? null,
+                'stage_id'            => $pipelines[0]['stages'][0]['id'] ?? null,
                 'expected_value'      => $lead->estimated_value,
                 'currency'            => $lead->currency ?? $workspace->base_currency,
                 'expected_close_date' => $lead->expected_purchase_date?->toDateString(),
@@ -90,9 +96,9 @@ class CrmLeadConversion
     public function convert(Workspace $workspace, User $user, int $id, array $data): CrmLead
     {
         $lead     = $this->allowed($workspace, $user, $id);
-        // An open stage of a pipeline switched on (Phase D3b1), which is its pipeline.
-        $stage    = $this->choices->stage($this->choices->enterable($workspace), (int) $data['opportunity']['stage_id'], 'opportunity.stage_id');
-        $pipeline = $stage->pipeline;
+        $pipeline = $this->pipelineChoice->choose($workspace, isset($data['opportunity']['pipeline_id']) ? (int) $data['opportunity']['pipeline_id'] : null, $lead->sales_team_id, $lead->location_id, 'opportunity.pipeline_id');
+        $stage    = $this->openStages($pipeline)->firstWhere('id', (int) $data['opportunity']['stage_id'])
+            ?? throw ValidationException::withMessages(['opportunity.stage_id' => "Choose one of the pipeline's open stages."]);
         $contact  = $this->contact($workspace, $data['contact_id'] ?? null);
 
         // What its first stage needs, from what the lead carries over (Phase D3a).
@@ -133,6 +139,8 @@ class CrmLeadConversion
                 'quantity' => $item->quantity,
             ])->all());
             $this->opportunities->enterStage($opportunity, $stage->id, $user->id);
+            // Phase E1: its activities, planned and done, are the opportunity's now as well.
+            $this->activities->carryToOpportunity($lead, $opportunity);
 
             $this->leads->update($lead, [
                 'status'         => CrmLead::CONVERTED,
@@ -184,6 +192,12 @@ class CrmLeadConversion
         }
 
         return null;
+    }
+
+    /** @return Collection<int, CrmStage> its open stages switched on, in order */
+    private function openStages(CrmPipeline $pipeline): Collection
+    {
+        return $pipeline->stages->filter(fn (CrmStage $stage) => $stage->is_active && $stage->category === CrmStage::OPEN)->values();
     }
 
     /**

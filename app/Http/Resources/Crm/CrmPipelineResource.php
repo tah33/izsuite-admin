@@ -8,20 +8,22 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * A pipeline and its stages in order (Doc 17 Phase A2), as Settings > CRM
- * edits them - and (Phase D3b1) whether it is switched on, the default, and
- * in use: opportunities are or were in it, so it is not deleted.
+ * edits them. Expects in_use set (CrmSettingService, CrmPipelineService):
+ * whether opportunities are or were in it. A new one has none.
  */
 class CrmPipelineResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
         return [
-            'id'         => $this->id,
-            'name'       => $this->name,
-            'is_active'  => $this->is_active,
-            'is_default' => $this->is_default,
-            'in_use'     => (bool) ($this->opportunities_exists || $this->visits_exists),
-            'stages'     => $this->stages->map(fn (CrmStage $stage) => [
+            'id'     => $this->id,
+            'name'   => $this->name,
+            // Phase D3b: switched on or off, the sales teams and locations it is for (none: all), and whether it can be deleted.
+            'is_active'    => $this->is_active,
+            'team_ids'     => $this->team_ids ?? [],
+            'location_ids' => $this->location_ids ?? [],
+            'removable'    => ! ($this->in_use ?? false),
+            'stages' => $this->stages->map(fn (CrmStage $stage) => [
                 'id'          => $stage->id,
                 'name'        => $stage->name,
                 'probability' => $stage->probability,

@@ -12,7 +12,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * customer's own tax treatment when it is not the standard one: their lines
  * then start with customer_tax_id - null being no tax. `customer` is the
  * contact asked about, when it is an active customer - the one a sale
- * started from their profile is made out to.
+ * started from their profile is made out to. `opportunity` is the CRM
+ * opportunity it is made from (Doc 17 Phase F1), with what it starts with:
+ * its location, salesperson and team, and a line for each interested item.
  */
 class SalesDefaultsResource extends JsonResource
 {
@@ -43,6 +45,14 @@ class SalesDefaultsResource extends JsonResource
             // The full Sales app's starting shipping terms and salesperson (Doc 16 Phase H1).
             'shipping_terms'     => $this->resource['shipping_terms'] ?? null,
             'salesperson_id'     => $this->resource['salesperson_id'] ?? null,
+            'opportunity'        => ($from = $this->resource['opportunity'] ?? null) ? [
+                'id'             => $from['id'],
+                'name'           => $from['name'],
+                'location_id'    => $from['location_id'],
+                'salesperson_id' => $from['salesperson_id'],
+                'sales_team_id'  => $from['sales_team_id'],
+                'lines'          => $from['lines'],
+            ] : null,
         ];
     }
 }

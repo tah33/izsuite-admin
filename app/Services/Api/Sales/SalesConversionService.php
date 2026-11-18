@@ -211,7 +211,7 @@ class SalesConversionService
     /**
      * A sales order copied as a new draft dated today (Doc 16 section 16.9's
      * Duplicate): the same customer, lines, prices and terms, linked to
-     * nothing - an order of its own.
+     * nothing - an order of its own, of no opportunity either.
      */
     public function duplicate(Workspace $workspace, DocumentType $type, int $id, User $user): SalesDocument
     {
@@ -222,7 +222,7 @@ class SalesConversionService
             $this->refuse("This {$this->noun($type)} cannot be duplicated.");
         }
 
-        $header = [...$this->header($workspace, $source, $type, $today, $user), 'source_id' => null];
+        $header = [...$this->header($workspace, $source, $type, $today, $user), 'source_id' => null, 'opportunity_id' => null];
 
         [$totals, $rows] = $this->salesDocumentService->totals(
             $header,
@@ -259,6 +259,8 @@ class SalesConversionService
             ...$source->only([
                 'contact_id', 'location_id', 'currency', 'exchange_rate', 'exchange_rate_date', 'exchange_rate_source', 'price_tax_mode', 'tax_rounding', 'customer_reference',
                 'sales_reference', 'discount_type', 'discount_value', 'notes', 'internal_notes', 'terms', 'payment_instructions',
+                // The CRM opportunity it was made from (Doc 17 Phase F1).
+                'opportunity_id',
                 // The full Sales app's (Doc 16 Phase A): who sold it, where it goes and when.
                 ...SalesDocument::FULL_FIELDS,
             ]),

@@ -2,10 +2,10 @@
 
 What is done, what comes next, and how to carry on from another PC.
 
-- **Last updated:** 2026-11-16
-- **Code:** Doc 17 Phase D3b1 (several pipelines) is built, not committed yet. Phase D3a is committed and pushed: admin `6059052`, frontend `6b69a39`.
-- **Tests:** 966 backend tests pass (last full run 2026-11-16, on the first PC, on this code).
-- **Next step:** Doc 17 Phase D3b2: pipelines for chosen teams or locations (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Last updated:** 2026-11-17
+- **Code:** Doc 17 Phase F4 (the CRM part of a contact's profile) is committed: frontend `9ff76c5` on `nuxt`, and on `main` the admin commit right after `e814d61`.
+- **Tests:** 989 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
+- **Next step:** Doc 17 Phase G: Overview, Forecast and follow-up (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase D3b1 the latest is 000172. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase F4 the latest is 000178. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase D3b2.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase G.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check and Phases A to C, D1, D2, D3a and D3b1 done (D3b1 built 2026-11-16), Phase D3b2 next** |
+| **17** | **CRM** | **In progress: gap check, Phases A to F done (F4 built 2026-11-17), Phase G next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase D3b2)
+### 5. Doc 17: CRM (next: Phase G)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -1804,41 +1804,212 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - Back at Qualified, with its arrival put 6 days back in the database, the Opportunities page marked it "Stale, 6 days". The Stale filter listed only it, not a second one added that day. Its page read "At Qualified for 6 days, stale after 5 days." with Stale.
   - The opportunities, the CRM lists and pipeline, the app's state, the sign-in and the activity were then put back.
 
-**Phase D3b** was split on starting it (2026-11-16): D3b1, several pipelines; D3b2, pipelines for chosen teams or locations.
+**Phase D3b: several pipelines, each for chosen teams or locations** (sections 17.13 and 17.24) is built, with these defaults. Phase D3 is done.
 
-**Phase D3b1: several pipelines** (sections 17.12, 17.13, 17.26 and 17.30) is built, with these defaults:
+- **Settings → CRM** lists the pipelines under a Pipelines header, which says what decides where an opportunity goes:
+  - **Add Pipeline** asks for a name, used once in the business, and whom it is for. It starts switched on, last in the list, with the starter stages (New, Qualified, Proposal, Negotiation, Won and Lost) to change in its own card.
+  - Each pipeline's card has **Switched On**, and **Sales Teams** and **Locations**: all of them, or only those ticked. Locations show once the business has more than one. "Only those ticked" with none ticked is refused in the form ("Tick a team, or choose All.").
+  - All sales teams includes an opportunity with no team. A pipeline for chosen teams takes only opportunities of those teams.
+  - A switched-off pipeline shows Off by its name. New opportunities cannot go in it; those in it stay, and still move between its stages.
+  - **Delete Pipeline** shows while no opportunity is or ever was in it, a lead converted into it included. Otherwise it is switched off instead.
+  - **One pipeline switched on stays for every team and location,** so every opportunity has somewhere to go. Switching it off, narrowing it or deleting it is refused: "One pipeline switched on must stay for every sales team and location, so every opportunity has somewhere to go." Its card has no Delete while it is the only one.
+- **Where an opportunity goes:** a pipeline switched on that is for its sales team and location.
+  - Adding one, the form offers those that fit, in Settings → CRM's order, and starts at the first. The Pipeline field shows once the business has several switched on. Changing its team or location to ones the chosen pipeline is not for moves the form to the first that fits, at its first open stage.
+  - Through the API, a pipeline left out is the first that fits. One switched off, or not for its team and location, is refused: "Choose a pipeline switched on that is for its sales team and location." A stage of another pipeline is refused as before.
+  - Converting a lead offers the pipelines for the lead's team and location, the first to start.
+  - An opportunity stays in its pipeline when edited to another team or location. Moving it to another pipeline is not built (see [Small things left](#small-things-left)).
+- **The Opportunities page,** while there are several pipelines switched on, has a Pipeline filter. The Stage filter names each stage with its pipeline ("Sales Pipeline · New") until one pipeline is chosen, then lists only that pipeline's. Each row names its pipeline under its stage, and an opportunity's page says which pipeline it stands in.
+- **Found while checking:** the list's foot read "1–3 of 3 opportunitys", and Deliveries' "deliverys". The pager now takes a noun's own plural. And with several cards, each pipeline's Name field had the same id, so every Name label led to the first card's; each card has its own now.
+- **Checked in the browser** on the second PC, as `user@izsuite.io` with CRM switched on by hand, a sales team (Wholesale Desk) and a second location (Chattogram Branch), and as a throwaway member who adds opportunities at Chattogram Branch only:
+  - Settings → CRM: the starter pipeline narrowed to Wholesale Desk was refused under Switched On with the message above. With no team ticked, the form said "Tick a team, or choose All."
+  - Add Pipeline "Wholesale" for Wholesale Desk gave "Pipeline "Wholesale" added." and its card: six stages, Wholesale Desk ticked, and Delete. The starter pipeline had no Delete.
+  - "Projects" for Chattogram Branch and "Spare" for everyone were added through the API. Every card then had Delete, the starter's too. Spare was deleted from its card, and the starter lost Delete again.
+  - Adding an opportunity at Chattogram Branch with no team offered Sales Pipeline and Projects; with Wholesale Desk, Wholesale too. Moving the location to Main Location took the form from Projects back to Sales Pipeline. Added in Wholesale at Qualified, its page read "Where it stands in Wholesale".
+  - Converting a qualified lead of Wholesale Desk offered all three pipelines. It converted into Wholesale at Qualified.
+  - The Opportunities page named each row's pipeline. "Sales Pipeline · Proposal" listed one; choosing Wholesale then cleared that stage, listed its two and offered its own stages.
+  - Wholesale switched off: "Pipeline saved." and Off by its name, with no Delete, as opportunities were in it. The filter and the form no longer offered it, and its two opportunities stayed listed under it.
+  - As the member, the form offered Sales Pipeline and Projects, and an opportunity added in Projects was the only one listed for them. Adding a pipeline was refused (403), and adding into the switched-off Wholesale through the API gave the refusal above.
+  - Editing an opportunity showed no Pipeline field.
+  - The pipelines, opportunities, lead, contacts, team, location, member, the app's state, the sign-in and the activity were then put back.
 
-- **Settings → CRM** has a Pipelines card: a tab for each pipeline, edited as the pipeline is now, and Add Pipeline. A business can have up to 20.
-  - A new pipeline has a name and starts with the six starting stages, New to Lost.
-  - A pipeline can be switched off. Nothing is then added, converted or moved into it, and the opportunities in it carry on there: moved between its stages, won, lost or reopened.
-  - One that no opportunity is or was in can be deleted, with its stages.
-- **The default pipeline** is where a new opportunity and a converted lead start, unless another is chosen. The first pipeline is the default, and Make Default makes another one it. The default is always switched on and cannot be deleted.
-- **Choosing the pipeline:** Add Opportunity and Convert offer the pipelines switched on, the default to start, then the open stages of the one chosen. With one pipeline there is nothing to choose.
-- **Moving to another pipeline:** Change Stage can take an open opportunity to an open stage of another pipeline switched on, with Change Stages and that stage's needs (Phase D3a). Its stage history keeps both, and its timeline names both pipelines.
-- **The Opportunities page** has a Pipeline filter, and its Stage filter lists the chosen pipeline's stages. With several pipelines, each row and the opportunity's page name its pipeline.
-- **Manage Pipelines and Stages** (section 17.30) is a permission of its own, apart from Manage Application Settings, and the Pipelines card needs it. Roles that manage CRM settings are given it, so none loses the pipelines.
-- The kanban view, one pipeline at a time, comes with Phase D4.
-- **Found while checking:**
-  - In a narrow window the stage names were squeezed to two letters: the stage name keeps its width now, and the table scrolls.
-  - A move into another pipeline said only "Moved to New.": it says "Moved to New in Projects." now - checked again in the browser, "Moved to Qualified in Projects.". Its timeline reads "from New (Sales Pipeline) to Qualified (Projects)", and Change Stage says "It moves to Projects." (not "the Sales Pipeline pipeline").
-- **Checked in the browser** on the first PC, as `user@izsuite.io` with CRM switched on by hand:
-  - The migration was first checked on a throwaway role and two pipelines: the role that managed CRM settings gained Manage Pipelines and Stages, the first pipeline became the default and the second did not. Rolling back and migrating again worked.
-  - Settings → CRM with one pipeline showed no tabs, its Switched On greyed out ("The default stays on.").
-  - Add Pipeline made "Projects" with the six starting stages, chosen, with "Pipeline added.". Switched off and saved, its tab read Off and Make Default was greyed out; switched on again, Make Default moved the Default mark to it.
-  - A third pipeline, Retail, was deleted after "Delete Retail? Its stages go with it.", and adding "Projects" again was refused ("The business has a pipeline with this name already.").
-  - Add Opportunity started in the default pipeline at New. Choosing Sales Pipeline gave its open stages, and the opportunity saved from the form was in Sales Pipeline.
-  - Change Stage left out its own stage. Choosing Projects picked its New and said "It moves to Projects."; after the move, its Stages card read "Where it stands in Projects", with "New (Sales Pipeline)" in its history.
-  - The Opportunities page showed each one's pipeline under its stage. Its Stage filter named each stage with its pipeline, and with Projects chosen it listed only that pipeline's stages and opportunities.
-  - Convert on a qualified lead offered both pipelines, the default to start. Converted into Projects for an existing contact, the opportunity was in Projects at New.
-  - The opportunities, the lead, the CRM lists and pipelines, the app's state, the sign-in and the activity were then put back.
+**Phase D4: the board and calendar views** (section 17.14) is built, with these defaults. Phase D is done.
 
-**Phase D3b2: pipelines for chosen teams or locations** (sections 17.13 and 17.24), suggested defaults:
+- **The Opportunities page** has List, Board and Calendar side by side. The view is kept in the address (`?view=board`), so a reload or a link keeps it. Each shows only the opportunities the user sees, as the list does, and no archived one.
+- **The board** is one pipeline's: the first switched on to start, and a Pipeline choice once the business has several - a switched-off one marked "(off)", still showing what is in it. It is searched and filtered by owner as the list is.
+  - A column for each stage switched on, in the pipeline's order, and for a switched-off stage while an opportunity is at it, marked Off.
+  - An open stage's column holds its open opportunities, the soonest to close first. Won and Lost hold those closed in the last 30 days, the latest first.
+  - Each column shows how many it holds and what they are worth in the base currency at today's rates: weighted by probability while open, whole in Won and Lost. Those in a currency without a rate today are left out and counted ("1 without a rate today").
+  - A column shows up to 50 cards; the list has the rest.
+  - A card shows the name, contact, value and probability, the closing day (or, won or lost, the day it closed), Overdue and Stale, and the owner. Its name opens the opportunity.
+- **Moving a card:** an open one is dragged to another open stage's column to move there, at that stage's probability. Dropped on Won or Lost, it opens Mark Won or Mark Lost. Its ⋯ menu offers Change Stage, Mark Won and Mark Lost too, for keyboards and touch screens.
+  - Each needs its permission: Change Stages to move, Mark Won or Lost to close. A column the user may not move it to does not take the card. A won or lost card does not move: it is reopened from its page.
+  - A refusal is shown above the board, and the card stays: "Proposal needs Customer Requirements filled in first."
+- **The calendar** is a month of the list - its search, status, pipeline, stage and owner filters, the open ones to start - each opportunity on its expected closing day. It opens on the business's this month, with Previous, Today and Next, and its weeks start on the day Settings → Regional says.
+  - Overdue ones are marked amber, won green and lost grey. A day shows three, and the rest on asking. A month shows up to 500, saying so when there are more.
+- **Checked in the browser** on the second PC, as `user@izsuite.io` with CRM switched on by hand, and as a throwaway member who sees their own opportunities and may change their stages but not mark them won or lost:
+  - The board's columns held New 2, Qualified 1, Proposal 1 (Overdue), Negotiation 0, Won 1 and Lost 1, with "Weighted $200.00" for New and "Last 30 days $1,500.00" for Won. Open cards could be dragged; won and lost ones could not.
+  - Dragging "Uddin Traders - shelving" onto Qualified lit the column up and gave "Moved to Qualified.". With Proposal needing Customer Requirements, a card dropped there gave "Proposal needs Customer Requirements filled in first." and stayed in New.
+  - Dropped on Won, "Rahman Stores - racking" opened Mark Won with today and its value; marked, it led the Won column ($4,500.00). Change Stage from a card's menu moved another to Negotiation.
+  - Search narrowed the board to the one card. The List view still listed the open ones.
+  - The calendar opened on November 2026, Monday first, with today marked and "Karim Mart - counters" amber on the 10th. Next showed December's one, Today came back, and All opportunities added the won (green) and lost (grey) ones on their days.
+  - As the member, the board held only their own card, with no Owner filter. Its menu offered only Change Stage; Won and Lost did not take it, and Qualified did. Their calendar held only theirs.
+  - At phone width, the board scrolled sideways inside its card and the calendar fitted, with no sideways scroll of the page.
+  - The opportunities, the CRM lists and pipeline, the contact, member, the app's state, the sign-in and the activity were then put back.
 
-- A pipeline is for everyone, or for chosen sales teams, chosen locations, or both. The default pipeline is always for everyone.
-- An opportunity enters a pipeline for chosen teams only with one of them as its sales team, and one for chosen locations only at one of them. This is checked when it is added, converted or moved there; changing its team or location later never moves it out.
-- Add Opportunity, Convert and Change Stage offer only the pipelines that fit, one made for its team or location first.
-- A sales team in Settings shows the pipelines made for it.
+**Phase E: activities and the timeline** was split on starting it (2026-11-17): E1, activities themselves - their record, completing and cancelling them, a record's Activities card and the Activities page; E2, reminders in the bell and by e-mail, and telling someone given an activity; E3, the timeline of a lead, an opportunity and a contact.
 
+**Phase E1: activities** (section 17.17) is built, with these defaults:
+
+- **An activity** is of one of Settings → CRM's activity types switched on, with a subject, for one lead, opportunity or contact (fixed once planned), given to one member, and due at a day and time in the business's time zone (kept in UTC). Optional: a duration in minutes (5 to 1440), a priority, a place, a description, and for a call (izSuite's Call type) its direction, outgoing or incoming.
+  - It can be given to an active member who may view activities - at its record's location, when it has one - or the business's owner. Planning, it is the user's to start.
+- **Planned, then completed or cancelled,** both final. A planned one is Overdue once its time has passed.
+  - Completing it needs an outcome when its type says so; otherwise the outcome is optional. A follow-up can be planned straight after for the same record: a task for tomorrow at the same time, given to the same person, to start.
+  - Only a planned one is changed or cancelled. Cancelling asks first.
+- **Settings → CRM's Activity Types** say whether completing one needs an outcome (the Outcome column, Need Outcome / Outcome Optional, and a tick when adding one). izSuite's Call, Meeting, Demonstration and Site Visit need one to start. A type an activity is of is switched off, not deleted.
+- **Where they show:**
+  - a lead's, an opportunity's and a contact's page has an Activities card: the planned ones, the soonest due first, then those done or cancelled, the latest first, for whoever sees the record and may view activities. Plan Activity there is for that record (not for a converted or archived lead, an archived opportunity or a merged contact);
+  - the **Activities page** (CRM's sidebar, after Opportunities): Planned to start - the soonest due first, the overdue marked - or Due today, Overdue, Completed, Cancelled or All; by type; searched by subject or what it is for; My activities to start, or anyone's or a member's for those who see their team's or all records. Its Plan Activity picks what one is for: a lead, an opportunity or a contact the user may see, found by name.
+- **Who sees which:** the Activities page shows a member's own - those given to them - and, with View Team Records, their teams' members', or with View All CRM Records every one, at the locations they may use (a contact's, with no location, at any). A record's card shows all of its activities to whoever sees the record.
+- **Permissions:** Activities, View and Create and Edit (completing and cancelling included). The Sales User template has both.
+- **A lead's activities go with it into its opportunity** on conversion, planned and done, and stay on the lead's card too. A contact with activities is deactivated, not deleted; merging contacts moves them.
+- Planning, changing, completing and cancelling one are logged on the record it is for, so they show in its Activity timeline. A change reads in the business's time, with the type and the person by name ("Due at: 2026-11-16 15:00 → 2026-11-19 09:30").
+- **Found while checking:** the Activities page's picker said "Search opportunitys"; and a new activity's day and hour came from the browser's clock, not the business's time zone (a business with none set runs on UTC). Both are fixed.
+- **Checked in the browser** on the second PC, as `user@izsuite.io` with CRM switched on by hand (the business on UTC, the browser in Dhaka), and as a throwaway member who may view opportunities and plan and complete activities, seeing their own records only:
+  - CRM's sidebar listed Leads, Opportunities, Activities and Customers. The Activities page opened on Planned, Any type and My activities, with "Nothing planned".
+  - Plan Activity on the Activities page found the opportunity "Uddin Traders - warehouse racking", and planned a call at 10:00, outgoing: "Activity planned.", listed as due "17 Nov 2026, 10:00".
+  - On the opportunity's page, Plan Activity had For fixed to it and started at the next full hour in UTC; a meeting planned with a place hid the call-only Direction. Complete on the call waited for an outcome ("A Call needs its outcome once it is done."); with one and a follow-up ticked - a task for tomorrow at 10:00, filled in - it gave "Activity completed, and its follow-up planned." The card then listed the meeting, the task, and the call as Completed with its outcome.
+  - Edit moved the meeting to 08:30 ("Activity saved."). The opportunity's Activity timeline listed each step, the edit as "Due at: 2026-11-17 07:00:00 → 2026-11-17 08:30:00" (since read in the business's time, as above).
+  - On the Activities page, Cancel Activity asked first, then gave "Activity cancelled."; All activities showed the follow-up, the completed call with its outcome and the cancelled meeting.
+  - Settings → CRM's Activity Types showed the Outcome column; Need Outcome on Task gave "Saved." and Needed.
+  - A lead's email activity went with it into its opportunity on conversion, showing on both pages; the converted lead's card had no Plan Activity. The contact's page had the card, the width of the page.
+  - As the member, the sidebar's CRM showed Opportunities and Activities, and the Activities page only the site visit given to them, Overdue, with no Assigned to filter. They could plan only for opportunities (none of their own to pick), not contacts (403); the owner's opportunity's activities were not found for them; and completing the site visit asked for its outcome first ("A Site Visit needs its outcome once it is done."), then gave "Activity completed."
+  - The activities, opportunities, lead, contacts, CRM lists, member, the app's state, the sign-in and the activity were then put back.
+
+**Phase E2: reminders, and telling someone given an activity** (section 17.17) is built, with these defaults:
+
+- **A new notification kind, Activities,** in Settings → Notifications & Email and in each user's own, in the bell and by e-mail to start, each switched off as the other kinds are.
+- **Given an activity:** whom one is given to hears of it - "Rahim Uddin gave you an activity: Call "Discuss the quotation"", "Due 18 Nov 2026, 10:00, for Uddin Traders - racking" - when it is planned, given to someone else, or planned as a follow-up. Not when they gave it to themselves, and not when it is saved unchanged.
+- **Reminders:** each activity has a Reminder - no reminder, when it is due, or 5, 15 or 30 minutes, 1 hour or 1 day before; 15 minutes before to start, for a follow-up too.
+  - Its assignee is reminded once at that moment: "Reminder: Call "Discuss the quotation", due 18 Nov 2026, 10:00", "For Uddin Traders - racking".
+  - Moving it to another time, or changing the reminder, reminds again at the new moment. A completed or cancelled one is not reminded, and one planned after its time - a call logged once made - has none.
+  - Not to someone who may no longer be given activities, and not while CRM is off.
+  - `crm:remind-activities` sends them each minute, from the scheduler; the queue sends the e-mails.
+- A notice leads to the activity's record when its person sees it, else to the Activities page. Its day and time are the business's, in its date and time formats.
+- The activity's form has Reminder below the due time, and a planned one's line says "Reminder 15 minutes before".
+- **Checked in the browser** on the second PC, as `user@izsuite.io` with CRM switched on by hand (the business on UTC), with a throwaway member who may view and plan activities:
+  - Plan Activity on the opportunity's page started with Reminder "15 minutes before". A call at 07:35 with "When it is due" was listed as "Reminder when it is due".
+  - A site visit given to the member put "izSuite User gave you an activity: Site Visit "Measure the warehouse"" in their bell, with "Due 18 Nov 2026, 11:00, for Uddin Traders - warehouse racking", leading to the Activities page (they do not see the owner's opportunity).
+  - At 07:35:01 the dev scheduler ran `crm:remind-activities`, and the owner's bell showed "Reminder: Call "Call Rahim about the racking", due 17 Nov 2026, 07:35", "For Uddin Traders - warehouse racking", leading to the opportunity.
+  - Both notices' e-mails were sent: their deliveries read sent, and the dev mail log held them.
+  - Settings → Notifications & Email listed Activities, on in the bell and by e-mail; so did the user's own.
+  - The activities, opportunity, contact, CRM lists, member, notifications, the app's state, the sign-in and the activity were then put back.
+
+**Phase E3: the timeline of a lead, an opportunity and a contact** (section 17.18) is built, with these defaults. Phase E is done.
+
+- **One timeline, newest first,** of what happened with the record:
+  - **activities done or cancelled:** a call with its direction (incoming or outgoing), how long it took and its outcome; a meeting, task, e-mail or any other type with theirs; and who ended it. What is still planned stays on the Activities card;
+  - **notes:** the comments on a lead or an opportunity, with the people they mention;
+  - **changes,** from the Activity Log: added, changed, given to someone, moved between stages, won, lost, reopened, archived, converted - each marked by what it was (a stage move, a new owner, won, lost, another status), with the values it changed;
+  - **files** attached and removed;
+  - and on a contact's, **their sales documents** - quotations, proforma invoices, sales orders, invoices and credit notes - each opening its page, with its status, and its total for those who see Sales' values. Only the kinds the user may view, at the locations they may use.
+- **Filters:** All, Activities, Notes, Changes, Files, and on a contact's Documents. Activities shows for those who may view activities, Documents for those who may view a kind of sales document.
+- **Where:** a lead's and an opportunity's Comments card has Timeline as its second tab, instead of Activity. A contact's page has a Timeline card, the width of the page, below its Activities card, while CRM is on.
+- **A contact's** gathers their own activities and changes, and those of their opportunities and of the leads converted into them - only those the user sees (their own, their teams', or all, at their locations). An activity or a note there names the opportunity or lead it is about, with a link. A contact has no comments of their own.
+- **An activity's steps** - planned, changed, completed, cancelled - stay in Settings → Activity Log, now naming the activity. The timeline shows the activity itself instead, as it shows a comment instead of "Commented on …".
+- **The newest 100** of each part, and of all together, are shown.
+- **The team's own:** the timeline and its notes go on no document, PDF, e-mail or customer link.
+- **Who sees it:** whoever sees the record - a lead with View Leads, an opportunity with View Opportunities, each as they see it, and a contact with View Contacts - with its activities only for those who may view activities. With CRM off its records stay readable, as an app's do once turned off, but its pages hide.
+- **Found while checking:** an activity read "Call Call Rahim …", a cancelled one said Cancelled twice, and a draft document said Draft twice ("Draft Quotation", "Draft"). The type is now a pill, as on the Activities card; a cancelled one's line says "Cancelled by …"; a draft has no status pill. Links in an entry now look like links.
+- **Checked in the browser** on the second PC, as `user@izsuite.io` with CRM switched on by hand, and as a throwaway member who may view contacts and their own opportunities:
+  - An opportunity for "Browser Check Traders" had a call done (outgoing, 15 minutes, with its outcome), a meeting cancelled, a comment, a move to Proposal and a PDF attached. Its Timeline tab listed, newest first and each with its icon: the file, the move ("2 changes"), the note, the cancelled meeting, the call ("Outgoing · 15 min", its outcome, "Done by izSuite User"), and the opportunity being added. Activities, Notes, Changes and Files each narrowed it.
+  - The contact's page had the Timeline card: a draft quotation opening its page, with $1,800.00; the contact's own e-mail, done; and the opportunity's entries, its note "on" and its activities "for" the opportunity, each linking to it. Its filters included Documents.
+  - A lead's Timeline tab listed its task done with its outcome, and the lead being added.
+  - The quotation's own Activity tab still listed its steps, an edit with "1 change", through the change list both timelines now share.
+  - As the member, the contact's Timeline card offered All, Notes, Changes and Files - no Activities card, no Documents - and said "Nothing has happened here yet."; the owner's opportunity's timeline was not found for them, and a lead's was refused.
+  - The opportunity, lead, activities, quotation, comment, file, contact, CRM lists, member, the app's state, the sign-in and the activity were then put back.
+**Phase F: Sales and the contact's profile** was split on starting it (2026-11-17): F1, sales documents made from an opportunity; F2, an opportunity won when its order is confirmed; F3, e-mail from a lead, an opportunity or a contact; F4, the CRM part of a contact's profile.
+
+**Phase F1: sales documents made from an opportunity** (section 17.27) is built, with these defaults:
+
+- **Create, on an opportunity's page:** a new Sales Documents card offers Quotation, Proforma Invoice, Sales Order (with the full Sales app) and Invoice - the kinds the user may create - while the opportunity is open or won and not archived. A lost one says to reopen it, an archived one to restore it. Without Sales, the card says to turn it on, linking to Sales in the Apps Center for whoever may open it.
+- **The document starts with the opportunity's** contact, currency, location (where the user may use it), owner as the salesperson and sales team (with the full Sales app), and a line for each interested item: the item at its sales price and tax, or the name typed in, unpriced. The form says it is made from the opportunity, with a link, and its back link leads there.
+- **Linked to it** (`opportunity_id`): the document, and what is made from it in turn - a quotation's invoice, an order's invoices and deposit invoices. A duplicated order is linked to nothing. The link is set when the document is made; saving it again leaves it.
+- **Made only** from an opportunity the user sees, while CRM is on, for its contact ("A document made from an opportunity is for its contact."), and never from a lost or archived one.
+- **Its value stays its own:** however many quotations it has, they add nothing to its value, the pipeline or the forecast. The card shows each document's own total.
+- **The card** lists the documents made from it, newest first - title, date, status and total - of the kinds the user may view, at the locations they may use, the total for those who see Sales' values.
+- **A document's page** names its opportunity under History, for whoever sees the opportunity while CRM is on.
+- **The timeline** - an opportunity's now, as a contact's - shows each document when it was made, and again when it was sent (a quotation or proforma), issued (an invoice or credit note) or confirmed (a sales order, by whom). An opportunity's timeline has Documents among its filters too.
+- **Found while building:** Phase E3 had given sales documents a second `creator()` relation beside their `HasAuthors` one; it is gone.
+- **Found while checking:** the form's note had no style (the shared stylesheet had no `alert-info`), a sent or issued entry on the timeline repeated its status as a pill, and the card's long subtitle pushed Create below it. All three are fixed.
+- **Checked in the browser** on the second PC, as `user@izsuite.io` with CRM switched on by hand, and as a throwaway member who sees every opportunity and views invoices only, without Sales' values:
+  - An opportunity for "Browser Check Traders", interested in 4 steel racks and "Installation" typed in, had the Sales Documents card: "None made from it yet.", with Create offering Quotation, Proforma Invoice and Invoice (Sales Lite).
+  - Create → Quotation opened the form with "Made from the opportunity Browser Check Traders - racking, and linked to it.", the customer, USD, the racks at 450.00 ($1,800.00) and Installation unpriced; its back link said Opportunity. Priced and saved with Save and Mark as Sent: "Quotation QUO-00001 marked as sent.", its History naming the opportunity.
+  - Convert to Invoice made a draft invoice naming the quotation and the opportunity; issued as INV-00001, it stayed linked.
+  - The card listed Invoice INV-00001 ($2,000.00, Issued) and Quotation QUO-00001 ($2,000.00, Converted). The Timeline's Documents listed the invoice issued and made, and the quotation sent and made, newest first.
+  - As the member: the card listed only the invoice, with no total and no Create; the invoice's page named the opportunity; the quotation was refused them; their Documents timeline had the invoice's two entries, without totals.
+  - The opportunity, item, documents, contact, CRM lists, member, the app's state, the sign-in, the numbering and the activity were then put back.
+**Phase F2: an opportunity won when its order is confirmed** (section 17.27) is built, with these defaults:
+
+- **Settings → CRM** has "Win an opportunity when its sales order is confirmed", below the operating mode: on to start.
+- **When a sales order made from an opportunity is confirmed** (the full Sales app's), while CRM is on and the setting is on, the opportunity - if it is still open, and not archived - is won:
+  - that day, in the business's time, at the order's value before tax when they share a currency, else at its own value;
+  - with the reason "Sales order SO-00001 confirmed", going to its pipeline's won stage at 100%;
+  - by whoever confirmed the order, whether or not they see the opportunity or may close one. Its timeline says "Marked opportunity … won: sales order SO-00001 was confirmed".
+- **Left as it is:** one already won, lost or archived; one whose won stage needs details it lacks, or whose pipeline has no won stage switched on; one someone else changed at that moment. Nothing about the opportunity stops the order being confirmed.
+- **Afterwards:** cancelling, holding or completing the order changes nothing on the opportunity; it is reopened by hand. Sales Lite has no sales orders, so there an opportunity is won by hand.
+- **Checked in the browser** on the second PC, as `user@izsuite.io` with CRM switched on by hand and the business's Sales Lite swapped for the full Sales app, and as a throwaway member who may only view and confirm sales orders:
+  - Settings → CRM showed the setting ticked. Unticked and saved, then ticked again: "CRM settings saved." each time.
+  - On an opportunity worth $2,000.00, Create offered Sales Order too. Its form, made from the opportunity, was priced at 4 racks × 450.00 ($1,800.00); Save and Confirm gave "Sales order SO-00001 confirmed."
+  - The opportunity then read Won, 100%, "Won 17 Nov 2026, marked by izSuite User", Final Value $1,800.00, Won Reason "Sales order SO-00001 confirmed". Its timeline put the win - a trophy, in green - above the order's confirmation and making.
+  - The member, refused the opportunity's page (403), confirmed SO-00002 of a second one: "Sales order SO-00002 confirmed.", naming no opportunity to them. That opportunity was won at 850.00, marked by them.
+  - The opportunities, orders, contact, CRM lists and settings, member, the apps (Sales Lite back), the sign-in, the numbering and the activity were then put back.
+**Phase F3: e-mail from a lead, an opportunity or a contact** was split on starting it (2026-11-17): F3a, sending one, with the record's documents and files, kept on its timeline; F3b, e-mail templates.
+
+**Phase F3a: e-mail from a lead, an opportunity or a contact** (section 17.19) is built, with these defaults:
+
+- **Send E-mail** is on the record's timeline - a lead's and an opportunity's Timeline tab, a contact's Timeline card - for whoever may send e-mail (a new permission, CRM → E-mail: Send E-mail, in the Sales User template) and sees the record. Not from a converted or archived lead, an archived opportunity or a merged contact.
+- **The form** starts with the record's address - a lead's own, an opportunity's contact's, a contact's - and a message with a greeting to its person (else its name) and the sender's and business's names. The subject and message are the user's; Cc takes up to five addresses.
+- **Attach:** the record's sales documents that have gone out - an opportunity's made from it, a contact's - but no draft, void or cancelled one, of the kinds the user may view, as PDFs made as it is sent; and its files. Up to five of each, the files 15 MB together. A lead has no documents.
+- **It goes** from the queue as document e-mails do: from the platform's address under the business's sender name, with replies to the business's reply-to address (Settings → Email). Tried three times, it then says Not Sent, and why in a word.
+- **Kept on the timeline,** under a new E-mails filter: its subject, Sending, Sent or Not Sent, to and Cc, what it carried, its message folded, and by whom. On a contact's, an opportunity's or a lead's e-mail names it. The log entry naming it stays in Settings → Activity Log, not shown twice.
+- **Contacts:** merging moves a contact's e-mails, and one with e-mails is deactivated, not deleted. A lead's stay with it once converted, and show on its contact's timeline through it.
+- **Replies and synchronisation** wait for an e-mail integration: replies go to the business's own inbox.
+- **A slip:** the dev database was backed up just after migration 000177 ran - it only adds `crm_emails` - not before it, as the rules ask. Nothing was at risk.
+- **Checked in the browser** on the second PC, as `user@izsuite.io` with CRM switched on by hand, and as a throwaway member who sees every opportunity but may not send e-mail:
+  - An opportunity for "Browser Check Traders" (Rahim Uddin, rahim@browsercheck.test) had a quotation made from it and sent (QUO-00001), and a PDF attached. Its Timeline tab had E-mails among its filters, and Send E-mail.
+  - The form started with rahim@browsercheck.test and "Dear Rahim Uddin, … Kind regards, izSuite User, Billing Starter", offering "Quotation QUO-00001 (PDF)" and "floor-plan.pdf (44 bytes)". Sent with a subject, a copy address and both: "E-mail to rahim@browsercheck.test is on its way."
+  - The dev queue sent it in 14 seconds, mostly the PDF's making. The dev mail log held it: to Rahim, copied to accounts@browsercheck.test, replies to Billing Starter, carrying Quotation-QUO-00001.pdf and floor-plan.pdf. The timeline went from Sending to Sent, with its recipients, attachments and message; Changes did not list it again.
+  - The contact's Timeline card had Send E-mail, and showed the e-mail "for Browser Check Traders - racking", linking to it.
+  - As the member: no Send E-mail, and the API refused one (403); they saw the e-mail, Sent.
+  - The e-mail, opportunity, quotation, file, contact, CRM lists, member, the app's state, the sign-in, the numbering and the activity were then put back.
+**Phase F3b: e-mail templates** (section 17.19) is built, with these defaults. Phase F3 is done.
+
+- **Settings → CRM** has a new E-mail Templates card, below the lists: each template a name - the business's only one by it - a one-line subject and a message, added, edited and deleted by whoever manages CRM settings. A business starts with none.
+- **Placeholders:** `{contact_name}` (the person written to - or the business, without one), `{company_name}` (the business written to), `{opportunity_name}` (from an opportunity; nothing from a lead or a contact), `{user_name}` (who sends it) and `{business_name}` (the business's sender name). A chip puts one in the message where the cursor is; one the template does not know stays as written.
+- **On Send E-mail,** a Template list - "Write my own" to start - puts the chosen one's subject and message in, filled in for the record and the sender, to change before it goes. Whoever may send e-mail uses them, whether or not they manage settings.
+- **An e-mail keeps the text it went with:** changing or deleting a template changes no e-mail sent.
+- **Found while checking:** the template form's placeholder chips broke Settings ("500 - Vite Error"): a template literal's `{…}` inside `{{ }}` closed the tag early. The chips are now made by a small function, as Settings → Email's are.
+- **Checked in the browser** on the second PC, as `user@izsuite.io` with CRM switched on by hand, and as a throwaway member who may send e-mail but not manage CRM settings:
+  - Settings → CRM's E-mail Templates said "None yet. …". Add Template - `{contact_name}` put in by its chip - gave "Template added."; Edit, "Template saved."; another by the same name was refused ("The business has a template by that name already.").
+  - On an opportunity for "Browser Check Traders", Send E-mail's Template list offered "Write my own" and "Quotation follow-up". Choosing it gave "Your quotation for Browser Check Traders - racking, Browser Check Traders", and "Dear Rahim Uddin, How did Browser Check Traders find our quotation? … Kind regards, izSuite User, Billing Starter". Sent, the dev queue sent it.
+  - As the member: no CRM tab in Settings, and adding a template was refused (403); their form offered the template, signed with their own name.
+  - Delete gave "Template deleted.", and the card was empty again.
+  - The template, e-mail, opportunity, contact, CRM lists, member, the app's state, the sign-in and the activity were then put back.
+**Phase F4: the CRM part of a contact's profile** (section 17.20) is built, with these defaults. Phase F is done.
+
+- **A contact's page** has an Opportunities card, while CRM is on, for whoever may view opportunities or leads - below their sales documents, payments and balance, above the Activities and Timeline cards:
+  - **Open, Won and Lost:** how many of each; the open ones' value and weighted value, and the won ones' value, in the base currency at today's rate - an estimate, as the forecast's. One in a currency without a rate today is left out of the totals, and counted.
+  - **Lead source:** the source of the first lead converted into them, linking to the lead - else that of their first opportunity with one.
+  - **Their opportunities:** the open ones by their expected closing day, then the won and lost, the latest ended first, each with its stage and probability, value and day, opening its page. Archived ones are left out, as the lists leave them; up to 50.
+  - Only what the user sees: their own records, their teams' or all, at their locations. Without View Leads, there is no lead source from a lead.
+- **Add Opportunity** on the card - for whoever may create opportunities, while the contact is active and not merged - opens the form with them chosen.
+- Their planned activities (Phase E1) and timeline (Phase E3) were on the page already, beside their sales documents and balance.
+- **Found while checking:** the card's long subtitle pushed Add Opportunity below it; it is shorter now.
+- **Checked in the browser** on the second PC, as `user@izsuite.io` with CRM switched on by hand, and as a throwaway member who views contacts and the opportunities they own:
+  - "Browser Check Traders" had a lead, Karim Ahmed from Website, converted into them, and opportunities open, won, lost and archived. The Opportunities card, between Payments Received and Activities, read Open 2 ($2,900.00, weighted $290.00), Won 1 ($1,500.00), Lost 1, and "Lead source: Website · converted from the lead Karim Ahmed". It listed racking (closing 20 Dec 2026), shelving (31 Dec), lockers (lost 17 Nov) and chairs (won 17 Nov) - not the archived one.
+  - Add Opportunity opened the form with Browser Check Traders chosen; saved, the opportunity was theirs.
+  - As the member, the card showed only the one given to them (Open 1, $600.00, weighted $60.00), with no lead source and no Add Opportunity.
+  - The opportunities, lead, contact, CRM lists, member, notifications, the app's state, the sign-in and the activity were then put back.
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## Testing checklist
@@ -1859,7 +2030,16 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase D2a | 000170 |
 | Doc 17: Phase D2b | none |
 | Doc 17: Phase D3a | 000171 |
-| Doc 17: Phase D3b1 | 000172 |
+| Doc 17: Phase D3b | 000172 |
+| Doc 17: Phase D4 | none |
+| Doc 17: Phase E1 | 000173 |
+| Doc 17: Phase E2 | 000174 |
+| Doc 17: Phase E3 | none |
+| Doc 17: Phase F1 | 000175 |
+| Doc 17: Phase F2 | 000176 |
+| Doc 17: Phase F3a | 000177 |
+| Doc 17: Phase F3b | 000178 |
+| Doc 17: Phase F4 | none |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -1950,7 +2130,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] Mention someone (type @):
   - [ ] only people who see the lead are offered;
   - [ ] they get a bell notification (and an e-mail) linking to the lead's comments.
-- [ ] The Activity tab lists what was done to the lead, newest first: added, changed, assigned (with the previous owner), its steps, comments and files.
+- [ ] The Timeline tab lists what happened with the lead, newest first: added, changed, assigned (with the previous owner), its steps, its comments as notes, and its files.
 - [ ] With Settings → CRM on Opportunities Only, a lead's comments and files can be read but not added.
 
 **Phase C1: converting a lead**
@@ -2033,7 +2213,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] As the member who sees every opportunity: the file opens, but there is no Upload or Remove without Create and Edit.
 - [ ] As the member who sees only their own: the opportunity, its files and its comments are not found, even through a file's link.
 - [ ] A comment mentioning both members tells only the one who sees the opportunity (bell and e-mail), with a link to its comments.
-- [ ] Activity lists, newest first, its adding, each move ("Stage: … → …", "Probability: … → …"), won or lost, reopening, archiving, its files and comments.
+- [ ] Timeline lists, newest first, its adding, each move ("Stage: … → …", "Probability: … → …"), won or lost, reopening, archiving, its files, and its comments as notes.
 - [ ] Archived: no Upload or Remove, but comments still work. Won or lost: files can still be added.
 - [ ] Under a legal hold, removing its file or comment is refused.
 
@@ -2050,20 +2230,132 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] After more than a day at the stage with the 1-day period, the opportunity shows Stale with its days, in the list and on its page ("At … for 2 days, stale after 1 day."). The Stale filter lists only stale ones. Moved to another stage, it is no longer stale.
 - [ ] Emptying a detail a stage needs, once the opportunity is there, is saved and leaves it where it is.
 
-**Phase D3b1: several pipelines**
+**Phase D3b: several pipelines, each for chosen teams or locations**
 
-**Before you start:** CRM on, a qualified lead, and a member whose role has Manage Application Settings for CRM but not Manage Pipelines and Stages.
+**Before you start:** CRM on, two active locations, a sales team, a contact, a qualified lead of that team, and a member whose role adds opportunities (View, Create and Edit) at one location only.
 
-- [ ] Settings → CRM → Pipelines: Add Pipeline makes one with the six starting stages, and its tab is chosen. A second with the same name is refused.
-- [ ] The default pipeline cannot be switched off or deleted. Make Default makes another the default, and the one that was can then be switched off.
-- [ ] A pipeline switched off is marked Off and cannot be made the default. Add Opportunity, Convert and Change Stage do not offer it.
-- [ ] Add Opportunity starts in the default pipeline. Choosing another pipeline offers its open stages, and the opportunity is saved there.
-- [ ] Change Stage offers the other pipelines switched on. A move into one says "Moved to … in …", and the history names the stage it came from with its old pipeline.
-- [ ] An opportunity in a pipeline switched off still moves between that pipeline's stages, and is won, lost and reopened there.
-- [ ] Delete is offered only for a pipeline no opportunity is or was in. One an opportunity was in, even if it has left, stays.
-- [ ] The Opportunities page's Pipeline filter lists only that pipeline's opportunities, and its Stage filter then lists only that pipeline's stages. Each row names its pipeline.
-- [ ] Convert offers the pipelines switched on, the default to start, and the opportunity is made in the one chosen.
-- [ ] As the member: Settings → CRM shows everything but the Pipelines card. A role with Manage Pipelines and Stages alone sees only the Pipelines card.
+- [ ] Settings → CRM has a Pipelines header with Add Pipeline. The first pipeline's card has Switched On, Sales Teams and Locations, and no Delete.
+- [ ] Narrowing the first pipeline to a team, or switching it off, is refused under Switched On: one for every team and location must stay on.
+- [ ] Add a pipeline for the team. It comes last, switched on, with the six starter stages and Delete. Another of the same name is refused.
+- [ ] Add one for one location, and one for everyone. The first pipeline gains Delete while that other for everyone is there; delete it, and the first loses Delete again.
+- [ ] Adding an opportunity, Pipeline offers those for its team and location, each with its own stages. Choosing the team adds the team's pipeline. Moving the location off a location's pipeline moves the form to the first that fits, at its first stage.
+- [ ] Added in the team's pipeline, its page says it stands in that pipeline. Editing it shows no Pipeline field.
+- [ ] Converting the lead offers the pipelines for its team and location, and it converts into the one chosen.
+- [ ] The Opportunities page has a Pipeline filter, names the stages with their pipeline until one is chosen, and shows each row's pipeline under its stage. Choosing a pipeline clears a stage of another.
+- [ ] Switch the team's pipeline off. It shows Off, has no Delete once an opportunity is in it, and the form and the filter no longer offer it. Its opportunities stay, and still change stage.
+- [ ] As the member, the form offers only the pipelines for their location (and for every location), and adding a pipeline is refused.
+
+**Phase D4: the board and calendar views**
+
+**Before you start:** CRM on, opportunities at several stages - one past its closing day, one won and one lost in the last month, one won longer ago - and a member whose role views opportunities and changes stages, but does not mark them won or lost, with one of their own.
+
+- [ ] Opportunities has List, Board and Calendar. Reloading keeps the one chosen.
+- [ ] The board has a column per stage. Each says how many it holds and what they are worth in the base currency: weighted while open, whole in Won and Lost. The one won longer ago is not there.
+- [ ] Cards in an open column are the soonest to close first, with Overdue and Stale where they apply. Won and Lost show the day each closed.
+- [ ] Drag a card to another open stage: "Moved to …", and the totals change. To a stage that needs a detail it lacks: refused, naming it, and the card stays.
+- [ ] Drop a card on Won: Mark Won opens with today and its value. Mark it, and it leads the Won column. Drop one on Lost: Mark Lost opens.
+- [ ] A card's ⋯ menu offers Change Stage, Mark Won and Mark Lost, and each works as on the opportunity's page.
+- [ ] With a second pipeline, the board's Pipeline choice shows its columns; a switched-off one is marked (off). Switch a stage off while one is at it: its column stays, marked Off.
+- [ ] Search and the owner filter narrow the board as they narrow the list.
+- [ ] The calendar opens on this month, its weeks starting as Settings → Regional says. Each opportunity is on its closing day, the overdue one amber. Previous, Next and Today move between months.
+- [ ] The calendar's filters work as the list's: All opportunities adds the won (green) and lost (grey) ones.
+- [ ] As the member: only their own on the board and the calendar, no Owner filter, and their card's menu offers only Change Stage. Won and Lost do not take their card.
+
+**Phase E1: activities**
+
+**Before you start:** CRM on, a lead, an opportunity and a contact, and a member whose role views opportunities and plans activities (Activities: View, Create and Edit) but sees only their own records. Give the owner's role Activities too if it is a custom one.
+
+- [ ] CRM's sidebar has Activities after Opportunities. The page opens on Planned, My activities.
+- [ ] Plan Activity on the Activities page: pick an opportunity by name, a call at a time already past today, outgoing. It is listed, Overdue.
+- [ ] The opportunity's page has an Activities card with it. Plan Activity there has For fixed to the opportunity; a meeting shows no Direction.
+- [ ] Complete the call: it waits for an outcome. With one, and Plan a follow-up ticked, the card lists the follow-up planned and the call Completed with its outcome.
+- [ ] Edit a planned one's time: "Activity saved." Settings → Activity Log shows each step, the edit in the business's time.
+- [ ] Cancel one from the Activities page: it asks, then shows Cancelled under All activities. A completed or cancelled one has no menu.
+- [ ] The status filter's Due today and Overdue, the type filter and the search narrow the list.
+- [ ] Settings → CRM's Activity Types: switch Task to Need Outcome, and completing a task waits for one. Add a type with "Completing one needs an outcome" ticked; once an activity is of it, it cannot be deleted.
+- [ ] Plan one for a lead, then convert the lead: it shows on the new opportunity's card and still on the lead's, which has no Plan Activity now.
+- [ ] A contact's page has the card. A contact with activities cannot be deleted; merged into another, its activities move.
+- [ ] As the member: only activities given to them, no Assigned to filter; Plan Activity offers only what they may see; completing theirs works.
+
+**Phase E2: reminders, and telling someone given an activity**
+
+**Before you start:** the scheduler and the queue running (see Deploying to a server), CRM on, an opportunity, and a member whose role views and plans activities, with an e-mail address you can read.
+
+- [ ] Settings → Notifications & Email and My Profile's notifications list Activities, on in the bell and by e-mail.
+- [ ] Plan Activity starts with Reminder "15 minutes before". Plan a call two minutes from now with "When it is due": its line says "Reminder when it is due".
+- [ ] When its moment comes, the bell shows "Reminder: Call …, due …" leading to its record, and the e-mail arrives. It comes once.
+- [ ] Move it to a later time: it reminds again then. A completed or cancelled one, and one with No reminder, never reminds.
+- [ ] Give an activity to the member: their bell and inbox have "… gave you an activity: …". Saving it unchanged tells them nothing; giving it to yourself tells no one.
+- [ ] Complete one with a follow-up given to the member: they hear of the follow-up.
+- [ ] As the member, switch Activities' e-mail off in My Profile: the next notice reaches only the bell.
+
+**Phase E3: the timeline of a lead, an opportunity and a contact**
+
+**Before you start:** CRM and Sales on, a customer with an opportunity, and a member whose role views contacts and opportunities (their own only), but not activities or sales documents.
+
+- [ ] On the opportunity, complete a call with a direction, a duration and an outcome, cancel a meeting, post a comment, move it to another stage and attach a file. Its Comments card's Timeline tab lists them newest first, each with its icon: the call with "Outgoing · 15 min" and its outcome, the cancelled meeting, the note, the move with its changes, the file. What is still planned is not there.
+- [ ] Activities, Notes, Changes and Files each show only that part.
+- [ ] Lose it, reopen it, win it: each shows marked, the win and the loss in green and red.
+- [ ] The customer's page has a Timeline card: their sales documents, each opening its page, with its status and total; their own activities; and the opportunity's activities and notes, naming it with a link. Documents shows only the documents.
+- [ ] Convert a lead into the customer: the lead's adding, qualifying and converting show on the customer's timeline.
+- [ ] A lead's Timeline tab shows its activities done, notes, changes and files.
+- [ ] As the member: the customer's Timeline card has no Activities or Documents, and none of the owner's opportunity; their own opportunity's entries show.
+
+**Phase F1: sales documents made from an opportunity**
+
+**Before you start:** Sales and CRM on, an item, an opportunity interested in it and in something typed in, and a member whose role sees all opportunities and views invoices, without Sales' values.
+
+- [ ] The opportunity's page has Sales Documents, "None made from it yet.", and Create with Quotation, Proforma Invoice and Invoice - and Sales Order on full Sales.
+- [ ] Create → Quotation: the form says it is made from the opportunity, with its customer, currency and interested items as lines - the item at its price, the typed name unpriced. Its back link leads to the opportunity.
+- [ ] Save it: its page's History names the opportunity, and the card lists it with its total and status.
+- [ ] Convert it to an invoice: the invoice names the opportunity too, and both are on the card. Issue the invoice: the opportunity's Timeline, under Documents, shows it issued above its making.
+- [ ] Choose another customer on a new document made from it: "A document made from an opportunity is for its contact."
+- [ ] Lose the opportunity: Create goes and the card says to reopen it. Archived, it says to restore it.
+- [ ] As the member: only the invoice, with no total and no Create; the invoice's page names the opportunity.
+- [ ] On a test business without Sales, the card says to turn it on, linking to the Apps Center.
+
+**Phase F2: an opportunity won when its order is confirmed**
+
+**Before you start:** the full Sales app and CRM on, an open opportunity, and a member whose role views and confirms sales orders, with no CRM access.
+
+- [ ] Settings → CRM shows "Win an opportunity when its sales order is confirmed", ticked. Untick it and save ("CRM settings saved."), then tick it again.
+- [ ] From the opportunity's Sales Documents, Create → Sales Order, then Save and Confirm: the opportunity is Won, 100%, today, at the order's value before tax, with "Sales order SO-… confirmed" as its reason. Its timeline shows the win above the confirmation.
+- [ ] With the setting off, confirming such an order leaves its opportunity open.
+- [ ] Lose an opportunity after making its order, then confirm the order: the order is confirmed, and the opportunity stays lost.
+- [ ] An opportunity in another currency than its order is won at its own value.
+- [ ] As the member, confirm an order of another opportunity: it is won, marked by them, though they cannot open it.
+
+**Phase F3a: e-mail from a lead, an opportunity or a contact**
+
+**Before you start:** CRM and Sales on, the queue running (see Deploying to a server), a contact with an e-mail address you can read, an opportunity for them with a sent quotation and a file, and a member whose role sees opportunities but has no Send E-mail.
+
+- [ ] The opportunity's Timeline tab has E-mails and Send E-mail. The form starts with the contact's address and "Dear …", and offers the quotation (PDF) and the file - not a draft document.
+- [ ] Send it with a subject, a copy address and both attached: "E-mail to … is on its way." It arrives under your business's name, with replies to its address, carrying both.
+- [ ] On the timeline it goes from Sending to Sent, with whom it went to, what it carried and its message. Changes does not list it.
+- [ ] The contact's Timeline card has Send E-mail, and the opportunity's e-mail names it.
+- [ ] A lead's goes to its own address, with no documents. A converted or archived lead, an archived opportunity and a merged contact have no Send E-mail.
+- [ ] A contact with e-mails is deactivated, not deleted; merged, its e-mails move.
+- [ ] As the member: no Send E-mail, but the e-mails show.
+
+**Phase F3b: e-mail templates**
+
+**Before you start:** CRM on, an opportunity whose contact has a person's name and an e-mail address you can read, and a member whose role sends e-mail but does not manage CRM settings.
+
+- [ ] Settings → CRM has E-mail Templates, "None yet." Add one using every placeholder chip: "Template added." Another by the same name is refused.
+- [ ] On the opportunity, Send E-mail offers it under Template. Choosing it fills the subject and message: the person, their business, the opportunity, your name and your business's.
+- [ ] Send it: it arrives as filled in. Edit or delete the template: the e-mail on the timeline stays as it went.
+- [ ] From a lead, `{opportunity_name}` is empty and `{company_name}` is the lead's business.
+- [ ] As the member: no CRM tab in Settings; their form offers the template, signed with their name.
+
+**Phase F4: the CRM part of a contact's profile**
+
+**Before you start:** CRM on, a contact with a lead converted into them and opportunities open, won and lost - one in another currency - and a member whose role views contacts and the opportunities they own.
+
+- [ ] The contact's page has Opportunities above Activities: the Open, Won and Lost counts, the open ones' value and weighted value, and the won ones' value, in the base currency.
+- [ ] It names the lead source, linking to the lead converted into them.
+- [ ] The list has the open ones by closing day, then the won and lost, the latest first; an archived one is not there.
+- [ ] Add Opportunity opens the form with the contact chosen.
+- [ ] As the member: only their own opportunities, no lead source, and no Add Opportunity.
 
 ## How we work
 
@@ -2125,6 +2417,11 @@ Each document goes the same way:
 - `last_value` is a reserved word in MySQL 8: quote it (`` `last_value` ``) when putting `workspace_sequences` back by hand.
 - A `WorkspaceDropdown` option is picked by clicking the `button` inside its `li`, not the `li` itself.
 - Another project's dev server on the host can take `localhost:3000` (Node on `0.0.0.0:3000`), and the browser then opens that site instead. Open izSuite at `http://127.0.0.1:3000`, which Docker holds; the API takes it, as no CORS origin list is set. Its sign-in is separate from `localhost`'s.
+- A collection's `each()` stops at the first callback that returns false. An arrow function returns its assignment's value, so `->each(fn ($row) => $row->in_use = …)` stops at the first row given false and leaves the rest unset. Use a block closure (Doc 17 Phase D3b's tests caught it).
+- A notice's e-mail goes through the queue, and a reminder through the scheduler: on dev both run in their own containers (`izsuite-queue`, `izsuite-scheduler`), and `MAIL_MAILER=log` puts the e-mails in `storage/logs/laravel.log`. Run `php artisan crm:remind-activities` in `izsuite-api` to send due reminders at once.
+- A new export added to a file in `utils/` or `composables/` is not auto-imported by the running dev server: the page fails at run time with "… is not defined". `docker restart izsuite-frontend`, as for a new component.
+- In a PHP edit script, a JavaScript template literal (`` `${x}` ``) inside a double-quoted PHP string is read by PHP as interpolation and stops the script part-way, after the edits before it were written. Put such text in single-quoted strings.
+- In the Claude browser pane, `left_click_drag` does not start an HTML5 drag, so a dragged card never drops. Check a drop from a script instead: dispatch `dragstart` on the card, then `dragover` and `drop` on the column, with one `DataTransfer` (Doc 17 Phase D4's board).
 - `ActivityLogService::record()` puts an entry down to whoever is signed in, even in a test that acts as someone across requests. Something no one in the business did (a customer through a link) goes through `recordCustomer()`.
 
 ### Checking the app as a limited member
@@ -2303,6 +2600,16 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase D2a, won, lost, reopening and archiving | `f052a9d` | `3f475e6` | 000170 |
 | Doc 17: Phase D2b, an opportunity's files, comments and timeline | `2414d2c` | `b514ca8` | none |
 | Doc 17: Phase D3a, stale stages and the fields a stage needs | `6059052` | `6b69a39` | 000171 |
+| Doc 17: Phase D3b, several pipelines for chosen teams or locations | `11fc750` | `78b7464` | 000172 |
+| Doc 17: Phase D4, the board and calendar views | `4254ba1` | `9927a2c` | none |
+| Doc 17: Phase E1, activities | `ea90899` | `9642be7` | 000173 |
+| Doc 17: Phase E2, reminders and telling someone given an activity | `66e50b2` | `8193f53` | 000174 |
+| Doc 17: Phase E3, the timeline of a lead, an opportunity and a contact | `27fa34d` | `412898e` | none |
+| Doc 17: Phase F1, sales documents made from an opportunity | `d6971af` | `2cd5594` | 000175 |
+| Doc 17: Phase F2, an opportunity won when its order is confirmed | `9144e8a` | `2401e51` | 000176 |
+| Doc 17: Phase F3a, e-mail from a lead, an opportunity or a contact | `7ec724c` | `6f7bea7` | 000177 |
+| Doc 17: Phase F3b, e-mail templates | `e814d61` | `a58d4f2` | 000178 |
+| Doc 17: Phase F4, the CRM part of a contact's profile | the commit after `e814d61` | `9ff76c5` | none |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -2678,13 +2985,56 @@ These are easy to undo by mistake.
   - Stale is worked out on reading, never stored: `CrmOpportunityService::mark()` sets `days_at_stage` and `stale` from `stage_entered_at`, and the list's `status=stale` is the open ones past their stage's period (`CrmOpportunityRepository::stale()`).
   - `SettingChanges` counts an empty list as none, as it does empty text.
   - The frontend's `STAGE_NEEDS`, `filledNeeds()` and `stageNeeds()` (`utils/crmOpportunities.ts`) mirror the API's check for CrmStageNeedsNote, in Change Stage, Mark Won, Mark Lost and Reopen.
-- Several pipelines (Doc 17 Phase D3b1, migration 000172):
-  - `crm_pipelines.is_default`. `CrmPipelineService` adds (up to `CrmPipeline::MAX`, with `CrmPipelineRepository::add()`'s starting stages), saves (`is_active`; the default stays on), makes the default and deletes one that `loadShown()` finds unused - no `opportunities` and no `visits` (a has-many-through of its stages' visits). Settings → CRM's list comes from `listedFor()`, with `in_use`.
-  - `App\Services\Crm\PipelineChoices` is where an opportunity can go: `enterable()` (switched on - or its own - with an open stage), `default()` and `stage()`, which finds an open stage and sets its pipeline on it. Adding, converting and Change Stage take only a `stage_id`; the pipeline is the stage's.
-  - Change Stage into another pipeline sets `pipeline_id` too, logs both pipelines, and sets `CrmOpportunityFlow::$changedPipeline` for the controller's message. The record's `visits` name a stage of another pipeline with it.
-  - The options and the conversion preview give `pipelines` (`CrmPipelineChoiceResource`: stages switched on, with category, probability and needs) in place of `stages` and `all_stages`. The list filters by `pipeline_id` and gives each row's `pipeline`.
-  - Permission `crm.settings.pipelines` (Manage Pipelines and Stages) guards the four pipeline routes; the CRM tab of Settings shows to it or `crm.settings.manage`.
-  - Frontend: `SettingsCrmPipelines` (tabs, Make Default, Delete) over `SettingsCrmPipeline` and `CrmPipelineAddModal`. `useStagePicker()` is the pipeline-then-stage choice for the form, Convert and Change Stage, with `enterablePipelines()`, `defaultPipeline()` and `openStagesOf()` in `utils/crmOpportunities.ts`.
+- Several pipelines (Doc 17 Phase D3b, migration 000172):
+  - `crm_pipelines.team_ids` and `location_ids` are JSON lists, null for all; `CrmPipeline::fits()` reads them, and `pipelineFits()` in the frontend's `utils/crmOpportunities.ts` mirrors it.
+  - `App\Services\Crm\PipelineChoice` decides where an opportunity goes. `choose()` takes the one asked for or the first that fits, else refuses under `pipeline_id` (`opportunity.pipeline_id` when converting). `active()` lists those switched on, and `forForms()` / `described()` give what a form offers.
+  - `CrmPipelineService::ensureOneForAll()` keeps one pipeline switched on for every team and location, refusing under `is_active`.
+  - Delete only while no opportunity is or was in it: `CrmPipelineRepository::isUsed()` for one, `usedIds()` for the list. The resource's `removable` reads `in_use`, set by `CrmSettingService::show()` and `CrmPipelineService::save()`; a new one has none. The frontend also hides Delete on the last pipeline switched on for everyone.
+  - The opportunity options' `pipelines` (whom each is for, with its open stages) replaced `stages`, and `all_stages` carry their `pipeline_id`. The conversion preview's `stages` went the same way. `CrmOpportunityService::pipeline()` is gone.
+  - CrmOpportunityFormMain keeps the form's pipeline and stage to ones that fit as its team and location change. `useSalesTeams()` keeps its list in shared state, so Settings → CRM's pipeline cards choose from the teams its Sales Teams card loads.
+  - DataPager's `plural` prop, for a noun that does not just add s.
+- The board and the calendar (Doc 17 Phase D4, no migration):
+  - `CrmOpportunityViews` (behind `CrmOpportunityViewController`, `GET crm/opportunities/board` and `/calendar`, under View Opportunities) builds both. `CARDS_PER_COLUMN`, `CLOSED_DAYS` and `CALENDAR_LIMIT` are its limits; the frontend's `BOARD_CLOSED_DAYS` repeats the 30.
+  - `CrmOpportunityRepository::filtered()` is the list's query - visibility, search, status, stage, pipeline, owner - shared by `paginateFor()`, `closingBetween()` (the calendar) and `onBoard()`. `CrmOpportunityService::filters()` ("me", the stale moments) and `mark()` (forecast, overdue, stale) are public for the same reason.
+  - The board reads its pipeline's opportunities with a few columns (`onBoard()`), groups and sorts them in PHP for each column's order, count and `OpportunityForecast::total()`, then reads only the cards it shows (`cards()`).
+  - A card moves through the existing steps: `POST …/stage` when dropped on an open stage, and Mark Won or Mark Lost (CrmOpportunityWinModal, CrmOpportunityLoseModal) after reading the opportunity, as its menu's Change Stage does with CrmOpportunityStageModal. A modal is opened a tick after it mounts, so its own `watch(open)` sets its defaults.
+  - Dragging is HTML5 drag and drop; the card's menu is the way on touch screens. The calendar's weeks are worked out in `utils/crmCalendar.ts`, in UTC.
+  - The Opportunities page is a frame (`pages/crm/opportunities/index.vue`) around CrmOpportunityList, CrmOpportunityBoard and CrmOpportunityCalendar, with the options read once for all three.
+- Activities (Doc 17 Phase E1, migration 000173):
+  - `crm_activities` (`CrmActivity`): one of `lead_id`, `opportunity_id` or `contact_id` when planned - a converted lead's keep `lead_id` and gain `opportunity_id` (`CrmActivityRepository::carryToOpportunity()`, from `CrmLeadConversion`). `regarding()` is the opportunity first. `location_id` is the record's, null for a contact's. `due_at` is UTC; `CrmActivityService::mark()` sets `due_on`, `due_time` (the business's) and `overdue`.
+  - `CrmActivityService` (behind `CrmActivityController`) plans, changes, completes (with `follow_up`) and cancels; `ActivityVisibility` decides who sees one - the Activities page by `assigned_to`, a record's card by the record's own visibility - and `ActivityAssignments` who it can be given to.
+  - Activity types are `crm_options` of kind `activity_type`, with `needs_outcome` (`CrmOption::NEEDS_OUTCOME` for the starters). The key `call` marks a call, which alone keeps a `call_direction`.
+  - Each step is logged on the record (`ActivityLogService::record()` with the lead, opportunity or contact as subject); an edit's changes are made readable (`readable()`): the due moment in the business's time, the type and the assignee by name.
+  - Frontend: `useCrmActivities()`, `utils/crmActivities.ts` (`businessNextHour()` for the business's time zone), CrmActivitiesCard on the three record pages, the Activities page, and CrmActivityDialogs - plan, edit, complete, cancel - shared by both.
+- Reminders and notices (Doc 17 Phase E2, migration 000174):
+  - An activity's `remind_minutes` (`CrmActivity::REMINDERS`, `DEFAULT_REMINDER` 15 when left out), `remind_at` (UTC, null once due when planned) and `reminded_at`. `CrmActivityService::reminder()` works out `remind_at`; a change of moment clears `reminded_at`. Their changes stay out of the timeline's list.
+  - `App\Services\Crm\ActivityNotices`: `assigned()` (from planning, changing the assignee and a follow-up) and `remindDue()`, behind `crm:remind-activities` (every minute). `CrmActivityRepository::dueReminders()` reads every business's due ones and `claimReminder()` marks one sent for the first run only.
+  - The kind is `activities` in `NotificationKinds` (triggers `activities.assigned` and `activities.reminder`); a notice's subject is the activity. Notification tests that list every kind name it.
+- The timeline (Doc 17 Phase E3, no migration) is `CrmTimelineService`, behind `GET /crm/timeline/{kind}/{id}?show=` (`CrmTimelineController`, `CrmTimelineRequest`): `kind` lead, opportunity or contact; `show` all, activities, notes, changes, files or documents. A closure in `RoutePermissions` picks its permission by kind.
+  - `CrmTimelineRepository` reads each part up to `SHOWN` (100): `logEntries()` - the Activity Log entries about the records, without those carrying `comment_id` or `activity_id`, `properties->file` telling files from changes - `endedActivities()` and `comments()`; the sales documents come through `OpportunityDocuments::madeFor()` (Phase F1). The service merges them newest first and keeps 100.
+  - A contact's gathers `CrmLeadRepository::ofContact()` and `CrmOpportunityRepository::ofContact()`: the leads converted into it and its opportunities that the user sees.
+  - `CrmActivityService` puts `activity_id` in each step's log entry, from Phase E3 on.
+  - `CrmTimelineEntryResource` shapes each kind. A change's `mark` (won, lost, status, stage, owner) comes from its entry's `status`, `to_stage` and `owner_id`; an activity's `type_key` picks its icon.
+  - Frontend: `useCrmTimeline()`, `utils/crmTimeline.ts` (the filters and icons), CrmTimeline with CrmTimelineEntry, CrmTimelineCard on a contact's page, and RecordDiscussion's `timeline` prop on a lead's and an opportunity's. `RecordChangeList` folds an entry's changes, for this timeline and Doc 14's.
+  - A lead's and an opportunity's `/activity` routes (Doc 14's record timeline) are still there, though their pages now read this one.
+- Sales documents made from an opportunity (Doc 17 Phase F1, migration 000175): `sales_documents.opportunity_id` (`SalesDocument::opportunity()`).
+  - `App\Services\Crm\OpportunityDocuments`: `seen()` (one the user sees, while CRM is on), `refusal()` (lost, archived, another contact), `start()` (what a document starts with), `list()` (the card's, behind `GET /crm/opportunities/{id}/documents`, `CrmOpportunityDocumentController`), `madeFor()` (a contact's or an opportunity's documents the user may see - the timeline's too) and `shownLink()` (a document's `opportunity`).
+  - `SaveSalesDocumentRequest` checks a new document's `opportunity_id`; `SalesDocumentService::create()` keeps it and `update()` leaves it. `SalesConversionService::header()` carries it; `duplicate()` clears it.
+  - `GET /sales/{kind}/defaults?opportunity_id=` adds `opportunity` (`SalesFormService::opportunity()`): its contact as `customer`, its currency, and its `location_id`, `salesperson_id`, `sales_team_id` and `lines`.
+  - Frontend: CrmOpportunityDocuments on the opportunity's page, `?opportunity=` in `useSalesDocumentForm()` (`fromOpportunity()`), SalesDocumentAside's Opportunity, and `.alert-info` in `main.css`.
+- An opportunity won by its order (Doc 17 Phase F2, migration 000176): `crm_settings.win_on_order` (`CrmSetting`, on by default; `CrmSettingService::winsOnOrder()`), saved with the operating mode (`SaveCrmSettingsRequest`, `CrmSettingsResource`).
+  - `SalesDocumentFlow::confirm()` calls `CrmOpportunityClosing::winFromOrder()` once the order is confirmed and logged. It finds the opportunity for the business, whoever confirms (`CrmOpportunityRepository::findInBusiness()`), and wins it as `win()` does - its won stage, 100%, `closed_on` today, the order's `net_total` when the currencies match. What would refuse it - a won stage's needs, a conflict - is swallowed, so the order is confirmed either way. Its log entry carries `sales_document_id`.
+  - Frontend: SettingsCrm's checkbox and `useCrmSettings().saveGeneral()` (it was `saveMode()`).
+- E-mail from CRM records (Doc 17 Phase F3a, migration 000177): `crm_emails` (`CrmEmail`, its `FOR` as an activity's), `CrmEmailService` behind `GET /crm/emails/draft/{kind}/{id}` and `POST /crm/emails` (`CrmEmailController`, `SendCrmEmailRequest`), and the permission `crm.emails.send`.
+  - Sending queues `SendCrmEmail`. `App\Services\Crm\CrmMailer` makes each document's PDF (`DocumentPdf::sales()`), reads each file (`FileStorage::contents()`) and sends `App\Mail\RecordMail` - several attachments, the `emails.document` views - under `EmailSettingService::senderName()` and `replyTo()`. A file gone throws `AttachmentMissing`; `failed()` words the failure.
+  - What can be attached: `OpportunityDocuments::madeFor()` less drafts, void and cancelled documents, and the record's `attachments` files.
+  - The log entry carries `email_id`, so the timeline (`CrmTimelineRepository::emails()`, its `emails` part) shows the e-mail instead. `ContactMergeRepository` moves `crm_emails`; `ContactService` keeps a contact with any from being deleted.
+  - Frontend: `useCrmEmails()`, CrmEmailModal with CrmEmailAttachments, CrmTimelineEmail, and CrmTimeline's `canEmail`.
+- E-mail templates (Doc 17 Phase F3b, migration 000178): `crm_email_templates` (`CrmEmailTemplate`, its `PLACEHOLDERS`), `CrmEmailTemplateService` behind `/business-settings/crm/email-templates` (`CrmEmailTemplateController`, `SaveCrmEmailTemplateRequest`, `crm.settings.manage`), and Settings → CRM's `email_templates`.
+  - `CrmEmailService::draft()` returns them as `templates`, filled for the record and sender by `placeholders()` and `fill()`.
+  - Frontend: SettingsCrmEmailTemplates with CrmEmailTemplateModal (its placeholder chips), `useCrmSettings().saveTemplate()` and `deleteTemplate()`, and CrmEmailModal's Template list.
+- A contact's CRM part (Doc 17 Phase F4, no migration): `CrmContactSummaryService` behind `GET /crm/contacts/{id}/summary` (`CrmContactSummaryController`, `CrmContactSummaryResource`, `contacts.view`). It reads `CrmOpportunityRepository::forContactProfile()` and `CrmLeadRepository::convertedInto()` within the user's scopes, and totals with `OpportunityForecast::total()`.
+  - Frontend: CrmContactSummary on the contact's page (`useCrmContactSummary()`), and CrmOpportunityForm's `?contact=&contact_name=`.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -2708,6 +3058,17 @@ These are easy to undo by mistake.
 - A customer's credit exposure counts invoices dated up to today, as Outstanding Invoices does, so one dated ahead is left out until its day.
 - The customer's link page answers in English, even for a document in another language: only Download PDF is translated there.
 - A customer's address on a response is what Laravel sees: behind a proxy it is the proxy's until its address is trusted (see Deploying), and on dev it is Docker's gateway.
+- An opportunity cannot move to another pipeline. Edited to a team or location its pipeline is not for, it stays where it is (Doc 17 Phase D3b).
+- The Opportunities page's Pipeline and Stage filters offer only pipelines switched on. A switched-off pipeline's opportunities show under Any pipeline (the board can still pick one).
+- A contact's Opportunities card lists up to 50 and leaves archived ones out, and its lead source is the first converted lead's, however many there were (Doc 17 Phase F4).
+- A business starts with no e-mail templates, and a placeholder with nothing to stand for - an opportunity's name on a lead's e-mail - is left empty (Doc 17 Phase F3b).
+- Replies to a CRM e-mail reach the business's own inbox and are not read back; there is no scheduled sending or tracked opening. Send E-mail is on the timeline, so on a lead's and an opportunity's page it is under the Comments card's Timeline tab (Doc 17 Phase F3a).
+- Only a sales order's confirmation wins an opportunity, so with Sales Lite one is won by hand; and cancelling the order later leaves it won (Doc 17 Phase F2).
+- A document's link to its opportunity is set when it is made: changing its customer later, or the opportunity's contact, leaves it linked, and nothing unlinks one. Documents made before Phase F1 have none. The card's "turn on Sales" path was not checked in the browser: the dev business runs Sales Lite (Doc 17 Phase F1).
+- A timeline shows the newest 100 of each part, with no paging further back. Planning or changing an activity shows only in Settings → Activity Log, and a contact's Timeline card is read when their page opens, so an activity completed in the card above it shows once a filter is chosen again (Doc 17 Phase E3).
+- A reminder cannot be snoozed, and goes only to the activity's assignee; there is no reminder for the owner of the record it is for (Doc 17 Phase E2).
+- An activity, once completed or cancelled, is not reopened; activities are not on the opportunities' board or calendar; the Activities page searches subjects and record names, not places or descriptions; and its For link to a record the user does not see leads to a not-found page (Doc 17 Phase E1).
+- The board keeps each column in the list's order: cards are not reordered by hand. Nothing changes a closing day by dragging it on the calendar, and the board's column of 50 has no link to the rest in the list (Doc 17 Phase D4).
 
 ## Open decisions
 
@@ -2793,5 +3154,14 @@ Each of these is yours to settle.
 - Doc 17 Phase D2a: migration 000170 adds how an opportunity ended (won or lost on, by, the won reason, the lost reason, competitor, notes and follow-up day) and its archiving. Mark Won or Lost and Reopen Won or Lost are new permissions: give them to custom roles that need them (the Sales User template has Mark Won or Lost). Deploy the frontend with it.
 - Doc 17 Phase D2b: no migration. Deploy the frontend with it (an opportunity's page gains its files, comments and timeline).
 - Doc 17 Phase D3a: migration 000171 adds each stage's stale-after days and the details it needs. Nothing changes until Settings → CRM sets them. Deploy the frontend with it.
-- Doc 17 Phase D3b1: migration 000172 makes each business's first pipeline its default, and gives Manage Pipelines and Stages to every role that manages CRM settings. Deploy the frontend with it: the options' `stages` and `all_stages` are replaced by `pipelines`, so the old frontend's opportunity form would find no stages.
+- Doc 17 Phase D3b: migration 000172 adds `team_ids` and `location_ids` to `crm_pipelines`. Each pipeline there is stays for every team and location until Settings → CRM changes it. Deploy the frontend with it.
+- Doc 17 Phase D4: no migration. Deploy the frontend with it (the Opportunities page gains Board and Calendar).
+- Doc 17 Phase E1: migration 000173 adds `crm_activities`, whether an activity type needs an outcome (izSuite's Call, Meeting, Demonstration and Site Visit do), and Activities in CRM's sidebar. The Activities permissions are new: give them to custom roles that need them (the Sales User template has both). Deploy the frontend with it.
+- Doc 17 Phase E2: migration 000174 adds an activity's reminder. Activities planned before it have none. Reminders need the scheduler running (`crm:remind-activities` every minute) and their e-mails the queue workers; restart them after deploying (`php artisan queue:restart`). Deploy the frontend with it.
+- Doc 17 Phase E3: no migration. Deploy the frontend with it (a lead's and an opportunity's Comments card shows Timeline, and a contact's page gains a Timeline card). An activity's steps logged before it name no activity, so they show among a timeline's changes as well as the activity itself.
+- Doc 17 Phase F1: migration 000175 adds a sales document's opportunity (`opportunity_id`). Documents made before it have none. Deploy the frontend with it (an opportunity's page gains Sales Documents, and the sales form starts from an opportunity).
+- Doc 17 Phase F2: migration 000176 adds Settings → CRM's "Win an opportunity when its sales order is confirmed", on for every business. Deploy the frontend with it.
+- Doc 17 Phase F3a: migration 000177 adds `crm_emails`, and a new permission, CRM → E-mail: Send E-mail, given to the Sales User template; give it to custom roles in Settings → Users & Roles. Its e-mails go through the queue: restart the workers after deploying (`php artisan queue:restart`). Deploy the frontend with it.
+- Doc 17 Phase F3b: migration 000178 adds `crm_email_templates`; businesses start with none. Deploy the frontend with it.
+- Doc 17 Phase F4: no migration. Deploy the frontend with it (a contact's page gains its Opportunities card, and Add Opportunity there starts with them).
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

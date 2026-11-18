@@ -5,20 +5,15 @@ namespace App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 /**
  * A business's opportunity pipeline (Doc 17 section 17.13 - Phase A2): the
  * stages an opportunity moves through, in order. A business has one to
- * start, and (Phase D3b1) up to MAX: one is the default, where new
- * opportunities start - always switched on. One switched off takes no
- * opportunity in, and those in it carry on there.
+ * start; more come with opportunities (Phase D).
  */
 class CrmPipeline extends Model
 {
     public const STARTER_NAME = 'Sales Pipeline';
-
-    public const MAX = 20;
 
     /** The starting stages: [name, default probability, category]. */
     public const STARTER_STAGES = [
@@ -34,20 +29,22 @@ class CrmPipeline extends Model
         'name',
         'position',
         'is_active',
-        'is_default',
+        // Phase D3b: the sales teams and locations it is for - none, all of them.
+        'team_ids',
+        'location_ids',
     ];
 
     protected $casts = [
-        'position'   => 'integer',
-        'is_active'  => 'boolean',
-        'is_default' => 'boolean',
+        'position'     => 'integer',
+        'is_active'    => 'boolean',
+        'team_ids'     => 'array',
+        'location_ids' => 'array',
     ];
 
     // The columns' defaults, so one just made reads as it was saved.
     protected $attributes = [
-        'position'   => 1,
-        'is_active'  => true,
-        'is_default' => false,
+        'position'  => 1,
+        'is_active' => true,
     ];
 
     public function workspace(): BelongsTo
@@ -61,15 +58,15 @@ class CrmPipeline extends Model
         return $this->hasMany(CrmStage::class)->orderBy('position')->orderBy('id');
     }
 
-    /** The opportunities in it now. */
-    public function opportunities(): HasMany
+    /**
+     * Whether an opportunity of $teamId's sales team at $locationId may be in
+     * it (Phase D3b): it is for all teams, or that one among those chosen -
+     * and likewise for locations. An opportunity without a team fits only a
+     * pipeline for all teams; without a location, one for all locations.
+     */
+    public function fits(?int $teamId, ?int $locationId): bool
     {
-        return $this->hasMany(CrmOpportunity::class, 'pipeline_id');
-    }
-
-    /** Every time an opportunity came to one of its stages - those since moved to another pipeline too. */
-    public function visits(): HasManyThrough
-    {
-        return $this->hasManyThrough(CrmStageVisit::class, CrmStage::class, 'crm_pipeline_id', 'crm_stage_id');
+        return ($this->team_ids === null || $this->team_ids === [] || ($teamId !== null && in_array($teamId, $this->team_ids, true)))
+            && ($this->location_ids === null || $this->location_ids === [] || ($locationId !== null && in_array($locationId, $this->location_ids, true)));
     }
 }

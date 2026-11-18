@@ -183,6 +183,8 @@ class AppCatalogSeeder extends Seeder
         // Doc 17 Phase A1: Leads while the business uses them, Opportunities, and the customers in the shared Contacts page.
         ['apps', 'crm', 'Leads', 'target', '/crm/leads', 'lite', 'crm_uses_leads'],
         ['apps', 'crm', 'Opportunities', 'handshake', '/crm/opportunities', 'lite', null],
+        // Phase E1: activities.
+        ['apps', 'crm', 'Activities', 'calendar-check', '/crm/activities', 'lite', null],
         ['apps', 'crm', 'Customers', 'users', '/contacts?role=customer', 'lite', null],
         ['apps', 'inventory', 'Stock', 'boxes', '/inventory/stock', 'lite', null],
         ['apps', 'inventory', 'Adjustments', 'sliders-horizontal', '/inventory/adjustments', 'lite', null],
@@ -214,6 +216,7 @@ class AppCatalogSeeder extends Seeder
         '/contacts?role=customer' => 'contacts.view',
         '/crm/leads'          => 'crm.leads.view',
         '/crm/opportunities'  => 'crm.opportunities.view',
+        '/crm/activities'     => 'crm.activities.view',
         '/purchases'          => 'purchases.purchases.view',
         '/purchases/payments' => 'purchases.payments.view',
         '/expenses'           => 'expenses.expenses.view',

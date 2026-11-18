@@ -7,10 +7,12 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * What an opportunity's form and the Opportunities page's filters choose from
- * (Doc 17 Phase D1): (Phase D3b1) the pipelines with their stages switched
- * on, the lead sources and sales teams switched on, the people it can be
- * given to with the locations each may use (null for every one), and where a
- * new one starts and who owns it.
+ * (Doc 17 Phase D1): since Phase D3b the pipelines switched on - whom each is
+ * for, with its open stages switched on and their probabilities - and every
+ * stage of theirs switched on with its pipeline (to filter by), the lead
+ * sources and sales teams
+ * switched on, the people it can be given to with the locations each may use
+ * (null for every one), and where a new one starts and who owns it.
  */
 class CrmOpportunityOptionsResource extends JsonResource
 {
@@ -19,7 +21,8 @@ class CrmOpportunityOptionsResource extends JsonResource
         $named = fn ($record) => ['id' => $record->id, 'name' => $record->name];
 
         return [
-            'pipelines'    => CrmPipelineChoiceResource::collection($this->resource['pipelines']),
+            'all_stages'   => $this->resource['all_stages']->map(fn ($stage) => [...$named($stage), 'pipeline_id' => $stage->crm_pipeline_id])->values(),
+            'pipelines'    => $this->resource['pipelines'],
             'sources'      => $this->resource['sources']->map($named)->values(),
             // Phase D2a: what an opportunity is lost for.
             'lost_reasons' => $this->resource['lost_reasons']->map($named)->values(),

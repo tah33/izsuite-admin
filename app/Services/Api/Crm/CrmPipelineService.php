@@ -7,55 +7,51 @@ use App\Models\User\CrmStage;
 use App\Models\User\Workspace;
 use App\Repositories\User\CrmOpportunityRepository;
 use App\Repositories\User\CrmPipelineRepository;
-use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * A business's pipelines in Settings > CRM (Doc 17 sections 17.13 and 17.14
- * - Phase A2): a pipeline's name and its stages in order, each with its
- * default probability and category. A won stage is always 100% and a lost
- * one 0%, whatever is sent (section 17.14). A stage keeps its id when the
- * pipeline is saved, so the opportunities in it stay there.
+ * Pipelines kept in Settings > CRM (Doc 17 sections 17.13 and 17.14). A
+ * pipeline is saved whole (Phase A2): its name and its stages in order, each
+ * with its default probability and category - a won stage always 100% and a
+ * lost one 0%, whatever is sent. A stage keeps its id when the pipeline is
+ * saved, so the opportunities in it stay there.
  *
- * Phase D3b1: up to CrmPipeline::MAX, each added with the starting stages.
- * One is the default, where new opportunities start: it stays switched on
- * and is not deleted. Another is switched off - taking no opportunity in -
- * or deleted when no opportunity is or was in it.
+ * Since Phase D3b a business has several: one is added with the starter
+ * stages, each is switched on or off and is for all sales teams and locations
+ * or only those chosen, and one no opportunity was ever in is deleted. One
+ * pipeline stays switched on, and one stays for every team and location, so
+ * every opportunity has somewhere to go.
  */
 class CrmPipelineService
 {
-    use RefusesConflicts;
+    use \App\Services\Api\Sales\RefusesConflicts;
 
     public function __construct(
         protected CrmPipelineRepository $pipelines,
         protected CrmOpportunityRepository $opportunities,
-        protected CrmSettingService $settings,
     ) {}
 
-    /** $data is validated (see AddCrmPipelineRequest). */
+    /** A pipeline added, with the starter stages to change. $data is validated (see CreateCrmPipelineRequest). */
     public function create(Workspace $workspace, array $data): CrmPipeline
     {
-        // The first pipeline is there before another, as the default.
-        $this->settings->start($workspace);
+        $pipeline = DB::transaction(fn () => $this->pipelines->create($workspace, [
+            'name'         => trim($data['name']),
+            'is_active'    => true,
+            'team_ids'     => $this->ids($data['team_ids'] ?? null),
+            'location_ids' => $this->ids($data['location_ids'] ?? null),
+        ], CrmPipeline::STARTER_STAGES));
 
-        if ($this->pipelines->countFor($workspace) >= CrmPipeline::MAX) {
-            throw ValidationException::withMessages(['name' => 'A business can have up to '.CrmPipeline::MAX.' pipelines.']);
-        }
+        ActivityLogService::record('created', "Added the pipeline \"{$pipeline->name}\"", $pipeline, ['source' => 'api']);
 
-        $pipeline = $this->pipelines->add($workspace, trim($data['name']));
-
-        ActivityLogService::record('created', "Added the pipeline \"{$pipeline->name}\"", $pipeline, ['source' => 'api', 'stages' => $pipeline->stages->count()]);
-
-        return $this->pipelines->loadShown($pipeline);
+        return $pipeline;
     }
 
     /** $data is validated (see SaveCrmPipelineRequest). */
     public function save(Workspace $workspace, int $id, array $data): CrmPipeline
     {
-        $pipeline = $this->find($workspace, $id);
-        $active   = (bool) ($data['is_active'] ?? $pipeline->is_active);
+        $pipeline = $this->pipelines->findFor($workspace, $id) ?? abort(404, 'Pipeline not found.');
         $stages   = array_map(fn (array $stage) => [
             'id'          => isset($stage['id']) ? (int) $stage['id'] : null,
             'name'        => trim($stage['name']),
@@ -67,10 +63,6 @@ class CrmPipelineService
             'is_active'   => (bool) ($stage['is_active'] ?? true),
         ], $data['stages']);
 
-        if (! $active && $pipeline->is_default) {
-            throw ValidationException::withMessages(['is_active' => 'The default pipeline stays switched on: make another one the default first.']);
-        }
-
         // A stage left out is removed - unless opportunities are in it (Phase C1) or were (Phase D1): those stay, with their history.
         $removed = $pipeline->stages->pluck('id')->diff(array_filter(array_column($stages, 'id')))->values()->all();
         $inUse   = $this->opportunities->stagesInUse($removed);
@@ -79,56 +71,68 @@ class CrmPipelineService
             throw ValidationException::withMessages(['stages' => 'Opportunities are or were at "'.$pipeline->stages->whereIn('id', $inUse)->pluck('name')->implode('", "').'", so it stays: switch it off instead.']);
         }
 
-        DB::transaction(function () use ($pipeline, $data, $stages, $active) {
-            $this->pipelines->update($pipeline, ['name' => trim($data['name']), 'is_active' => $active]);
+        // Phase D3b: switched on or off, and whom it is for - with one pipeline for everyone always on.
+        $scope = [
+            'is_active'    => (bool) ($data['is_active'] ?? $pipeline->is_active),
+            'team_ids'     => array_key_exists('team_ids', $data) ? $this->ids($data['team_ids']) : $pipeline->team_ids,
+            'location_ids' => array_key_exists('location_ids', $data) ? $this->ids($data['location_ids']) : $pipeline->location_ids,
+        ];
+
+        $this->ensureOneForAll($workspace, $pipeline, $scope);
+
+        DB::transaction(function () use ($pipeline, $data, $stages, $scope) {
+            $this->pipelines->update($pipeline, ['name' => trim($data['name']), ...$scope]);
             $this->pipelines->replaceStages($pipeline, $stages);
         });
 
         // Logged here, so LogApiWriteActivity does not add its own vaguer entry.
         ActivityLogService::record('updated', "Updated the pipeline \"{$pipeline->name}\"", $pipeline, ['source' => 'api', 'stages' => count($stages)]);
 
-        return $this->pipelines->loadShown($pipeline);
+        $pipeline->load('stages');
+        // Whether opportunities are or were in it, so it stays.
+        $pipeline->in_use = $this->pipelines->isUsed($pipeline);
+
+        return $pipeline;
     }
 
-    /** Where new opportunities and converted leads start from now on: a pipeline switched on. */
-    public function makeDefault(Workspace $workspace, int $id): CrmPipeline
-    {
-        $pipeline = $this->find($workspace, $id);
-
-        if (! $pipeline->is_active) {
-            $this->refuse('Switch this pipeline on before making it the default.');
-        }
-
-        if (! $pipeline->is_default) {
-            DB::transaction(fn () => $this->pipelines->makeDefault($workspace, $pipeline));
-
-            ActivityLogService::record('updated', "Made the pipeline \"{$pipeline->name}\" the default", $pipeline, ['source' => 'api', 'changes' => []]);
-        }
-
-        return $this->pipelines->loadShown($pipeline);
-    }
-
-    /** One no opportunity is or was in, with its stages; never the default. */
+    /** Deleted while no opportunity is or was ever in it - otherwise it is switched off, keeping their history. */
     public function delete(Workspace $workspace, int $id): void
     {
-        $pipeline = $this->pipelines->loadShown($this->find($workspace, $id));
+        $pipeline = $this->pipelines->findFor($workspace, $id) ?? abort(404, 'Pipeline not found.');
 
-        if ($pipeline->is_default) {
-            $this->refuse('The default pipeline cannot be deleted: make another one the default first.');
+        if ($this->pipelines->isUsed($pipeline)) {
+            $this->refuse("Opportunities are or were in \"{$pipeline->name}\", so it stays: switch it off instead.");
         }
 
-        if ($pipeline->opportunities_exists || $pipeline->visits_exists) {
-            $this->refuse('Opportunities are or were in this pipeline, so it stays. Switch it off instead.');
-        }
+        $this->ensureOneForAll($workspace, $pipeline, null);
 
         $this->pipelines->delete($pipeline);
 
         ActivityLogService::record('deleted', "Deleted the pipeline \"{$pipeline->name}\"", $pipeline, ['source' => 'api']);
     }
 
-    /** Another business's pipeline answers like one that does not exist. */
-    private function find(Workspace $workspace, int $id): CrmPipeline
+    /**
+     * Refused when, with $pipeline as $scope makes it - or gone, for null - no
+     * pipeline switched on would be for every sales team and location: an
+     * opportunity of any team, or of none, needs one to go to.
+     */
+    private function ensureOneForAll(Workspace $workspace, CrmPipeline $pipeline, ?array $scope): void
     {
-        return $this->pipelines->findFor($workspace, $id) ?? abort(404, 'Pipeline not found.');
+        $forAll = $this->pipelines->getFor($workspace)
+            ->map(fn (CrmPipeline $row) => $row->is($pipeline) ? ($scope === null ? null : (clone $row)->forceFill($scope)) : $row)
+            ->filter()
+            ->contains(fn (CrmPipeline $row) => $row->is_active && $row->fits(null, null));
+
+        if (! $forAll) {
+            throw ValidationException::withMessages(['is_active' => 'One pipeline switched on must stay for every sales team and location, so every opportunity has somewhere to go.']);
+        }
+    }
+
+    /** Chosen ids, or null for all. */
+    private function ids(?array $ids): ?array
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids ?? [])));
+
+        return $ids === [] ? null : $ids;
     }
 }

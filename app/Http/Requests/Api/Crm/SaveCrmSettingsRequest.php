@@ -16,9 +16,10 @@ class SaveCrmSettingsRequest extends FormRequest
 
     /**
      * Settings > CRM: how the business uses CRM - leads and opportunities, or
-     * opportunities only (Phase A1) - and what a lead needs filled in before
-     * it is qualified (Phase B2a). Either is saved on its own; one left out
-     * stays as it was.
+     * opportunities only (Phase A1) - what a lead needs filled in before it
+     * is qualified (Phase B2a), and whether confirming a sales order made
+     * from an opportunity wins it (Phase F2). Each is saved on its own; one
+     * left out stays as it was.
      */
     public function rules(): array
     {
@@ -26,6 +27,7 @@ class SaveCrmSettingsRequest extends FormRequest
             'mode'                     => ['sometimes', 'required', Rule::in(array_keys(CrmSetting::MODES))],
             'qualification_required'   => ['sometimes', 'present', 'array'],
             'qualification_required.*' => ['string', 'distinct', Rule::in(array_keys(CrmLead::QUALIFYING))],
+            'win_on_order'             => ['sometimes', 'required', 'boolean'],
         ];
     }
 }

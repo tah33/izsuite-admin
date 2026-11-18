@@ -21,6 +21,7 @@ use App\Services\Api\Sales\SalesOrderDeposits;
 use App\Services\Api\Sales\SalesDeliveryService;
 use App\Services\Api\Sales\SalesOrderInvoicing;
 use App\Services\Api\Sales\SalesSnapshots;
+use App\Services\Crm\OpportunityDocuments;
 use App\Services\Documents\DocumentLinks;
 use App\Services\Shared\AllowedActions;
 use App\Services\Sales\SalesDocumentRules;
@@ -148,6 +149,8 @@ class SalesDocumentResource extends JsonResource
             'status_reason'        => $this->status_reason,
             'reason'               => $this->reason,
             'source'               => $this->source ? $this->link($this->source) : null,
+            // The CRM opportunity it was made from, for whoever sees it while CRM is on (Doc 17 Phase F1).
+            'opportunity'          => app(OpportunityDocuments::class)->shownLink($this->resource),
             'conversions'          => $this->conversions->map(fn (SalesDocument $document) => $this->link($document))->all(),
             'credit_notes'         => $this->creditNotes->map(fn (SalesDocument $note) => $this->hideValues('sales', [
                 ...$this->link($note),

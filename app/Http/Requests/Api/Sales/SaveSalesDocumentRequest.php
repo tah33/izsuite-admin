@@ -6,6 +6,7 @@ use App\Enums\DocumentType;
 use App\Enums\Edition;
 use App\Models\User\SalesDocument;
 use App\Repositories\User\SalesTeamRepository;
+use App\Services\Crm\OpportunityDocuments;
 use App\Services\User\Apps\WorkspaceApps;
 use App\Support\Countries;
 use Illuminate\Support\Arr;
@@ -140,6 +141,8 @@ class SaveSalesDocumentRequest extends FormRequest
             'payment_instructions'   => ['nullable', 'string', 'max:5000'],
             // An invoice made from a sales order, billing beyond what it has left: why (Doc 16 Phase B2).
             'over_invoice_reason'    => ['sometimes', 'nullable', 'string', 'max:500'],
+            // The CRM opportunity a new one is made from (Doc 17 Phase F1); a saved one keeps its own.
+            'opportunity_id'         => ['sometimes', 'nullable', 'integer'],
             // The full Sales app's (Doc 16 Phase A); sent only from its form.
             'salesperson_id'         => ['sometimes', 'nullable', 'integer'],
             'sales_team_id'          => ['sometimes', 'nullable', 'integer'],
@@ -190,7 +193,11 @@ class SaveSalesDocumentRequest extends FormRequest
         ];
     }
 
-    /** What needs the database or the settings - see SalesDocumentChecks - and the salesperson and team being the business's own. */
+    /**
+     * What needs the database or the settings - see SalesDocumentChecks - the
+     * salesperson and team being the business's own, and a new document's
+     * opportunity being one it may be made from (OpportunityDocuments).
+     */
     public function after(): array
     {
         return [
@@ -211,6 +218,21 @@ class SaveSalesDocumentRequest extends FormRequest
 
                 if ($this->filled('sales_team_id') && ! $teams->find($workspace, (int) $this->input('sales_team_id'))) {
                     $validator->errors()->add('sales_team_id', 'Choose one of the business\'s sales teams.');
+                }
+            },
+            function (Validator $validator) {
+                if ($this->route('id') || ! $this->filled('opportunity_id') || $validator->errors()->has('opportunity_id')) {
+                    return;
+                }
+
+                $documents = app(OpportunityDocuments::class);
+                $refusal   = $documents->refusal(
+                    $documents->seen($this->attributes->get('workspace'), $this->user(), (int) $this->input('opportunity_id')),
+                    $this->filled('contact_id') ? (int) $this->input('contact_id') : null,
+                );
+
+                if ($refusal) {
+                    $validator->errors()->add(...$refusal);
                 }
             },
         ];

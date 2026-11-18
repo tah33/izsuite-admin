@@ -87,8 +87,9 @@ class CrmLeadConversionTest extends TestCase
         $preview = $this->getJson("/api/v1/crm/leads/{$lead}/conversion")->assertOk()->json('data');
 
         $this->assertSame([], $preview['matches']);
-        $this->assertSame(['New', 'Qualified', 'Proposal', 'Negotiation'], array_column(array_filter($preview['pipelines'][0]['stages'], fn (array $stage) => $stage['category'] === 'open'), 'name'));
-        $this->assertSame(['name' => 'Uddin Traders', 'stage_id' => $this->stage('New'), 'expected_value' => '1500.00', 'currency' => $this->business->base_currency, 'expected_close_date' => '2026-12-20'], $preview['defaults']);
+        // Phase D3b: the pipelines for the lead's team and location - the one there is - with their open stages, and the first to start.
+        $this->assertSame([['Sales Pipeline', ['New', 'Qualified', 'Proposal', 'Negotiation']]], array_map(fn (array $row) => [$row['name'], array_column($row['stages'], 'name')], $preview['pipelines']));
+        $this->assertSame(['name' => 'Uddin Traders', 'pipeline_id' => $preview['pipelines'][0]['id'], 'stage_id' => $this->stage('New'), 'expected_value' => '1500.00', 'currency' => $this->business->base_currency, 'expected_close_date' => '2026-12-20'], $preview['defaults']);
         $this->assertTrue($preview['can_create_contact']);
 
         $this->convert($lead, null)->assertOk()
@@ -127,7 +128,7 @@ class CrmLeadConversionTest extends TestCase
         // Not another business's contact, not a closed stage, and the choice is said.
         $theirs = $this->businessOf(User::factory()->create())->contacts()->create(['contact_type' => 'business', 'role' => 'customer', 'name' => 'Theirs']);
         $this->convert($lead, $theirs->id)->assertUnprocessable()->assertJsonValidationErrors(['contact_id' => 'Choose one of your contacts.']);
-        $this->convert($lead, $supplier->id, ['stage_id' => $this->stage('Won')])->assertUnprocessable()->assertJsonValidationErrors(['opportunity.stage_id' => "Choose an open stage of a pipeline switched on."]);
+        $this->convert($lead, $supplier->id, ['stage_id' => $this->stage('Won')])->assertUnprocessable()->assertJsonValidationErrors(['opportunity.stage_id' => "Choose one of the pipeline's open stages."]);
         $this->postJson("/api/v1/crm/leads/{$lead}/convert", ['opportunity' => ['name' => 'X']])->assertUnprocessable()
             ->assertJsonValidationErrors(['contact_id' => 'Choose a contact, or a new one from the lead.', 'opportunity.stage_id', 'opportunity.expected_value', 'opportunity.expected_close_date']);
 

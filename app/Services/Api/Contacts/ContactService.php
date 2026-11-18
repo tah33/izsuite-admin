@@ -29,6 +29,8 @@ class ContactService
         protected WorkspaceAccess $access,
         protected RecordAuthorRepository $recordAuthorRepository,
         protected CrmOpportunityRepository $crmOpportunityRepository,
+        protected \App\Repositories\User\CrmActivityRepository $crmActivityRepository,
+        protected \App\Repositories\User\CrmEmailRepository $crmEmailRepository,
     ) {}
 
     /** The tax ID is searched only while the business uses taxes (Doc 03 section 3). */
@@ -174,6 +176,20 @@ class ContactService
         if ($this->crmOpportunityRepository->usesContact($contact)) {
             throw new HttpResponseException(response()->json([
                 'message' => 'This contact has CRM opportunities, so it cannot be deleted. Deactivate it instead.',
+            ], 409));
+        }
+
+        // Doc 17 Phase E1: an activity planned for it.
+        if ($this->crmActivityRepository->usesContact($contact)) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'This contact has CRM activities, so it cannot be deleted. Deactivate it instead.',
+            ], 409));
+        }
+
+        // Doc 17 Phase F3a: an e-mail sent from it, kept on its timeline.
+        if ($this->crmEmailRepository->usesContact($contact)) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'This contact has CRM e-mails, so it cannot be deleted. Deactivate it instead.',
             ], 409));
         }
 

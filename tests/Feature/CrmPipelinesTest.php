@@ -5,22 +5,24 @@ namespace Tests\Feature;
 use App\Models\Billing\Package;
 use App\Models\Frontend\Application;
 use App\Models\User\Contact;
+use App\Models\User\SalesTeam;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 use Illuminate\Testing\TestResponse;
-use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\OffersSalesLite;
 use Tests\Concerns\SignsIntoBusinesses;
 use Tests\TestCase;
 
 /**
- * Doc 17 Phase D3b1: several pipelines (sections 17.13, 17.26 and 17.30) -
- * added in Settings → CRM with the starting stages, one the default, others
- * switched off or deleted when no opportunity is or was in them - and
- * opportunities added, converted and moved into the pipelines switched on.
+ * Doc 17 Phase D3b: several pipelines - one added with the starter stages,
+ * each switched on or off and for all sales teams and locations or the ones
+ * chosen, one deleted while no opportunity was ever in it - with one for
+ * everyone always kept on; and opportunities, added or converted from leads,
+ * going in one switched on that is for their team and location, the first
+ * that fits when none is asked for. Monday 16 November 2026.
  */
 class CrmPipelinesTest extends TestCase
 {
@@ -34,6 +36,10 @@ class CrmPipelinesTest extends TestCase
 
     private Contact $contact;
 
+    private SalesTeam $team;
+
+    private int $main;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -44,211 +50,120 @@ class CrmPipelinesTest extends TestCase
         $crm = Application::create(['app_key' => 'crm', 'name' => 'CRM', 'family_key' => 'crm', 'edition' => 'full', 'category_id' => Application::sole()->category_id, 'sort_order' => 20, 'is_active' => true, 'status' => 'available']);
         $crm->packages()->attach(Package::pluck('id'));
 
+        $this->travelTo(Carbon::parse('2026-11-16 10:00:00', 'UTC'));
         $this->user     = $this->signIn();
         $this->business = $this->businessOf($this->user);
+        $this->business->forceFill(['base_currency' => 'USD'])->save();
         $this->postJson('/api/v1/apps/crm/activate')->assertOk();
 
         $this->contact = $this->business->contacts()->create(['contact_type' => 'business', 'role' => 'customer', 'name' => 'Uddin Traders']);
+        $this->team    = SalesTeam::create(['workspace_id' => $this->business->id, 'name' => 'Wholesale Desk']);
+        $this->main    = $this->getJson('/api/v1/business-settings/crm')->json('data.pipelines.0.id');
     }
 
-    /** Settings → CRM's pipelines by name. */
-    private function pipelines(): array
+    /** Pipeline $id saved as it is, with $fields over it. */
+    private function save(int $id, array $fields): TestResponse
     {
-        return collect($this->getJson('/api/v1/business-settings/crm')->assertOk()->json('data.pipelines'))->keyBy('name')->all();
+        $pipeline = collect($this->getJson('/api/v1/business-settings/crm')->json('data.pipelines'))->firstWhere('id', $id);
+
+        return $this->putJson("/api/v1/business-settings/crm/pipelines/{$id}", [...$pipeline, ...$fields]);
     }
 
-    /** The id of $pipeline's stage called $stage. */
-    private function stage(string $pipeline, string $stage): int
-    {
-        return collect($this->pipelines()[$pipeline]['stages'])->firstWhere('name', $stage)['id'];
-    }
-
-    private function addPipeline(string $name): TestResponse
-    {
-        return $this->postJson('/api/v1/business-settings/crm/pipelines', ['name' => $name]);
-    }
-
-    /** Saves $name as it is, switched on or off. */
-    private function switchPipeline(string $name, bool $on): TestResponse
-    {
-        $pipeline = $this->pipelines()[$name];
-
-        return $this->putJson("/api/v1/business-settings/crm/pipelines/{$pipeline['id']}", ['name' => $name, 'is_active' => $on, 'stages' => $pipeline['stages']]);
-    }
-
-    private function add(int $stageId): TestResponse
+    private function add(array $fields): TestResponse
     {
         return $this->postJson('/api/v1/crm/opportunities', [
-            'name' => 'Uddin Traders - shelving', 'contact_id' => $this->contact->id, 'stage_id' => $stageId,
-            'expected_value' => '2000', 'currency' => $this->business->base_currency, 'expected_close_date' => '2026-12-20',
+            'name' => 'Uddin Traders - racking', 'contact_id' => $this->contact->id, 'expected_value' => '2000', 'currency' => 'USD', 'expected_close_date' => '2026-12-20', ...$fields,
         ]);
     }
 
-    private function move(int $id, int $stageId): TestResponse
+    public function test_a_pipeline_is_added_for_chosen_teams_and_one_for_everyone_stays_on(): void
     {
-        return $this->postJson("/api/v1/crm/opportunities/{$id}/stage", ['stage_id' => $stageId]);
+        $wholesale = $this->postJson('/api/v1/business-settings/crm/pipelines', ['name' => 'Wholesale', 'team_ids' => [$this->team->id]])
+            ->assertCreated()
+            ->assertJsonPath('message', 'Pipeline "Wholesale" added.')
+            ->assertJsonPath('data.team_ids', [$this->team->id])
+            ->assertJsonPath('data.removable', true)
+            ->json('data');
+
+        $this->assertSame(['New', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost'], array_column($wholesale['stages'], 'name'));
+        $this->postJson('/api/v1/business-settings/crm/pipelines', ['name' => 'Wholesale'])->assertUnprocessable()->assertJsonValidationErrors('name');
+
+        // The only pipeline for everyone is neither switched off nor narrowed.
+        $this->save($this->main, ['is_active' => false])->assertUnprocessable()->assertJsonValidationErrors('is_active');
+        $this->save($this->main, ['team_ids' => [$this->team->id]])->assertUnprocessable()->assertJsonValidationErrors('is_active');
+        $this->deleteJson("/api/v1/business-settings/crm/pipelines/{$this->main}")->assertUnprocessable();
+
+        // Wholesale is switched off and on, and deleted while nothing was in it.
+        $this->save($wholesale['id'], ['is_active' => false])->assertOk()->assertJsonPath('data.is_active', false);
+        $this->save($wholesale['id'], ['is_active' => true])->assertOk();
+
+        $this->add(['pipeline_id' => $wholesale['id'], 'stage_id' => $wholesale['stages'][0]['id'], 'sales_team_id' => $this->team->id])->assertCreated();
+        $this->assertSame(['Sales Pipeline' => true, 'Wholesale' => false], collect($this->getJson('/api/v1/business-settings/crm')->json('data.pipelines'))->pluck('removable', 'name')->all());
+        $this->save($wholesale['id'], [])->assertOk()->assertJsonPath('data.removable', false);
+        $this->deleteJson("/api/v1/business-settings/crm/pipelines/{$wholesale['id']}")->assertStatus(409)
+            ->assertJsonPath('message', 'Opportunities are or were in "Wholesale", so it stays: switch it off instead.');
+
+        $spare = $this->postJson('/api/v1/business-settings/crm/pipelines', ['name' => 'Spare'])->assertCreated()->json('data.id');
+        $this->deleteJson("/api/v1/business-settings/crm/pipelines/{$spare}")->assertOk()->assertJsonPath('message', 'Pipeline deleted.');
+        $this->assertSame(['Sales Pipeline', 'Wholesale'], array_column($this->getJson('/api/v1/business-settings/crm')->json('data.pipelines'), 'name'));
     }
 
-    public function test_a_business_adds_pipelines_with_the_starting_stages_up_to_its_limit(): void
+    public function test_an_opportunity_goes_in_a_pipeline_for_its_team_and_location(): void
     {
-        $first = $this->pipelines()['Sales Pipeline'];
-        $this->assertSame([true, true, false], [$first['is_default'], $first['is_active'], $first['in_use']]);
+        $wholesale = $this->postJson('/api/v1/business-settings/crm/pipelines', ['name' => 'Wholesale', 'team_ids' => [$this->team->id]])->assertCreated()->json('data');
+        $start     = $wholesale['stages'][0]['id'];
 
-        $this->addPipeline('Projects')->assertCreated()
-            ->assertJsonPath('message', 'Pipeline added.')
-            ->assertJsonPath('data.is_default', false)
-            ->assertJsonPath('data.is_active', true);
-        $this->assertSame(['New', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost'], array_column($this->pipelines()['Projects']['stages'], 'name'));
-        $this->assertDatabaseHas('activity_logs', ['description' => 'Added the pipeline "Projects"']);
+        $options = $this->getJson('/api/v1/crm/opportunities/options')->assertOk()->json('data');
+        $this->assertSame(['Sales Pipeline', 'Wholesale'], array_column($options['pipelines'], 'name'));
+        $this->assertSame(['New', $this->main], [$options['all_stages'][0]['name'], $options['all_stages'][0]['pipeline_id']]);
+        $this->assertSame(['New', $wholesale['id']], [$options['all_stages'][6]['name'], $options['all_stages'][6]['pipeline_id']]);
 
-        $this->addPipeline('Projects')->assertUnprocessable()->assertJsonValidationErrors(['name' => 'The business has a pipeline with this name already.']);
+        // Without a team, Wholesale is not for it; with the team it is.
+        $this->add(['pipeline_id' => $wholesale['id'], 'stage_id' => $start])->assertUnprocessable()->assertJsonValidationErrors('pipeline_id');
+        $id = $this->add(['pipeline_id' => $wholesale['id'], 'stage_id' => $start, 'sales_team_id' => $this->team->id])->assertCreated()->json('data.id');
 
-        foreach (range(3, 20) as $n) {
-            $this->addPipeline("Pipeline {$n}")->assertCreated();
-        }
+        // Another pipeline's stage is not one of its own; left out, the pipeline is the first that fits.
+        $mainNew = $this->getJson('/api/v1/business-settings/crm')->json('data.pipelines.0.stages.0.id');
+        $this->add(['pipeline_id' => $wholesale['id'], 'stage_id' => $mainNew, 'sales_team_id' => $this->team->id])->assertUnprocessable()->assertJsonValidationErrors('stage_id');
+        $this->add(['stage_id' => $mainNew, 'sales_team_id' => $this->team->id])->assertCreated();
 
-        $this->addPipeline('One Too Many')->assertUnprocessable()->assertJsonValidationErrors(['name' => 'A business can have up to 20 pipelines.']);
-    }
+        // The list takes one pipeline's; a row and the record name theirs.
+        $this->assertSame([[$id, 'Wholesale']], array_map(fn (array $row) => [$row['id'], $row['pipeline']], $this->getJson("/api/v1/crm/opportunities?pipeline_id={$wholesale['id']}")->json('data')));
+        $this->getJson("/api/v1/crm/opportunities/{$id}")->assertJsonPath('data.pipeline', ['id' => $wholesale['id'], 'name' => 'Wholesale']);
+        $this->assertSame(2, $this->getJson('/api/v1/crm/opportunities')->json('pagination.total'));
 
-    public function test_the_default_pipeline_stays_switched_on_and_is_not_deleted(): void
-    {
-        $this->addPipeline('Projects')->assertCreated();
-        $sales    = $this->pipelines()['Sales Pipeline']['id'];
-        $projects = $this->pipelines()['Projects']['id'];
-
-        $this->switchPipeline('Sales Pipeline', false)->assertUnprocessable()
-            ->assertJsonValidationErrors(['is_active' => 'The default pipeline stays switched on: make another one the default first.']);
-        $this->deleteJson("/api/v1/business-settings/crm/pipelines/{$sales}")->assertStatus(409)
-            ->assertJsonPath('message', 'The default pipeline cannot be deleted: make another one the default first.');
-
-        $this->switchPipeline('Projects', false)->assertOk()->assertJsonPath('data.is_active', false);
-        $this->postJson("/api/v1/business-settings/crm/pipelines/{$projects}/default")->assertStatus(409)
-            ->assertJsonPath('message', 'Switch this pipeline on before making it the default.');
-
-        $this->switchPipeline('Projects', true)->assertOk();
-        $this->postJson("/api/v1/business-settings/crm/pipelines/{$projects}/default")->assertOk()
-            ->assertJsonPath('message', 'Projects is the default pipeline.')
-            ->assertJsonPath('data.is_default', true);
-        $this->assertSame([false, true], [$this->pipelines()['Sales Pipeline']['is_default'], $this->pipelines()['Projects']['is_default']]);
-
-        // The one that was the default is an ordinary one now: unused, it goes, with its stages.
-        $this->deleteJson("/api/v1/business-settings/crm/pipelines/{$sales}")->assertOk()->assertJsonPath('message', 'Pipeline deleted.');
-        $this->assertSame(['Projects'], array_keys($this->pipelines()));
-        $this->assertDatabaseMissing('crm_stages', ['crm_pipeline_id' => $sales]);
-    }
-
-    public function test_a_pipeline_opportunities_are_or_were_in_stays(): void
-    {
-        $this->addPipeline('Projects')->assertCreated();
-        $projects = $this->pipelines()['Projects']['id'];
-
-        $id = $this->add($this->stage('Projects', 'New'))->assertCreated()
-            ->assertJsonPath('data.pipeline.name', 'Projects')
-            ->assertJsonPath('data.stage.name', 'New')
-            ->json('data.id');
-        $this->assertTrue($this->pipelines()['Projects']['in_use']);
-
-        $refused = 'Opportunities are or were in this pipeline, so it stays. Switch it off instead.';
-        $this->deleteJson("/api/v1/business-settings/crm/pipelines/{$projects}")->assertStatus(409)->assertJsonPath('message', $refused);
-
-        // Moved out, it was there: the pipeline keeps its history.
-        $this->move($id, $this->stage('Sales Pipeline', 'Qualified'))->assertOk()->assertJsonPath('data.pipeline.name', 'Sales Pipeline');
-        $this->deleteJson("/api/v1/business-settings/crm/pipelines/{$projects}")->assertStatus(409)->assertJsonPath('message', $refused);
-    }
-
-    public function test_opportunities_enter_only_pipelines_switched_on_and_carry_on_in_one_switched_off(): void
-    {
-        $this->addPipeline('Projects')->assertCreated();
-        $id = $this->add($this->stage('Sales Pipeline', 'New'))->assertCreated()->json('data.id');
-
-        $this->switchPipeline('Projects', false)->assertOk();
-        $this->assertFalse(collect($this->getJson('/api/v1/crm/opportunities/options')->json('data.pipelines'))->firstWhere('name', 'Projects')['is_active']);
-
-        $refused = ['stage_id' => 'Choose an open stage of a pipeline switched on.'];
-        $this->add($this->stage('Projects', 'New'))->assertUnprocessable()->assertJsonValidationErrors($refused);
-        $this->move($id, $this->stage('Projects', 'Qualified'))->assertUnprocessable()->assertJsonValidationErrors($refused);
-
-        // Switched on, it moves there - its history naming the stage of the pipeline it came from.
-        $this->switchPipeline('Projects', true)->assertOk();
-        $this->move($id, $this->stage('Projects', 'Qualified'))->assertOk()
-            ->assertJsonPath('message', 'Moved to Qualified in Projects.')
-            ->assertJsonPath('data.pipeline.name', 'Projects')
-            ->assertJsonPath('data.stage.name', 'Qualified')
-            ->assertJsonPath('data.probability', 25)
-            ->assertJsonPath('data.visits.0.stage', 'New (Sales Pipeline)')
-            ->assertJsonPath('data.visits.1.stage', 'Qualified');
-
-        $log = DB::table('activity_logs')->where('description', 'Moved opportunity "Uddin Traders - shelving" from New (Sales Pipeline) to Qualified (Projects)')->first();
-        $this->assertNotNull($log);
-        $this->assertSame(
-            ['setting' => 'pipeline', 'from' => 'Sales Pipeline', 'to' => 'Projects'],
-            json_decode($log->properties, true)['changes'][0],
-        );
-
-        // Switched off with it inside: it carries on there, moved, won and reopened.
-        $this->switchPipeline('Projects', false)->assertOk();
-        $this->move($id, $this->stage('Projects', 'Proposal'))->assertOk()->assertJsonPath('message', 'Moved to Proposal.')->assertJsonPath('data.stage.name', 'Proposal');
-        $this->postJson("/api/v1/crm/opportunities/{$id}/win", ['closed_on' => now()->toDateString()])->assertOk()->assertJsonPath('data.stage.name', 'Won');
-        $this->postJson("/api/v1/crm/opportunities/{$id}/reopen")->assertOk()->assertJsonPath('data.pipeline.name', 'Projects');
-    }
-
-    public function test_a_lead_converts_into_any_pipeline_switched_on(): void
-    {
-        $this->addPipeline('Projects')->assertCreated();
-        $this->addPipeline('Retail')->assertCreated();
-        $this->switchPipeline('Retail', false)->assertOk();
-
+        // A lead of the team converts into Wholesale.
         $source = $this->getJson('/api/v1/crm/leads/options')->json('data.sources.0.id');
-        $lead   = $this->postJson('/api/v1/crm/leads', ['name' => 'Rahim Uddin', 'phone' => '+880 1711-000000', 'source_id' => $source, 'customer_need' => 'Shelving'])->assertCreated()->json('data.id');
+        $lead   = $this->postJson('/api/v1/crm/leads', ['name' => 'Karim Ahmed', 'business_name' => 'Karim Stores', 'phone' => '+8801711000000', 'source_id' => $source, 'sales_team_id' => $this->team->id, 'customer_need' => 'Racking for a warehouse'])->assertCreated()->json('data.id');
         $this->postJson("/api/v1/crm/leads/{$lead}/qualify")->assertOk();
-
         $preview = $this->getJson("/api/v1/crm/leads/{$lead}/conversion")->assertOk()->json('data');
-        $this->assertSame(['Sales Pipeline', 'Projects'], array_column($preview['pipelines'], 'name'));
-        $this->assertSame($this->stage('Sales Pipeline', 'New'), $preview['defaults']['stage_id']);
+        $this->assertSame(['Sales Pipeline', 'Wholesale'], array_column($preview['pipelines'], 'name'));
+        $this->assertSame(['id', 'name', 'stages'], array_keys($preview['pipelines'][1]));
 
-        $convert = fn (int $stage) => $this->postJson("/api/v1/crm/leads/{$lead}/convert", ['contact_id' => $this->contact->id, 'opportunity' => [
-            'name' => 'Uddin Traders - shelving', 'stage_id' => $stage, 'expected_value' => '1500', 'currency' => $this->business->base_currency, 'expected_close_date' => '2026-12-20',
-        ]]);
-
-        $convert($this->stage('Retail', 'New'))->assertUnprocessable()->assertJsonValidationErrors(['opportunity.stage_id' => 'Choose an open stage of a pipeline switched on.']);
-        $opportunity = $convert($this->stage('Projects', 'Proposal'))->assertOk()->json('data.conversion.opportunity.id');
-
-        $this->getJson("/api/v1/crm/opportunities/{$opportunity}")->assertOk()
-            ->assertJsonPath('data.pipeline.name', 'Projects')
-            ->assertJsonPath('data.stage.name', 'Proposal');
+        $this->postJson("/api/v1/crm/leads/{$lead}/convert", ['contact_id' => null, 'opportunity' => [
+            ...$preview['defaults'], 'pipeline_id' => $wholesale['id'], 'stage_id' => $start, 'expected_value' => '900', 'expected_close_date' => '2026-12-31',
+        ]])->assertOk();
+        $this->assertSame(2, $this->getJson("/api/v1/crm/opportunities?pipeline_id={$wholesale['id']}")->json('pagination.total'));
     }
 
-    public function test_the_list_filters_by_pipeline_and_names_each_ones(): void
+    public function test_a_pipeline_for_a_location_and_one_switched_off_are_kept_to(): void
     {
-        $this->addPipeline('Projects')->assertCreated();
-        $this->add($this->stage('Sales Pipeline', 'New'))->assertCreated();
-        $this->add($this->stage('Projects', 'New'))->assertCreated();
+        $dhaka  = $this->business->locations()->create(['user_id' => $this->user->id, 'name' => 'Dhaka', 'code' => 'DHK'])->id;
+        $ctg    = $this->business->locations()->create(['user_id' => $this->user->id, 'name' => 'Chattogram', 'code' => 'CTG'])->id;
+        $theirs = SalesTeam::create(['workspace_id' => $this->businessOf(User::factory()->create())->id, 'name' => 'Theirs']);
 
-        $projects = $this->pipelines()['Projects']['id'];
-        $rows     = $this->getJson("/api/v1/crm/opportunities?pipeline_id={$projects}")->assertOk()->json('data');
+        $this->postJson('/api/v1/business-settings/crm/pipelines', ['name' => 'Projects', 'team_ids' => [$theirs->id]])->assertUnprocessable()->assertJsonValidationErrors('team_ids.0');
+        $projects = $this->postJson('/api/v1/business-settings/crm/pipelines', ['name' => 'Projects', 'location_ids' => [$dhaka]])->assertCreated()->json('data');
+        $start    = $projects['stages'][0]['id'];
 
-        $this->assertCount(1, $rows);
-        $this->assertSame('Projects', $rows[0]['pipeline']);
-        $this->assertCount(2, $this->getJson('/api/v1/crm/opportunities')->json('data'));
-    }
+        $this->add(['pipeline_id' => $projects['id'], 'stage_id' => $start, 'location_id' => $ctg])->assertUnprocessable()->assertJsonValidationErrors('pipeline_id');
+        $id = $this->add(['pipeline_id' => $projects['id'], 'stage_id' => $start, 'location_id' => $dhaka])->assertCreated()->json('data.id');
 
-    public function test_managing_pipelines_needs_its_own_permission(): void
-    {
-        $member = function (array $permissions): User {
-            $user = User::factory()->create();
-            $role = $this->business->roles()->create(['name' => 'Role '.$user->id, 'permissions' => $permissions]);
-            $this->business->members()->create(['user_id' => $user->id, 'status' => 'active', 'role_id' => $role->id]);
-
-            return $user;
-        };
-        $pipeline = $this->pipelines()['Sales Pipeline'];
-
-        Sanctum::actingAs($member(['settings.view', 'crm.settings.manage']));
-        $this->addPipeline('Projects')->assertForbidden();
-        $this->putJson("/api/v1/business-settings/crm/pipelines/{$pipeline['id']}", ['name' => 'Sales', 'stages' => $pipeline['stages']])->assertForbidden();
-
-        Sanctum::actingAs($member(['settings.view', 'crm.settings.pipelines']));
-        $this->addPipeline('Projects')->assertCreated();
-        $this->putJson("/api/v1/business-settings/crm/pipelines/{$pipeline['id']}", ['name' => 'Sales', 'stages' => $pipeline['stages']])->assertOk();
+        // Switched off, it is neither offered nor taken; what is in it stays, and still moves between its stages.
+        $this->save($projects['id'], ['is_active' => false])->assertOk();
+        $this->assertSame(['Sales Pipeline'], array_column($this->getJson('/api/v1/crm/opportunities/options')->json('data.pipelines'), 'name'));
+        $this->add(['pipeline_id' => $projects['id'], 'stage_id' => $start, 'location_id' => $dhaka])->assertUnprocessable()->assertJsonValidationErrors('pipeline_id');
+        $this->assertSame(1, $this->getJson("/api/v1/crm/opportunities?pipeline_id={$projects['id']}")->json('pagination.total'));
+        $this->postJson("/api/v1/crm/opportunities/{$id}/stage", ['stage_id' => $projects['stages'][1]['id']])->assertOk()->assertJsonPath('data.stage.name', 'Qualified');
     }
 }

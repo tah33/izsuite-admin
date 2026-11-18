@@ -26,6 +26,8 @@ class ListCrmOpportunitiesRequest extends FormRequest
             // Phase D3b1: one pipeline's.
             'pipeline_id' => ['nullable', 'integer'],
             'stage_id' => ['nullable', 'integer'],
+            // Phase D3b: one pipeline's.
+            'pipeline_id' => ['nullable', 'integer'],
             'owner_id' => ['nullable', 'regex:/^(me|[0-9]+)$/'],
         ];
     }

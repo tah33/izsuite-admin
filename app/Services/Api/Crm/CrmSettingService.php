@@ -3,6 +3,7 @@
 namespace App\Services\Api\Crm;
 
 use App\Models\User\CrmOption;
+use App\Models\User\CrmPipeline;
 use App\Models\User\Workspace;
 use App\Repositories\User\CrmLeadRepository;
 use App\Repositories\User\CrmOpportunityRepository;
@@ -41,11 +42,12 @@ class CrmSettingService
         protected WorkspaceRepository $workspaces,
         protected CrmLeadRepository $leads,
         protected CrmOpportunityRepository $opportunities,
+        protected \App\Repositories\User\CrmActivityRepository $activities,
+        protected \App\Repositories\User\CrmEmailTemplateRepository $emailTemplates,
     ) {}
 
     /**
-     * The settings, every list and the pipelines - each (Phase D3b1) with
-     * whether opportunities are or were in it - the lists and the first
+     * The settings, every list and the pipelines - the lists and the first
      * pipeline (Phase A2) started if they never were.
      *
      * @return array{settings: \App\Models\User\CrmSetting, options: \Illuminate\Database\Eloquent\Collection, pipelines: \Illuminate\Database\Eloquent\Collection}
@@ -54,10 +56,21 @@ class CrmSettingService
     {
         $this->start($workspace);
 
+        // Phase D3b: each saying whether opportunities are or were in it, so it stays.
+        $pipelines = $this->pipelines->getFor($workspace);
+        $used      = $this->pipelines->usedIds($pipelines);
+
+        // A block, not an arrow: each() stops at a callback that returns false.
+        $pipelines->each(function (CrmPipeline $pipeline) use ($used) {
+            $pipeline->in_use = in_array($pipeline->id, $used, true);
+        });
+
         return [
             'settings'  => $this->settings->forWorkspace($workspace),
             'options'   => $this->options->getFor($workspace),
-            'pipelines' => $this->pipelines->listedFor($workspace),
+            'pipelines' => $pipelines,
+            // Phase F3b: its e-mail templates.
+            'email_templates' => $this->emailTemplates->getFor($workspace),
         ];
     }
 
@@ -65,6 +78,12 @@ class CrmSettingService
     public function usesLeads(Workspace $workspace): bool
     {
         return $this->settings->forWorkspace($workspace)->usesLeads();
+    }
+
+    /** Whether confirming a sales order made from an opportunity wins it (Phase F2). */
+    public function winsOnOrder(Workspace $workspace): bool
+    {
+        return $this->settings->forWorkspace($workspace)->win_on_order;
     }
 
     /** The lists and the first pipeline started if they never were - before a lead's form offers its sources too (Phase B1). */
@@ -83,10 +102,10 @@ class CrmSettingService
     public function save(Workspace $workspace, array $data): array
     {
         $saved  = $this->settings->forWorkspace($workspace);
-        $before = ['mode' => $saved->mode, 'qualification_required' => $saved->qualificationRequired()];
+        $before = ['mode' => $saved->mode, 'qualification_required' => $saved->qualificationRequired(), 'win_on_order' => $saved->win_on_order];
 
-        $settings = $this->settings->save($workspace, Arr::only($data, ['mode', 'qualification_required']));
-        $after    = ['mode' => $settings->mode, 'qualification_required' => $settings->qualificationRequired()];
+        $settings = $this->settings->save($workspace, Arr::only($data, ['mode', 'qualification_required', 'win_on_order']));
+        $after    = ['mode' => $settings->mode, 'qualification_required' => $settings->qualificationRequired(), 'win_on_order' => $settings->win_on_order];
 
         ActivityLogService::record('updated', 'Updated the CRM settings', $workspace, [
             'source'  => 'api',
@@ -114,7 +133,7 @@ class CrmSettingService
         // Added to before they were ever read, the lists still start with Doc 17's examples.
         $this->start($workspace);
 
-        $option = $this->options->create($workspace, Arr::only($data, ['kind', 'name', 'is_active']));
+        $option = $this->options->create($workspace, Arr::only($data, $data['kind'] === 'activity_type' ? ['kind', 'name', 'is_active', 'needs_outcome'] : ['kind', 'name', 'is_active']));
 
         ActivityLogService::record('created', "Added {$this->what($option)}", $option, ['source' => 'api']);
 
@@ -126,7 +145,7 @@ class CrmSettingService
     {
         $option = $this->find($workspace, $id);
 
-        $this->options->update($option, Arr::only($data, ['name', 'is_active']));
+        $this->options->update($option, Arr::only($data, $option->kind === 'activity_type' ? ['name', 'is_active', 'needs_outcome'] : ['name', 'is_active']));
 
         ActivityLogService::record('updated', "Updated {$this->what($option)}", $option, [
             'source' => 'api',
@@ -152,6 +171,11 @@ class CrmSettingService
         // A lost opportunity keeps why it was lost (Phase D2a).
         if ($option->kind === 'lost_reason' && $this->opportunities->usesLostReason($option)) {
             $this->refuse('Opportunities were lost for this reason, so it stays. Switch it off instead.');
+        }
+
+        // An activity keeps its type (Phase E1).
+        if ($option->kind === 'activity_type' && $this->activities->usesType($option)) {
+            $this->refuse('Activities are of this type, so it stays. Switch it off instead.');
         }
 
         $this->options->delete($option);

@@ -19,7 +19,7 @@ class CrmOpportunityListResource extends JsonResource
             'id'                  => $this->id,
             'name'                => $this->name,
             'contact'             => $this->contact?->name,
-            // Phase D3b1: the pipeline it is in, one of several.
+            // Phase D3b: the pipeline it is in, which the page shows while there are several.
             'pipeline'            => $this->pipeline?->name,
             'stage'               => $this->stage?->name,
             'status'              => $this->status,

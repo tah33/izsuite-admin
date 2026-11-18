@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Api\Crm;
 
 use App\Models\User\CrmStage;
+use App\Models\User\Location;
+use App\Models\User\SalesTeam;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -38,6 +40,12 @@ class SaveCrmPipelineRequest extends FormRequest
             'stages.*.stale_after_days'  => ['nullable', 'integer', 'min:1', 'max:'.CrmStage::MAX_STALE_DAYS],
             'stages.*.required_fields'   => ['nullable', 'array'],
             'stages.*.required_fields.*' => ['string', 'distinct', Rule::in(array_keys(CrmStage::REQUIRABLE))],
+            // Phase D3b: switched on or off, and the sales teams and locations it is for - none, all of them.
+            'is_active'            => ['sometimes', 'boolean'],
+            'team_ids'             => ['nullable', 'array', 'max:100'],
+            'team_ids.*'           => ['integer', 'distinct', Rule::exists(SalesTeam::class, 'id')->where('workspace_id', $workspace?->id)],
+            'location_ids'         => ['nullable', 'array', 'max:200'],
+            'location_ids.*'       => ['integer', 'distinct', Rule::exists(Location::class, 'id')->where('workspace_id', $workspace?->id)],
         ];
     }
 

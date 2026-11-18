@@ -60,6 +60,8 @@ class SaveCrmOpportunityRequest extends FormRequest
             'contact_id'          => ['required', 'integer'],
             'contact_person'      => ['nullable', 'string', 'max:100'],
             'stage_id'            => $this->isMethod('PUT') ? ['prohibited'] : ['required', 'integer'],
+            // Phase D3b: the pipeline it starts in - the first that fits, left out.
+            'pipeline_id'         => $this->isMethod('PUT') ? ['prohibited'] : ['nullable', 'integer'],
             'probability'         => ['nullable', 'integer', 'min:0', 'max:100'],
             'owner_id'            => ['sometimes', 'nullable', 'integer'],
             'sales_team_id'       => ['nullable', 'integer'],

@@ -20,7 +20,7 @@ use App\Services\Crm\LeadInterests;
 use App\Services\Crm\OpportunityAssignments;
 use App\Services\Crm\OpportunityForecast;
 use App\Services\Crm\OpportunityVisibility;
-use App\Services\Crm\PipelineChoices;
+use App\Services\Crm\PipelineChoice;
 use App\Services\Crm\StageRequirements;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\BusinessCalendar;
@@ -40,11 +40,10 @@ use Illuminate\Validation\ValidationException;
  * one and changing one. Moving one between stages is CrmOpportunityFlow's.
  *
  * An opportunity is for one of the business's active contacts - a supplier
- * becomes a customer as well - at an open stage of one of the business's
- * pipelines switched on (Phase D3b1), owned by whoever adds it unless they
- * give it to someone else, at one of the business's locations. Its
- * probability is its stage's unless someone who may change probabilities
- * gives another. Each save is logged by name.
+ * becomes a customer as well - at an open stage of the business's pipeline,
+ * owned by whoever adds it unless they give it to someone else, at one of
+ * the business's locations. Its probability is its stage's unless someone
+ * who may change probabilities gives another. Each save is logged by name.
  */
 class CrmOpportunityService
 {
@@ -63,6 +62,7 @@ class CrmOpportunityService
         protected SalesTeamRepository $teams,
         protected LocationRepository $locations,
         protected ContactRepository $contacts,
+        protected CrmSettingService $settings,
         protected CrmOpportunityRules $rules,
         protected OpportunityVisibility $visibility,
         protected OpportunityAssignments $assignments,
@@ -72,16 +72,29 @@ class CrmOpportunityService
         protected WorkspaceAccess $access,
         protected BusinessCalendar $calendar,
         protected StageRequirements $requirements,
-        protected PipelineChoices $choices,
+        protected PipelineChoice $pipelineChoice,
     ) {}
 
     /**
      * The Opportunities page, each with its weighted value, in its currency
      * and the base one. The "stale" status (Phase D3a) lists the open ones
-     * at a stage for longer than its stale-after period. Phase D3b1: by
-     * pipeline too.
+     * at a stage for longer than its stale-after period.
      */
     public function list(Workspace $workspace, User $user, array $filters, int $perPage): LengthAwarePaginator
+    {
+        $page = $this->opportunities->paginateFor($workspace, $this->filters($workspace, $user, $filters), $this->visibility->scopeFor($workspace, $user), $perPage);
+
+        $this->mark($workspace, $page->items());
+
+        return $page;
+    }
+
+    /**
+     * $filters as the list reads them - and (Phase D4) the board and the
+     * calendar: "me" for the owner is $user, and the "stale" status (Phase
+     * D3a) gets each open stage's moment: one that entered it before is stale.
+     */
+    public function filters(Workspace $workspace, User $user, array $filters): array
     {
         if (($filters['owner_id'] ?? null) === 'me') {
             $filters['owner_id'] = $user->id;
@@ -94,11 +107,7 @@ class CrmOpportunityService
                 ->all();
         }
 
-        $page = $this->opportunities->paginateFor($workspace, $filters, $this->visibility->scopeFor($workspace, $user), $perPage);
-
-        $this->mark($workspace, $page->items());
-
-        return $page;
+        return $filters;
     }
 
     /** Another business's opportunity - or one $user does not see - answers like one that does not exist. */
@@ -141,9 +150,10 @@ class CrmOpportunityService
      * Their weighted values (OpportunityForecast), whether an open one's
      * closing day has passed - the business's today - and (Phase D3a) its
      * full days at its stage, and whether that is more than the stage's
-     * stale-after period.
+     * stale-after period. The board's cards and the calendar (Phase D4) are
+     * marked the same way.
      */
-    private function mark(Workspace $workspace, array $opportunities): void
+    public function mark(Workspace $workspace, array $opportunities): void
     {
         $this->forecast->attach($workspace, $opportunities);
 
@@ -162,18 +172,21 @@ class CrmOpportunityService
     }
 
     /**
-     * What an opportunity's form and the page's filters choose from: (Phase
-     * D3b1) the pipelines with their stages switched on - the form takes the
-     * open ones of those switched on - the lead sources and sales teams
-     * switched on, the people it can be given to, and where a new one starts
-     * and who owns it - and (Phase D2a) the lost reasons switched on.
+     * What an opportunity's form and the page's filters choose from: the
+     * pipeline's open stages switched on, with their probabilities, the lead
+     * sources and sales teams switched on, the people it can be given to,
+     * and where a new one starts and who owns it - and (Phase D2a) the lost
+     * reasons switched on.
      */
     public function options(Workspace $workspace, User $user): array
     {
-        $lists = $this->options->getFor($workspace)->where('is_active', true);
+        $lists  = $this->options->getFor($workspace)->where('is_active', true);
+        // Phase D3b: the pipelines switched on, each with its open stages - and every stage of theirs switched on, to filter by.
+        $active = $this->pipelineChoice->active($workspace);
 
         return [
-            'pipelines'    => $this->choices->all($workspace),
+            'all_stages'   => $active->flatMap(fn (CrmPipeline $row) => $row->stages->where('is_active', true))->values(),
+            'pipelines'    => $this->pipelineChoice->described($active),
             'sources'      => $lists->where('kind', 'lead_source')->values(),
             'lost_reasons' => $lists->where('kind', 'lost_reason')->values(),
             'teams'        => $this->teams->forWorkspace($workspace, true),
@@ -183,16 +196,14 @@ class CrmOpportunityService
         ];
     }
 
-    /**
-     * $data is validated (see SaveCrmOpportunityRequest); owner_id left out is
-     * the user. Its stage is an open one of a pipeline switched on (Phase
-     * D3b1), which is its pipeline.
-     */
+    /** $data is validated (see SaveCrmOpportunityRequest); owner_id left out is the user. */
     public function create(Workspace $workspace, User $user, array $data): CrmOpportunity
     {
         $fields   = $this->checked($workspace, $data);
-        $stage    = $this->choices->stage($this->choices->enterable($workspace), (int) $data['stage_id']);
-        $pipeline = $stage->pipeline;
+        // Phase D3b: the pipeline asked for - or the first that fits - for its sales team and location.
+        $pipeline = $this->pipelineChoice->choose($workspace, isset($data['pipeline_id']) ? (int) $data['pipeline_id'] : null, $fields['sales_team_id'] ?? null, $fields['location_id'] ?? null);
+        $stage    = $this->openStages($pipeline)->firstWhere('id', (int) $data['stage_id'])
+            ?? throw ValidationException::withMessages(['stage_id' => "Choose one of the pipeline's open stages."]);
         $ownerId  = (int) ($data['owner_id'] ?? $user->id);
         $contact  = $this->contacts->findFor($workspace, (int) $fields['contact_id']);
         $items    = $this->interests->rows($workspace, $data['interested_items'] ?? []);
@@ -316,7 +327,7 @@ class CrmOpportunityService
     /** @return Collection<int, CrmStage> its open stages switched on, in order */
     public function openStages(CrmPipeline $pipeline): Collection
     {
-        return $this->choices->openStages($pipeline);
+        return $pipeline->stages->filter(fn (CrmStage $stage) => $stage->is_active && $stage->category === CrmStage::OPEN)->values();
     }
 
     /**
