@@ -240,6 +240,25 @@ class CrmLeadRepository
             ->get(['id', 'status', 'source_id', 'owner_id', 'sales_team_id', 'created_at', 'first_contacted_at']);
     }
 
+    /**
+     * How many open leads each of $ownerIds has (Phase I1's workload rules),
+     * by owner id - none, for one who has none.
+     *
+     * @return array<int, int>
+     */
+    public function openCountsByOwner(Workspace $workspace, array $ownerIds): array
+    {
+        return CrmLead::query()
+            ->where('workspace_id', $workspace->id)
+            ->whereIn('owner_id', $ownerIds)
+            ->whereIn('status', CrmLead::OPEN)
+            ->groupBy('owner_id')
+            ->selectRaw('owner_id, count(*) as open_count')
+            ->pluck('open_count', 'owner_id')
+            ->map(fn ($count) => (int) $count)
+            ->all();
+    }
+
     /** Open, never contacted (Phase G3a's first contact), and added before $before. */
     private function uncontacted(Builder $query, CarbonInterface $before): void
     {

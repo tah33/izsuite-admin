@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\CrmOverviewController;
 use App\Http\Controllers\Api\CrmActivityController;
 use App\Http\Controllers\Api\CrmContactSummaryController;
 use App\Http\Controllers\Api\CrmEmailController;
+use App\Http\Controllers\Api\CrmAssignmentRuleController;
 use App\Http\Controllers\Api\CrmEmailTemplateController;
 use App\Http\Controllers\Api\CrmTimelineController;
 use App\Http\Controllers\Api\CrmOpportunityController;
@@ -315,6 +316,12 @@ Route::prefix('v1')->group(function () {
             Route::post('/email-templates', [CrmEmailTemplateController::class, 'store'])->middleware('idempotent')->name('api.business-settings.crm.email-templates.store');
             Route::put('/email-templates/{id}', [CrmEmailTemplateController::class, 'update'])->whereNumber('id')->name('api.business-settings.crm.email-templates.update');
             Route::delete('/email-templates/{id}', [CrmEmailTemplateController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.email-templates.destroy');
+            // Phase I1: the lead assignment rules, in their order.
+            Route::get('/assignment-rules', [CrmAssignmentRuleController::class, 'index'])->name('api.business-settings.crm.assignment-rules.index');
+            Route::post('/assignment-rules', [CrmAssignmentRuleController::class, 'store'])->middleware('idempotent')->name('api.business-settings.crm.assignment-rules.store');
+            Route::put('/assignment-rules/order', [CrmAssignmentRuleController::class, 'reorder'])->name('api.business-settings.crm.assignment-rules.order');
+            Route::put('/assignment-rules/{id}', [CrmAssignmentRuleController::class, 'update'])->whereNumber('id')->name('api.business-settings.crm.assignment-rules.update');
+            Route::delete('/assignment-rules/{id}', [CrmAssignmentRuleController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.assignment-rules.destroy');
         });
 
         // Sales teams (Doc 16 Phase A): the full Sales app's - and, since Doc
@@ -900,6 +907,9 @@ Route::prefix('v1')->group(function () {
         foreach (['assign', 'contact', 'qualify', 'unqualify', 'archive', 'reopen'] as $step) {
             Route::post("/{id}/{$step}", [CrmLeadFlowController::class, $step])->whereNumber('id')->name("api.crm.leads.{$step}");
         }
+
+        // Phase I1: a lead in the queue sent through the assignment rules.
+        Route::post('/{id}/assign-by-rules', [CrmLeadFlowController::class, 'assignByRules'])->whereNumber('id')->name('api.crm.leads.assign-by-rules');
 
         // Converting a qualified lead into a contact and an opportunity (Phase C1).
         Route::get('/{id}/conversion', [CrmLeadConversionController::class, 'show'])->whereNumber('id')->name('api.crm.leads.conversion');

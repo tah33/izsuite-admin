@@ -361,6 +361,12 @@ class Workspace extends Model
         return $this->hasMany(CrmEmailTemplate::class);
     }
 
+    /** Its lead assignment rules (Doc 17 Phase I1). */
+    public function crmAssignmentRules(): HasMany
+    {
+        return $this->hasMany(CrmAssignmentRule::class);
+    }
+
     /** How each kind of document is numbered - a row only where a default was changed. */
     public function documentNumbering(): HasMany
     {

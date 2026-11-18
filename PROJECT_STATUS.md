@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-18
-- **Code:** Doc 17 Phases H2 and H3 (the CRM opportunity, people and activity reports) are committed: frontend `26f0f0e` on `nuxt`, and on `main` the admin commit right after `ff2f536`.
-- **Tests:** 1016 backend tests pass (last full run 2026-11-18, on the first PC, on this code).
-- **Next step:** Doc 17 Phase I: rules and records (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase I1 (the lead assignment rules) is committed: frontend `ce8c86b` on `nuxt`, and on `main` the admin commit right after `4b75b5c`.
+- **Tests:** 1019 backend tests pass (last full run 2026-11-18, on the first PC, on this code).
+- **Next step:** Doc 17 Phase I2: lead scoring (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase H3 the latest is 000182. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase I1 the latest is 000183. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase I.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase I2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check and Phases A to H done (H2 and H3 built 2026-11-18; Campaign-to-Opportunity Results waits for Doc 21), Phase I next** |
+| **17** | **CRM** | **In progress: gap check and Phases A to H done (Campaign-to-Opportunity Results waits for Doc 21), Phase I split (I1 built 2026-11-18), Phase I2 next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase I)
+### 5. Doc 17: CRM (next: Phase I2)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -2243,26 +2243,53 @@ The first PC's parts were taken out: both repos are D3b to F4 as the second PC b
   - Opportunities Without Follow-up listed Bose shelving, with that day as its last contact.
   - The opportunities, activities, CRM settings and lists, the app's state, the sign-in and the activity were then put back.
 
-**Phase I: rules and records** (sections 17.9, 17.22, 17.25 and 17.30), suggested defaults, in four parts:
+**Phase I: rules and records** (sections 17.9, 17.22, 17.25 and 17.30) was split on starting it (2026-11-18), in four parts: I1, assignment rules; I2, lead scoring; I3, marketing consent; I4, custom fields.
 
-- **I1, assignment rules:**
-  - Settings → CRM gains Assignment Rules, in order. The first that fits a new lead gives it its owner:
-    - round-robin among a sales team's members;
-    - or by location, sales team, lead source, product interest or country;
-    - or by workload, to whoever has the fewest open leads.
-  - Only active users who may own leads are chosen. When none fits, the lead waits in the queue. Assigning by hand stays.
-  - A new permission, Manage Assignment and Scoring Rules (17.30), covers I1 and I2.
-- **I2, lead scoring:**
-  - Points for what Settings → CRM names: source, budget, purchase period, decision maker, business size, interested items and being contacted.
-  - The score shows on the lead with its factors, and the Leads page gets a Score column and filter.
-  - It never qualifies or rejects a lead by itself.
-- **I3, marketing consent** on contacts and leads, apart from sales follow-up:
-  - its status (given, refused, withdrawn), purpose, source, when, who recorded it, expiry and evidence;
-  - carried over when a lead is converted;
-  - withdrawing it keeps its history.
-- **I4, custom fields** for leads and opportunities, set up in Settings → CRM:
-  - text, number, date, a choice or yes/no, each optional or required;
-  - shown on the form and the record's page.
+**Phase I1: assignment rules** (section 17.9) is built, with these defaults:
+
+- **Settings → CRM gains an Assignment Rules card** while the business uses leads, the rules in order. Each can be moved up or down, edited, switched off and deleted.
+- **A rule asks for what a lead has:** its lead source, location (while there are several), the sales team it names, its country and an item it is interested in. Each left on Any; with all on Any, it fits every lead.
+- **A rule gives the lead to:**
+  - a person;
+  - or a sales team's members, either by turns (the next member after the last one given a lead, in name order) or to the member with the fewest open leads (by turns between equals).
+- **When rules apply:** a lead added without an owner goes to the first rule that fits.
+  - Only an active member who may view leads at the lead's location is chosen. A rule with nobody who may take the lead passes it on to the next rule, as does a team switched off.
+  - When none fits, the lead waits in the queue.
+  - A lead with an owner chosen is not asked about.
+- **A lead in the queue** can be sent through the rules from its Assign dialog, with "Use the Assignment Rules". With none fitting, the dialog says so.
+- **The lead form's owner list** reads "Nobody yet: the assignment rules, else the queue".
+- **The Activity Log** names the rule that gave a lead its owner, and logs the rules' changes.
+- **A new permission, Assignment and Scoring Rules: Manage Assignment and Scoring Rules** (17.30, for I1 and I2), brings Settings' View with it.
+  - The CRM tab shows to it or to Manage CRM Settings, each seeing only its own part.
+  - Roles made from the Manager template get it; give it to custom roles in Settings → Users & Roles.
+- Assigning by hand stays, and the new owner is told as before.
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with CRM switched on by hand:
+  - Dev has one member, so the sales team Wholesale Desk held izSuite User alone. Turns and workload between several people are covered by the tests.
+  - Settings → CRM showed Assignment Rules after the CRM card. Its New Assignment Rule dialog showed Comes from, Names the sales team, Is in and Is interested in; there is one location, so no Is at.
+  - "Referrals to the desk" (Comes from Referral, Wholesale Desk by turns) was added through it: "Rule added.", the row reading "comes from Referral" and "Wholesale Desk, by turns".
+  - A second rule, "Bangladesh to me" (Is in Bangladesh, izSuite User), was added switched off, and showed an Off pill. Its up arrow put it first: "Order saved."
+  - A Referral lead added without an owner went to izSuite User by the desk's rule.
+  - An Email lead in Bangladesh waited in the queue. Its Assign dialog's "Use the Assignment Rules" answered "No assignment rule fits this lead. Assign it by hand."
+  - With the Bangladesh rule switched on, the same button gave "The lead is now izSuite User's, by the assignment rules."
+  - The Activity Log named each rule. The Add Lead form's owner list offered "Nobody yet: the assignment rules, else the queue".
+  - The rules, the team, the leads, the CRM settings and lists, the app's state, the sign-in and the activity were then put back.
+
+**Phase I2: lead scoring** (section 17.22), suggested defaults:
+
+- Points for what Settings → CRM names: source, budget, purchase period, decision maker, business size, interested items and being contacted. Setting them up needs Manage Assignment and Scoring Rules.
+- The score shows on the lead with its factors, and the Leads page gets a Score column and filter.
+- It never qualifies or rejects a lead by itself.
+
+**Phase I3: marketing consent** (section 17.25), suggested defaults, on contacts and leads, apart from sales follow-up:
+
+- its status (given, refused, withdrawn), purpose, source, when, who recorded it, expiry and evidence;
+- carried over when a lead is converted;
+- withdrawing it keeps its history.
+
+**Phase I4: custom fields** for leads and opportunities, suggested defaults, set up in Settings → CRM:
+
+- text, number, date, a choice or yes/no, each optional or required;
+- shown on the form and the record's page.
 
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
@@ -2301,6 +2328,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase G4 | none |
 | Doc 17: Phase H1 | none |
 | Doc 17: Phases H2, H3 | none, none |
+| Doc 17: Phase I1 | 000183 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -2750,6 +2778,24 @@ On a fresh business, set the days in Settings → CRM to fit what you have, rath
 - [ ] A role without View Leads sees Salesperson Performance without its lead columns; without View Activities, without Activities Done.
 - [ ] A role without View Activities has no Activity Completion or Overdue Activities.
 
+**Phase I1: assignment rules**
+
+**Before you start:** CRM on and using leads, with:
+- two members whose roles view and add leads, both in a sales team;
+- a third member who may use one location only;
+- a member whose role has Settings' View and Manage Assignment and Scoring Rules, but not Manage CRM Settings.
+
+- [ ] Settings → CRM has Assignment Rules after the CRM card. Add a rule giving Referral leads to one member: "Rule added.", and its row says so.
+- [ ] Add a rule giving leads in your country to the team by turns. Add a lead without an owner (owner "Nobody yet: the assignment rules, else the queue"), from Referral: it goes to that member.
+- [ ] Add three more leads in your country: they go to the team's members in turn, by name.
+- [ ] Change that rule to Fewest open leads: the next lead goes to whoever has the fewest open leads.
+- [ ] Add a rule for a location the third member may not use, giving leads to them: a lead there passes on to the next rule.
+- [ ] Switch a rule off: it shows Off and is passed over. Move one up: "Order saved.", and the first that fits is now that one.
+- [ ] A lead that fits no rule waits in the queue. Its Assign dialog's "Use the Assignment Rules" says no rule fits; add one that fits, and it takes the lead.
+- [ ] A lead added with an owner chosen keeps that owner. The Activity Log names the rule behind each assignment.
+- [ ] As the member with only Manage Assignment and Scoring Rules: the CRM tab shows the Assignment Rules alone. Without the permission, the card is not there.
+- [ ] With Opportunities Only, the card is gone.
+
 ## How we work
 
 Each document goes the same way:
@@ -3011,7 +3057,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase G3b, the follow-up warnings on the Overview | `d7d5524` | `95ea5c7` | 000182 |
 | Doc 17: Phase G4, the Dashboard's CRM figures | `19cb5ad` | `9fdefc0` | none |
 | Doc 17: Phase H1, the CRM lead reports | `ff2f536` | `6171111` | none |
-| Doc 17: Phases H2 and H3, the CRM opportunity, people and activity reports | the commit after `ff2f536` | `26f0f0e` | none |
+| Doc 17: Phases H2 and H3, the CRM opportunity, people and activity reports | `4b75b5c` | `26f0f0e` | none |
+| Doc 17: Phase I1, the lead assignment rules | the commit after `4b75b5c` | `ce8c86b` | 000183 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -3504,6 +3551,20 @@ These are easy to undo by mistake.
   - `RunReportRequest` and `ReportService` take `pipeline_id` and `stage_id`. `Report::share()` is shared by all the CRM reports.
   - A list report has a Currency column. `ReportTableResource` keeps only the columns' keys, so a row's own currency must be one.
   - Frontend: ReportCrmNarrowing takes its choices from a lead's, an activity's (`CRM_ACTIVITY_REPORTS`) or an opportunity's options, with Pipeline and Stage. `GROUPINGS` has the new reports' groups.
+- Lead assignment rules (Doc 17 Phase I1, migration 000183):
+  - `crm_assignment_rules`: name, position, `is_active`; what a lead must have (`source_id`, `location_id`, `sales_team_id`, `country`, `item_id`); whom it goes to (`user_id`, or `team_id` with `method`, `round_robin` or `workload`); and `last_user_id`, the team's turn.
+  - `CrmAssignmentRule` and `CrmAssignmentRuleRepository`. Its `tookTurn()` moves the turn on quietly, and `lock()` holds the row while a lead is saved.
+  - `App\Services\Crm\LeadRouting::route()` holds the rules switched on in order:
+    - `fits()`;
+    - `people()`: `LeadAssignments::owners()` at the lead's location, a team's members only while the team is on;
+    - `turn()`: rotated after `last_user_id`, and by workload sorted by `CrmLeadRepository::openCountsByOwner()`, then the turn.
+  - `CrmLeadService::create()` routes a lead added without an owner, inside its transaction and after its interested items. `CrmLeadFlow::assignByRules()` (POST `/crm/leads/{id}/assign-by-rules`, `crm.leads.assign`) does the same for a queued one.
+  - Settings: `CrmAssignmentRuleService` (`checked()` makes sure each id is the business's own, and the user one of `owners()`), `CrmAssignmentRuleController`, `SaveCrmAssignmentRuleRequest`, `ReorderCrmAssignmentRulesRequest`, and `CrmAssignmentRule(s)Resource`. The routes are under `/business-settings/crm/assignment-rules`, with `crm.rules.manage`.
+  - `Permissions`: the group `crm.rules` (Manage Assignment and Scoring Rules, also for I2), requiring `settings.view`.
+  - Frontend:
+    - SettingsCrmAssignmentRules, with CrmAssignmentRuleModal and CrmAssignmentRuleWhen (the conditions), on `useCrmAssignmentRules()`, whose shared state is `crm:assignment-rules`;
+    - SettingsCrm shows its other cards only with `crm.settings.manage`, and the settings page's CRM tab needs either permission;
+    - CrmLeadAssignModal's "Use the Assignment Rules" (`LeadStep` `assign-by-rules`).
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -3640,4 +3701,5 @@ Each of these is yours to settle.
 - Doc 17 Phase G4: no migration. Deploy the frontend with it (the Dashboard gains its CRM card, and the Leads and Opportunities lists a status each).
 - Doc 17 Phase H1: no migration. A new permission, CRM → CRM Reports: View CRM Reports, brings Reports' View with it. Roles made from the Manager template from now on have it; give it to custom roles in Settings → Users & Roles. Deploy the frontend with it (the Reports page gains its CRM group and filters).
 - Doc 17 Phases H2 and H3: no migration. Deploy the frontend with them (the Reports page's CRM group gains thirteen reports, and the Pipeline and Stage filters).
+- Doc 17 Phase I1: migration 000183 adds `crm_assignment_rules`; businesses start with none, so every lead added without an owner still waits in the queue until rules are set up. A new permission, CRM → Assignment and Scoring Rules: Manage Assignment and Scoring Rules, brings Settings' View with it. Roles made from the Manager template from now on have it; give it to custom roles in Settings → Users & Roles. Deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

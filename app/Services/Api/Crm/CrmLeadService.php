@@ -15,6 +15,7 @@ use App\Services\Crm\FollowUpCutoffs;
 use App\Services\Crm\LeadAssignments;
 use App\Services\Crm\LeadDuplicates;
 use App\Services\Crm\LeadInterests;
+use App\Services\Crm\LeadRouting;
 use App\Services\Crm\LeadVisibility;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\EditConflicts;
@@ -64,6 +65,7 @@ class CrmLeadService
         protected WorkspaceAccess $access,
         protected LeadDuplicates $duplicates,
         protected FollowUpCutoffs $cutoffs,
+        protected LeadRouting $routing,
     ) {}
 
     /**
@@ -120,7 +122,11 @@ class CrmLeadService
         ];
     }
 
-    /** $data is validated (see SaveCrmLeadRequest); owner_id left out is the user, null the queue. */
+    /**
+     * $data is validated (see SaveCrmLeadRequest); owner_id left out is the
+     * user, null the assignment rules (Phase I1) - the first that fits gives
+     * it its owner - and with none, the queue.
+     */
     public function create(Workspace $workspace, User $user, array $data): CrmLead
     {
         $fields  = $this->checked($workspace, $data);
@@ -138,7 +144,7 @@ class CrmLeadService
         // Given an owner as it is added: its first assignment too (Phase G3a).
         $assignedAt = $ownerId === null ? null : now();
 
-        $lead = DB::transaction(function () use ($workspace, $fields, $ownerId, $items, $assignedAt) {
+        [$lead, $rule] = DB::transaction(function () use ($workspace, $fields, $ownerId, $items, $assignedAt) {
             $lead = $this->leads->create($workspace, [
                 ...$fields,
                 'owner_id'          => $ownerId,
@@ -149,11 +155,23 @@ class CrmLeadService
 
             $this->leads->replaceItems($lead, $items);
 
-            return $lead;
+            // Phase I1: left without an owner, it goes to the first assignment rule that fits.
+            $routed = $ownerId === null ? $this->routing->route($workspace, $lead, array_values(array_filter(array_column($items, 'item_id')))) : null;
+
+            if ($routed) {
+                $this->leads->update($lead, ['owner_id' => $routed['owner_id'], 'status' => CrmLead::ASSIGNED, 'assigned_at' => now(), 'first_assigned_at' => now()]);
+            }
+
+            return [$lead, $routed['rule'] ?? null];
         });
         $lead = $this->leads->loadShown($lead);
 
-        ActivityLogService::record('created', 'Added '.$this->describe($lead).($lead->owner && $ownerId !== $user->id ? " for {$lead->owner->name}" : ''), $lead, ['source' => 'api']);
+        ActivityLogService::record(
+            'created',
+            'Added '.$this->describe($lead).($lead->owner && $lead->owner->id !== $user->id ? " for {$lead->owner->name}" : '').($rule ? " by the assignment rule \"{$rule->name}\"" : ''),
+            $lead,
+            ['source' => 'api', ...($rule ? ['owner_id' => $lead->owner_id, 'rule_id' => $rule->id] : [])],
+        );
 
         $this->assignments->notify($workspace, $lead, $user);
 

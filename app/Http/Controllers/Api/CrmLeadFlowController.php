@@ -20,6 +20,12 @@ class CrmLeadFlowController extends Controller
         return $this->step(fn () => $this->crmLeadFlow->assign($this->currentWorkspace($request), $request->user(), $id, (int) $request->validated('owner_id')), fn ($lead) => "The lead is now {$lead->owner->name}'s.");
     }
 
+    /** Phase I1: a lead in the queue sent through the assignment rules. */
+    public function assignByRules(CrmLeadStepRequest $request, int $id): JsonResponse
+    {
+        return $this->step(fn () => $this->crmLeadFlow->assignByRules($this->currentWorkspace($request), $request->user(), $id), fn ($lead) => "The lead is now {$lead->owner->name}'s, by the assignment rules.");
+    }
+
     public function contact(CrmLeadStepRequest $request, int $id): JsonResponse
     {
         return $this->step(fn () => $this->crmLeadFlow->contact($this->currentWorkspace($request), $request->user(), $id), fn () => 'The lead is marked contacted.');

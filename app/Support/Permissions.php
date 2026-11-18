@@ -122,6 +122,8 @@ final class Permissions
         'crm.records'  => ['CRM Records', 'crm', ['team' => 'View Team Records', 'all' => 'View All CRM Records']],
         // Phase H1: CRM's reports on the Reports page, each with the view of what it counts besides.
         'crm.reports'  => ['CRM Reports', 'crm', ['view' => 'View CRM Reports']],
+        // Phase I1: the lead assignment rules in Settings → CRM - and I2's scoring rules.
+        'crm.rules'    => ['Assignment and Scoring Rules', 'crm', ['manage' => 'Manage Assignment and Scoring Rules']],
         'crm.settings' => ['CRM Settings', 'crm', self::APP_SETTINGS],
     ];
 
@@ -179,6 +181,8 @@ final class Permissions
         'crm.opportunities.manage'   => ['contacts.view'],
         // CRM's reports are on the Reports page (Phase H1).
         'crm.reports.view'           => ['reports.view'],
+        // Its rules are in Settings → CRM (Phase I1).
+        'crm.rules.manage'           => ['settings.view'],
         'purchases.purchases.create' => ['contacts.view', 'items.view'],
         'purchases.payments.record'  => ['purchases.purchases.view', 'payment_accounts.view'],
         'purchases.payments.reverse' => ['payment_accounts.view'],

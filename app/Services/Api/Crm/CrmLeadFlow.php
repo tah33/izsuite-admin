@@ -10,7 +10,9 @@ use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Crm\CrmLeadRules;
 use App\Services\Crm\LeadAssignments;
 use App\Services\Crm\LeadQualification;
+use App\Services\Crm\LeadRouting;
 use App\Services\Shared\ActivityLogService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -19,7 +21,8 @@ use Illuminate\Validation\ValidationException;
  *
  * - Assign: to an active member who may view leads at its location. A New
  *   lead becomes Assigned; any other keeps its status. The log keeps the
- *   previous owner, and the new one is told.
+ *   previous owner, and the new one is told. A lead in the queue can be
+ *   sent through the assignment rules instead (Phase I1).
  * - Mark Contacted, Qualify - once what Settings > CRM requires is filled in
  *   (Phase B2a) - Unqualify (with a reason) and Archive (with one or not).
  * - Reopen: an unqualified or archived lead back to Assigned - New, without
@@ -35,7 +38,47 @@ class CrmLeadFlow
         protected CrmLeadRules $rules,
         protected LeadAssignments $assignments,
         protected LeadQualification $qualification,
+        protected LeadRouting $routing,
     ) {}
+
+    /** A lead in the queue given to whom the first fitting assignment rule says (Phase I1) - refused when none fits. */
+    public function assignByRules(Workspace $workspace, User $user, int $id): CrmLead
+    {
+        $lead = $this->allowed($workspace, $user, $id, 'assign', 'An unqualified or archived lead is reopened before it is assigned.');
+
+        if ($lead->owner_id !== null) {
+            throw ValidationException::withMessages(['owner_id' => 'Only a lead in the queue goes to the assignment rules.']);
+        }
+
+        $routed = DB::transaction(function () use ($workspace, $lead) {
+            $routed = $this->routing->route($workspace, $lead, $lead->interestedItems->pluck('item_id')->filter()->map(fn ($id) => (int) $id)->values()->all());
+
+            if ($routed) {
+                $now = now();
+
+                $this->leads->update($lead, ['owner_id' => $routed['owner_id'], 'status' => CrmLead::ASSIGNED, 'assigned_at' => $now, 'first_assigned_at' => $lead->first_assigned_at ?? $now]);
+            }
+
+            return $routed;
+        });
+
+        if (! $routed) {
+            throw ValidationException::withMessages(['owner_id' => 'No assignment rule fits this lead. Assign it by hand.']);
+        }
+
+        $lead = $this->leads->loadShown($lead);
+
+        ActivityLogService::record('updated', 'Assigned '.$this->service->describe($lead)." to {$lead->owner->name} by the assignment rule \"{$routed['rule']->name}\"", $lead, [
+            'source'            => 'api',
+            'owner_id'          => $lead->owner_id,
+            'previous_owner_id' => null,
+            'rule_id'           => $routed['rule']->id,
+        ]);
+
+        $this->assignments->notify($workspace, $lead, $user);
+
+        return $lead;
+    }
 
     public function assign(Workspace $workspace, User $user, int $id, int $ownerId): CrmLead
     {

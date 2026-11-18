@@ -195,6 +195,12 @@ final class RoutePermissions
             'api.business-settings.crm.email-templates.store'   => 'crm.settings.manage',
             'api.business-settings.crm.email-templates.update'  => 'crm.settings.manage',
             'api.business-settings.crm.email-templates.destroy' => 'crm.settings.manage',
+            // Phase I1: the lead assignment rules, with their own permission (17.30).
+            'api.business-settings.crm.assignment-rules.index'   => 'crm.rules.manage',
+            'api.business-settings.crm.assignment-rules.store'   => 'crm.rules.manage',
+            'api.business-settings.crm.assignment-rules.order'   => 'crm.rules.manage',
+            'api.business-settings.crm.assignment-rules.update'  => 'crm.rules.manage',
+            'api.business-settings.crm.assignment-rules.destroy' => 'crm.rules.manage',
             'api.business-settings.expenses.show'              => 'settings.view',
             'api.business-settings.expenses.update'            => 'expenses.settings.manage',
 
@@ -346,6 +352,7 @@ final class RoutePermissions
             'api.crm.leads.unqualify' => 'crm.leads.manage',
             'api.crm.leads.archive'   => 'crm.leads.manage',
             'api.crm.leads.assign'    => 'crm.leads.assign',
+            'api.crm.leads.assign-by-rules' => 'crm.leads.assign',
             'api.crm.leads.reopen'    => 'crm.leads.reopen',
             // Converting one (Phase C1); a new contact needs contacts.create besides (CrmLeadConversion).
             'api.crm.leads.conversion' => 'crm.leads.convert',
