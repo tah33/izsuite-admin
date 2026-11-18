@@ -6,6 +6,7 @@ use App\Models\User\SalesSetting;
 use App\Models\User\Workspace;
 use App\Repositories\User\SalesSettingRepository;
 use App\Services\Shared\ActivityLogService;
+use App\Support\RichText;
 use App\Support\SettingChanges;
 
 /**
@@ -29,7 +30,15 @@ class SalesSettingService
     /** $data is validated (see SaveSalesSettingsRequest). */
     public function save(Workspace $workspace, array $data): SalesSetting
     {
-        $before   = $this->settings($workspace)->only(self::FIELDS);
+        $before = $this->settings($workspace)->only(self::FIELDS);
+
+        // The notes and terms come from the form's editors, kept to the tags RichText allows.
+        foreach (['notes', 'terms'] as $field) {
+            if (array_key_exists($field, $data)) {
+                $data[$field] = RichText::clean($data[$field]);
+            }
+        }
+
         $settings = $this->salesSettingRepository->save($workspace, $data);
 
         // Logged here, like every save, so LogApiWriteActivity does not write

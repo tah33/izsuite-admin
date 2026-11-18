@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Sales;
 
+use App\Support\RichText;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,8 +17,9 @@ class SalesSettingsResource extends JsonResource
             'proforma_validity'  => $this->proforma_validity,
             'line_discounts'     => $this->line_discounts,
             'document_discounts' => $this->document_discounts,
-            'notes'              => $this->notes,
-            'terms'              => $this->terms,
+            // HTML for the form's editors; text saved before them comes as paragraphs.
+            'notes'              => RichText::html($this->notes),
+            'terms'              => RichText::html($this->terms),
         ];
     }
 }

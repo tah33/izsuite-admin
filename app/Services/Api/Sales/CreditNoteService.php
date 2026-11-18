@@ -14,6 +14,7 @@ use App\Services\Documents\DocumentNumbers;
 use App\Services\Documents\DocumentTemplates;
 use App\Services\Sales\SalesDocumentRules;
 use App\Services\Shared\ActivityLogService;
+use App\Support\RichText;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -227,7 +228,7 @@ class CreditNoteService
             'price_tax_mode' => $invoice->price_tax_mode,
             'tax_rounding'   => $invoice->tax_rounding,
             'reason'         => $data['reason'],
-            'notes'          => $data['notes'] ?? null,
+            'notes'          => RichText::clean($data['notes'] ?? null),
             'source_id'      => $invoice->id,
         ];
     }

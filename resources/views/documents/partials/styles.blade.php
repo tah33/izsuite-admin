@@ -56,6 +56,9 @@
     .totals .strong td { border-top: 1px solid #d1d5db; font-size: 11pt; font-weight: 700; }
     .texts { margin-top: 18px; }
     .text-block { margin-bottom: 12px; white-space: pre-line; page-break-inside: avoid; }
+    .text-block.rich { white-space: normal; }
+    .text-block.rich p { margin: 0 0 4px; }
+    .text-block.rich ul, .text-block.rich ol { margin: 0 0 4px; padding-left: 18px; }
     .signature { margin-top: 24px; text-align: right; page-break-inside: avoid; }
     .signature img { max-width: 220px; max-height: 70px; }
 

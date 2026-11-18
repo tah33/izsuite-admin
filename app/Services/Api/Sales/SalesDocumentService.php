@@ -16,6 +16,7 @@ use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\BusinessCalendar;
 use App\Services\Shared\WorkspaceAccess;
 use App\Support\Decimal;
+use App\Support\RichText;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Arr;
@@ -218,9 +219,10 @@ class SalesDocumentService
             'sales_reference'      => $data['sales_reference'] ?? null,
             'discount_type'        => $discount ? $data['discount_type'] : null,
             'discount_value'       => $discount ? (string) $data['discount_value'] : null,
-            'notes'                => $data['notes'] ?? null,
-            'terms'                => $data['terms'] ?? null,
-            'payment_instructions' => $data['payment_instructions'] ?? null,
+            // Rich text from the form's editors, kept to the tags RichText allows.
+            'notes'                => RichText::clean($data['notes'] ?? null),
+            'terms'              => RichText::clean($data['terms'] ?? null),
+            'payment_instructions' => RichText::clean($data['payment_instructions'] ?? null),
         ];
     }
 

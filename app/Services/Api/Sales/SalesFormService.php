@@ -10,6 +10,7 @@ use App\Repositories\User\SalesSettingRepository;
 use App\Repositories\User\TaxRateRepository;
 use App\Services\Api\BusinessSetup\ExchangeRateService;
 use App\Services\Shared\LocationAccess;
+use App\Support\RichText;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Arr;
 
@@ -64,8 +65,9 @@ class SalesFormService
             'currency'           => $currency,
             'exchange_rate'      => $this->exchangeRateService->rateOn($workspace, $currency, $date),
             'location_id'        => $this->locationAccess->defaultFor($workspace),
-            'notes'              => $settings->notes,
-            'terms'              => $settings->terms,
+            // Settings > Sales keeps plain text; the form's editors take HTML.
+            'notes'              => RichText::html($settings->notes),
+            'terms'             => RichText::html($settings->terms),
             'price_tax_mode'     => $workspace->price_tax_mode,
             'tax_rounding'       => $workspace->tax_rounding,
             'taxes_enabled'      => $taxes,

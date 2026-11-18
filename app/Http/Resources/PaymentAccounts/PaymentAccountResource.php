@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\PaymentAccounts;
 
+use App\Support\RichText;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -37,7 +38,8 @@ class PaymentAccountResource extends JsonResource
             'opening_balance_date'    => $this->opening_balance_date,
             'balance'                 => $this->balance,
             'has_transactions'        => (bool) $this->has_transactions,
-            'payment_instructions'    => $this->payment_instructions,
+            // HTML, safe to print: instructions saved before the editor come as paragraphs.
+            'payment_instructions'    => RichText::html($this->payment_instructions),
             'show_on_documents'       => $this->show_on_documents,
             'allow_customer_payments' => $this->allow_customer_payments,
             'allow_supplier_payments' => $this->allow_supplier_payments,

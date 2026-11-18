@@ -8,6 +8,7 @@ use App\Services\Api\Sales\SalesSnapshots;
 use App\Services\Documents\DocumentLinks;
 use App\Services\Shared\AllowedActions;
 use App\Services\Sales\SalesDocumentRules;
+use App\Support\RichText;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -77,9 +78,10 @@ class SalesDocumentResource extends JsonResource
             'refunded_amount'      => $this->refunded_amount,
             'balance_due'          => $this->balance_due,
             'refundable'           => $this->type === DocumentType::CreditNote ? $rules->refundable($this->resource) : null,
-            'notes'                => $this->notes,
-            'terms'                => $this->terms,
-            'payment_instructions' => $this->payment_instructions,
+            // HTML, safe to print: older documents' plain text comes as paragraphs.
+            'notes'                => RichText::html($this->notes),
+            'terms'               => RichText::html($this->terms),
+            'payment_instructions' => RichText::html($this->payment_instructions),
             'status_reason'        => $this->status_reason,
             'reason'               => $this->reason,
             'source'               => $this->source ? $this->link($this->source) : null,

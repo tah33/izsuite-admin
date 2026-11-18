@@ -10,6 +10,8 @@ use App\Models\User\SalesDocument;
 use App\Models\User\SalesDocumentLine;
 use App\Models\User\SalesPayment;
 use App\Support\Decimal;
+use App\Support\RichText;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
 /**
@@ -150,7 +152,10 @@ class DocumentSheet
      * customers (Doc 05 section 9) - while its template keeps payment
      * instructions.
      *
-     * @return list<array{0: string, 1: string}> heading, text
+     * Notes, payment instructions and terms are rich text, so they come as an
+     * HtmlString of cleaned HTML; the rest are plain text.
+     *
+     * @return list<array{0: string, 1: string|HtmlString}> heading, text
      */
     public function texts(SalesDocument $document, array $template, array $accounts = []): array
     {
@@ -158,11 +163,16 @@ class DocumentSheet
 
         return array_values(array_filter([
             $document->type === DocumentType::CreditNote && $document->reason ? ['Reason', $document->reason] : null,
-            ($template['show_notes'] ?? true) && $document->notes ? ['Notes', $document->notes] : null,
-            $paid && $document->payment_instructions ? ['Payment Instructions', $document->payment_instructions] : null,
+            ($template['show_notes'] ?? true) && $document->notes ? ['Notes', $this->rich($document->notes)] : null,
+            $paid && $document->payment_instructions ? ['Payment Instructions', $this->rich($document->payment_instructions)] : null,
             $paid && $accounts ? ['Payment Details', implode("\n\n", array_map(fn (array $account) => $this->paymentDetails->text($account), $accounts))] : null,
-            ($template['show_terms'] ?? true) && $document->terms ? ['Terms and Conditions', $document->terms] : null,
+            ($template['show_terms'] ?? true) && $document->terms ? ['Terms and Conditions', $this->rich($document->terms)] : null,
         ]));
+    }
+
+    private function rich(string $text): HtmlString
+    {
+        return new HtmlString(RichText::html($text) ?? '');
     }
 
     /** A receipt's details (Doc 06 section 13): label and value. */

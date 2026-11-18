@@ -66,7 +66,8 @@ class SavePaymentAccountRequest extends FormRequest
             'settlement_currency'      => ['nullable', 'string', Rule::in($currencies)],
             'opening_balance'          => ['nullable', 'numeric', 'decimal:0,2', 'between:-9999999999999.99,9999999999999.99'],
             'opening_balance_date'     => ['nullable', 'date_format:Y-m-d'],
-            'payment_instructions'     => ['nullable', 'string', 'max:2000'],
+            // HTML from the form's editor: room for its tags as well as the text.
+            'payment_instructions'     => ['nullable', 'string', 'max:5000'],
             'show_on_documents'        => ['sometimes', 'boolean'],
             'allow_customer_payments'  => ['sometimes', 'boolean'],
             'allow_supplier_payments'  => ['sometimes', 'boolean'],

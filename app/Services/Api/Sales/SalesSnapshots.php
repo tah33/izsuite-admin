@@ -12,6 +12,7 @@ use App\Repositories\User\BusinessSettingRepository;
 use App\Repositories\User\WorkspaceFileRepository;
 use App\Services\Documents\PaymentDetails;
 use App\Support\Countries;
+use App\Support\RichText;
 
 /**
  * What a numbered document keeps as it was (Doc 06 section 6, Doc 14 section
@@ -112,6 +113,22 @@ class SalesSnapshots
     /** Whether two versions of a document differ in anything the customer sees. */
     public function differ(array $before, array $after): bool
     {
-        return json_encode(array_intersect_key($before, array_flip(self::COMPARED))) !== json_encode(array_intersect_key($after, array_flip(self::COMPARED)));
+        return json_encode($this->compared($before)) !== json_encode($this->compared($after));
+    }
+
+    // Rich text read the same way on both sides: a document saved before its
+    // terms took formatting has plain text, and saving it unchanged now gives
+    // HTML - that alone is no revision.
+    private function compared(array $version): array
+    {
+        $compared = array_intersect_key($version, array_flip(self::COMPARED));
+
+        foreach (['notes', 'terms', 'payment_instructions'] as $field) {
+            if (array_key_exists($field, $compared)) {
+                $compared[$field] = RichText::html($compared[$field]);
+            }
+        }
+
+        return $compared;
     }
 }

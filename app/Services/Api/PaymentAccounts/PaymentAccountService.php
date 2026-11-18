@@ -9,6 +9,7 @@ use App\Repositories\User\PaymentAccountRepository;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\WorkspaceAccess;
 use App\Support\Decimal;
+use App\Support\RichText;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Arr;
@@ -64,7 +65,7 @@ class PaymentAccountService
 
     public function create(Workspace $workspace, array $data): PaymentAccount
     {
-        $account = $this->paymentAccountRepository->create($workspace, $this->withOpeningBalance(Arr::except($data, self::REPLACEMENTS)));
+        $account = $this->paymentAccountRepository->create($workspace, $this->withOpeningBalance($this->withCleanInstructions(Arr::except($data, self::REPLACEMENTS))));
 
         // Each write is logged here, by name, so LogApiWriteActivity does not
         // add its own vaguer "POST api/v1/payment-accounts" entry for the same request.
@@ -78,7 +79,7 @@ class PaymentAccountService
     {
         $account     = $this->findOwned($workspace, $id);
         $replacement = Arr::only($data, self::REPLACEMENTS);
-        $data        = $this->withOpeningBalance(Arr::except($data, self::REPLACEMENTS));
+        $data        = $this->withOpeningBalance($this->withCleanInstructions(Arr::except($data, self::REPLACEMENTS)));
 
         if ($this->accountTransactionRepository->existsFor($account)) {
             $this->keepWhatMoneyMovedOn($account, $data);
@@ -266,6 +267,16 @@ class PaymentAccountService
         $account->setAttribute('has_transactions', $used);
 
         return $account;
+    }
+
+    /** The payment instructions come from the form's editor, kept to the tags RichText allows. Left out, they are left alone. */
+    private function withCleanInstructions(array $data): array
+    {
+        if (array_key_exists('payment_instructions', $data)) {
+            $data['payment_instructions'] = RichText::clean($data['payment_instructions']);
+        }
+
+        return $data;
     }
 
     /** An opening balance left empty is zero, not "unknown" - and has no date. Left out, it is left alone. */

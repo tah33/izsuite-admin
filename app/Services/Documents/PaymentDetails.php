@@ -7,6 +7,7 @@ use App\Models\User\Workspace;
 use App\Repositories\User\PaymentAccountRepository;
 use App\Support\BankLabels;
 use App\Support\Countries;
+use App\Support\RichText;
 
 /**
  * What customer documents print of the business's payment accounts (Doc 05
@@ -45,7 +46,8 @@ class PaymentDetails
         return implode("\n", array_filter([
             $account['name'],
             ...array_map(fn (array $detail) => "{$detail[0]}: {$detail[1]}", $account['details']),
-            $account['instructions'],
+            // Rich text from the account's editor, printed here as text.
+            RichText::plain($account['instructions']),
         ]));
     }
 
@@ -54,7 +56,10 @@ class PaymentDetails
     {
         $details = implode(', ', array_map(fn (array $detail) => "{$detail[0]} {$detail[1]}", $account['details']));
 
-        return 'Pay to '.$account['name'].($details ? " - {$details}" : '').($account['instructions'] ? ". {$account['instructions']}" : '');
+        // One line: the instructions' own line breaks become spaces.
+        $instructions = preg_replace('/\s*\n\s*/', ' ', RichText::plain($account['instructions']) ?? '');
+
+        return 'Pay to '.$account['name'].($details ? " - {$details}" : '').($instructions ? ". {$instructions}" : '');
     }
 
     /** @return list<array{0: string, 1: string}> */

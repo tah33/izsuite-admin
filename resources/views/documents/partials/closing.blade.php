@@ -12,7 +12,8 @@
 @if ($texts)
     <section class="texts">
         @foreach ($texts as [$name, $text])
-            <div class="text-block">
+            {{-- Rich text (an HtmlString, cleaned) keeps its own line breaks. --}}
+            <div @class(['text-block', 'rich' => $text instanceof \Illuminate\Contracts\Support\Htmlable])>
                 <div class="label">{{ __($name, [], $lang) }}</div>{{ $text }}
             </div>
         @endforeach
