@@ -8,8 +8,9 @@ use Illuminate\Validation\Rule;
 
 /**
  * The Leads page's filters (Doc 17 Phase B1): a status - none for the open
- * leads, "all" for every one, "new" for the queue - an owner ("me" for the
- * user's own) and a source.
+ * leads, "all" for every one, "new" for the queue, and (Phase G3b)
+ * "uncontacted" for the open ones not contacted in time - an owner ("me" for
+ * the user's own) and a source.
  */
 class ListCrmLeadsRequest extends FormRequest
 {
@@ -22,7 +23,7 @@ class ListCrmLeadsRequest extends FormRequest
     {
         return [
             'search'    => ['nullable', 'string', 'max:100'],
-            'status'    => ['nullable', Rule::in(['all', ...CrmLead::STATUSES])],
+            'status'    => ['nullable', Rule::in(['all', 'uncontacted', ...CrmLead::STATUSES])],
             'owner_id'  => ['nullable', 'regex:/^(me|[0-9]+)$/'],
             'source_id' => ['nullable', 'integer'],
         ];

@@ -4,6 +4,7 @@ namespace App\Services\Api\Crm;
 
 use App\Models\User\CrmOption;
 use App\Models\User\CrmPipeline;
+use App\Models\User\CrmSetting;
 use App\Models\User\Workspace;
 use App\Repositories\User\CrmLeadRepository;
 use App\Repositories\User\CrmOpportunityRepository;
@@ -34,6 +35,9 @@ use Illuminate\Support\Str;
 class CrmSettingService
 {
     use RefusesConflicts;
+
+    /** What a save reads and writes, each on its own - Phase G3b adds the follow-up periods. */
+    private const SAVED = ['mode', 'qualification_required', 'win_on_order', 'closing_soon_days', 'lead_response_days', 'recent_activity_days'];
 
     public function __construct(
         protected CrmSettingRepository $settings,
@@ -101,11 +105,10 @@ class CrmSettingService
     /** $data is validated (see SaveCrmSettingsRequest). */
     public function save(Workspace $workspace, array $data): array
     {
-        $saved  = $this->settings->forWorkspace($workspace);
-        $before = ['mode' => $saved->mode, 'qualification_required' => $saved->qualificationRequired(), 'win_on_order' => $saved->win_on_order, 'closing_soon_days' => $saved->closing_soon_days];
+        $before = $this->saved($this->settings->forWorkspace($workspace));
 
-        $settings = $this->settings->save($workspace, Arr::only($data, ['mode', 'qualification_required', 'win_on_order', 'closing_soon_days']));
-        $after    = ['mode' => $settings->mode, 'qualification_required' => $settings->qualificationRequired(), 'win_on_order' => $settings->win_on_order, 'closing_soon_days' => $settings->closing_soon_days];
+        $settings = $this->settings->save($workspace, Arr::only($data, self::SAVED));
+        $after    = $this->saved($settings);
 
         ActivityLogService::record('updated', 'Updated the CRM settings', $workspace, [
             'source'  => 'api',
@@ -125,6 +128,22 @@ class CrmSettingService
     public function qualificationRequired(Workspace $workspace): array
     {
         return $this->settings->forWorkspace($workspace)->qualificationRequired();
+    }
+
+    /**
+     * The closing-soon (Phase G1) and follow-up (Phase G3b) periods, in days.
+     *
+     * @return array{closing_soon_days: int, lead_response_days: int, recent_activity_days: int}
+     */
+    public function periods(Workspace $workspace): array
+    {
+        return $this->settings->forWorkspace($workspace)->only(['closing_soon_days', 'lead_response_days', 'recent_activity_days']);
+    }
+
+    /** SAVED's values in $settings, as the log compares them. */
+    private function saved(CrmSetting $settings): array
+    {
+        return [...$settings->only(self::SAVED), 'qualification_required' => $settings->qualificationRequired()];
     }
 
     /** $data is validated (see SaveCrmOptionRequest): its kind and name. */

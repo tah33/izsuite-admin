@@ -21,6 +21,9 @@ class CrmSetting extends Model
     /** The longest closing-soon period, in days (Phase G1). */
     public const MAX_CLOSING_SOON_DAYS = 365;
 
+    /** The longest follow-up period, in days (Phase G3b). */
+    public const MAX_FOLLOW_UP_DAYS = 365;
+
     protected $fillable = [
         'mode',
         'qualification_required',
@@ -28,18 +31,26 @@ class CrmSetting extends Model
         'win_on_order',
         // Phase G1: an open opportunity expected to close within these days closes soon.
         'closing_soon_days',
+        // Phase G3b: a lead not contacted within these days of being added is warned about.
+        'lead_response_days',
+        // Phase G3b: an opportunity closing soon with no activity in these days is warned about.
+        'recent_activity_days',
     ];
 
     protected $attributes = [
-        'mode'              => 'leads',
-        'win_on_order'      => true,
-        'closing_soon_days' => 30,
+        'mode'                 => 'leads',
+        'win_on_order'         => true,
+        'closing_soon_days'    => 30,
+        'lead_response_days'   => 2,
+        'recent_activity_days' => 14,
     ];
 
     protected $casts = [
         'qualification_required' => 'array',
         'win_on_order'           => 'boolean',
         'closing_soon_days'      => 'integer',
+        'lead_response_days'     => 'integer',
+        'recent_activity_days'   => 'integer',
     ];
 
     public function workspace(): BelongsTo

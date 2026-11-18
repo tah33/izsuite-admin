@@ -3,12 +3,14 @@
 namespace App\Repositories\User;
 
 use App\Models\User\Contact;
+use App\Models\User\CrmActivity;
 use App\Models\User\CrmOpportunity;
 use App\Models\User\CrmOpportunityItem;
 use App\Models\User\CrmOption;
 use App\Models\User\CrmStageVisit;
 use App\Models\User\Location;
 use App\Models\User\Workspace;
+use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -91,22 +93,28 @@ class CrmOpportunityRepository
      * the calendar's and the board's start: open ones, or those of one
      * status, or all of them, searched by their name or their contact's, by
      * stage, pipeline (Phase D3b) and owner. Archived ones only show with the
-     * "archived" status (Phase D2a), whatever theirs. The "stale" status
-     * (Phase D3a) is the open ones that entered their stage before
-     * $filters['stale_since'] says for it: [stage id => that moment].
+     * "archived" status (Phase D2a), whatever theirs. The follow-up statuses
+     * are open ones too: "stale" (Phase D3a) those that entered their stage
+     * before $filters['stale_since'] says for it ([stage id => that moment]);
+     * Phase G3b's "no_activity" those with none planned, and "quiet" those
+     * closing from $filters['closing_from'] to ['closing_to'] with no
+     * activity since ['quiet_since'] (FollowUpCutoffs).
      */
     private function filtered(Workspace $workspace, array $filters, array $scope): Builder
     {
-        $status = $filters['status'] ?? null;
+        $status    = $filters['status'] ?? null;
+        $following = in_array($status, CrmOpportunity::FOLLOW_UP_STATUSES, true);
 
         return $this->visible($workspace, $scope)
             ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $query->where(fn (Builder $query) => $query
                 ->where('name', 'like', "%{$search}%")
                 ->orWhereHas('contact', fn (Builder $query) => $query->where('name', 'like', "%{$search}%"))))
             ->when($status === 'archived', fn (Builder $query) => $query->whereNotNull('archived_at'), fn (Builder $query) => $query->whereNull('archived_at'))
-            ->when($status === null || $status === '' || $status === 'stale', fn (Builder $query) => $query->where('status', CrmOpportunity::OPEN))
+            ->when($status === null || $status === '' || $following, fn (Builder $query) => $query->where('status', CrmOpportunity::OPEN))
             ->when($status === 'stale', fn (Builder $query) => $this->stale($query, $filters['stale_since'] ?? []))
-            ->when($status && ! in_array($status, ['all', 'archived', 'stale'], true), fn (Builder $query) => $query->where('status', $status))
+            ->when($status === 'no_activity', fn (Builder $query) => $this->withoutNextActivity($query))
+            ->when($status === 'quiet', fn (Builder $query) => $this->quiet($query, $filters['closing_from'], $filters['closing_to'], $filters['quiet_since']))
+            ->when($status && ! $following && ! in_array($status, ['all', 'archived'], true), fn (Builder $query) => $query->where('status', $status))
             ->when($filters['stage_id'] ?? null, fn (Builder $query, $id) => $query->where('stage_id', $id))
             ->when($filters['pipeline_id'] ?? null, fn (Builder $query, $id) => $query->where('pipeline_id', $id))
             ->when($filters['owner_id'] ?? null, fn (Builder $query, $id) => $query->where('owner_id', $id));
@@ -276,6 +284,58 @@ class CrmOpportunityRepository
                 $query->orWhere(fn (Builder $query) => $query->where('stage_id', $stageId)->where('stage_entered_at', '<', $moment));
             }
         });
+    }
+
+    /** Those with no activity planned (Phase G3b) - an overdue one is still planned. */
+    private function withoutNextActivity(Builder $query): void
+    {
+        $query->whereNotExists(fn ($activities) => $activities->selectRaw('1')
+            ->from('crm_activities')
+            ->whereColumn('crm_activities.opportunity_id', 'crm_opportunities.id')
+            ->where('crm_activities.status', CrmActivity::PLANNED));
+    }
+
+    /**
+     * Those expected to close from $from to $to - business days - that have
+     * gone without activity since $since (Phase G3b): added before it, with
+     * no activity done and no e-mail sent since, as a record's days without
+     * activity count (RecordFollowUp).
+     */
+    private function quiet(Builder $query, string $from, string $to, CarbonInterface $since): void
+    {
+        $query->whereBetween('expected_close_date', [$from, $to])
+            ->where('crm_opportunities.created_at', '<', $since)
+            ->whereNotExists(fn ($activities) => $activities->selectRaw('1')
+                ->from('crm_activities')
+                ->whereColumn('crm_activities.opportunity_id', 'crm_opportunities.id')
+                ->where('crm_activities.status', CrmActivity::COMPLETED)
+                ->where('crm_activities.completed_at', '>=', $since))
+            ->whereNotExists(fn ($emails) => $emails->selectRaw('1')
+                ->from('crm_emails')
+                ->whereColumn('crm_emails.opportunity_id', 'crm_opportunities.id')
+                ->where('crm_emails.created_at', '>=', $since));
+    }
+
+    /**
+     * The CRM Overview's follow-up warnings (Phase G3b) among the open
+     * opportunities $scope sees, archived ones left out, narrowed by
+     * $filters (narrowed()): how many have no activity planned, are stale
+     * (by $staleSince, see stale()), and close soon without recent activity
+     * ($quiet: closing_from, closing_to and quiet_since - see quiet()).
+     *
+     * @param  array<int, \DateTimeInterface>  $staleSince
+     * @param  array{closing_from: string, closing_to: string, quiet_since: CarbonInterface}  $quiet
+     * @return array{without_next_activity: int, stale: int, quiet: int}
+     */
+    public function followUpCounts(Workspace $workspace, array $scope, array $filters, array $staleSince, array $quiet): array
+    {
+        $open = fn () => $this->narrowed($this->visible($workspace, $scope), $filters)->whereNull('archived_at')->where('status', CrmOpportunity::OPEN);
+
+        return [
+            'without_next_activity' => tap($open(), fn (Builder $query) => $this->withoutNextActivity($query))->count(),
+            'stale'                 => tap($open(), fn (Builder $query) => $this->stale($query, $staleSince))->count(),
+            'quiet'                 => tap($open(), fn (Builder $query) => $this->quiet($query, $quiet['closing_from'], $quiet['closing_to'], $quiet['quiet_since']))->count(),
+        ];
     }
 
     /**

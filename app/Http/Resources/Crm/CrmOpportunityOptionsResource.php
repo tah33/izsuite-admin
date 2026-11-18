@@ -12,7 +12,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * stage of theirs switched on with its pipeline (to filter by), the lead
  * sources and sales teams
  * switched on, the people it can be given to with the locations each may use
- * (null for every one), and where a new one starts and who owns it.
+ * (null for every one), and where a new one starts and who owns it. Phase G3b
+ * adds the recent-activity days.
  */
 class CrmOpportunityOptionsResource extends JsonResource
 {
@@ -30,6 +31,8 @@ class CrmOpportunityOptionsResource extends JsonResource
             'owners'       => $this->resource['owners'],
             'location_id'  => $this->resource['location_id'],
             'owner_id'     => $this->resource['owner_id'],
+            // Phase G3b: what the "quiet" filter is named with.
+            'recent_activity_days' => $this->resource['recent_activity_days'],
         ];
     }
 }

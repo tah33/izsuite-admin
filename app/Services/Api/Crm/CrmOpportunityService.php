@@ -11,11 +11,11 @@ use App\Models\User\Workspace;
 use App\Repositories\User\ContactRepository;
 use App\Repositories\User\CrmOpportunityRepository;
 use App\Repositories\User\CrmOptionRepository;
-use App\Repositories\User\CrmPipelineRepository;
 use App\Repositories\User\LocationRepository;
 use App\Repositories\User\SalesTeamRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Crm\CrmOpportunityRules;
+use App\Services\Crm\FollowUpCutoffs;
 use App\Services\Crm\LeadInterests;
 use App\Services\Crm\OpportunityAssignments;
 use App\Services\Crm\OpportunityForecast;
@@ -57,7 +57,6 @@ class CrmOpportunityService
 
     public function __construct(
         protected CrmOpportunityRepository $opportunities,
-        protected CrmPipelineRepository $pipelines,
         protected CrmOptionRepository $options,
         protected SalesTeamRepository $teams,
         protected LocationRepository $locations,
@@ -73,6 +72,7 @@ class CrmOpportunityService
         protected BusinessCalendar $calendar,
         protected StageRequirements $requirements,
         protected PipelineChoice $pipelineChoice,
+        protected FollowUpCutoffs $cutoffs,
     ) {}
 
     /**
@@ -92,7 +92,9 @@ class CrmOpportunityService
     /**
      * $filters as the list reads them - and (Phase D4) the board and the
      * calendar: "me" for the owner is $user, and the "stale" status (Phase
-     * D3a) gets each open stage's moment: one that entered it before is stale.
+     * D3a) gets each open stage's moment: one that entered it before is
+     * stale. Phase G3b's "quiet" status gets the closing-soon days and the
+     * moment since which it has had no activity (FollowUpCutoffs).
      */
     public function filters(Workspace $workspace, User $user, array $filters): array
     {
@@ -101,10 +103,11 @@ class CrmOpportunityService
         }
 
         if (($filters['status'] ?? null) === 'stale') {
-            $filters['stale_since'] = $this->pipelines->getFor($workspace)->flatMap->stages
-                ->filter(fn (CrmStage $stage) => $stage->category === CrmStage::OPEN && $stage->stale_after_days !== null)
-                ->mapWithKeys(fn (CrmStage $stage) => [$stage->id => now()->subDays($stage->stale_after_days)])
-                ->all();
+            $filters['stale_since'] = $this->cutoffs->staleSince($workspace);
+        }
+
+        if (($filters['status'] ?? null) === 'quiet') {
+            $filters = [...$filters, ...$this->cutoffs->quiet($workspace)];
         }
 
         return $filters;
@@ -176,7 +179,8 @@ class CrmOpportunityService
      * pipeline's open stages switched on, with their probabilities, the lead
      * sources and sales teams switched on, the people it can be given to,
      * and where a new one starts and who owns it - and (Phase D2a) the lost
-     * reasons switched on.
+     * reasons switched on, and (Phase G3b) the recent-activity days its
+     * "quiet" filter is named with.
      */
     public function options(Workspace $workspace, User $user): array
     {
@@ -193,6 +197,7 @@ class CrmOpportunityService
             'owners'       => $this->assignments->owners($workspace),
             'location_id'  => $this->locationAccess->defaultFor($workspace),
             'owner_id'     => $user->id,
+            'recent_activity_days' => $this->settings->periods($workspace)['recent_activity_days'],
         ];
     }
 

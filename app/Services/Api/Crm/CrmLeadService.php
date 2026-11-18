@@ -11,6 +11,7 @@ use App\Repositories\User\LocationRepository;
 use App\Repositories\User\SalesTeamRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Crm\CrmLeadRules;
+use App\Services\Crm\FollowUpCutoffs;
 use App\Services\Crm\LeadAssignments;
 use App\Services\Crm\LeadDuplicates;
 use App\Services\Crm\LeadInterests;
@@ -62,13 +63,22 @@ class CrmLeadService
         protected LocationAccess $locationAccess,
         protected WorkspaceAccess $access,
         protected LeadDuplicates $duplicates,
+        protected FollowUpCutoffs $cutoffs,
     ) {}
 
-    /** The Leads page, each open lead marked while it has a possible duplicate not decided about (Phase C2). */
+    /**
+     * The Leads page, each open lead marked while it has a possible duplicate
+     * not decided about (Phase C2). The "uncontacted" status (Phase G3b) gets
+     * the moment a lead must have been added before to be late.
+     */
     public function list(Workspace $workspace, User $user, array $filters, int $perPage): LengthAwarePaginator
     {
         if (($filters['owner_id'] ?? null) === 'me') {
             $filters['owner_id'] = $user->id;
+        }
+
+        if (($filters['status'] ?? null) === 'uncontacted') {
+            $filters['uncontacted_before'] = $this->cutoffs->uncontactedBefore($workspace);
         }
 
         $page  = $this->leads->paginateFor($workspace, $filters, $this->visibility->scopeFor($workspace, $user), $perPage);
@@ -91,8 +101,9 @@ class CrmLeadService
      * What a lead's form and the Leads page's filters choose from: the lead
      * sources and sales teams switched on, the people a lead can be given
      * to, where a new lead starts and who owns it - $user, unless they choose
-     * someone else - and what qualifying needs filled in (Phase B2a). The
-     * lists start here if Settings > CRM was never opened.
+     * someone else - what qualifying needs filled in (Phase B2a), and (Phase
+     * G3b) the days its "uncontacted" filter is named with. The lists start
+     * here if Settings > CRM was never opened.
      */
     public function options(Workspace $workspace, User $user): array
     {
@@ -105,6 +116,7 @@ class CrmLeadService
             'location_id'            => $this->locationAccess->defaultFor($workspace),
             'owner_id'               => $user->id,
             'qualification_required' => $this->settings->qualificationRequired($workspace),
+            'lead_response_days'     => $this->settings->periods($workspace)['lead_response_days'],
         ];
     }
 

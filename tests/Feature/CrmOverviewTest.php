@@ -120,7 +120,8 @@ class CrmOverviewTest extends TestCase
             ->assertJsonPath('data.to', '2026-11-30')
             ->assertJsonPath('data.currency', 'USD')
             ->assertJsonPath('data.closing_soon_days', 30)
-            ->assertJsonPath('data.leads', ['new' => 4, 'awaiting' => 2, 'qualified' => 1, 'converted' => 1, 'conversion_rate' => 25])
+            // Phase G3b: one in the queue; and the four open ones - none ever contacted - added more than two days ago.
+            ->assertJsonPath('data.leads', ['new' => 4, 'awaiting' => 2, 'qualified' => 1, 'converted' => 1, 'conversion_rate' => 25, 'unassigned' => 1, 'uncontacted' => 4])
             ->assertJsonPath('data.open', ['count' => 2, 'value' => ['amount' => '3000.00', 'unrated' => 0], 'weighted' => ['amount' => '700.00', 'unrated' => 0]])
             ->assertJsonPath('data.closing_soon', ['count' => 1, 'value' => ['amount' => '1000.00', 'unrated' => 0]])
             ->assertJsonPath('data.won', ['count' => 1, 'value' => ['amount' => '500.00', 'unrated' => 0]])

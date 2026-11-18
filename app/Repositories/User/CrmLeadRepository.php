@@ -30,7 +30,8 @@ class CrmLeadRepository
     /**
      * The Leads page: open leads newest first - or those of one status, or
      * all of them - searched by name, business, e-mail or phone, by owner and
-     * by source.
+     * by source. Phase G3b's "uncontacted" is the open ones not contacted in
+     * time: added before $filters['uncontacted_before'] (FollowUpCutoffs).
      */
     public function paginateFor(Workspace $workspace, array $filters, array $scope, int $perPage): LengthAwarePaginator
     {
@@ -44,7 +45,8 @@ class CrmLeadRepository
                 ->orWhere('email', 'like', "%{$search}%")
                 ->orWhere('phone', 'like', "%{$search}%")))
             ->when($status === null || $status === '', fn (Builder $query) => $query->whereIn('status', CrmLead::OPEN))
-            ->when($status && $status !== 'all', fn (Builder $query) => $query->where('status', $status))
+            ->when($status === 'uncontacted', fn (Builder $query) => $this->uncontacted($query, $filters['uncontacted_before']))
+            ->when($status && ! in_array($status, ['all', 'uncontacted'], true), fn (Builder $query) => $query->where('status', $status))
             ->when($filters['owner_id'] ?? null, fn (Builder $query, $id) => $query->where('owner_id', $id))
             ->when($filters['source_id'] ?? null, fn (Builder $query, $id) => $query->where('source_id', $id))
             ->orderByDesc('created_at')
@@ -192,11 +194,7 @@ class CrmLeadRepository
      */
     public function overview(Workspace $workspace, array $scope, array $filters, CarbonInterface $from, CarbonInterface $to): array
     {
-        $leads = fn () => $this->visible($workspace, $scope)
-            ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('location_id', $id))
-            ->when($filters['sales_team_id'] ?? null, fn (Builder $query, $id) => $query->where('sales_team_id', $id))
-            ->when($filters['owner_id'] ?? null, fn (Builder $query, $id) => $query->where('owner_id', $id))
-            ->when($filters['source_id'] ?? null, fn (Builder $query, $id) => $query->where('source_id', $id));
+        $leads = fn () => $this->narrowed($this->visible($workspace, $scope), $filters);
 
         return [
             'new'       => $leads()->whereBetween('created_at', [$from, $to])->count(),
@@ -204,6 +202,40 @@ class CrmLeadRepository
             'awaiting'  => $leads()->whereIn('status', [CrmLead::NEW, CrmLead::ASSIGNED])->count(),
             'qualified' => $leads()->where('status', CrmLead::QUALIFIED)->count(),
         ];
+    }
+
+    /**
+     * The CRM Overview's lead warnings (Phase G3b) among those $scope sees,
+     * narrowed as overview()'s: how many wait in the queue (New: nobody owns
+     * them), and how many are open and not contacted in time - added before
+     * $uncontactedBefore, never contacted.
+     *
+     * @return array{unassigned: int, uncontacted: int}
+     */
+    public function followUpCounts(Workspace $workspace, array $scope, array $filters, CarbonInterface $uncontactedBefore): array
+    {
+        $leads = fn () => $this->narrowed($this->visible($workspace, $scope), $filters);
+
+        return [
+            'unassigned'  => $leads()->where('status', CrmLead::NEW)->count(),
+            'uncontacted' => tap($leads(), fn (Builder $query) => $this->uncontacted($query, $uncontactedBefore))->count(),
+        ];
+    }
+
+    /** Open, never contacted (Phase G3a's first contact), and added before $before. */
+    private function uncontacted(Builder $query, CarbonInterface $before): void
+    {
+        $query->whereIn('status', CrmLead::OPEN)->whereNull('first_contacted_at')->where('created_at', '<', $before);
+    }
+
+    /** $query narrowed by the Overview's $filters a lead has: location_id, sales_team_id, owner_id and source_id. */
+    private function narrowed(Builder $query, array $filters): Builder
+    {
+        return $query
+            ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('location_id', $id))
+            ->when($filters['sales_team_id'] ?? null, fn (Builder $query, $id) => $query->where('sales_team_id', $id))
+            ->when($filters['owner_id'] ?? null, fn (Builder $query, $id) => $query->where('owner_id', $id))
+            ->when($filters['source_id'] ?? null, fn (Builder $query, $id) => $query->where('source_id', $id));
     }
 
     private function visible(Workspace $workspace, array $scope): Builder

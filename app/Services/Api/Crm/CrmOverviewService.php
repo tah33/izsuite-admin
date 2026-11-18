@@ -10,6 +10,7 @@ use App\Repositories\User\CrmLeadRepository;
 use App\Repositories\User\CrmOpportunityRepository;
 use App\Repositories\User\CrmSettingRepository;
 use App\Services\Crm\ActivityVisibility;
+use App\Services\Crm\FollowUpCutoffs;
 use App\Services\Crm\LeadVisibility;
 use App\Services\Crm\OpportunityForecast;
 use App\Services\Crm\OpportunityVisibility;
@@ -26,7 +27,10 @@ use Illuminate\Support\Collection;
  * leads awaiting follow-up and qualified ones and the conversion rate; open
  * opportunities with the pipeline value and weighted forecast, those closing
  * soon, and those won and lost; and overdue activities - each counting only
- * what the user sees.
+ * what the user sees. Phase G3b adds the follow-up warnings (section 17.23):
+ * leads in the queue and leads not contacted in time; open opportunities
+ * with no activity planned, stale ones, and those closing soon without
+ * recent activity (FollowUpCutoffs).
  *
  * The period counts the new leads, the conversion rate and the won and lost;
  * the rest are as they stand now. Values are in the base currency at
@@ -51,6 +55,7 @@ class CrmOverviewService
         protected WorkspaceAccess $access,
         protected ReportPeriod $period,
         protected BusinessCalendar $calendar,
+        protected FollowUpCutoffs $cutoffs,
     ) {}
 
     /** $input is validated (CrmOverviewRequest): range or date_from and date_to, and the filters. */
@@ -76,12 +81,23 @@ class CrmOverviewService
             'to'                => $to,
             'currency'          => $currency ?? $workspace->base_currency,
             'closing_soon_days' => $settings->closing_soon_days,
+            // Phase G3b: the follow-up warnings' periods.
+            'lead_response_days'   => $settings->lead_response_days,
+            'recent_activity_days' => $settings->recent_activity_days,
             'leads'             => $this->leadFigures($workspace, $user, $settings->usesLeads(), $filters, $from, $to),
             'open'              => ['count' => $open->count(), 'value' => $value($open), 'weighted' => $value($open, true)],
             'closing_soon'      => ['count' => $soon->count(), 'value' => $value($soon)],
             'won'               => ['count' => $rows->where('status', CrmOpportunity::WON)->count(), 'value' => $value($rows->where('status', CrmOpportunity::WON))],
             'lost'              => ['count' => $rows->where('status', CrmOpportunity::LOST)->count(), 'value' => $value($rows->where('status', CrmOpportunity::LOST))],
             'overdue_activities' => $this->activities->overdueCount($workspace, $this->activityVisibility->scopeFor($workspace, $user), $filters, now()),
+            // Phase G3b: the open opportunities with no activity planned, stale, and closing soon without recent activity.
+            'follow_up'         => $this->opportunities->followUpCounts(
+                $workspace,
+                $this->opportunityVisibility->scopeFor($workspace, $user),
+                $filters,
+                $this->cutoffs->staleSince($workspace),
+                $this->cutoffs->quiet($workspace),
+            ),
         ];
     }
 
@@ -89,6 +105,8 @@ class CrmOverviewService
      * The leads' figures - null while the business works with opportunities
      * only, or for someone who may not view leads. The period's days are the
      * business's, so its bounds are moments in the business's time zone.
+     * Phase G3b adds the warnings: those in the queue, and those not
+     * contacted in time.
      */
     private function leadFigures(Workspace $workspace, User $user, bool $usesLeads, array $filters, string $from, string $to): ?array
     {
@@ -97,13 +115,15 @@ class CrmOverviewService
         }
 
         $zone   = $this->calendar->timezone($workspace);
+        $scope  = $this->leadVisibility->scopeFor($workspace, $user);
         $counts = $this->leads->overview(
             $workspace,
-            $this->leadVisibility->scopeFor($workspace, $user),
+            $scope,
             $filters,
             CarbonImmutable::parse($from, $zone)->startOfDay()->utc(),
             CarbonImmutable::parse($to, $zone)->endOfDay()->utc(),
         );
+        $waiting = $this->leads->followUpCounts($workspace, $scope, $filters, $this->cutoffs->uncontactedBefore($workspace));
 
         return [
             'new'             => $counts['new'],
@@ -112,6 +132,8 @@ class CrmOverviewService
             'converted'       => $counts['converted'],
             // Of the leads added in the period, the share converted so far; none added, no rate.
             'conversion_rate' => $counts['new'] > 0 ? round($counts['converted'] * 100 / $counts['new'], 1) : null,
+            'unassigned'      => $waiting['unassigned'],
+            'uncontacted'     => $waiting['uncontacted'],
         ];
     }
 
