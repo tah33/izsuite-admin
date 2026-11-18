@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\CrmLeadDuplicateController;
 use App\Http\Controllers\Api\CrmLeadFlowController;
 use App\Http\Controllers\Api\CrmOpportunityAttachmentController;
 use App\Http\Controllers\Api\CrmOpportunityClosingController;
+use App\Http\Controllers\Api\CrmOverviewController;
 use App\Http\Controllers\Api\CrmActivityController;
 use App\Http\Controllers\Api\CrmContactSummaryController;
 use App\Http\Controllers\Api\CrmEmailController;
@@ -873,6 +874,14 @@ Route::prefix('v1')->group(function () {
     });
 
     /* ----------------------------------------------------------
+     | CRM (Doc 17): the Overview's figures (Phase G1), counting only what
+     | the user sees.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm')->group(function () {
+        Route::get('/overview', [CrmOverviewController::class, 'show'])->name('api.crm.overview');
+    });
+
+    /* --------------------------------------------------------
      | CRM (Doc 17): leads (Phase B1) - the Leads page, what a lead's
      | form chooses from, one lead, adding and changing one, and its steps.
      | Each user sees the leads LeadVisibility gives them, only at the

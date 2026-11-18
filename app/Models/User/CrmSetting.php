@@ -18,21 +18,28 @@ class CrmSetting extends Model
     /** What a lead needs filled in before it is qualified, unless the business chose (Phase B2a): the customer need. */
     public const QUALIFICATION_DEFAULT = ['customer_need'];
 
+    /** The longest closing-soon period, in days (Phase G1). */
+    public const MAX_CLOSING_SOON_DAYS = 365;
+
     protected $fillable = [
         'mode',
         'qualification_required',
         // Phase F2: confirming a sales order made from an opportunity wins it.
         'win_on_order',
+        // Phase G1: an open opportunity expected to close within these days closes soon.
+        'closing_soon_days',
     ];
 
     protected $attributes = [
-        'mode'         => 'leads',
-        'win_on_order' => true,
+        'mode'              => 'leads',
+        'win_on_order'      => true,
+        'closing_soon_days' => 30,
     ];
 
     protected $casts = [
         'qualification_required' => 'array',
         'win_on_order'           => 'boolean',
+        'closing_soon_days'      => 'integer',
     ];
 
     public function workspace(): BelongsTo

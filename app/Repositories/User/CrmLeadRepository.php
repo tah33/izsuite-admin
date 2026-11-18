@@ -7,6 +7,7 @@ use App\Models\User\CrmLeadItem;
 use App\Models\User\CrmOption;
 use App\Models\User\Location;
 use App\Models\User\Workspace;
+use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -170,6 +171,31 @@ class CrmLeadRepository
     }
 
     /** $workspace's leads that $scope sees (LeadVisibility::scopeFor). */
+    /**
+     * The CRM Overview's lead figures (Phase G1) among those $scope sees,
+     * narrowed by $filters (location_id, sales_team_id, owner_id, source_id):
+     * how many were added between $from and $to, and how many of those are
+     * converted; how many are open and not contacted yet (New or Assigned);
+     * and how many are qualified, not yet converted.
+     *
+     * @return array{new: int, converted: int, awaiting: int, qualified: int}
+     */
+    public function overview(Workspace $workspace, array $scope, array $filters, CarbonInterface $from, CarbonInterface $to): array
+    {
+        $leads = fn () => $this->visible($workspace, $scope)
+            ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('location_id', $id))
+            ->when($filters['sales_team_id'] ?? null, fn (Builder $query, $id) => $query->where('sales_team_id', $id))
+            ->when($filters['owner_id'] ?? null, fn (Builder $query, $id) => $query->where('owner_id', $id))
+            ->when($filters['source_id'] ?? null, fn (Builder $query, $id) => $query->where('source_id', $id));
+
+        return [
+            'new'       => $leads()->whereBetween('created_at', [$from, $to])->count(),
+            'converted' => $leads()->whereBetween('created_at', [$from, $to])->where('status', CrmLead::CONVERTED)->count(),
+            'awaiting'  => $leads()->whereIn('status', [CrmLead::NEW, CrmLead::ASSIGNED])->count(),
+            'qualified' => $leads()->where('status', CrmLead::QUALIFIED)->count(),
+        ];
+    }
+
     private function visible(Workspace $workspace, array $scope): Builder
     {
         return CrmLead::query()

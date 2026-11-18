@@ -279,6 +279,30 @@ class CrmOpportunityRepository
     }
 
     /** $workspace's opportunities that $scope sees (OpportunityVisibility::scopeFor). */
+    /**
+     * What the CRM Overview counts (Phase G1) among the opportunities $scope
+     * sees, archived ones left out: the open ones, and those won or lost
+     * between the business days $from and $to - narrowed by $filters
+     * (location_id, sales_team_id, owner_id, source_id, pipeline_id, stage_id,
+     * currency). Only what the figures need of each.
+     */
+    public function forOverview(Workspace $workspace, array $scope, array $filters, string $from, string $to): Collection
+    {
+        return $this->visible($workspace, $scope)
+            ->whereNull('archived_at')
+            ->where(fn (Builder $query) => $query
+                ->where('status', CrmOpportunity::OPEN)
+                ->orWhere(fn (Builder $query) => $query->whereIn('status', [CrmOpportunity::WON, CrmOpportunity::LOST])->whereBetween('closed_on', [$from, $to])))
+            ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('location_id', $id))
+            ->when($filters['sales_team_id'] ?? null, fn (Builder $query, $id) => $query->where('sales_team_id', $id))
+            ->when($filters['owner_id'] ?? null, fn (Builder $query, $id) => $query->where('owner_id', $id))
+            ->when($filters['source_id'] ?? null, fn (Builder $query, $id) => $query->where('source_id', $id))
+            ->when($filters['pipeline_id'] ?? null, fn (Builder $query, $id) => $query->where('pipeline_id', $id))
+            ->when($filters['stage_id'] ?? null, fn (Builder $query, $id) => $query->where('stage_id', $id))
+            ->when($filters['currency'] ?? null, fn (Builder $query, string $code) => $query->where('currency', $code))
+            ->get(['id', 'status', 'currency', 'expected_value', 'probability', 'expected_close_date', 'closed_on']);
+    }
+
     private function visible(Workspace $workspace, array $scope): Builder
     {
         return CrmOpportunity::query()

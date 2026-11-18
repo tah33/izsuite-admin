@@ -102,10 +102,10 @@ class CrmSettingService
     public function save(Workspace $workspace, array $data): array
     {
         $saved  = $this->settings->forWorkspace($workspace);
-        $before = ['mode' => $saved->mode, 'qualification_required' => $saved->qualificationRequired(), 'win_on_order' => $saved->win_on_order];
+        $before = ['mode' => $saved->mode, 'qualification_required' => $saved->qualificationRequired(), 'win_on_order' => $saved->win_on_order, 'closing_soon_days' => $saved->closing_soon_days];
 
-        $settings = $this->settings->save($workspace, Arr::only($data, ['mode', 'qualification_required', 'win_on_order']));
-        $after    = ['mode' => $settings->mode, 'qualification_required' => $settings->qualificationRequired(), 'win_on_order' => $settings->win_on_order];
+        $settings = $this->settings->save($workspace, Arr::only($data, ['mode', 'qualification_required', 'win_on_order', 'closing_soon_days']));
+        $after    = ['mode' => $settings->mode, 'qualification_required' => $settings->qualificationRequired(), 'win_on_order' => $settings->win_on_order, 'closing_soon_days' => $settings->closing_soon_days];
 
         ActivityLogService::record('updated', 'Updated the CRM settings', $workspace, [
             'source'  => 'api',

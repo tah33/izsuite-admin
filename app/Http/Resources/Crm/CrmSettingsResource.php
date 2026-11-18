@@ -23,6 +23,8 @@ class CrmSettingsResource extends JsonResource
             'mode'                   => $this->resource['settings']->mode,
             'qualification_required' => $this->resource['settings']->qualificationRequired(),
             'win_on_order'           => $this->resource['settings']->win_on_order,
+            // Phase G1: the closing-soon period, in days.
+            'closing_soon_days'      => $this->resource['settings']->closing_soon_days,
             'lists'     => collect(array_keys(CrmOption::KINDS))
                 ->mapWithKeys(fn (string $kind) => [$kind => CrmOptionResource::collection($options->where('kind', $kind)->values())])
                 ->all(),

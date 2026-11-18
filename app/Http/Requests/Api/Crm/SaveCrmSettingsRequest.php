@@ -28,6 +28,8 @@ class SaveCrmSettingsRequest extends FormRequest
             'qualification_required'   => ['sometimes', 'present', 'array'],
             'qualification_required.*' => ['string', 'distinct', Rule::in(array_keys(CrmLead::QUALIFYING))],
             'win_on_order'             => ['sometimes', 'required', 'boolean'],
+            // Phase G1: the closing-soon period, in days.
+            'closing_soon_days'        => ['sometimes', 'required', 'integer', 'min:1', 'max:'.CrmSetting::MAX_CLOSING_SOON_DAYS],
         ];
     }
 }

@@ -155,6 +155,21 @@ class CrmActivityRepository
         return CrmActivity::query()->where('type_id', $type->id)->exists();
     }
 
+    /**
+     * The CRM Overview's overdue activities (Phase G1): planned ones $scope
+     * sees, due before $now - given to $filters' owner_id, at its
+     * location_id, when they name one.
+     */
+    public function overdueCount(Workspace $workspace, array $scope, array $filters, CarbonInterface $now): int
+    {
+        return $this->visible($workspace, $scope)
+            ->where('status', CrmActivity::PLANNED)
+            ->where('due_at', '<', $now)
+            ->when($filters['owner_id'] ?? null, fn (Builder $query, $id) => $query->where('assigned_to', $id))
+            ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('location_id', $id))
+            ->count();
+    }
+
     /** $workspace's activities that $scope sees (ActivityVisibility::scopeFor): a contact's, with no location, at any. */
     private function visible(Workspace $workspace, array $scope): Builder
     {
