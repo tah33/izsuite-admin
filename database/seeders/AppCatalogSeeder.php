@@ -187,6 +187,8 @@ class AppCatalogSeeder extends Seeder
         ['apps', 'crm', 'Opportunities', 'handshake', '/crm/opportunities', 'lite', null],
         // Phase E1: activities.
         ['apps', 'crm', 'Activities', 'calendar-check', '/crm/activities', 'lite', null],
+        // Phase G2: the Forecast.
+        ['apps', 'crm', 'Forecast', 'trending-up', '/crm/forecast', 'lite', null],
         ['apps', 'crm', 'Customers', 'users', '/contacts?role=customer', 'lite', null],
         ['apps', 'inventory', 'Stock', 'boxes', '/inventory/stock', 'lite', null],
         ['apps', 'inventory', 'Adjustments', 'sliders-horizontal', '/inventory/adjustments', 'lite', null],
@@ -220,6 +222,7 @@ class AppCatalogSeeder extends Seeder
         '/crm/leads'          => 'crm.leads.view',
         '/crm/opportunities'  => 'crm.opportunities.view',
         '/crm/activities'     => 'crm.activities.view',
+        '/crm/forecast'       => 'crm.opportunities.view',
         '/purchases'          => 'purchases.purchases.view',
         '/purchases/payments' => 'purchases.payments.view',
         '/expenses'           => 'expenses.expenses.view',

@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-18
-- **Code:** Doc 17 Phase G1 (the CRM Overview) is committed: frontend `e6140c6` on `nuxt`, and on `main` the admin commit right after `84c441a`.
-- **Tests:** 993 backend tests pass (last full run 2026-11-18, on the first PC, on this code).
-- **Next step:** Doc 17 Phase G2: the Forecast page (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase G2 (the Forecast page) is committed: frontend `481bb34` on `nuxt`, and on `main` the admin commit right after `42ff146`.
+- **Tests:** 996 backend tests pass (last full run 2026-11-18, on the first PC, on this code).
+- **Next step:** Doc 17 Phase G3: response tracking and the follow-up warnings (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase G1 the latest is 000179. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase G2 the latest is 000180. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase G2.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase G3.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check, Phases A to F and G1 done (G1 built 2026-11-18), Phase G2 next** |
+| **17** | **CRM** | **In progress: gap check, Phases A to F, G1 and G2 done (G2 built 2026-11-18), Phase G3 next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase G2)
+### 5. Doc 17: CRM (next: Phase G3)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -2067,12 +2067,25 @@ The first PC's parts were taken out: both repos are D3b to F4 as the second PC b
   - Settings → CRM's Closing Soon, days, saved as 120 ("CRM settings saved."), and Closing Soon then counted all three ($3,90,000.00).
   - The leads, opportunities, activity, CRM settings and lists, the app's state, the sign-in and the activity were then put back.
 
-**Phase G2: the Forecast page** (sections 17.3 and 17.14), suggested defaults:
+**Phase G2: the Forecast page** (sections 17.3 and 17.14) is built, with these defaults:
 
 - **Forecast comes after Activities in CRM's sidebar,** for whoever may view opportunities.
 - **The open opportunities' weighted value** (expected value × probability) with their count and expected value, by expected closing month - this month and the next 11, those already past under Overdue - or by owner, sales team or stage. The won value of each month stands beside it.
+  - Every month of the 12 shows, empty or not; Overdue, and Later (closing after the 12 months, so the total is every open one), only while they hold something.
+  - Won This Month is what was won this month: this month's row, the owner's or team's, or the won stage's.
 - In the base currency at today's rates, an estimate (those without a rate today are left out and counted), or in the currency chosen. The Overview's filters, but the period, apply.
 - It is no cash-flow or financial forecast (17.14).
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with CRM switched on by hand:
+  - CRM's sidebar read Overview, Leads, Opportunities, Activities, Forecast, Customers.
+  - With opportunities closing on 5 and 28 November, in January 2027 and in February 2028, and one won that day, by closing month it read:
+    - Overdue 1, $60,000.00, weighted $15,000.00 (amber);
+    - November 2026 1, $2,50,000.00, $1,25,000.00, won $40,000.00;
+    - January 2027 1, $80,000.00, $8,000.00;
+    - Later 1, $1,20,000.00, $90,000.00, the empty months quiet between them;
+    - total 4, $5,10,000.00, $2,38,000.00, $40,000.00.
+  - By stage: New, Qualified, Proposal, Negotiation, then Won holding the $40,000.00. By owner: one row, as one person owned them all. Stage Proposal, by month: November alone.
+  - The Overview's open opportunities, pipeline value, weighted forecast and won value matched the total.
+  - The opportunities, the app's state, the sign-in and the activity were then put back.
 
 **Phase G3: response tracking and the follow-up warnings** (section 17.23), suggested defaults:
 
@@ -2117,6 +2130,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase F3b | 000178 |
 | Doc 17: Phase F4 | none |
 | Doc 17: Phase G1 | 000179 |
+| Doc 17: Phase G2 | 000180 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -2447,6 +2461,16 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] Working with opportunities only, the Leads figures go.
 - [ ] As the member: the Overview has no Leads figures, and counts only their own opportunities. A role without View Opportunities has no Overview.
 
+**Phase G2: the Forecast page**
+
+**Before you start:** CRM on, open opportunities closing this month, in a later month, past their closing day and more than a year away, one won this month, and a member whose role views opportunities, with one of their own.
+
+- [ ] CRM's sidebar has Forecast after Activities. It opens by closing month: Overdue, this month and the next 11, then Later, with a Total.
+- [ ] Each row's count, expected value and weighted value match the opportunities closing then; this month's row has this month's win under Won This Month.
+- [ ] By owner, by sales team (no team last) and by stage (the won stage holding this month's win), the totals stay the same.
+- [ ] The filters narrow it as they narrow the Overview; its total matches the Overview's open opportunities, pipeline value and weighted forecast.
+- [ ] As the member: only their own. A role without View Opportunities has no Forecast.
+
 ## How we work
 
 Each document goes the same way:
@@ -2702,7 +2726,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase F4, the CRM part of a contact's profile | `b07c07c` | `9ff76c5` | none |
 | Merge with the first PC's unfinished D3b1 (broken: see the fix below) | `8e07e8f` | `e72c322` | a second 000172, removed by the fix |
 | Fix: the merge of 2026-11-18, D3b to F4 as the second PC built them | `84c441a` | `b691903` | none |
-| Doc 17: Phase G1, the CRM Overview | the commit after `84c441a` | `e6140c6` | 000179 |
+| Doc 17: Phase G1, the CRM Overview | `42ff146` | `e6140c6` | 000179 |
+| Doc 17: Phase G2, the Forecast page | the commit after `42ff146` | `481bb34` | 000180 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -3131,6 +3156,10 @@ These are easy to undo by mistake.
   - It reads `CrmLeadRepository::overview()`, `CrmOpportunityRepository::forOverview()` and `CrmActivityRepository::overdueCount()` within each one's visibility scope, and totals with `OpportunityForecast::total()` - or sums in the currency chosen.
   - The period's days are the business's: `ReportPeriod::range()`, and for leads' `created_at` its bounds in the business's time zone. `crm_settings.closing_soon_days` (`CrmSetting::MAX_CLOSING_SOON_DAYS`) sets closing soon.
   - Frontend: `pages/crm/overview.vue`, `CrmOverviewFilters`, `CrmOverviewCards` and `useCrmOverview`. The overview cards' classes (`.overview`, `.overview-card`, `.overview-filters`) are in `main.css`, shared with the Sales Overview. The Activities page takes `?status=` and `?assigned_to=`.
+- The Forecast (Doc 17 Phase G2, migration 000180, its menu item only): `CrmForecastService` behind `GET /crm/forecast` (`CrmForecastController`, `CrmForecastRequest`, `CrmForecastResource`; `crm.opportunities.view`).
+  - It reads `CrmOpportunityRepository::forForecast()` (open ones and those won this month, with owner, team and stage), which shares `narrowed()` - the filters - with `forOverview()`.
+  - Groups: `month` (Overdue, 12 months from this one, Later), `owner`, `team`, `stage`; totals with `OpportunityForecast::total()`, or sums in the currency chosen.
+  - Frontend: `pages/crm/forecast.vue`, `CrmForecastTable` and `useCrmForecast`. `CrmOverviewFilters` takes no `pick` there, and its slot holds the grouping.
   - Frontend: CrmContactSummary on the contact's page (`useCrmContactSummary()`), and CrmOpportunityForm's `?contact=&contact_name=`.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
@@ -3262,4 +3291,5 @@ Each of these is yours to settle.
 - Doc 17 Phase F3b: migration 000178 adds `crm_email_templates`; businesses start with none. Deploy the frontend with it.
 - Doc 17 Phase F4: no migration. Deploy the frontend with it (a contact's page gains its Opportunities card, and Add Opportunity there starts with them).
 - Doc 17 Phase G1: migration 000179 adds the closing-soon period to CRM settings (30 days) and puts Overview first in CRM's menu, for whoever may view opportunities. Deploy the frontend with it.
+- Doc 17 Phase G2: migration 000180 puts Forecast after Activities in CRM's menu, for whoever may view opportunities. Deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

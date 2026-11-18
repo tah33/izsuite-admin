@@ -365,8 +365,9 @@ final class RoutePermissions
             'api.crm.leads.comments.store'      => 'crm.leads.view',
             'api.crm.leads.comments.destroy'    => 'crm.leads.view',
             // Opportunities (Phase D1): who sees which is OpportunityVisibility's; moving one between stages is its own.
-            // Phase G1: the CRM Overview, for whoever may view opportunities.
+            // Phase G1: the CRM Overview, and (Phase G2) the Forecast, for whoever may view opportunities.
             'api.crm.overview'              => 'crm.opportunities.view',
+            'api.crm.forecast'              => 'crm.opportunities.view',
             'api.crm.opportunities.index'   => 'crm.opportunities.view',
             'api.crm.opportunities.options' => 'crm.opportunities.view',
             'api.crm.opportunities.board'   => 'crm.opportunities.view',

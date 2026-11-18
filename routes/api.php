@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\CrmLeadDuplicateController;
 use App\Http\Controllers\Api\CrmLeadFlowController;
 use App\Http\Controllers\Api\CrmOpportunityAttachmentController;
 use App\Http\Controllers\Api\CrmOpportunityClosingController;
+use App\Http\Controllers\Api\CrmForecastController;
 use App\Http\Controllers\Api\CrmOverviewController;
 use App\Http\Controllers\Api\CrmActivityController;
 use App\Http\Controllers\Api\CrmContactSummaryController;
@@ -874,11 +875,12 @@ Route::prefix('v1')->group(function () {
     });
 
     /* ----------------------------------------------------------
-     | CRM (Doc 17): the Overview's figures (Phase G1), counting only what
-     | the user sees.
+     | CRM (Doc 17): the Overview's figures (Phase G1) and the Forecast
+     | (Phase G2), counting only what the user sees.
      | -------------------------------------------------------- */
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm')->group(function () {
         Route::get('/overview', [CrmOverviewController::class, 'show'])->name('api.crm.overview');
+        Route::get('/forecast', [CrmForecastController::class, 'show'])->name('api.crm.forecast');
     });
 
     /* --------------------------------------------------------
