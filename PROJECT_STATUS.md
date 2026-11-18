@@ -2,9 +2,9 @@
 
 What is done, what comes next, and how to carry on from another PC.
 
-- **Last updated:** 2026-11-17
-- **Code:** Doc 17 Phase F4 (the CRM part of a contact's profile) is committed: frontend `9ff76c5` on `nuxt`, and on `main` the admin commit right after `e814d61`.
-- **Tests:** 989 backend tests pass (last full run 2026-11-17, on the second PC, on this code).
+- **Last updated:** 2026-11-18
+- **Code:** the fix of the merge of 2026-11-18 (see [the fix](#fixed-on-2026-11-18-the-merge-with-the-first-pcs-own-d3b)) is committed: frontend `b691903` on `nuxt`, and on `main` the admin commit right after `8e07e8f`. Both repos are Doc 17 Phase F4 as the second PC built it (admin `b07c07c`, frontend `9ff76c5`), plus a stage-name width fix.
+- **Tests:** 989 backend tests pass (last full run 2026-11-18, on the first PC, on this code).
 - **Next step:** Doc 17 Phase G: Overview, Forecast and follow-up (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
@@ -1832,6 +1832,29 @@ The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and th
   - Editing an opportunity showed no Pipeline field.
   - The pipelines, opportunities, lead, contacts, team, location, member, the app's state, the sign-in and the activity were then put back.
 
+#### Fixed on 2026-11-18: the merge with the first PC's own D3b
+
+While the second PC built D3b to F4, the first PC had built an unfinished Phase D3b1 of its own: several pipelines with a default one, a Manage Pipelines and Stages permission, and moving an opportunity to another pipeline. Merging the two (admin `8e07e8f`, frontend `e72c322`) kept the second PC's files where they clashed, but brought the first PC's other parts in beside them:
+
+- `CrmPipelineRepository` declared `delete()` twice, so PHP refused the class. CRM settings, opportunities, converting leads and the test suite all stopped with "Cannot redeclare".
+- A second migration numbered 000172, `add_crm_default_pipeline`.
+- Change Stage could move an opportunity into any pipeline, skipping the team and location check, and its window offered no stage once loaded.
+- Unused classes, components and a permission nothing checked.
+
+The first PC's parts were taken out: both repos are D3b to F4 as the second PC built them. One addition stays: a stage's name in Settings → CRM keeps a minimum width, so a narrow window scrolls the table instead of squeezing the names. The full suite passes (989).
+
+- **On a PC that pulled the merge and migrated before this fix,** `migrate:status` lists `2025_01_01_000172_add_crm_default_pipeline` as Ran. It added `crm_pipelines.is_default` and gave `crm.settings.pipelines` to the roles that manage CRM settings; nothing uses either. To take them out: drop that column, remove that permission from those roles, and delete the migration's row from `migrations`.
+- **Checked in the browser** on the first PC after the fix, as `user@izsuite.io` with CRM switched on by hand, and full Sales for F2:
+  - D3b: a Wholesale pipeline for a new team, Wholesale Desk, added in Settings → CRM with its card. Add Opportunity offered it only with that team chosen, and a qualified lead of that team converted into it at Qualified.
+  - D4: the board showed the opportunity under Proposal at $1,25,000 weighted. Its ⋯ menu's Change Stage moved it to Negotiation ($1,87,500), and the calendar showed it on its closing day in December.
+  - E1: a call planned for 08:00 was Overdue. Completed with its outcome and a follow-up, the card listed both, and the Activities page listed what was planned.
+  - E2: a call due two minutes later, with "When it is due", reminded on time: in the bell and by e-mail.
+  - E3: the opportunity's Timeline, and the customer's with the lead's adding, qualifying and converting.
+  - F1: a quotation made from the opportunity, linked both ways. F2: confirming a sales order made from it won it at the order's value, "Sales order SO-00001 confirmed".
+  - F3a and F3b: a template filled every placeholder; the e-mail went (to the mail log) and showed Sent.
+  - F4: the customer's Opportunities card read 2 open, $1,97,500 weighted, with the lead source.
+  - Everything was then put back, the business back on Sales Lite.
+
 **Phase D4: the board and calendar views** (section 17.14) is built, with these defaults. Phase D is done.
 
 - **The Opportunities page** has List, Board and Calendar side by side. The view is kept in the address (`?view=board`), so a reload or a link keeps it. Each shows only the opportunities the user sees, as the list does, and no archived one.
@@ -2609,7 +2632,9 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase F2, an opportunity won when its order is confirmed | `9144e8a` | `2401e51` | 000176 |
 | Doc 17: Phase F3a, e-mail from a lead, an opportunity or a contact | `7ec724c` | `6f7bea7` | 000177 |
 | Doc 17: Phase F3b, e-mail templates | `e814d61` | `a58d4f2` | 000178 |
-| Doc 17: Phase F4, the CRM part of a contact's profile | the commit after `e814d61` | `9ff76c5` | none |
+| Doc 17: Phase F4, the CRM part of a contact's profile | `b07c07c` | `9ff76c5` | none |
+| Merge with the first PC's unfinished D3b1 (broken: see the fix below) | `8e07e8f` | `e72c322` | a second 000172, removed by the fix |
+| Fix: the merge of 2026-11-18, D3b to F4 as the second PC built them | the commit after `8e07e8f` | `b691903` | none |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 

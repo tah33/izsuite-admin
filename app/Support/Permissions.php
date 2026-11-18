@@ -120,8 +120,7 @@ final class Permissions
         'crm.emails' => ['E-mail', 'crm', ['send' => 'Send E-mail']],
         // Without either, a user sees the CRM records they own (LeadVisibility).
         'crm.records'  => ['CRM Records', 'crm', ['team' => 'View Team Records', 'all' => 'View All CRM Records']],
-        // Phase D3b1: the pipelines and their stages apart from the rest (section 17.30).
-        'crm.settings' => ['CRM Settings', 'crm', [...self::APP_SETTINGS, 'pipelines' => 'Manage Pipelines and Stages']],
+        'crm.settings' => ['CRM Settings', 'crm', self::APP_SETTINGS],
     ];
 
     /** The groups whose records carry their app's values: anything but viewing one needs them. */

@@ -7,7 +7,7 @@ use App\Models\User\Workspace;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Arr;
 
-/** A business's opportunity pipelines and their stages (Doc 17 Phases A2 and D3b1). */
+/** A business's opportunity pipelines and their stages (Doc 17 Phase A2). */
 class CrmPipelineRepository
 {
     /** Its pipelines in order, each with its stages. */
@@ -16,66 +16,31 @@ class CrmPipelineRepository
         return $workspace->crmPipelines()->with('stages')->orderBy('position')->orderBy('id')->get();
     }
 
-    /** For Settings → CRM: its pipelines in order, each with its stages and whether opportunities are or were in it. */
-    public function listedFor(Workspace $workspace): Collection
-    {
-        return $workspace->crmPipelines()->with('stages')->withExists(['opportunities', 'visits'])->orderBy('position')->orderBy('id')->get();
-    }
-
-    /** $pipeline as listedFor() gives it: its stages as saved, and whether opportunities are or were in it. */
-    public function loadShown(CrmPipeline $pipeline): CrmPipeline
-    {
-        return $pipeline->load('stages')->loadExists(['opportunities', 'visits']);
-    }
-
     public function existsFor(Workspace $workspace): bool
     {
         return $workspace->crmPipelines()->exists();
     }
 
-    public function countFor(Workspace $workspace): int
-    {
-        return $workspace->crmPipelines()->count();
-    }
-
     /**
-     * The starting pipeline (CrmPipeline::STARTER_STAGES), its default. One
-     * made already by a request alongside - by its name - is left as it is.
+     * The starting pipeline (CrmPipeline::STARTER_STAGES). One made already by
+     * a request alongside - by its name - is left as it is.
      */
     public function addStarter(Workspace $workspace): void
     {
         $now  = now();
         $made = CrmPipeline::query()->insertOrIgnore([
-            'workspace_id' => $workspace->id, 'name' => CrmPipeline::STARTER_NAME, 'position' => 1, 'is_active' => true, 'is_default' => true, 'created_at' => $now, 'updated_at' => $now,
+            'workspace_id' => $workspace->id, 'name' => CrmPipeline::STARTER_NAME, 'position' => 1, 'is_active' => true, 'created_at' => $now, 'updated_at' => $now,
         ]);
 
-        if ($made) {
-            $this->addStarterStages($workspace->crmPipelines()->where('name', CrmPipeline::STARTER_NAME)->first());
+        if (! $made) {
+            return;
         }
-    }
 
-    /** Another pipeline (Phase D3b1), after the others, with the starting stages. */
-    public function add(Workspace $workspace, string $name): CrmPipeline
-    {
-        $pipeline = $workspace->crmPipelines()->create(['name' => $name, 'position' => (int) $workspace->crmPipelines()->max('position') + 1]);
-
-        $this->addStarterStages($pipeline);
-
-        return $pipeline->load('stages');
-    }
-
-    /** Its stages go with it. */
-    public function delete(CrmPipeline $pipeline): void
-    {
-        $pipeline->delete();
-    }
-
-    /** $pipeline becomes the business's default, and the one that was stops being it. */
-    public function makeDefault(Workspace $workspace, CrmPipeline $pipeline): void
-    {
-        $workspace->crmPipelines()->where('is_default', true)->whereKeyNot($pipeline->id)->update(['is_default' => false]);
-
-        $pipeline->update(['is_default' => true]);
+        $workspace->crmPipelines()->where('name', CrmPipeline::STARTER_NAME)->first()->stages()->createMany(array_map(
+            fn (array $stage, int $index) => ['name' => $stage[0], 'probability' => $stage[1], 'category' => $stage[2], 'position' => $index + 1],
+            CrmPipeline::STARTER_STAGES,
+            array_keys(CrmPipeline::STARTER_STAGES),
+        ));
     }
 
     /** A pipeline added (Phase D3b), last in order, with $stages - each [name, probability, category]. */
@@ -119,15 +84,6 @@ class CrmPipelineRepository
     public function findFor(Workspace $workspace, int $id): ?CrmPipeline
     {
         return $workspace->crmPipelines()->with('stages')->find($id);
-    }
-
-    private function addStarterStages(CrmPipeline $pipeline): void
-    {
-        $pipeline->stages()->createMany(array_map(
-            fn (array $stage, int $index) => ['name' => $stage[0], 'probability' => $stage[1], 'category' => $stage[2], 'position' => $index + 1],
-            CrmPipeline::STARTER_STAGES,
-            array_keys(CrmPipeline::STARTER_STAGES),
-        ));
     }
 
     public function update(CrmPipeline $pipeline, array $data): CrmPipeline

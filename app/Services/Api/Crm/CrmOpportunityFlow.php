@@ -9,7 +9,6 @@ use App\Repositories\User\CrmOpportunityRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Crm\CrmOpportunityChanges;
 use App\Services\Crm\CrmOpportunityRules;
-use App\Services\Crm\PipelineChoices;
 use App\Services\Crm\StageRequirements;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Support\Facades\DB;
@@ -17,8 +16,7 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Moving an opportunity between stages (Doc 17 section 17.13 - Phase D1),
- * with Change Stages: to another open stage of its pipeline switched on -
- * or (Phase D3b1) of another pipeline switched on. The
+ * with Change Stages: to another open stage of its pipeline switched on. The
  * stage it leaves keeps the time it spent there, and the move is logged. Its
  * probability becomes the new stage's, unless someone who may change
  * probabilities gives another. Winning and losing are CrmOpportunityClosing's.
@@ -30,15 +28,11 @@ class CrmOpportunityFlow
 {
     use RefusesConflicts;
 
-    /** Whether the last changeStage() took it into another pipeline (Phase D3b1), for its message. */
-    public bool $changedPipeline = false;
-
     public function __construct(
         protected CrmOpportunityService $service,
         protected CrmOpportunityRepository $opportunities,
         protected CrmOpportunityRules $rules,
         protected StageRequirements $requirements,
-        protected PipelineChoices $choices,
     ) {}
 
     public function archive(Workspace $workspace, User $user, int $id): CrmOpportunity
@@ -51,11 +45,7 @@ class CrmOpportunityFlow
         return $this->setArchived($workspace, $user, $id, false);
     }
 
-    /**
-     * $data is validated (see CrmOpportunityStageRequest): stage_id, and a
-     * probability or none. The stage is an open one of its pipeline - or
-     * (Phase D3b1) of another pipeline switched on, which it then moves to.
-     */
+    /** $data is validated (see CrmOpportunityStageRequest): stage_id, and a probability or none. */
     public function changeStage(Workspace $workspace, User $user, int $id, array $data): CrmOpportunity
     {
         $opportunity = $this->service->find($workspace, $user, $id);
@@ -64,12 +54,9 @@ class CrmOpportunityFlow
             $this->refuse($opportunity->isArchived() ? 'An archived opportunity is restored before it moves.' : 'A won or lost opportunity is reopened before it moves.');
         }
 
-        // Its own pipeline's stages stay open to it, even with the pipeline switched off.
-        $stage    = $this->choices->stage($this->choices->enterable($workspace, $opportunity->pipeline), (int) $data['stage_id']);
-        $from     = $opportunity->stage;
-        $pipeline = $stage->pipeline;
-        $leaving  = $opportunity->pipeline;
-        $moving   = $pipeline->id !== $opportunity->pipeline_id;
+        $stage = $this->service->openStages($opportunity->pipeline)->firstWhere('id', (int) $data['stage_id'])
+            ?? throw ValidationException::withMessages(['stage_id' => "Choose one of the pipeline's open stages."]);
+        $from  = $opportunity->stage;
 
         if ($stage->id === $opportunity->stage_id) {
             throw ValidationException::withMessages(['stage_id' => "It is at {$stage->name} already."]);
@@ -81,31 +68,23 @@ class CrmOpportunityFlow
         $probability = $this->service->probability($data, $stage->probability);
         $before      = $opportunity->probability;
 
-        DB::transaction(function () use ($opportunity, $user, $stage, $pipeline, $probability) {
+        DB::transaction(function () use ($opportunity, $user, $stage, $probability) {
             // Moved by someone else meanwhile: theirs stands, and this one says so.
             if ($this->opportunities->lock($opportunity)->stage_id !== $opportunity->stage_id) {
                 $this->refuse('Someone moved this opportunity meanwhile. Open it again to see where it is.');
             }
 
             $this->opportunities->enterStage($opportunity, $stage->id, $user->id);
-            $this->opportunities->update($opportunity, ['pipeline_id' => $pipeline->id, 'stage_id' => $stage->id, 'probability' => $probability, 'stage_entered_at' => now()]);
+            $this->opportunities->update($opportunity, ['stage_id' => $stage->id, 'probability' => $probability, 'stage_entered_at' => now()]);
         });
 
-        // Its timeline names the stages, not their ids (Phase D2b) - each with its pipeline when it changes them.
-        $moved = $moving ? "from {$from?->name} ({$leaving?->name}) to {$stage->name} ({$pipeline->name})" : "from {$from?->name} to {$stage->name}";
-
-        $this->changedPipeline = $moving;
-
-        ActivityLogService::record('updated', 'Moved '.$this->service->describe($opportunity)." {$moved}", $opportunity, [
+        // Its timeline names the stages, not their ids (Phase D2b).
+        ActivityLogService::record('updated', 'Moved '.$this->service->describe($opportunity)." from {$from?->name} to {$stage->name}", $opportunity, [
             'source'      => 'api',
             'from_stage'  => $from?->id,
             'to_stage'    => $stage->id,
             'probability' => $probability,
-            'changes'     => CrmOpportunityChanges::of([
-                ...($moving ? ['pipeline' => [$leaving?->name, $pipeline->name]] : []),
-                'stage'       => [$from?->name, $stage->name],
-                'probability' => [$before, $probability],
-            ]),
+            'changes'     => CrmOpportunityChanges::of(['stage' => [$from?->name, $stage->name], 'probability' => [$before, $probability]]),
         ]);
 
         return $this->service->shown($workspace, $this->opportunities->loadShown($opportunity));

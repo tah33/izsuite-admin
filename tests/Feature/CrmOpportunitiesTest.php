@@ -128,7 +128,7 @@ class CrmOpportunitiesTest extends TestCase
             $this->getJson('/api/v1/crm/opportunities')->assertOk()->json('data')));
 
         // Only at an open stage, and only for an active contact.
-        $this->add(['stage_id' => $this->stages['Won']])->assertJsonValidationErrors(['stage_id' => "Choose an open stage of a pipeline switched on."]);
+        $this->add(['stage_id' => $this->stages['Won']])->assertJsonValidationErrors(['stage_id' => "Choose one of the pipeline's open stages."]);
         $archived = $this->business->contacts()->create(['name' => 'Old Shop', 'is_active' => false]);
         $this->add(['contact_id' => $archived->id])->assertJsonValidationErrors(['contact_id' => 'Choose one of your active contacts.']);
     }
@@ -148,7 +148,7 @@ class CrmOpportunitiesTest extends TestCase
         $this->assertTrue(ActivityLog::where('description', 'Moved opportunity "Uddin Traders - shelving" from New to Proposal')->exists());
 
         $this->move($id, 'Proposal')->assertJsonValidationErrors(['stage_id' => 'It is at Proposal already.']);
-        $this->move($id, 'Won')->assertJsonValidationErrors(['stage_id' => "Choose an open stage of a pipeline switched on."]);
+        $this->move($id, 'Won')->assertJsonValidationErrors(['stage_id' => "Choose one of the pipeline's open stages."]);
 
         // Moving it is a permission of its own.
         Sanctum::actingAs($this->member(['crm.opportunities.view', 'crm.opportunities.manage', 'crm.records.all']));

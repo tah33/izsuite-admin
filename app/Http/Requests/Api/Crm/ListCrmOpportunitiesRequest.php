@@ -23,8 +23,6 @@ class ListCrmOpportunitiesRequest extends FormRequest
         return [
             'search'   => ['nullable', 'string', 'max:100'],
             'status'   => ['nullable', Rule::in(['all', 'archived', 'stale', ...CrmOpportunity::STATUSES])],
-            // Phase D3b1: one pipeline's.
-            'pipeline_id' => ['nullable', 'integer'],
             'stage_id' => ['nullable', 'integer'],
             // Phase D3b: one pipeline's.
             'pipeline_id' => ['nullable', 'integer'],
