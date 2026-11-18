@@ -297,8 +297,11 @@ Route::prefix('v1')->group(function () {
             Route::post('/options', [CrmOptionController::class, 'store'])->name('api.business-settings.crm.options.store');
             Route::put('/options/{id}', [CrmOptionController::class, 'update'])->whereNumber('id')->name('api.business-settings.crm.options.update');
             Route::delete('/options/{id}', [CrmOptionController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.options.destroy');
-            // A pipeline and its stages (Doc 17 Phase A2).
+            // A pipeline and its stages (Doc 17 Phase A2) - and (Phase D3b1) more pipelines, one the default.
+            Route::post('/pipelines', [CrmPipelineController::class, 'store'])->name('api.business-settings.crm.pipelines.store');
             Route::put('/pipelines/{id}', [CrmPipelineController::class, 'update'])->whereNumber('id')->name('api.business-settings.crm.pipelines.update');
+            Route::post('/pipelines/{id}/default', [CrmPipelineController::class, 'makeDefault'])->whereNumber('id')->name('api.business-settings.crm.pipelines.default');
+            Route::delete('/pipelines/{id}', [CrmPipelineController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.pipelines.destroy');
         });
 
         // Sales teams (Doc 16 Phase A): the full Sales app's - and, since Doc

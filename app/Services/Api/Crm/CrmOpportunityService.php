@@ -20,6 +20,7 @@ use App\Services\Crm\LeadInterests;
 use App\Services\Crm\OpportunityAssignments;
 use App\Services\Crm\OpportunityForecast;
 use App\Services\Crm\OpportunityVisibility;
+use App\Services\Crm\PipelineChoices;
 use App\Services\Crm\StageRequirements;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\BusinessCalendar;
@@ -39,10 +40,11 @@ use Illuminate\Validation\ValidationException;
  * one and changing one. Moving one between stages is CrmOpportunityFlow's.
  *
  * An opportunity is for one of the business's active contacts - a supplier
- * becomes a customer as well - at an open stage of the business's pipeline,
- * owned by whoever adds it unless they give it to someone else, at one of
- * the business's locations. Its probability is its stage's unless someone
- * who may change probabilities gives another. Each save is logged by name.
+ * becomes a customer as well - at an open stage of one of the business's
+ * pipelines switched on (Phase D3b1), owned by whoever adds it unless they
+ * give it to someone else, at one of the business's locations. Its
+ * probability is its stage's unless someone who may change probabilities
+ * gives another. Each save is logged by name.
  */
 class CrmOpportunityService
 {
@@ -61,7 +63,6 @@ class CrmOpportunityService
         protected SalesTeamRepository $teams,
         protected LocationRepository $locations,
         protected ContactRepository $contacts,
-        protected CrmSettingService $settings,
         protected CrmOpportunityRules $rules,
         protected OpportunityVisibility $visibility,
         protected OpportunityAssignments $assignments,
@@ -71,12 +72,14 @@ class CrmOpportunityService
         protected WorkspaceAccess $access,
         protected BusinessCalendar $calendar,
         protected StageRequirements $requirements,
+        protected PipelineChoices $choices,
     ) {}
 
     /**
      * The Opportunities page, each with its weighted value, in its currency
      * and the base one. The "stale" status (Phase D3a) lists the open ones
-     * at a stage for longer than its stale-after period.
+     * at a stage for longer than its stale-after period. Phase D3b1: by
+     * pipeline too.
      */
     public function list(Workspace $workspace, User $user, array $filters, int $perPage): LengthAwarePaginator
     {
@@ -159,20 +162,18 @@ class CrmOpportunityService
     }
 
     /**
-     * What an opportunity's form and the page's filters choose from: the
-     * pipeline's open stages switched on, with their probabilities, the lead
-     * sources and sales teams switched on, the people it can be given to,
-     * and where a new one starts and who owns it - and (Phase D2a) the lost
-     * reasons switched on.
+     * What an opportunity's form and the page's filters choose from: (Phase
+     * D3b1) the pipelines with their stages switched on - the form takes the
+     * open ones of those switched on - the lead sources and sales teams
+     * switched on, the people it can be given to, and where a new one starts
+     * and who owns it - and (Phase D2a) the lost reasons switched on.
      */
     public function options(Workspace $workspace, User $user): array
     {
-        $pipeline = $this->pipeline($workspace);
-        $lists    = $this->options->getFor($workspace)->where('is_active', true);
+        $lists = $this->options->getFor($workspace)->where('is_active', true);
 
         return [
-            'stages'       => $this->openStages($pipeline),
-            'all_stages'   => $pipeline->stages->where('is_active', true)->values(),
+            'pipelines'    => $this->choices->all($workspace),
             'sources'      => $lists->where('kind', 'lead_source')->values(),
             'lost_reasons' => $lists->where('kind', 'lost_reason')->values(),
             'teams'        => $this->teams->forWorkspace($workspace, true),
@@ -182,13 +183,16 @@ class CrmOpportunityService
         ];
     }
 
-    /** $data is validated (see SaveCrmOpportunityRequest); owner_id left out is the user. */
+    /**
+     * $data is validated (see SaveCrmOpportunityRequest); owner_id left out is
+     * the user. Its stage is an open one of a pipeline switched on (Phase
+     * D3b1), which is its pipeline.
+     */
     public function create(Workspace $workspace, User $user, array $data): CrmOpportunity
     {
         $fields   = $this->checked($workspace, $data);
-        $pipeline = $this->pipeline($workspace);
-        $stage    = $this->openStages($pipeline)->firstWhere('id', (int) $data['stage_id'])
-            ?? throw ValidationException::withMessages(['stage_id' => "Choose one of the pipeline's open stages."]);
+        $stage    = $this->choices->stage($this->choices->enterable($workspace), (int) $data['stage_id']);
+        $pipeline = $stage->pipeline;
         $ownerId  = (int) ($data['owner_id'] ?? $user->id);
         $contact  = $this->contacts->findFor($workspace, (int) $fields['contact_id']);
         $items    = $this->interests->rows($workspace, $data['interested_items'] ?? []);
@@ -309,18 +313,10 @@ class CrmOpportunityService
         return $given;
     }
 
-    /** The business's pipeline - its first, the only one until Phase D3 - its lists started if Settings → CRM never was. */
-    public function pipeline(Workspace $workspace): CrmPipeline
-    {
-        $this->settings->start($workspace);
-
-        return $this->pipelines->getFor($workspace)->first();
-    }
-
     /** @return Collection<int, CrmStage> its open stages switched on, in order */
     public function openStages(CrmPipeline $pipeline): Collection
     {
-        return $pipeline->stages->filter(fn (CrmStage $stage) => $stage->is_active && $stage->category === CrmStage::OPEN)->values();
+        return $this->choices->openStages($pipeline);
     }
 
     /**

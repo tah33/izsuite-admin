@@ -18,7 +18,8 @@ class SaveCrmPipelineRequest extends FormRequest
      * A pipeline as Settings > CRM saves it (Doc 17 Phase A2): a name used
      * once in the business, and its stages in order - each a name used once
      * in it, a default probability from 0 to 100, open, won or lost, and on
-     * or off. A stage it has keeps its id.
+     * or off. A stage it has keeps its id. Phase D3b1: the pipeline itself
+     * on or off - left out, as it is.
      */
     public function rules(): array
     {
@@ -26,6 +27,7 @@ class SaveCrmPipelineRequest extends FormRequest
 
         return [
             'name'                 => ['required', 'string', 'max:100', Rule::unique('crm_pipelines', 'name')->where('workspace_id', $workspace?->id)->ignore($this->route('id'))],
+            'is_active'            => ['sometimes', 'boolean'],
             'stages'               => ['required', 'array', 'min:3', 'max:30'],
             'stages.*.id'          => ['nullable', 'integer'],
             'stages.*.name'        => ['required', 'string', 'max:50', 'distinct:ignore_case'],

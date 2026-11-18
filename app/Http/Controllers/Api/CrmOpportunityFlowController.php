@@ -22,7 +22,8 @@ class CrmOpportunityFlowController extends Controller
             $opportunity = $this->flow->changeStage($this->currentWorkspace($request), $request->user(), $id, $request->validated());
 
             return response()->json([
-                'message' => "Moved to {$opportunity->stage?->name}.",
+                // Phase D3b1: naming the pipeline it went into.
+                'message' => "Moved to {$opportunity->stage?->name}".($this->flow->changedPipeline ? " in {$opportunity->pipeline?->name}" : '').'.',
                 'data'    => new CrmOpportunityResource($opportunity),
             ]);
 

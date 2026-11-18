@@ -22,7 +22,8 @@ class CrmOpportunityRepository
     private const SHOWN_WITH = [
         'contact:id,name,contact_number', 'owner:id,first_name,last_name', 'team:id,name', 'location:id,name', 'source:id,name',
         'stage:id,name,probability,category,stale_after_days,required_fields', 'pipeline.stages', 'lead:id,name', 'creator:id,first_name,last_name',
-        'interestedItems', 'stageVisits.stage:id,name', 'stageVisits.mover:id,first_name,last_name',
+        // Each stage it was at, with its pipeline: it can have moved from another (Phase D3b1).
+        'interestedItems', 'stageVisits.stage:id,name,crm_pipeline_id', 'stageVisits.stage.pipeline:id,name', 'stageVisits.mover:id,first_name,last_name',
         // How it ended, and who archived it (Phase D2a).
         'closer:id,first_name,last_name', 'lostReason:id,name', 'archiver:id,first_name,last_name',
     ];
@@ -30,17 +31,17 @@ class CrmOpportunityRepository
     /**
      * The Opportunities page: open ones by expected closing date, soonest
      * first - or those of one status, or all of them - searched by their name
-     * or their contact's, by stage and by owner. Archived ones only show
-     * with the "archived" status (Phase D2a), whatever theirs. The "stale"
-     * status (Phase D3a) is the open ones that entered their stage before
-     * $filters['stale_since'] says for it: [stage id => that moment].
+     * or their contact's, by pipeline (Phase D3b1), stage and owner. Archived
+     * ones only show with the "archived" status (Phase D2a), whatever theirs.
+     * The "stale" status (Phase D3a) is the open ones that entered their
+     * stage before $filters['stale_since'] says for it: [stage id => that moment].
      */
     public function paginateFor(Workspace $workspace, array $filters, array $scope, int $perPage): LengthAwarePaginator
     {
         $status = $filters['status'] ?? null;
 
         return $this->visible($workspace, $scope)
-            ->with(['contact:id,name', 'stage:id,name,stale_after_days', 'owner:id,first_name,last_name'])
+            ->with(['contact:id,name', 'pipeline:id,name', 'stage:id,name,stale_after_days', 'owner:id,first_name,last_name'])
             ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $query->where(fn (Builder $query) => $query
                 ->where('name', 'like', "%{$search}%")
                 ->orWhereHas('contact', fn (Builder $query) => $query->where('name', 'like', "%{$search}%"))))
@@ -48,6 +49,7 @@ class CrmOpportunityRepository
             ->when($status === null || $status === '' || $status === 'stale', fn (Builder $query) => $query->where('status', CrmOpportunity::OPEN))
             ->when($status === 'stale', fn (Builder $query) => $this->stale($query, $filters['stale_since'] ?? []))
             ->when($status && ! in_array($status, ['all', 'archived', 'stale'], true), fn (Builder $query) => $query->where('status', $status))
+            ->when($filters['pipeline_id'] ?? null, fn (Builder $query, $id) => $query->where('pipeline_id', $id))
             ->when($filters['stage_id'] ?? null, fn (Builder $query, $id) => $query->where('stage_id', $id))
             ->when($filters['owner_id'] ?? null, fn (Builder $query, $id) => $query->where('owner_id', $id))
             ->orderBy('expected_close_date')

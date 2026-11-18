@@ -188,7 +188,11 @@ final class RoutePermissions
             'api.business-settings.crm.options.store'          => 'crm.settings.manage',
             'api.business-settings.crm.options.update'         => 'crm.settings.manage',
             'api.business-settings.crm.options.destroy'        => 'crm.settings.manage',
-            'api.business-settings.crm.pipelines.update'       => 'crm.settings.manage',
+            // Manage Pipelines and Stages, apart from the other CRM settings (Doc 17 Phase D3b1).
+            'api.business-settings.crm.pipelines.store'        => 'crm.settings.pipelines',
+            'api.business-settings.crm.pipelines.update'       => 'crm.settings.pipelines',
+            'api.business-settings.crm.pipelines.default'      => 'crm.settings.pipelines',
+            'api.business-settings.crm.pipelines.destroy'      => 'crm.settings.pipelines',
             'api.business-settings.expenses.show'              => 'settings.view',
             'api.business-settings.expenses.update'            => 'expenses.settings.manage',
 

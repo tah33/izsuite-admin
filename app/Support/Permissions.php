@@ -116,7 +116,8 @@ final class Permissions
         'crm.opportunities' => ['Opportunities', 'crm', ['view' => self::VIEW, 'manage' => 'Create and Edit', 'stage' => 'Change Stages', 'probability' => 'Change Probability', 'close' => 'Mark Won or Lost', 'reopen' => 'Reopen Won or Lost']],
         // Without either, a user sees the CRM records they own (LeadVisibility).
         'crm.records'  => ['CRM Records', 'crm', ['team' => 'View Team Records', 'all' => 'View All CRM Records']],
-        'crm.settings' => ['CRM Settings', 'crm', self::APP_SETTINGS],
+        // Phase D3b1: the pipelines and their stages apart from the rest (section 17.30).
+        'crm.settings' => ['CRM Settings', 'crm', [...self::APP_SETTINGS, 'pipelines' => 'Manage Pipelines and Stages']],
     ];
 
     /** The groups whose records carry their app's values: anything but viewing one needs them. */

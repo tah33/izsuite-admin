@@ -44,7 +44,8 @@ class CrmSettingService
     ) {}
 
     /**
-     * The settings, every list and the pipelines - the lists and the first
+     * The settings, every list and the pipelines - each (Phase D3b1) with
+     * whether opportunities are or were in it - the lists and the first
      * pipeline (Phase A2) started if they never were.
      *
      * @return array{settings: \App\Models\User\CrmSetting, options: \Illuminate\Database\Eloquent\Collection, pipelines: \Illuminate\Database\Eloquent\Collection}
@@ -56,7 +57,7 @@ class CrmSettingService
         return [
             'settings'  => $this->settings->forWorkspace($workspace),
             'options'   => $this->options->getFor($workspace),
-            'pipelines' => $this->pipelines->getFor($workspace),
+            'pipelines' => $this->pipelines->listedFor($workspace),
         ];
     }
 

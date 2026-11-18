@@ -41,6 +41,8 @@ class CrmOpportunityResource extends JsonResource
             'contact'             => $this->contact ? [...$named($this->contact), 'contact_number' => $this->contact->contact_number] : null,
             'contact_person'      => $this->contact_person,
             'lead'                => $named($this->lead),
+            // Phase D3b1: the pipeline it is in, one of several.
+            'pipeline'            => $named($this->pipeline),
             'stage'               => $this->stage ? [...$named($this->stage), 'category' => $this->stage->category, 'stale_after_days' => $this->stage->stale_after_days] : null,
             // The pipeline's stages switched on - and the one it is at - in order: where it stands among them.
             'stages'              => ($this->pipeline?->stages ?? collect())
@@ -73,8 +75,11 @@ class CrmOpportunityResource extends JsonResource
                 'quantity' => $item->quantity,
             ])->values(),
             // Each stage it has been at, the first first: when, by whom and for how long - the last while it is there.
+            // One of another pipeline it was in before (Phase D3b1) is named with that pipeline.
             'visits'              => $this->stageVisits->map(fn ($visit) => [
-                'stage'      => $visit->stage?->name,
+                'stage'      => $visit->stage && (int) $visit->stage->crm_pipeline_id !== (int) $this->pipeline_id
+                    ? "{$visit->stage->name} ({$visit->stage->pipeline?->name})"
+                    : $visit->stage?->name,
                 'entered_at' => $visit->entered_at->toIso8601String(),
                 'left_at'    => $visit->left_at?->toIso8601String(),
                 'by'         => $visit->mover?->name,
