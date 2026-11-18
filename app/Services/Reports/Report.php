@@ -114,6 +114,12 @@ abstract class Report
         return Decimal::isZero($whole) ? null : Decimal::round(bcdiv(bcmul($part, '100', 10), $whole, 10), 1);
     }
 
+    /** As percent(), of two counts (Doc 17 Phase H's CRM reports). */
+    protected function share(int $part, int $whole): ?string
+    {
+        return $whole > 0 ? $this->percent((string) $part, (string) $whole) : null;
+    }
+
     protected function add(string $a, string $b): string
     {
         return bcadd($a, $b, 2);

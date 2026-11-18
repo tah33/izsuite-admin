@@ -136,12 +136,6 @@ abstract class LeadReport extends Report
         return $leads->whereIn('status', $statuses)->count();
     }
 
-    /** $part of $whole as a percentage to one place - none of none. */
-    protected function share(int $part, int $whole): ?string
-    {
-        return $whole > 0 ? $this->percent((string) $part, (string) $whole) : null;
-    }
-
     /** "The leads added from 01 Nov 2026 to 30 Nov 2026 that you see" - how each lead report's first note starts. */
     protected function counting(array $filters): string
     {

@@ -129,13 +129,13 @@ class ReportService
 
     /**
      * The dates and filters a report is built with: the range, an as-of day,
-     * the grouping - by category, unless told, for Expenses by Category, by
-     * month for the rest, and always its own for a "Sales by" or "Leads by"
-     * report - and what it is narrowed to: with the contact, item, category,
-     * expense category and account named, each the business's own. CRM's
-     * reports (Doc 17 Phase H1) also take a sales team, an owner and a lead
-     * source - ids of another business find nothing - and count what the
-     * signed-in user sees.
+     * the grouping - unless told, its own default (ReportCatalog::
+     * DEFAULT_GROUPS) or by month, and always its own for a "Sales by",
+     * "Leads by" or performance report - and what it is narrowed to: with
+     * the contact, item, category, expense category and account named, each
+     * the business's own. CRM's reports (Doc 17 Phase H) also take a sales
+     * team, an owner, a lead source, a pipeline and a stage - ids of another
+     * business find nothing - and count what the signed-in user sees.
      */
     private function filters(Workspace $workspace, string $key, array $input): array
     {
@@ -145,7 +145,7 @@ class ReportService
             'from'                => $from,
             'to'                  => $to,
             'as_of'               => $input['as_of'] ?? $this->reportPeriod->today($workspace),
-            'group_by'            => ReportCatalog::GROUPED[$key] ?? $input['group_by'] ?? ($key === 'expenses-by-category' ? 'category' : 'month'),
+            'group_by'            => ReportCatalog::GROUPED[$key] ?? $input['group_by'] ?? ReportCatalog::DEFAULT_GROUPS[$key] ?? 'month',
             'location_id'         => $input['location_id'] ?? null,
             'location_ids'        => $this->access->locations(),
             'contact_id'          => $input['contact_id'] ?? null,
@@ -160,6 +160,8 @@ class ReportService
             'sales_team_id'       => $input['sales_team_id'] ?? null,
             'owner_id'            => $input['owner_id'] ?? null,
             'lead_source_id'      => $input['lead_source_id'] ?? null,
+            'pipeline_id'         => $input['pipeline_id'] ?? null,
+            'stage_id'            => $input['stage_id'] ?? null,
             'user'                => $this->access->user(),
             'week_start'          => $workspace->weekStartDay(),
             'date_format'         => $workspace->date_format,

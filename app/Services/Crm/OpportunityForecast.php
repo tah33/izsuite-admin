@@ -84,6 +84,33 @@ class OpportunityForecast
         return ['total' => Decimal::round($total), 'unrated' => $unrated];
     }
 
+    /**
+     * Each of $opportunities' whole and weighted value in the base currency
+     * at today's rates, each rounded as total() rounds it - both null for one
+     * of a currency without a rate today - by id: what CRM's opportunity
+     * reports (Phase H2) add up, each currency's rate read once.
+     *
+     * @param  iterable<CrmOpportunity>  $opportunities
+     * @return array<int, array{value: string|null, weighted: string|null}>
+     */
+    public function baseValues(Workspace $workspace, iterable $opportunities): array
+    {
+        $today  = $this->calendar->today($workspace)->toDateString();
+        $rates  = [];
+        $values = [];
+
+        foreach ($opportunities as $opportunity) {
+            $rate = $rates[$opportunity->currency] ??= $this->rates->rateOn($workspace, $opportunity->currency, $today) ?? '';
+
+            $values[$opportunity->id] = $rate === '' ? ['value' => null, 'weighted' => null] : [
+                'value'    => Decimal::round(bcmul(Decimal::round((string) $opportunity->expected_value), $rate, 8)),
+                'weighted' => Decimal::round(bcmul(Decimal::round(bcdiv(bcmul((string) $opportunity->expected_value, (string) $opportunity->probability, 4), '100', 4)), $rate, 8)),
+            ];
+        }
+
+        return $values;
+    }
+
     /** Sets $opportunities' weighted_value and base_weighted_value, for their resources to show. */
     public function attach(Workspace $workspace, iterable $opportunities): void
     {

@@ -76,6 +76,23 @@ class CrmEmailRepository
             ?->created_at;
     }
 
+    /**
+     * When the latest e-mail to each of opportunities $ids was sent from
+     * izSuite (Phase H3), by opportunity id: as lastSentAt(), for many.
+     *
+     * @return array<int, string>
+     */
+    public function lastSentByOpportunity(Workspace $workspace, array $ids): array
+    {
+        return CrmEmail::query()
+            ->where('workspace_id', $workspace->id)
+            ->whereIn('opportunity_id', $ids)
+            ->groupBy('opportunity_id')
+            ->selectRaw('opportunity_id, max(created_at) as last_at')
+            ->pluck('last_at', 'opportunity_id')
+            ->all();
+    }
+
     /** Whether any was sent from $contact: it is then deactivated, not deleted. */
     public function usesContact(Contact $contact): bool
     {

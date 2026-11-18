@@ -97,7 +97,8 @@ class CrmLeadReportsTest extends TestCase
     {
         $this->assertSame(self::KEYS, $this->listed());
         $this->assertSame('CRM', collect($this->getJson('/api/v1/reports')->json('data'))->firstWhere('key', 'leads-by-source')['category']);
-        $this->assertSame(['Leads by Source', 'Leads by Status', 'Leads by Owner', 'Lead Response Time', 'Lead Qualification Rate', 'Lead Conversion Rate'], array_column(ReportCatalog::namesFor('crm'), 'name'));
+        // The Apps Center lists CRM's reports, the lead ones first (Phases H2 and H3 add the rest).
+        $this->assertSame(['Leads by Source', 'Leads by Status', 'Leads by Owner', 'Lead Response Time', 'Lead Qualification Rate', 'Lead Conversion Rate'], array_slice(array_column(ReportCatalog::namesFor('crm'), 'name'), 0, 6));
 
         // View CRM Reports with View Leads; either alone is not enough.
         Sanctum::actingAs($this->member(['reports.view', 'crm.leads.view']));

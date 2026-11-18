@@ -9,9 +9,19 @@ use App\Repositories\User\PurchaseReportRepository;
 use App\Repositories\User\SalesReportRepository;
 use App\Repositories\User\CrmSettingRepository;
 use App\Services\Reports\Accounts\AccountTransactionsReport;
+use App\Services\Reports\Crm\ActivityCompletionReport;
+use App\Services\Reports\Crm\ClosedOpportunitiesReport;
+use App\Services\Reports\Crm\ForecastReport;
 use App\Services\Reports\Crm\LeadRateReport;
 use App\Services\Reports\Crm\LeadResponseReport;
 use App\Services\Reports\Crm\LeadsByReport;
+use App\Services\Reports\Crm\LostReasonsReport;
+use App\Services\Reports\Crm\OpportunitiesByStageReport;
+use App\Services\Reports\Crm\OpportunityListReport;
+use App\Services\Reports\Crm\OverdueActivitiesReport;
+use App\Services\Reports\Crm\PerformanceReport;
+use App\Services\Reports\Crm\StageDurationReport;
+use App\Services\Reports\Crm\WinRateReport;
 use App\Services\Reports\Expenses\ExpensesByCategoryReport;
 use App\Services\Reports\Expenses\ExpenseSummaryReport;
 use App\Services\Reports\Purchases\OutstandingPurchasesReport;
@@ -53,7 +63,8 @@ use App\Services\User\Apps\WorkspaceApps;
  * Tax Summary and Tax Details while taxes are on or tax history exists (Doc
  * 07 section 16); Payment Account Transactions always; the full Sales app's
  * while it is on (Doc 16 section 16.26); CRM's while it is on (Doc 17 section
- * 17.29), its lead reports while the business uses leads. Each only for a
+ * 17.29) - its leads', opportunities' and activities' (Phases H1 to H3) -
+ * the lead reports while the business uses leads. Each only for a
  * role that may see what it shows, values included (PARTS) - the tax reports
  * with Tax Information too, the account's with its balances, CRM's with View
  * CRM Reports and the view of what each counts (CRM); another is not found.
@@ -73,15 +84,23 @@ class ReportCatalog
     /** Keys a report was known by before, and the report each is now. */
     private const ALIASES = ['customer-statement' => 'contact-statement'];
 
-    /** The reports that are another one grouped one way, always (Doc 16 Phase H2a, Doc 17 Phase H1): the grouping each is built with. */
+    /** The reports that are another one grouped one way, always (Doc 16 Phase H2a, Doc 17 Phases H1 and H3): the grouping each is built with. */
     public const GROUPED = [
         'sales-by-customer' => 'customer', 'sales-by-item' => 'item', 'sales-by-category' => 'category', 'sales-by-brand' => 'brand',
         'sales-by-location' => 'location', 'sales-by-salesperson' => 'salesperson', 'sales-by-team' => 'team', 'sales-by-source' => 'source',
         'leads-by-source'   => 'source', 'leads-by-owner' => 'owner', 'leads-by-status' => 'status',
+        'sales-team-performance' => 'team', 'salesperson-performance' => 'owner',
     ];
 
-    /** What CRM's reports need (Doc 17 section 17.29): CRM on, View CRM Reports, and the view of what each counts. */
-    private const CRM = ['crm_leads' => 'crm.leads.view'];
+    /** How a report with a Group By groups its rows unless told - by month for any not named. */
+    public const DEFAULT_GROUPS = ['expenses-by-category' => 'category', 'pipeline-value' => 'stage'];
+
+    /**
+     * What CRM's reports need (Doc 17 section 17.29): CRM on, View CRM
+     * Reports, and the view of what each counts - leads (while the business
+     * uses them), opportunities or activities.
+     */
+    private const CRM = ['crm_leads' => 'crm.leads.view', 'crm_opportunities' => 'crm.opportunities.view', 'crm_activities' => 'crm.activities.view'];
 
     /**
      * What the full Sales app's reports need (Doc 16 section 16.26): the app
@@ -156,6 +175,21 @@ class ReportCatalog
         'lead-response-time'      => ['Lead Response Time', 'crm', LeadResponseReport::class, ['period', 'group_by', 'location', 'sales_team', 'owner', 'lead_source'], 'How soon the leads added in a period were first contacted, and how many in time.', 'crm_leads'],
         'lead-qualification-rate' => ['Lead Qualification Rate', 'crm', LeadRateReport::class, ['period', 'group_by', 'location', 'sales_team', 'owner', 'lead_source'], 'The share of the leads added in a period that were qualified.', 'crm_leads'],
         'lead-conversion-rate'    => ['Lead Conversion Rate', 'crm', LeadRateReport::class, ['period', 'group_by', 'location', 'sales_team', 'owner', 'lead_source'], 'The share of the leads added in a period that became opportunities.', 'crm_leads'],
+        // Phase H2: its opportunities - estimates in the base currency, archived ones left out.
+        'opportunities-by-stage'     => ['Opportunities by Stage', 'crm', OpportunitiesByStageReport::class, ['location', 'sales_team', 'owner', 'lead_source', 'pipeline'], 'The open opportunities at each stage now, their value, days at the stage and how many are stale.', 'crm_opportunities'],
+        'pipeline-value'             => ['Pipeline Value', 'crm', ForecastReport::class, ['group_by', 'location', 'sales_team', 'owner', 'lead_source', 'pipeline', 'stage'], "The open opportunities' expected value now, by stage, closing month, owner or sales team.", 'crm_opportunities'],
+        'weighted-forecast'          => ['Weighted Forecast', 'crm', ForecastReport::class, ['group_by', 'location', 'sales_team', 'owner', 'lead_source', 'pipeline', 'stage'], 'Expected value × probability of the open opportunities, by closing month, stage, owner or sales team.', 'crm_opportunities'],
+        'stage-duration'             => ['Stage Duration', 'crm', StageDurationReport::class, ['period', 'location', 'sales_team', 'owner', 'lead_source', 'pipeline'], 'How long opportunities stayed at each stage, and how long those there now have been.', 'crm_opportunities'],
+        'opportunities-closing-soon' => ['Opportunities Closing Soon', 'crm', OpportunityListReport::class, ['location', 'sales_team', 'owner', 'lead_source', 'pipeline', 'stage'], 'The open opportunities expected to close within the closing-soon period, the soonest first.', 'crm_opportunities'],
+        'won-lost-opportunities'     => ['Won and Lost Opportunities', 'crm', ClosedOpportunitiesReport::class, ['period', 'location', 'sales_team', 'owner', 'lead_source', 'pipeline'], 'Each opportunity won or lost in a period, its value, and why a lost one was lost.', 'crm_opportunities'],
+        'win-rate'                   => ['Win Rate', 'crm', WinRateReport::class, ['period', 'group_by', 'location', 'sales_team', 'owner', 'lead_source', 'pipeline'], 'The share of the opportunities closed in a period that were won, by number and by value.', 'crm_opportunities'],
+        'lost-reasons'               => ['Lost Reasons', 'crm', LostReasonsReport::class, ['period', 'location', 'sales_team', 'owner', 'lead_source', 'pipeline'], 'Why the opportunities lost in a period were lost, and to whom.', 'crm_opportunities'],
+        // Phase H3: people and activity.
+        'sales-team-performance'     => ['Sales Team Performance', 'crm', PerformanceReport::class, ['period', 'location'], "Each sales team's leads, opportunities won and lost, value won, open pipeline and activities done.", 'crm_opportunities'],
+        'salesperson-performance'    => ['Salesperson Performance', 'crm', PerformanceReport::class, ['period', 'location', 'sales_team'], "Each salesperson's leads, opportunities won and lost, value won, open pipeline and activities done.", 'crm_opportunities'],
+        'activity-completion'        => ['Activity Completion', 'crm', ActivityCompletionReport::class, ['period', 'group_by', 'location', 'owner'], 'The activities due in a period: completed, on time, cancelled and still planned.', 'crm_activities'],
+        'overdue-activities'         => ['Overdue Activities', 'crm', OverdueActivitiesReport::class, ['location', 'owner'], 'The planned activities past their due time now, the longest overdue first.', 'crm_activities'],
+        'opportunities-without-follow-up' => ['Opportunities Without Follow-up', 'crm', OpportunityListReport::class, ['location', 'sales_team', 'owner', 'lead_source', 'pipeline', 'stage'], 'The open opportunities with no activity planned, the longest without activity first.', 'crm_opportunities'],
     ];
 
     /**
@@ -203,7 +237,9 @@ class ReportCatalog
             // The full Sales app's own (Doc 16 section 16.26): while it is on.
             ...array_fill_keys(array_keys(self::FULL_SALES), $apps->has('sales', Edition::Full)),
             // CRM's (Doc 17 section 17.29): while it is on - the leads' while the business uses them.
-            'crm_leads' => $apps->has('crm') && $this->crmSettings->forWorkspace($workspace)->usesLeads(),
+            'crm_leads'         => $apps->has('crm') && $this->crmSettings->forWorkspace($workspace)->usesLeads(),
+            'crm_opportunities' => $apps->has('crm'),
+            'crm_activities'    => $apps->has('crm'),
         ];
         $entries = [];
 
@@ -277,7 +313,7 @@ class ReportCatalog
             'sales', 'purchases', 'expenses' => $this->sees([$needs => true]),
             'sales_full', 'sales_costs', 'sales_lists', 'sales_quotes', 'sales_orders' => $this->sees(['sales' => true]) && (self::FULL_SALES[$needs] === null || $this->access->can(self::FULL_SALES[$needs])),
             'sales_deliveries', 'sales_returns' => $this->access->can(self::FULL_SALES[$needs]),
-            'crm_leads'  => $this->access->can('crm.reports.view') && $this->access->can(self::CRM[$needs]),
+            'crm_leads', 'crm_opportunities', 'crm_activities' => $this->access->can('crm.reports.view') && $this->access->can(self::CRM[$needs]),
             'payables'   => $this->sees(['supplier_payments' => $purchases, 'expense_payments' => $expenses]),
             'taxes'      => $this->access->can('taxes.view') && $this->sees(['sales' => $sales, 'purchases' => $purchases, 'expenses' => $expenses]),
             // A statement for either side: a customer's, or a supplier's.

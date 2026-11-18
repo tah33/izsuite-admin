@@ -175,11 +175,68 @@ class CrmActivityRepository
         return $this->planned($workspace, $scope, $filters)->whereBetween('due_at', [$from, $to])->count();
     }
 
+    /**
+     * What CRM's Activity Completion counts (Phase H3): those $scope sees,
+     * narrowed as overdueCount()'s, that were due between $from and $to -
+     * with their type and whom they are given to.
+     */
+    public function dueBetween(Workspace $workspace, array $scope, array $filters, CarbonInterface $from, CarbonInterface $to): Collection
+    {
+        return $this->narrowed($this->visible($workspace, $scope), $filters)
+            ->whereBetween('due_at', [$from, $to])
+            ->with(['type:id,name', 'assignee:id,first_name,last_name'])
+            ->get(['id', 'type_id', 'assigned_to', 'status', 'due_at', 'completed_at']);
+    }
+
+    /** The planned ones $scope sees due before $now (Phase H3's Overdue Activities), narrowed as overdueCount()'s, the longest overdue first - with what names them and their record. */
+    public function overdue(Workspace $workspace, array $scope, array $filters, CarbonInterface $now): Collection
+    {
+        return $this->planned($workspace, $scope, $filters)
+            ->where('due_at', '<', $now)
+            ->with(['type:id,name', 'assignee:id,first_name,last_name', 'lead:id,name', 'opportunity:id,name', 'contact:id,name'])
+            ->orderBy('due_at')
+            ->orderBy('id')
+            ->get(['id', 'subject', 'type_id', 'assigned_to', 'due_at', 'lead_id', 'opportunity_id', 'contact_id']);
+    }
+
+    /** Those $scope sees completed between $from and $to (Phase H3's performance reports), narrowed as overdueCount()'s - with whom they were given to and their record's sales team. */
+    public function completedBetween(Workspace $workspace, array $scope, array $filters, CarbonInterface $from, CarbonInterface $to): Collection
+    {
+        return $this->narrowed($this->visible($workspace, $scope), $filters)
+            ->where('status', CrmActivity::COMPLETED)
+            ->whereBetween('completed_at', [$from, $to])
+            ->with(['assignee:id,first_name,last_name', 'lead:id,sales_team_id', 'lead.team:id,name', 'opportunity:id,sales_team_id', 'opportunity.team:id,name'])
+            ->get(['id', 'assigned_to', 'completed_at', 'lead_id', 'opportunity_id']);
+    }
+
+    /**
+     * When the latest activity done for each of opportunities $ids was
+     * completed (Phase H3), by opportunity id: as lastDoneAt(), for many.
+     *
+     * @return array<int, string>
+     */
+    public function lastDoneByOpportunity(Workspace $workspace, array $ids): array
+    {
+        return CrmActivity::query()
+            ->where('workspace_id', $workspace->id)
+            ->whereIn('opportunity_id', $ids)
+            ->where('status', CrmActivity::COMPLETED)
+            ->groupBy('opportunity_id')
+            ->selectRaw('opportunity_id, max(completed_at) as last_at')
+            ->pluck('last_at', 'opportunity_id')
+            ->all();
+    }
+
     /** Planned ones $scope sees - given to $filters' owner_id, at its location_id, when they name one. */
     private function planned(Workspace $workspace, array $scope, array $filters): Builder
     {
-        return $this->visible($workspace, $scope)
-            ->where('status', CrmActivity::PLANNED)
+        return $this->narrowed($this->visible($workspace, $scope), $filters)->where('status', CrmActivity::PLANNED);
+    }
+
+    /** $query given to $filters' owner_id, at its location_id, when they name one. */
+    private function narrowed(Builder $query, array $filters): Builder
+    {
+        return $query
             ->when($filters['owner_id'] ?? null, fn (Builder $query, $id) => $query->where('assigned_to', $id))
             ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('location_id', $id));
     }

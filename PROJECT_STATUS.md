@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-18
-- **Code:** Doc 17 Phase H1 (the CRM lead reports) is committed: frontend `6171111` on `nuxt`, and on `main` the admin commit right after `19cb5ad`.
-- **Tests:** 1009 backend tests pass (last full run 2026-11-18, on the first PC, on this code).
-- **Next step:** Doc 17 Phase H2: the opportunity reports (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phases H2 and H3 (the CRM opportunity, people and activity reports) are committed: frontend `26f0f0e` on `nuxt`, and on `main` the admin commit right after `ff2f536`.
+- **Tests:** 1016 backend tests pass (last full run 2026-11-18, on the first PC, on this code).
+- **Next step:** Doc 17 Phase I: rules and records (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase H1 the latest is 000182. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase H3 the latest is 000182. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase H2.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase I.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check and Phases A to G done, Phase H split (H1 built 2026-11-18), Phase H2 next** |
+| **17** | **CRM** | **In progress: gap check and Phases A to H done (H2 and H3 built 2026-11-18; Campaign-to-Opportunity Results waits for Doc 21), Phase I next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase H2)
+### 5. Doc 17: CRM (next: Phase I)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -2188,15 +2188,81 @@ The first PC's parts were taken out: both repos are D3b to F4 as the second PC b
   - Leads by Status and Leads by Owner matched, and the CSV and PDF downloaded. The role editor listed CRM Reports: View CRM Reports.
   - The leads, CRM settings and lists, the app's state, the sign-in and the activity were then put back.
 
-**Phase H2: the opportunity reports**, suggested defaults:
+**Phase H2: the opportunity reports** is built, with these defaults:
 
-- Opportunities by Stage; Pipeline Value and Weighted Forecast, by stage, owner or closing month as the Forecast groups them; Stage Duration, the average days at each stage from the stage visits; Opportunities Closing Soon; Won and Lost Opportunities; Win Rate, won of those closed in the period; Lost Reasons.
-- For whoever may view CRM reports and opportunities, with the Overview's filters, pipeline and stage among them.
+- **Eight reports,** while CRM is on, for whoever may view CRM reports and opportunities. Each counts the opportunities the user sees, archived ones left out as on the Overview.
+  - Where it applies, each is narrowed by location, sales team, owner, lead source, pipeline (while there are several) and stage.
+  - Values are in the base currency at today's rates; those without a rate today are left out and counted.
+- **Opportunities by Stage**, as they stand now: every open stage in order, quiet ones too. For each: how many, their expected and weighted value, their average days at the stage, and how many are stale.
+- **Pipeline Value** and **Weighted Forecast**, as the Forecast page works them out: the open ones by stage (Pipeline Value's to start), closing month (Weighted Forecast's), owner or sales team.
+  - Pipeline Value has each group's share.
+  - Weighted Forecast has the weighted value and what was won this month.
+- **Stage Duration:** at each open stage:
+  - the visits that ended in the period (moved on, won or lost), with their average and longest days;
+  - those there now, with their days so far.
+- **Opportunities Closing Soon:** the list of those expected to close within the closing-soon period, the soonest first. Each has its days left, probability, and values in its own currency; the sums in the base currency are above.
+- **Won and Lost Opportunities:** the list of those closed in the period, the latest first, with a lost one's reason and competitor. What was won and lost is above.
+- **Win Rate:** of those closed in the period, by month (every month of the period), owner, sales team or lead source: won, lost, and the share won by number and by value.
+- **Lost Reasons:** those lost in the period by reason, with each reason's share, value and most-named competitor.
+- The lists' rows open their opportunity.
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with CRM switched on by hand:
+  - The check data, four opportunities at Bose Electronics:
+    - Bose racking at Proposal ($1,00,000.00, closing in ten days), moved from New after four days, its dates set back in the database;
+    - Bose shelving at Qualified ($2,40,000.00, closing in February);
+    - Bose cabling, won on 10 November ($30,000.00);
+    - Bose wiring, lost on 12 November for Price to Rival Co ($20,000.00).
+  - Activities: a call for Bose racking overdue since yesterday and one next week, and a call for Bose shelving done after its due time.
+  - The Reports page's CRM group listed the 19 reports in 17.29's order.
+  - Opportunities by Stage read Qualified 1 ($2,40,000.00, weighted $60,000.00) and Proposal 1 ($1,00,000.00, $50,000.00, 4.2 days at it). New and Negotiation were empty.
+  - Pipeline Value opened by stage, with its chart: Qualified 70.6%, Proposal 29.4%, total $3,40,000.00. Its filters were Owner, Lead source and Stage: there is one pipeline, so no Pipeline filter.
+  - Weighted Forecast read November $1,00,000.00, weighted $50,000.00, with $30,000.00 won this month; February 2027 $2,40,000.00, weighted $60,000.00.
+  - Stage Duration read New 1 moved on, after 4.0 days. Qualified and Proposal had 1 moved on each (won or lost the same day) and 1 there now each.
+  - Closing Soon listed Bose racking, 10 days left. Won and Lost listed the two, with Won (1) $30,000.00 and Lost (1) $20,000.00 above.
+  - Win Rate read 50.0%, and 60.0% by value. Lost Reasons read Price: 1, $20,000.00, Rival Co.
 
-**Phase H3: people and activity**, suggested defaults:
+**Phase H3: people and activity** is built, with these defaults:
 
-- Sales Team Performance and Salesperson Performance (leads, opportunities won and lost, win rate, won value, activities done); Activity Completion (planned, done, cancelled, done on time); Overdue Activities; Opportunities Without Follow-up, open with no activity planned, as Phase G3b counts them.
-- The activity reports for whoever may view CRM reports and activities.
+- **Five reports,** while CRM is on, each counting what the user sees.
+- **Salesperson Performance** and **Sales Team Performance**, for whoever may view CRM reports and opportunities. For each owner or sales team over the period:
+  - the leads added and converted (while the business uses leads, for whoever may view them);
+  - the opportunities won and lost, with the win rate and the value won;
+  - the open pipeline now;
+  - the activities done (for whoever may view activities).
+  - An activity counts for whom it is given to, or for its record's sales team. The most won show first, and commission is not worked out (17.24).
+- **Activity Completion**, for whoever may view CRM reports and activities: those due in the period, by month, whom they are given to, or type.
+  - Columns: completed, on time, cancelled, still planned and overdue.
+  - The completion rate counts those not cancelled; the on-time rate those completed.
+- **Overdue Activities:** the list of planned ones past their due time now, the longest overdue first, with what each is for and its days overdue.
+- **Opportunities Without Follow-up:** the list of open ones with no activity planned, the longest without activity first. Their last contact and days without activity are counted as on an opportunity's page.
+- On an activity report, the Owner filter is whom an activity is given to, labelled "Assigned to".
+- **Campaign-to-Opportunity Results** waits for campaigns (Doc 21). It is the one report of 17.29 Phase H leaves out.
+- **Checked in the browser** with the same data:
+  - Salesperson Performance read izSuite User: won 1, lost 1, 50.0%, $30,000.00 won, $3,40,000.00 open pipeline, 1 activity done. Sales Team Performance read the same under No sales team.
+  - Activity Completion read November: 3 due, 1 completed, none on time, 2 still planned, 1 overdue, 33.3% completed. Its owner filter read Assigned to. Grouped by Assigned To from its Group By, izSuite User read the same.
+  - Overdue Activities listed Call Mr Bose, due 17 November, for Bose racking, 1 day overdue.
+  - Opportunities Without Follow-up listed Bose shelving, with that day as its last contact.
+  - The opportunities, activities, CRM settings and lists, the app's state, the sign-in and the activity were then put back.
+
+**Phase I: rules and records** (sections 17.9, 17.22, 17.25 and 17.30), suggested defaults, in four parts:
+
+- **I1, assignment rules:**
+  - Settings → CRM gains Assignment Rules, in order. The first that fits a new lead gives it its owner:
+    - round-robin among a sales team's members;
+    - or by location, sales team, lead source, product interest or country;
+    - or by workload, to whoever has the fewest open leads.
+  - Only active users who may own leads are chosen. When none fits, the lead waits in the queue. Assigning by hand stays.
+  - A new permission, Manage Assignment and Scoring Rules (17.30), covers I1 and I2.
+- **I2, lead scoring:**
+  - Points for what Settings → CRM names: source, budget, purchase period, decision maker, business size, interested items and being contacted.
+  - The score shows on the lead with its factors, and the Leads page gets a Score column and filter.
+  - It never qualifies or rejects a lead by itself.
+- **I3, marketing consent** on contacts and leads, apart from sales follow-up:
+  - its status (given, refused, withdrawn), purpose, source, when, who recorded it, expiry and evidence;
+  - carried over when a lead is converted;
+  - withdrawing it keeps its history.
+- **I4, custom fields** for leads and opportunities, set up in Settings → CRM:
+  - text, number, date, a choice or yes/no, each optional or required;
+  - shown on the form and the record's page.
 
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
@@ -2234,6 +2300,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase G3b | 000182 |
 | Doc 17: Phase G4 | none |
 | Doc 17: Phase H1 | none |
+| Doc 17: Phases H2, H3 | none, none |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -2644,6 +2711,45 @@ On a fresh business, set the days in Settings → CRM to fit what you have, rath
 - [ ] As the member: only their own leads in each report. Without View CRM Reports, the CRM group is gone.
 - [ ] With Opportunities Only in Settings → CRM, or with CRM off, the lead reports are gone.
 
+**Phase H2: the opportunity reports**
+
+**Before you start:** CRM on, with:
+- open opportunities at two stages, one closing within 30 days, one moved on from an earlier stage;
+- one won and one lost this month, the lost one with a reason and a competitor;
+- one archived;
+- a member whose role has View Reports, View CRM Reports and View Opportunities, with an opportunity of their own.
+
+- [ ] The CRM group lists Opportunities by Stage, Pipeline Value, Weighted Forecast, Stage Duration, Opportunities Closing Soon, Won and Lost Opportunities, Win Rate and Lost Reasons after the lead reports.
+- [ ] Opportunities by Stage shows every open stage, empty ones too, with the open ones' values, days at the stage and stale count. The archived one is in none of the reports.
+- [ ] Pipeline Value opens by stage, its shares adding up to 100%. Weighted Forecast opens by closing month and matches the Forecast page.
+- [ ] Both group by owner and sales team too.
+- [ ] Stage Duration shows the earlier stage's visit with its days, and the current stage's days so far.
+- [ ] Opportunities Closing Soon lists the one closing within 30 days, with its days left, and the sums above.
+- [ ] Each list row opens its opportunity.
+- [ ] Won and Lost lists both, the lost one with its reason and competitor, and the won and lost values above.
+- [ ] Win Rate shows the share won by number and by value. Set to This Year, it has every month.
+- [ ] Lost Reasons shows the reason, its share and the competitor.
+- [ ] The Owner, Lead Source and Stage filters narrow them, and Pipeline does too while there are several. The CSV, Excel and PDF hold the same rows.
+- [ ] As the member: only their own opportunities in each.
+
+**Phase H3: people and activity**
+
+**Before you start:** the data of Phase H2, with:
+- a sales team holding the member;
+- leads and opportunities of the member's in that team;
+- activities done this month for both people, one completed after its due time, one cancelled, and one overdue;
+- an open opportunity with no activity planned.
+
+- [ ] The CRM group ends with Sales Team Performance, Salesperson Performance, Activity Completion, Overdue Activities and Opportunities Without Follow-up.
+- [ ] Salesperson Performance has a row for each person: leads added and converted, won and lost, the win rate, the value won, the open pipeline and the activities done. The most won come first.
+- [ ] Sales Team Performance shows the team and No sales team the same way. An activity counts for its record's team.
+- [ ] Activity Completion shows due, completed, on time, cancelled, still planned and overdue, with both rates. Its Group By takes Assigned To and Activity Type.
+- [ ] Overdue Activities lists the overdue one, with what it is for and its days overdue.
+- [ ] Opportunities Without Follow-up lists the open one with nothing planned, with its last contact and days without activity.
+- [ ] On the activity reports, the owner filter reads Assigned to.
+- [ ] A role without View Leads sees Salesperson Performance without its lead columns; without View Activities, without Activities Done.
+- [ ] A role without View Activities has no Activity Completion or Overdue Activities.
+
 ## How we work
 
 Each document goes the same way:
@@ -2904,7 +3010,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase G3a, response tracking on a lead's and an opportunity's page | `81bc263` | `978548f` | 000181 |
 | Doc 17: Phase G3b, the follow-up warnings on the Overview | `d7d5524` | `95ea5c7` | 000182 |
 | Doc 17: Phase G4, the Dashboard's CRM figures | `19cb5ad` | `9fdefc0` | none |
-| Doc 17: Phase H1, the CRM lead reports | the commit after `19cb5ad` | `6171111` | none |
+| Doc 17: Phase H1, the CRM lead reports | `ff2f536` | `6171111` | none |
+| Doc 17: Phases H2 and H3, the CRM opportunity, people and activity reports | the commit after `ff2f536` | `26f0f0e` | none |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -3376,6 +3483,27 @@ These are easy to undo by mistake.
   - Frontend:
     - ReportCrmNarrowing, in ReportFilters, holds the sales team, owner and lead source dropdowns, from `/crm/leads/options`;
     - `useReports` has the new filter keys, `reportQuery()`, and `LEAD_GROUPS` in `GROUPINGS` (which was `FULL_SALES_GROUPINGS`).
+- CRM's opportunity, people and activity reports (Doc 17 Phases H2 and H3, no migration), in `App\Services\Reports\Crm`:
+  - `OpportunityReport` (abstract) has:
+    - `open()` and `closed()`, from `CrmOpportunityRepository::forReports()`: archived ones left out; the open ones (or those without a next activity), or those won or lost between two business days;
+    - `narrowing()`;
+    - `grouped()`: month, owner, team, source, or stage (every open stage of the shown pipelines, from `openStages()`);
+    - `sum()` over `OpportunityForecast::baseValues()`, which gives each opportunity's whole and weighted value in the base currency, each rate read once;
+    - `averageDays()` and `unratedNote()`.
+  - Built on it:
+    - `OpportunitiesByStageReport`;
+    - `ForecastReport`: Pipeline Value and Weighted Forecast, from `CrmForecastService::rows()`, told apart by `report_key`;
+    - `StageDurationReport`, from `CrmOpportunityRepository::stageVisitsEnded()`;
+    - `OpportunityListReport`: Closing Soon (with `FollowUpCutoffs::closingSoon()`) and Without Follow-up (with `CrmActivityRepository::lastDoneByOpportunity()` and `CrmEmailRepository::lastSentByOpportunity()`);
+    - `ClosedOpportunitiesReport`, `WinRateReport` and `LostReasonsReport`.
+  - `PerformanceReport` is Salesperson and Sales Team (`ReportCatalog::GROUPED`: owner, team). It reads the leads, the closed and open opportunities, and `CrmActivityRepository::completedBetween()`. The lead and activity columns show only with their view.
+  - `ActivityReport` (abstract) has `ActivityCompletionReport` (`dueBetween()`) and `OverdueActivitiesReport` (`overdue()`). `CrmActivityRepository`'s counts share `narrowed()` and `planned()`.
+  - `ReportCatalog`:
+    - the needs keys `crm_opportunities` and `crm_activities` (the `CRM` map);
+    - `DEFAULT_GROUPS`: Pipeline Value by stage, which the frontend's `reportDefaultGroup()` mirrors.
+  - `RunReportRequest` and `ReportService` take `pipeline_id` and `stage_id`. `Report::share()` is shared by all the CRM reports.
+  - A list report has a Currency column. `ReportTableResource` keeps only the columns' keys, so a row's own currency must be one.
+  - Frontend: ReportCrmNarrowing takes its choices from a lead's, an activity's (`CRM_ACTIVITY_REPORTS`) or an opportunity's options, with Pipeline and Stage. `GROUPINGS` has the new reports' groups.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -3511,4 +3639,5 @@ Each of these is yours to settle.
 - Doc 17 Phase G3b: migration 000182 adds the two follow-up periods to Settings → CRM (2 and 14 days). Deploy the frontend with it.
 - Doc 17 Phase G4: no migration. Deploy the frontend with it (the Dashboard gains its CRM card, and the Leads and Opportunities lists a status each).
 - Doc 17 Phase H1: no migration. A new permission, CRM → CRM Reports: View CRM Reports, brings Reports' View with it. Roles made from the Manager template from now on have it; give it to custom roles in Settings → Users & Roles. Deploy the frontend with it (the Reports page gains its CRM group and filters).
+- Doc 17 Phases H2 and H3: no migration. Deploy the frontend with them (the Reports page's CRM group gains thirteen reports, and the Pipeline and Stage filters).
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

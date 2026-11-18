@@ -381,6 +381,44 @@ class CrmOpportunityRepository
             ->get(['id', 'status', 'currency', 'expected_value', 'probability', 'expected_close_date', 'closed_on', 'owner_id', 'sales_team_id', 'stage_id']);
     }
 
+    /**
+     * What CRM's opportunity reports count (Phase H2): those $scope sees,
+     * archived ones left out, narrowed by $filters (narrowed()) - the open
+     * ones (only those with no activity planned when $withoutNextActivity),
+     * or with $closedFrom and $closedTo those won or lost between those
+     * business days - with what the reports name and group them by.
+     */
+    public function forReports(Workspace $workspace, array $scope, array $filters, ?string $closedFrom = null, ?string $closedTo = null, bool $withoutNextActivity = false): Collection
+    {
+        return $this->narrowed($this->visible($workspace, $scope), $filters)
+            ->whereNull('archived_at')
+            ->when(
+                $closedFrom !== null,
+                fn (Builder $query) => $query->whereIn('status', [CrmOpportunity::WON, CrmOpportunity::LOST])->whereBetween('closed_on', [$closedFrom, $closedTo]),
+                fn (Builder $query) => $query->where('status', CrmOpportunity::OPEN),
+            )
+            ->when($withoutNextActivity, fn (Builder $query) => $this->withoutNextActivity($query))
+            ->with(['contact:id,name', 'stage:id,name,position,crm_pipeline_id,stale_after_days', 'stage.pipeline:id,name,position', 'owner:id,first_name,last_name', 'team:id,name', 'source:id,name', 'lostReason:id,name'])
+            ->get([
+                'id', 'name', 'contact_id', 'status', 'pipeline_id', 'stage_id', 'owner_id', 'sales_team_id', 'source_id', 'lost_reason_id', 'lost_competitor',
+                'currency', 'expected_value', 'probability', 'expected_close_date', 'closed_on', 'stage_entered_at', 'created_at',
+            ]);
+    }
+
+    /**
+     * The stage visits that ended between $from and $to (Phase H2's Stage
+     * Duration) of the opportunities $scope sees, archived ones left out,
+     * narrowed by $filters.
+     */
+    public function stageVisitsEnded(Workspace $workspace, array $scope, array $filters, CarbonInterface $from, CarbonInterface $to): Collection
+    {
+        return CrmStageVisit::query()
+            ->whereIn('crm_opportunity_id', $this->narrowed($this->visible($workspace, $scope), $filters)->whereNull('archived_at')->select('crm_opportunities.id'))
+            ->whereNotNull('left_at')
+            ->whereBetween('left_at', [$from, $to])
+            ->get(['id', 'crm_opportunity_id', 'crm_stage_id', 'entered_at', 'left_at']);
+    }
+
     /** $query narrowed by the Overview's and Forecast's $filters: location_id, sales_team_id, owner_id, source_id, pipeline_id, stage_id and currency. */
     private function narrowed(Builder $query, array $filters): Builder
     {
