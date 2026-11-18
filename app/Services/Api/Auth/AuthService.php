@@ -4,15 +4,21 @@ namespace App\Services\Api\Auth;
 
 use App\Events\UserRegistered;
 use App\Mail\PasswordChanged;
+use App\Models\User\SupportSession;
 use App\Models\User\User;
 use App\Repositories\Admin\RoleRepository;
 use App\Repositories\User\UserRepository;
+use App\Services\Api\Profile\TwoFactorService;
 use App\Services\Shared\ActivityLogService;
+use App\Services\Shared\ConsentRecords;
+use App\Services\Shared\SupportSessionService;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\NewAccessToken;
 use RuntimeException;
 
@@ -30,6 +36,9 @@ class AuthService
     /** Role every self-registered account gets. Deliberately not an admin one. */
     private const FRONTEND_ROLE_SLUG          = 'user';
 
+    /** The activity log's action for a failed sign-in to an account. */
+    public const FAILED_SIGN_IN               = 'login_failed';
+
     /**
      * Shared by every way this endpoint can refuse a login: unknown email,
      * wrong password, or an admin account. One wording for all three so none
@@ -41,6 +50,10 @@ class AuthService
         protected UserRepository $userRepository,
         protected EmailVerificationService $emailVerification,
         protected RoleRepository $roleRepository,
+        protected TwoFactorService $twoFactor,
+        protected SignInChallenges $challenges,
+        protected SupportSessionService $supportSessions,
+        protected ConsentRecords $consents,
     ) {}
 
     /**
@@ -72,6 +85,10 @@ class AuthService
                 // cannot say which version of the terms was in force.
                 'terms_accepted_at' => now(),
             ]);
+
+            // Doc 15 Phase G3: what was consented to, kept as records.
+            $this->consents->acceptedTerms($user, 'registration');
+            $this->consents->setMarketing($user, (bool) ($data['marketing'] ?? false), 'registration');
 
             return $user;
         });
@@ -118,21 +135,27 @@ class AuthService
             'email_verified_at' => now(),
             'terms_accepted_at' => now(),
 
-            // The invitation's time zone, when it gave one; else the column's own default.
-            ...(empty($data['timezone']) ? [] : ['timezone' => $data['timezone']]),
+            // The invitation's phone, language and time zone, where it gave them
+            // (Doc 12 section 6) - the user's own from then on (section 22).
+            ...array_filter(Arr::only($data, ['phone', 'language', 'timezone']), fn ($value) => $value !== null && $value !== ''),
         ]);
+
+        $this->consents->acceptedTerms($user, 'invitation');
+        $this->consents->setMarketing($user, (bool) ($data['marketing'] ?? false), 'invitation');
 
         ActivityLogService::record('created', 'Registered an izSuite account from an invitation', $user, ['source' => 'api']);
 
-        $token = $this->userRepository->createToken($user, self::DEFAULT_DEVICE_NAME, ['*'], $this->tokenExpiry(false));
+        $token = $this->userRepository->createToken($user, self::DEFAULT_DEVICE_NAME, ['*'], $this->tokenExpiry(false), request()->ip(), request()->userAgent());
 
         return ['user' => $this->userRepository->loadRole($this->userRepository->updateLoginMeta($user)), 'token' => $token];
     }
 
     /**
-     * Exchange email + password for a Sanctum access token.
+     * Exchange email + password for a Sanctum access token - or, with two-
+     * factor authentication on (Doc 12 section 22), for a challenge the app's
+     * code answers through loginWithCode().
      *
-     * @return array{user: User, token: NewAccessToken}
+     * @return array{user: User, token: NewAccessToken}|array{user: User, challenge: string}
      */
     public function login(array $data): array
     {
@@ -141,6 +164,10 @@ class AuthService
         // An unknown email and a wrong password return the identical 401 so the
         // endpoint cannot be used to discover which addresses are registered.
         if (! $user || ! Hash::check($data['password'], $user->password)) {
+            if ($user && ! $user->isAdmin()) {
+                $this->recordFailure($user, 'password');
+            }
+
             abort(401, self::INVALID_CREDENTIALS_MESSAGE);
         }
 
@@ -152,7 +179,15 @@ class AuthService
             abort(401, self::INVALID_CREDENTIALS_MESSAGE);
         }
 
-        if ($user->status !== 'active') {
+        if ($user->status === User::LOCKED) {
+            abort(403, 'This account is locked. Contact izSuite support to unlock it.');
+        }
+
+        if ($user->status === User::CLOSED) {
+            abort(403, 'This account is closed, as its holder asked. Contact izSuite support if you need it again.');
+        }
+
+        if ($user->status !== User::ACTIVE) {
             abort(403, 'Your account is not active. Please contact support.');
         }
 
@@ -162,11 +197,68 @@ class AuthService
             $this->rejectUnverifiedEmail();
         }
 
+        // The password alone is not enough with two-factor authentication on.
+        if ($this->twoFactor->isOn($user)) {
+            return ['user' => $user, 'challenge' => $this->challenges->open($user, (bool) ($data['remember'] ?? false), $data['device_name'] ?? null)];
+        }
+
+        return $this->signIn($user, (bool) ($data['remember'] ?? false), $data['device_name'] ?? null);
+    }
+
+    /**
+     * The second step of a sign-in with two-factor authentication on: the
+     * challenge login() gave, answered with the app's code or a recovery
+     * code. A few wrong codes end the challenge, and the password is asked
+     * for again.
+     *
+     * @return array{user: User, token: NewAccessToken}
+     */
+    public function loginWithCode(array $data): array
+    {
+        $challenge = $this->challenges->find($data['challenge']);
+        $user      = $challenge ? $this->userRepository->find($challenge['user_id']) : null;
+
+        if (! $user || $user->status !== 'active' || ! $this->twoFactor->isOn($user)) {
+            throw ValidationException::withMessages(['challenge' => 'This sign-in has ended. Enter your password again.']);
+        }
+
+        $via = $this->twoFactor->passes($user, $data['code'] ?? null, $data['recovery_code'] ?? null);
+
+        if ($via === null) {
+            $this->recordFailure($user, 'two_factor');
+
+            if (! $this->challenges->failed($data['challenge'], $challenge)) {
+                throw ValidationException::withMessages(['challenge' => 'Too many wrong codes. Enter your password again.']);
+            }
+
+            throw ValidationException::withMessages([
+                empty($data['code']) ? 'recovery_code' : 'code' => empty($data['code'])
+                    ? 'That recovery code is not right, or was used already.'
+                    : 'That code is not right. Try the newest one from your app.',
+            ]);
+        }
+
+        $this->challenges->close($data['challenge']);
+
+        return $this->signIn($user, $challenge['remember'], $challenge['device_name'], ['two_factor' => $via]);
+    }
+
+    /**
+     * A new session for $user, for twelve hours or, kept signed in, thirty
+     * days - with where it signs in from, so the user can tell their devices
+     * apart (Doc 12 section 22).
+     *
+     * @return array{user: User, token: NewAccessToken}
+     */
+    private function signIn(User $user, bool $remember, ?string $deviceName, array $logged = []): array
+    {
         $token = $this->userRepository->createToken(
             $user,
-            $data['device_name'] ?? self::DEFAULT_DEVICE_NAME,
+            $deviceName ?? self::DEFAULT_DEVICE_NAME,
             ['*'],
-            $this->tokenExpiry((bool) ($data['remember'] ?? false)),
+            $this->tokenExpiry($remember),
+            request()->ip(),
+            request()->userAgent(),
         );
 
         $user  = $this->userRepository->updateLoginMeta($user);
@@ -177,9 +269,24 @@ class AuthService
         ActivityLogService::record('login', 'Signed in from the izSuite frontend', $user, [
             'source'     => 'api',
             'token_name' => $token->accessToken->name,
+            ...$logged,
         ]);
 
         return ['user' => $this->userRepository->loadRole($user), 'token' => $token];
+    }
+
+    /**
+     * A sign-in to $user's account that failed - a wrong password, or a wrong
+     * code - kept against the account, with the IP address. Admin > Users
+     * counts them as a security alert (Doc 15 section 15.7). The answer to the
+     * request stays the same as for an unknown address.
+     */
+    private function recordFailure(User $user, string $reason): void
+    {
+        ActivityLogService::record(self::FAILED_SIGN_IN, $reason === 'password' ? 'A sign-in failed: wrong password' : 'A sign-in failed: wrong code', $user, [
+            'source' => 'api',
+            'reason' => $reason,
+        ]);
     }
 
     /** The account holding the request's token, with its role, for the client. */
@@ -190,15 +297,26 @@ class AuthService
 
     /**
      * Revoke only the token that made the request, leaving the user's other
-     * devices signed in.
+     * devices signed in - or, on a support session ($session), end the
+     * session, every tab of it (Doc 15 section 15.22).
+     *
+     * @return string what to tell the app
      */
-    public function logout(User $user): void
+    public function logout(User $user, ?SupportSession $session = null): string
     {
+        if ($session) {
+            $this->supportSessions->end($session, SupportSession::ENDED_IN_APP);
+
+            return 'The support session has ended.';
+        }
+
         $this->userRepository->revokeCurrentToken($user);
 
         ActivityLogService::record('logout', 'Signed out of the izSuite frontend', $user, [
             'source' => 'api',
         ]);
+
+        return 'Signed out successfully.';
     }
 
     /**

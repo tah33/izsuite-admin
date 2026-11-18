@@ -2,8 +2,10 @@
 
 namespace App\Services\Api\Items;
 
+use App\Services\Shared\EditConflicts;
 use App\Models\User\Item;
 use App\Models\User\Workspace;
+use App\Repositories\Shared\RecordAuthorRepository;
 use App\Repositories\User\ItemRepository;
 use App\Repositories\User\PurchaseRepository;
 use App\Repositories\User\SalesDocumentRepository;
@@ -23,6 +25,7 @@ class ItemService
         protected SalesDocumentRepository $salesDocumentRepository,
         protected PurchaseRepository $purchaseRepository,
         protected WorkspaceSequence $workspaceSequence,
+        protected RecordAuthorRepository $recordAuthorRepository,
     ) {}
 
     /** The brand is searched and filtered only while the business uses brands (Doc 04 section 7). */
@@ -31,9 +34,10 @@ class ItemService
         return $this->itemRepository->paginateFor($workspace, $filters, $perPage, (bool) $workspace->brands_enabled);
     }
 
+    /** For its own page: with who added it and who last changed it (Doc 14 section 14.5). */
     public function find(Workspace $workspace, int $id): Item
     {
-        return $this->findOwned($workspace, $id);
+        return $this->recordAuthorRepository->load($this->findOwned($workspace, $id));
     }
 
     /** $data is validated - a combo's components included (see SaveItemRequest). */
@@ -97,6 +101,9 @@ class ItemService
     public function update(Workspace $workspace, int $id, array $data): Item
     {
         $item       = $this->findOwned($workspace, $id);
+
+        // Changed by someone else since it was opened: refused (Doc 14 section 22).
+        EditConflicts::ensureUnchanged($item, 'this item');
         $components = Arr::pull($data, 'components');
         $before     = $this->itemRepository->componentQuantities($item);
 
@@ -135,7 +142,7 @@ class ItemService
 
         $this->itemRepository->update($item, ['is_active' => $active]);
 
-        ActivityLogService::record('updated', ($active ? 'Activated' : 'Deactivated')." item {$this->quoted($item)}", $item, [
+        ActivityLogService::record('updated', ($active ? 'Restored' : 'Archived')." item {$this->quoted($item)}", $item, [
             'source' => 'api',
             'fields' => $item->wasChanged('is_active') ? ['is_active'] : [],
         ]);

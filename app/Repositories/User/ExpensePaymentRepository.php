@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Collection;
 class ExpensePaymentRepository
 {
     /** What a voucher's page shows with it - the expense's payee, whether a contact or a name typed in. */
-    private const SHOWN_WITH = ['expense:id,number,currency,contact_id,payee_name,payee_snapshot', 'contact:id,name', 'account:id,name,currency', 'creator:id,first_name,last_name', 'reverser:id,first_name,last_name'];
+    private const SHOWN_WITH = ['expense:id,number,currency,contact_id,payee_name,payee_snapshot', 'contact:id,name', 'account:id,name,currency', 'creator:id,first_name,last_name', 'reverser:id,first_name,last_name', 'sourceApp:id,name'];
 
     /**
      * Payments Made (Doc 10 section 3): newest first, searched by voucher

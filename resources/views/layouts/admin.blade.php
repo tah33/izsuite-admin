@@ -67,6 +67,8 @@
                     </div>
                 @endif
 
+                @include('admin.partials.announcements')
+
                 @yield('breadcrumbs')
                 @yield('content')
             </main>

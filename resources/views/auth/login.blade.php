@@ -26,16 +26,10 @@
             </div>
         </div>
 
-        <div class="mb-4">
+        {{-- No "Remember me": an admin session ends after 30 idle minutes (Doc 15 section 15.2). --}}
+        <div class="mb-6">
             <label for="password" class="form-label">Password</label>
             <x-password-input id="password" name="password" placeholder="********" autocomplete="current-password" required />
-        </div>
-
-        <div class="flex items-center justify-between mb-6">
-            <label class="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-                <input type="checkbox" name="remember" class="rounded text-[var(--primary)] accent-[var(--primary)]">
-                Remember me
-            </label>
         </div>
 
         <button type="submit" class="btn btn-primary w-full">

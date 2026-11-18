@@ -8,13 +8,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * An earlier version of a sent quotation or proforma invoice (Doc 08 section
  * 12), whole - its header, lines and totals - as it was before it was changed.
- * Read-only: only the document's current version can be sent or converted.
+ * Read-only: only the document's current version can be sent or converted. An
+ * amended sales order's keeps the reason it was changed (Doc 16 Phase B).
  */
 class SalesDocumentRevision extends Model
 {
     protected $fillable = [
         'revision',
         'snapshot',
+        'reason',
         'created_by',
     ];
 

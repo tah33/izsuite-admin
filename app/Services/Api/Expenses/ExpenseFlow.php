@@ -59,8 +59,11 @@ class ExpenseFlow
         $this->checkReady($expense);
         $this->checkDuplicates($workspace, $expense, $duplicate);
 
+        // A number typed as it is recorded (Doc 14 section 14.6), checked before anything changes.
+        $typed = $this->documentNumbers->typed(DocumentType::Expense, $duplicate['number'] ?? null, fn (string $taken) => $this->expenseRepository->numberTaken($workspace, $taken));
+
         DB::transaction(fn () => $this->expenseRepository->update($expense, [
-            'number'            => $this->documentNumbers->next(
+            'number'            => $typed ?? $this->documentNumbers->next(
                 $workspace,
                 DocumentType::Expense,
                 CarbonImmutable::parse($expense->document_date),

@@ -21,9 +21,17 @@ class PackageRepository
     }
 
     /** Every plan, lowest first, with how many apps and businesses it has. */
+    /** Every plan, lowest first, with its counts and the prices in force today (Doc 15 Phase C3a), by currency and cycle. */
     public function allByRankWithCounts(): Collection
     {
-        return Package::withCount(['apps', 'workspaces'])->orderBy('rank')->get();
+        $today = now()->toDateString();
+
+        return Package::withCount(['apps', 'workspaces'])
+            ->with(['prices' => fn ($prices) => $prices->whereDate('starts_on', '<=', $today)
+                ->where(fn ($open) => $open->whereNull('ends_on')->orWhereDate('ends_on', '>=', $today))
+                ->orderBy('currency')->orderBy('cycle')])
+            ->orderBy('rank')
+            ->get();
     }
 
     public function findOrFail(int $id): Package
@@ -35,6 +43,12 @@ class PackageRepository
     public function starter(): ?Package
     {
         return Package::where('key', Package::STARTER)->first();
+    }
+
+    /** A plan still offered, by its key - one a business may subscribe to. */
+    public function findOfferedByKey(string $key): ?Package
+    {
+        return Package::where('key', $key)->where('is_active', true)->first();
     }
 
     public function update(Package $package, array $data): Package
@@ -68,6 +82,26 @@ class PackageRepository
             ->pluck('lowest', 'app_id')
             ->map(fn ($rank) => (int) $rank)
             ->all();
+    }
+
+    /** @return array<int, string> app id => the name of the lowest active plan that includes it (Doc 13 section 5) */
+    public function lowestNames(): array
+    {
+        $names = [];
+
+        foreach (Package::where('is_active', true)->orderBy('rank')->with('apps:id')->get() as $package) {
+            foreach ($package->apps as $app) {
+                $names[$app->id] ??= $package->name;
+            }
+        }
+
+        return $names;
+    }
+
+    /** The active plans, lowest first, each with the apps it includes - for the public Pricing page. */
+    public function activeWithApps(): Collection
+    {
+        return Package::where('is_active', true)->orderBy('rank')->with(['apps' => fn ($query) => $query->listed()->orderBy('sort_order')->orderBy('name')])->get();
     }
 
     /** The plan's Lite apps that are listed and available. */

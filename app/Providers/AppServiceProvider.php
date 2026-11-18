@@ -4,10 +4,15 @@ namespace App\Providers;
 
 use App\Events\RecruiterNotificationRequested;
 use App\Listeners\QueueRecruiterNotification;
+use App\Services\Billing\Payments\CardGateway;
+use App\Services\Billing\Payments\StripeGateway;
+use App\Support\CountryDirectory;
+use App\View\Composers\AdminAnnouncementsComposer;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -15,12 +20,19 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // Card payments go through Stripe (Doc 13 Phase D2); another provider would be bound here.
+        $this->app->bind(CardGateway::class, StripeGateway::class);
+
+        // The countries, read once per request or queued job (Doc 15 Phase F3a).
+        $this->app->scoped(CountryDirectory::class);
     }
 
     public function boot(): void
     {
         Event::listen(RecruiterNotificationRequested::class, QueueRecruiterNotification::class);
+
+        // The announcements for izSuite's admins, above every admin page (Doc 15 Phase F1).
+        View::composer('layouts.admin', AdminAnnouncementsComposer::class);
 
         $this->configurePasswordPolicy();
         $this->configureRateLimiters();
@@ -95,15 +107,23 @@ class AppServiceProvider extends ServiceProvider
         // random characters, so this is a ceiling on PDFs made for strangers
         // rather than a guard against guessing: a reader opens a page or two.
         RateLimiter::for('public-documents', fn (Request $request) => Limit::perMinute(30)->by('public-documents|'.$request->ip()));
+
+        // What a customer sends through a link (Doc 16 Phase G2) - an answer, comments - each a
+        // notification to the business: a ceiling per link and address, against flooding it.
+        RateLimiter::for('customer-responses', fn (Request $request) => Limit::perHour(20)->by('customer-responses|'.$request->route('token').'|'.$request->ip()));
     }
 
     /**
      * Limiters run before the FormRequest, so the address still arrives in
      * whatever casing the caller used. Folding it here stops "Bob@x.com" and
      * "bob@x.com" from getting a bucket each.
+     *
+     * A request that sends none - a signed-in user changing their password or
+     * their two-factor authentication - counts as its user's, else as its
+     * address's: never all in one bucket shared by everybody.
      */
     private function emailKey(Request $request): string
     {
-        return strtolower(trim((string) $request->input('email')));
+        return strtolower(trim((string) ($request->input('email') ?: $request->user()?->email ?: $request->ip())));
     }
 }

@@ -34,6 +34,8 @@
     @error('instructions') <span class="form-error">{{ $message }}</span> @enderror
 </div>
 
+@include('admin.payment-methods._countries', ['method' => $method ?? null, 'hint' => __('By the business\'s billing country. Invoices of businesses billed elsewhere leave its instructions out.')])
+
 <div class="grid grid-cols-2 gap-4">
     <div class="form-group">
         <label for="sort_order" class="form-label">{{ __('Sort Order') }}</label>
@@ -46,6 +48,14 @@
         </label>
     </div>
 </div>
+
+{{-- Switched on, a method takes real payments: changing it is a critical action (Doc 15 section 15.25). --}}
+@include('admin.partials.critical-confirm', [
+    'impact' => ($method ?? null)?->takesRealPayments()
+        ? __('This method takes real payments: businesses see its instructions on every invoice they pay by it.')
+        : __('Saving it switched on makes it take real payments: businesses then see its instructions on their invoices.'),
+    'class'  => 'mt-4',
+])
 
 {{-- Summernote JS --}}
 <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-lite.min.js"></script>

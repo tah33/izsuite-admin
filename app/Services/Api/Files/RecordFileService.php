@@ -24,6 +24,7 @@ class RecordFileService
     public function __construct(
         protected FileStorage $fileStorage,
         protected WorkspaceFileRepository $workspaceFileRepository,
+        protected FileRemovalRule $fileRemovalRule,
     ) {}
 
     /** @return Collection<int, WorkspaceFile> */
@@ -60,15 +61,22 @@ class RecordFileService
             ?? abort(404, 'File not found.');
     }
 
+    /**
+     * Removing a file from a record past its draft needs the permission that
+     * undoes the record, and the log keeps the status it had (Doc 14 section
+     * 14.12, FileRemovalRule).
+     */
     public function remove(Model $owner, FileCollection $collection, WorkspaceFile $file, string $record): void
     {
+        $status = $this->fileRemovalRule->check($owner);
+
         $this->fileStorage->delete([$file]);
 
         ActivityLogService::record('deleted', match ($collection) {
-            FileCollection::Attachments => "Removed attachment {$this->quoted($file->name)} from {$record}",
+            FileCollection::Attachments => "Removed attachment {$this->quoted($file->name)} from {$record}".($status ? " ({$status})" : ''),
             FileCollection::Image       => "Removed the image of {$record}",
             default                     => "Removed {$collection->noun()} {$this->quoted($file->name)} from {$record}",
-        }, $owner, ['source' => 'api', 'file' => $file->name]);
+        }, $owner, array_filter(['source' => 'api', 'file' => $file->name, 'status' => $status]));
     }
 
     /** A name, in quotes and cut down, so the log entry fits its 255-character column. */

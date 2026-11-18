@@ -6,7 +6,9 @@ use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\AppActivationController;
 use App\Http\Controllers\Api\AppCategoryController;
 use App\Http\Controllers\Api\AppController;
+use App\Http\Controllers\Api\AppDetailsController;
 use App\Http\Controllers\Api\AppsCenterController;
+use App\Http\Controllers\Api\CatalogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BusinessCurrencyController;
 use App\Http\Controllers\Api\BusinessSettingController;
@@ -14,9 +16,34 @@ use App\Http\Controllers\Api\BusinessTaxController;
 use App\Http\Controllers\Api\BusinessUsageController;
 use App\Http\Controllers\Api\ContactAttachmentController;
 use App\Http\Controllers\Api\ContactController;
+use App\Http\Controllers\Api\ContactMergeController;
 use App\Http\Controllers\Api\ContactMessageController;
 use App\Http\Controllers\Api\CountryController;
+use App\Http\Controllers\Api\SalesOverviewController;
+use App\Http\Controllers\Api\SalesTeamController;
 use App\Http\Controllers\Api\CreditNoteController;
+use App\Http\Controllers\Api\CrmLeadAttachmentController;
+use App\Http\Controllers\Api\CrmLeadController;
+use App\Http\Controllers\Api\CrmLeadConversionController;
+use App\Http\Controllers\Api\CrmLeadDuplicateController;
+use App\Http\Controllers\Api\CrmLeadFlowController;
+use App\Http\Controllers\Api\CrmOpportunityAttachmentController;
+use App\Http\Controllers\Api\CrmOpportunityClosingController;
+use App\Http\Controllers\Api\CrmForecastController;
+use App\Http\Controllers\Api\CrmOverviewController;
+use App\Http\Controllers\Api\CrmActivityController;
+use App\Http\Controllers\Api\CrmContactSummaryController;
+use App\Http\Controllers\Api\CrmEmailController;
+use App\Http\Controllers\Api\CrmAssignmentRuleController;
+use App\Http\Controllers\Api\CrmEmailTemplateController;
+use App\Http\Controllers\Api\CrmTimelineController;
+use App\Http\Controllers\Api\CrmOpportunityController;
+use App\Http\Controllers\Api\CrmOpportunityDocumentController;
+use App\Http\Controllers\Api\CrmOpportunityViewController;
+use App\Http\Controllers\Api\CrmOpportunityFlowController;
+use App\Http\Controllers\Api\CrmOptionController;
+use App\Http\Controllers\Api\CrmPipelineController;
+use App\Http\Controllers\Api\CrmSettingController;
 use App\Http\Controllers\Api\CurrencyController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DocumentIndexController;
@@ -37,6 +64,7 @@ use App\Http\Controllers\Api\ExpensePdfController;
 use App\Http\Controllers\Api\ExpenseSettingController;
 use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\FileController;
+use App\Http\Controllers\Api\GlobalSearchController;
 use App\Http\Controllers\Api\ImportController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\ItemController;
@@ -48,25 +76,40 @@ use App\Http\Controllers\Api\ItemTransactionController;
 use App\Http\Controllers\Api\LanguageController;
 use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\LocationUserController;
-use App\Http\Controllers\Api\LoginAsController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\NavigationController;
+use App\Http\Controllers\Api\NotificationSettingController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PaymentAccountController;
 use App\Http\Controllers\Api\PaymentAccountTransactionController;
 use App\Http\Controllers\Api\PaymentTermController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\ProfileNotificationController;
+use App\Http\Controllers\Api\ProfileSessionController;
+use App\Http\Controllers\Api\ProfileTwoFactorController;
 use App\Http\Controllers\Api\PurchaseAttachmentController;
 use App\Http\Controllers\Api\PurchaseController;
 use App\Http\Controllers\Api\PurchaseFlowController;
 use App\Http\Controllers\Api\PurchaseFormController;
 use App\Http\Controllers\Api\PurchasePdfController;
 use App\Http\Controllers\Api\PurchaseSettingController;
+use App\Http\Controllers\Api\RecordActivityController;
+use App\Http\Controllers\Api\RecordCommentController;
 use App\Http\Controllers\Api\RegionalSettingController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SalesConversionController;
+use App\Http\Controllers\Api\CustomerAdvanceController;
+use App\Http\Controllers\Api\CustomerCreditController;
+use App\Http\Controllers\Api\PriceListController;
+use App\Http\Controllers\Api\SalesAllocationController;
+use App\Http\Controllers\Api\SalesReturnAttachmentController;
+use App\Http\Controllers\Api\SalesReturnController;
+use App\Http\Controllers\Api\SalesReturnFlowController;
+use App\Http\Controllers\Api\SalesDeliveryAttachmentController;
+use App\Http\Controllers\Api\SalesDeliveryController;
+use App\Http\Controllers\Api\SalesDeliveryFlowController;
 use App\Http\Controllers\Api\SalesDocumentAttachmentController;
 use App\Http\Controllers\Api\SalesDocumentController;
 use App\Http\Controllers\Api\SalesDocumentFlowController;
@@ -80,6 +123,14 @@ use App\Http\Controllers\Api\SalesPdfController;
 use App\Http\Controllers\Api\SalesRefundController;
 use App\Http\Controllers\Api\SalesSettingController;
 use App\Http\Controllers\Api\SetupController;
+use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\AnnouncementController;
+use App\Http\Controllers\Api\StripeWebhookController;
+use App\Http\Controllers\Api\SubscriptionCardController;
+use App\Http\Controllers\Api\SubscriptionController;
+use App\Http\Controllers\Api\SubscriptionInvoiceController;
+use App\Http\Controllers\Api\SupportCaseController;
+use App\Http\Controllers\Api\SupportSessionController;
 use App\Http\Controllers\Api\SupplierPaymentAttachmentController;
 use App\Http\Controllers\Api\SupplierPaymentController;
 use App\Http\Controllers\Api\TaxRateController;
@@ -97,10 +148,15 @@ Route::prefix('v1')->group(function () {
 
     Route::get('/app-categories', [AppCategoryController::class, 'index'])->name('api.app-categories.index');
     Route::get('/apps', [AppController::class, 'index'])->name('api.apps.index');
+    // The website's Explore Apps and Pricing pages: the apps by category and the plans (Doc 13 sections 2 and 4).
+    Route::get('/catalog', CatalogController::class)->name('api.catalog');
     Route::get('/plans', [PlanController::class, 'index'])->name('api.plans.index');
     Route::get('/currencies', [CurrencyController::class, 'index'])->name('api.currencies.index');
     Route::get('/languages', [LanguageController::class, 'index'])->name('api.languages.index');
     Route::get('/countries', [CountryController::class, 'index'])->name('api.countries.index');
+
+    // Stripe's notifications of finished checkouts, taken only with its signature (Doc 13 Phase D2).
+    Route::post('/webhooks/stripe', [StripeWebhookController::class, 'handle'])->name('api.webhooks.stripe');
 
     // A business's private file on this server, through a link GET
     // /files/{id}/link signed a few minutes ago: no token, so a plain browser
@@ -117,10 +173,14 @@ Route::prefix('v1')->group(function () {
         Route::post('/login', [AuthController::class, 'login'])
             ->middleware('throttle:login')
             ->name('api.auth.login');
-        // "Login as" from the admin panel: its one-time code, traded for a session as the client.
-        Route::post('/login-as', [LoginAsController::class, 'redeem'])
+        // With two-factor authentication on (Doc 12 section 22): the authenticator app's code, after the password.
+        Route::post('/login/two-factor', [AuthController::class, 'loginWithCode'])
             ->middleware('throttle:login')
-            ->name('api.auth.login-as');
+            ->name('api.auth.login.two-factor');
+        // A support session from the admin panel (Doc 15 section 15.22): its one-time code, traded for a session in the business.
+        Route::post('/support-session', [SupportSessionController::class, 'redeem'])
+            ->middleware('throttle:login')
+            ->name('api.auth.support-session');
         Route::post('/email/verify', [EmailVerificationController::class, 'verify'])
             ->middleware('throttle:verify-email')
             ->name('api.auth.email.verify');
@@ -161,11 +221,32 @@ Route::prefix('v1')->group(function () {
     });
 
     /* ----------------------------------------------------------
-     | Signed-in user's profile
+     | Signed-in user's profile (Doc 12 section 22): their own details and
+     | image, the same in every business, and their signed-in devices. The
+     | image is sent as a file, so it is saved with POST.
      | -------------------------------------------------------- */
     Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
         Route::get('/', [ProfileController::class, 'show'])->name('api.profile.show');
         Route::put('/', [ProfileController::class, 'update'])->name('api.profile.update');
+        Route::post('/image', [ProfileController::class, 'changeImage'])->name('api.profile.image.update');
+        Route::delete('/image', [ProfileController::class, 'removeImage'])->name('api.profile.image.destroy');
+
+        // Two-factor authentication: each step but the app's first code asks for
+        // the password again, so is limited as a password change is.
+        Route::prefix('two-factor')->group(function () {
+            Route::post('/setup', [ProfileTwoFactorController::class, 'setup'])->middleware('throttle:reset-password')->name('api.profile.two-factor.setup');
+            Route::post('/confirm', [ProfileTwoFactorController::class, 'confirm'])->middleware('throttle:30,1')->name('api.profile.two-factor.confirm');
+            Route::post('/recovery-codes', [ProfileTwoFactorController::class, 'recoveryCodes'])->middleware('throttle:reset-password')->name('api.profile.two-factor.recovery-codes');
+            Route::post('/disable', [ProfileTwoFactorController::class, 'disable'])->middleware('throttle:reset-password')->name('api.profile.two-factor.disable');
+        });
+
+        Route::get('/sessions', [ProfileSessionController::class, 'index'])->name('api.profile.sessions.index');
+        Route::post('/sessions/sign-out-others', [ProfileSessionController::class, 'signOutOthers'])->name('api.profile.sessions.sign-out-others');
+        Route::post('/sessions/{id}/sign-out', [ProfileSessionController::class, 'signOut'])->whereNumber('id')->name('api.profile.sessions.sign-out');
+
+        // Which notifications the user receives, in every business (Doc 14 Phase B2).
+        Route::get('/notifications', [ProfileNotificationController::class, 'show'])->name('api.profile.notifications.show');
+        Route::put('/notifications', [ProfileNotificationController::class, 'update'])->name('api.profile.notifications.update');
     });
 
     /* ----------------------------------------------------------
@@ -218,6 +299,41 @@ Route::prefix('v1')->group(function () {
             Route::put('/sales', [SalesSettingController::class, 'update'])->name('api.business-settings.sales.update');
         });
 
+        // Settings > CRM (Doc 17 Phase A1): the mode, and the lead sources,
+        // lost reasons and activity types - there while CRM is on.
+        Route::middleware('app:crm')->prefix('crm')->group(function () {
+            Route::get('/', [CrmSettingController::class, 'show'])->name('api.business-settings.crm.show');
+            Route::put('/', [CrmSettingController::class, 'update'])->name('api.business-settings.crm.update');
+            Route::post('/options', [CrmOptionController::class, 'store'])->name('api.business-settings.crm.options.store');
+            Route::put('/options/{id}', [CrmOptionController::class, 'update'])->whereNumber('id')->name('api.business-settings.crm.options.update');
+            Route::delete('/options/{id}', [CrmOptionController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.options.destroy');
+            // A pipeline and its stages (Doc 17 Phase A2).
+            Route::put('/pipelines/{id}', [CrmPipelineController::class, 'update'])->whereNumber('id')->name('api.business-settings.crm.pipelines.update');
+            // Several pipelines (Doc 17 Phase D3b).
+            Route::post('/pipelines', [CrmPipelineController::class, 'store'])->middleware('idempotent')->name('api.business-settings.crm.pipelines.store');
+            Route::delete('/pipelines/{id}', [CrmPipelineController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.pipelines.destroy');
+            // Phase F3b: its e-mail templates.
+            Route::post('/email-templates', [CrmEmailTemplateController::class, 'store'])->middleware('idempotent')->name('api.business-settings.crm.email-templates.store');
+            Route::put('/email-templates/{id}', [CrmEmailTemplateController::class, 'update'])->whereNumber('id')->name('api.business-settings.crm.email-templates.update');
+            Route::delete('/email-templates/{id}', [CrmEmailTemplateController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.email-templates.destroy');
+            // Phase I1: the lead assignment rules, in their order.
+            Route::get('/assignment-rules', [CrmAssignmentRuleController::class, 'index'])->name('api.business-settings.crm.assignment-rules.index');
+            Route::post('/assignment-rules', [CrmAssignmentRuleController::class, 'store'])->middleware('idempotent')->name('api.business-settings.crm.assignment-rules.store');
+            Route::put('/assignment-rules/order', [CrmAssignmentRuleController::class, 'reorder'])->name('api.business-settings.crm.assignment-rules.order');
+            Route::put('/assignment-rules/{id}', [CrmAssignmentRuleController::class, 'update'])->whereNumber('id')->name('api.business-settings.crm.assignment-rules.update');
+            Route::delete('/assignment-rules/{id}', [CrmAssignmentRuleController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.assignment-rules.destroy');
+        });
+
+        // Sales teams (Doc 16 Phase A): the full Sales app's - and, since Doc
+        // 17 Phase A2, CRM's - with the people they can have.
+        Route::middleware('app.any:sales:full,crm')->prefix('sales-teams')->group(function () {
+            Route::get('/', [SalesTeamController::class, 'index'])->name('api.business-settings.sales-teams.index');
+            Route::get('/people', [SalesTeamController::class, 'people'])->name('api.business-settings.sales-teams.people');
+            Route::post('/', [SalesTeamController::class, 'store'])->name('api.business-settings.sales-teams.store');
+            Route::put('/{id}', [SalesTeamController::class, 'update'])->whereNumber('id')->name('api.business-settings.sales-teams.update');
+            Route::delete('/{id}', [SalesTeamController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.sales-teams.destroy');
+        });
+
         // Settings > Purchases (Doc 11 section 16): what new purchases start
         // with, and the duplicate supplier invoice check - there while
         // Purchases Lite or Purchases is on.
@@ -255,6 +371,11 @@ Route::prefix('v1')->group(function () {
         Route::get('/email', [EmailSettingController::class, 'show'])->name('api.business-settings.email.show');
         Route::put('/email', [EmailSettingController::class, 'update'])->name('api.business-settings.email.update');
 
+        // Settings > Notifications & Email (Doc 11 section 22 - Doc 14 Phase B2):
+        // which notifications the business sends, in the app and by e-mail.
+        Route::get('/notifications', [NotificationSettingController::class, 'show'])->name('api.business-settings.notifications.show');
+        Route::put('/notifications', [NotificationSettingController::class, 'update'])->name('api.business-settings.notifications.update');
+
         // Usage and Limits (Doc 13 section 13.14): the package and the storage used.
         Route::get('/usage', BusinessUsageController::class)->name('api.business-settings.usage');
     });
@@ -267,7 +388,7 @@ Route::prefix('v1')->group(function () {
      | -------------------------------------------------------- */
     Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('locations')->group(function () {
         Route::get('/', [LocationController::class, 'index'])->name('api.locations.index');
-        Route::post('/', [LocationController::class, 'store'])->name('api.locations.store');
+        Route::post('/', [LocationController::class, 'store'])->middleware('idempotent')->name('api.locations.store');
         Route::put('/{id}', [LocationController::class, 'update'])->whereNumber('id')->name('api.locations.update');
         Route::post('/{id}/activate', [LocationController::class, 'activate'])->whereNumber('id')->name('api.locations.activate');
         Route::post('/{id}/deactivate', [LocationController::class, 'deactivate'])->whereNumber('id')->name('api.locations.deactivate');
@@ -295,6 +416,59 @@ Route::prefix('v1')->group(function () {
      | templates and its own, each with the permissions it allows -
      | permissions lists what a role can hold among the apps on now
      | -------------------------------------------------------- */
+    /* ----------------------------------------------------------
+     | The business's subscription (Doc 13 sections 11 and 14): its plan and
+     | status, subscribing to a paid plan, izSuite's invoices for it, the plans
+     | to compare, and its billing details - for the owner and roles with
+     | Manage Subscription - and, over the plan's limits, the owner's choice of
+     | what stays active
+     | -------------------------------------------------------- */
+    // The bell: the signed-in user's own notifications in the business (Doc 14 section 15).
+    Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('notifications')->group(function () {
+        Route::get('/', [NotificationController::class, 'index'])->name('api.notifications.index');
+        Route::get('/unread', [NotificationController::class, 'unread'])->name('api.notifications.unread');
+        Route::post('/read', [NotificationController::class, 'readAll'])->name('api.notifications.read-all');
+        Route::post('/{id}/read', [NotificationController::class, 'read'])->whereNumber('id')->name('api.notifications.read');
+    });
+
+    // Platform announcements (Doc 15 section 15.21): izSuite's banners for the business's people, each dismissed for oneself.
+    Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('announcements')->group(function () {
+        Route::get('/', [AnnouncementController::class, 'index'])->name('api.announcements.index');
+        Route::post('/{id}/dismiss', [AnnouncementController::class, 'dismiss'])->whereNumber('id')->name('api.announcements.dismiss');
+    });
+
+    // Support cases (Doc 15 section 15.22): the business asks izSuite, whatever its status.
+    Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('support-cases')->group(function () {
+        Route::get('/', [SupportCaseController::class, 'index'])->name('api.support-cases.index');
+        Route::post('/', [SupportCaseController::class, 'store'])->middleware('throttle:10,1')->name('api.support-cases.store');
+        Route::get('/{id}', [SupportCaseController::class, 'show'])->whereNumber('id')->name('api.support-cases.show');
+        Route::post('/{id}/replies', [SupportCaseController::class, 'reply'])->whereNumber('id')->middleware('throttle:30,1')->name('api.support-cases.reply');
+    });
+
+    Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('subscription')->group(function () {
+        Route::get('/', [SubscriptionController::class, 'show'])->name('api.subscription.show');
+        Route::post('/', [SubscriptionController::class, 'subscribe'])->middleware('throttle:10,1')->name('api.subscription.subscribe');
+        Route::get('/quote', [SubscriptionController::class, 'quote'])->name('api.subscription.quote');
+        Route::post('/withdraw', [SubscriptionController::class, 'withdraw'])->name('api.subscription.withdraw');
+        Route::post('/cancel', [SubscriptionController::class, 'cancel'])->name('api.subscription.cancel');
+        Route::post('/resume', [SubscriptionController::class, 'resume'])->name('api.subscription.resume');
+        Route::get('/change', [SubscriptionController::class, 'previewChange'])->name('api.subscription.change.preview');
+        Route::post('/change', [SubscriptionController::class, 'change'])->middleware('throttle:10,1')->name('api.subscription.change');
+        Route::delete('/change', [SubscriptionController::class, 'undoChange'])->name('api.subscription.change.undo');
+        Route::put('/billing-details', [SubscriptionController::class, 'updateBillingDetails'])->name('api.subscription.billing-details');
+        Route::get('/over-limit', [SubscriptionController::class, 'overLimit'])->name('api.subscription.over-limit');
+        Route::post('/over-limit', [SubscriptionController::class, 'keepWithinLimits'])->name('api.subscription.keep');
+        Route::get('/invoices', [SubscriptionInvoiceController::class, 'index'])->name('api.subscription.invoices');
+        Route::put('/invoices/{id}/reference', [SubscriptionInvoiceController::class, 'reference'])->whereNumber('id')->name('api.subscription.invoices.reference');
+        Route::get('/invoices/{id}/pdf', [SubscriptionInvoiceController::class, 'pdf'])->whereNumber('id')->name('api.subscription.invoices.pdf');
+        // Paying by card on Stripe's page, and the saved card (Doc 13 Phase D2).
+        Route::post('/invoices/{id}/card-checkout', [SubscriptionCardController::class, 'checkout'])->whereNumber('id')->middleware('throttle:10,1')->name('api.subscription.card.checkout');
+        Route::post('/card-checkout', [SubscriptionCardController::class, 'complete'])->middleware('throttle:20,1')->name('api.subscription.card.complete');
+        Route::post('/invoices/{id}/charge', [SubscriptionCardController::class, 'charge'])->whereNumber('id')->middleware('throttle:10,1')->name('api.subscription.card.charge');
+        Route::post('/card', [SubscriptionCardController::class, 'setup'])->middleware('throttle:10,1')->name('api.subscription.card.setup');
+        Route::delete('/card', [SubscriptionCardController::class, 'remove'])->name('api.subscription.card.remove');
+    });
+
     Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->prefix('roles')->group(function () {
         Route::get('/', [RoleController::class, 'index'])->name('api.roles.index');
         Route::get('/permissions', [RoleController::class, 'permissions'])->name('api.roles.permissions');
@@ -345,6 +519,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/reports/{report}/export', [ReportController::class, 'export'])->where('report', '[a-z-]+')->name('api.reports.export');
         Route::get('/reports/{report}/excel', [ReportController::class, 'excel'])->where('report', '[a-z-]+')->name('api.reports.excel');
         Route::get('/reports/{report}/pdf',[ReportController::class, 'pdf'])->where('report', '[a-z-]+')->middleware('throttle:30,1')->name('api.reports.pdf');
+
+        // The header's Global Search (Doc 14 section 16), asked as the user types.
+        Route::get('/search', GlobalSearchController::class)->middleware('throttle:120,1')->name('api.search');
     });
 
     /* ----------------------------------------------------------
@@ -358,7 +535,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'workspace:required', 'access'])->group(function () {
         Route::get('/contacts', [ContactController::class, 'index'])->name('api.contacts.index');
         Route::get('/contacts/export', [ExportController::class, 'contacts'])->name('api.contacts.export');
-        Route::post('/contacts', [ContactController::class, 'store'])->name('api.contacts.store');
+        Route::post('/contacts', [ContactController::class, 'store'])->middleware('idempotent')->name('api.contacts.store');
         Route::get('/contacts/{id}', [ContactController::class, 'show'])->whereNumber('id')->name('api.contacts.show');
         Route::put('/contacts/{id}', [ContactController::class, 'update'])->whereNumber('id')->name('api.contacts.update');
         Route::delete('/contacts/{id}', [ContactController::class, 'destroy'])->whereNumber('id')->name('api.contacts.destroy');
@@ -367,10 +544,14 @@ Route::prefix('v1')->group(function () {
         Route::get('/contacts/{id}/attachments', [ContactAttachmentController::class, 'index'])->whereNumber('id')->name('api.contacts.attachments.index');
         Route::post('/contacts/{id}/attachments', [ContactAttachmentController::class, 'store'])->whereNumber('id')->name('api.contacts.attachments.store');
         Route::delete('/contacts/{id}/attachments/{fileId}', [ContactAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.contacts.attachments.destroy');
+        // Merging another contact into one (Doc 17 Phase C3): its likely copies, a preview, the merge.
+        Route::get('/contacts/{id}/merge/candidates', [ContactMergeController::class, 'candidates'])->whereNumber('id')->name('api.contacts.merge.candidates');
+        Route::get('/contacts/{id}/merge', [ContactMergeController::class, 'preview'])->whereNumber('id')->name('api.contacts.merge.preview');
+        Route::post('/contacts/{id}/merge', [ContactMergeController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.contacts.merge');
 
         Route::get('/items', [ItemController::class, 'index'])->name('api.items.index');
         Route::get('/items/export', [ExportController::class, 'items'])->name('api.items.export');
-        Route::post('/items', [ItemController::class, 'store'])->name('api.items.store');
+        Route::post('/items', [ItemController::class, 'store'])->middleware('idempotent')->name('api.items.store');
         Route::get('/items/{id}', [ItemController::class, 'show'])->whereNumber('id')->name('api.items.show');
         Route::put('/items/{id}', [ItemController::class, 'update'])->whereNumber('id')->name('api.items.update');
         Route::delete('/items/{id}', [ItemController::class, 'destroy'])->whereNumber('id')->name('api.items.destroy');
@@ -385,6 +566,7 @@ Route::prefix('v1')->group(function () {
 
         // A link that downloads one of the business's files (see FileController).
         Route::get('/files/{id}/link', [FileController::class, 'link'])->whereNumber('id')->name('api.files.link');
+        Route::get('/files/limits', [FileController::class, 'limits'])->name('api.files.limits');
 
         // Importing contacts or items from CSV, step by step (see ImportService).
         Route::get('/imports/{kind}/template', [ImportController::class, 'template'])->whereIn('kind', ['contacts', 'items'])->name('api.imports.template');
@@ -403,7 +585,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('/item-{label}/{id}', [ItemLabelController::class, 'destroy'])->whereIn('label', ['categories', 'brands'])->whereNumber('id')->name('api.item-labels.destroy');
 
         Route::get('/payment-accounts', [PaymentAccountController::class, 'index'])->name('api.payment-accounts.index');
-        Route::post('/payment-accounts', [PaymentAccountController::class, 'store'])->name('api.payment-accounts.store');
+        Route::post('/payment-accounts', [PaymentAccountController::class, 'store'])->middleware('idempotent')->name('api.payment-accounts.store');
         Route::get('/payment-accounts/{id}', [PaymentAccountController::class, 'show'])->whereNumber('id')->name('api.payment-accounts.show');
         Route::put('/payment-accounts/{id}', [PaymentAccountController::class, 'update'])->whereNumber('id')->name('api.payment-accounts.update');
         Route::delete('/payment-accounts/{id}', [PaymentAccountController::class, 'destroy'])->whereNumber('id')->name('api.payment-accounts.destroy');
@@ -414,7 +596,7 @@ Route::prefix('v1')->group(function () {
         // An account's history, and transfers between accounts (Doc 05 sections 11 and 13).
         Route::get('/payment-accounts/{id}/transactions', [PaymentAccountTransactionController::class, 'index'])->whereNumber('id')->name('api.payment-accounts.transactions.index');
         Route::get('/payment-accounts/{id}/transactions/export', [PaymentAccountTransactionController::class, 'export'])->whereNumber('id')->name('api.payment-accounts.transactions.export');
-        Route::post('/account-transfers', [AccountTransferController::class, 'store'])->name('api.account-transfers.store');
+        Route::post('/account-transfers', [AccountTransferController::class, 'store'])->middleware('idempotent')->name('api.account-transfers.store');
         Route::get('/account-transfers/{id}', [AccountTransferController::class, 'show'])->whereNumber('id')->name('api.account-transfers.show');
         Route::put('/account-transfers/{id}', [AccountTransferController::class, 'update'])->whereNumber('id')->name('api.account-transfers.update');
         Route::delete('/account-transfers/{id}', [AccountTransferController::class, 'destroy'])->whereNumber('id')->name('api.account-transfers.destroy');
@@ -471,6 +653,79 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:sales', 'access'])->prefix('sales')->group(function () {
         Route::post('/calculate', [SalesFormController::class, 'calculate'])->name('api.sales.calculate');
 
+        // Deliveries (Doc 16 Phase C): a sales order's delivery notes, the full Sales app's.
+        Route::middleware('app:sales,full')->group(function () {
+            Route::post('/orders/{id}/deliveries', [SalesDeliveryController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.sales.deliveries.store');
+
+            Route::prefix('deliveries')->group(function () {
+                Route::get('/', [SalesDeliveryController::class, 'index'])->name('api.sales.deliveries.index');
+                Route::get('/{id}', [SalesDeliveryController::class, 'show'])->whereNumber('id')->name('api.sales.deliveries.show');
+                Route::put('/{id}', [SalesDeliveryController::class, 'update'])->whereNumber('id')->name('api.sales.deliveries.update');
+                Route::delete('/{id}', [SalesDeliveryController::class, 'destroy'])->whereNumber('id')->name('api.sales.deliveries.destroy');
+                Route::get('/{id}/pdf', [SalesDeliveryController::class, 'pdf'])->whereNumber('id')->name('api.sales.deliveries.pdf');
+
+                foreach (['ready', 'deliver', 'cancel'] as $action) {
+                    Route::post("/{id}/{$action}", [SalesDeliveryFlowController::class, $action])->whereNumber('id')->name("api.sales.deliveries.{$action}");
+                }
+
+                Route::get('/{id}/attachments', [SalesDeliveryAttachmentController::class, 'index'])->whereNumber('id')->name('api.sales.deliveries.attachments.index');
+                Route::post('/{id}/attachments', [SalesDeliveryAttachmentController::class, 'store'])->whereNumber('id')->name('api.sales.deliveries.attachments.store');
+                Route::delete('/{id}/attachments/{fileId}', [SalesDeliveryAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.sales.deliveries.attachments.destroy');
+            });
+
+            // Price lists, and what a sales form's lines cost by them (Doc 16 Phase F1).
+            Route::prefix('price-lists')->group(function () {
+                Route::get('/', [PriceListController::class, 'index'])->name('api.sales.price-lists.index');
+                Route::post('/', [PriceListController::class, 'store'])->middleware('idempotent')->name('api.sales.price-lists.store');
+                Route::get('/{id}', [PriceListController::class, 'show'])->whereNumber('id')->name('api.sales.price-lists.show');
+                Route::put('/{id}', [PriceListController::class, 'update'])->whereNumber('id')->name('api.sales.price-lists.update');
+                Route::delete('/{id}', [PriceListController::class, 'destroy'])->whereNumber('id')->name('api.sales.price-lists.destroy');
+            });
+            Route::post('/prices', [PriceListController::class, 'quote'])->name('api.sales.prices');
+
+            // Customer returns of an order's delivered goods (Doc 16 Phase E).
+            Route::post('/orders/{id}/returns', [SalesReturnController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.sales.returns.store');
+
+            Route::prefix('returns')->group(function () {
+                Route::get('/', [SalesReturnController::class, 'index'])->name('api.sales.returns.index');
+                Route::get('/{id}', [SalesReturnController::class, 'show'])->whereNumber('id')->name('api.sales.returns.show');
+                Route::put('/{id}', [SalesReturnController::class, 'update'])->whereNumber('id')->name('api.sales.returns.update');
+                Route::delete('/{id}', [SalesReturnController::class, 'destroy'])->whereNumber('id')->name('api.sales.returns.destroy');
+
+                foreach (['submit', 'authorise', 'reject', 'receive', 'complete', 'cancel'] as $step) {
+                    Route::post("/{id}/{$step}", [SalesReturnFlowController::class, $step])->whereNumber('id')->name("api.sales.returns.{$step}");
+                }
+
+                Route::get('/{id}/attachments', [SalesReturnAttachmentController::class, 'index'])->whereNumber('id')->name('api.sales.returns.attachments.index');
+                Route::post('/{id}/attachments', [SalesReturnAttachmentController::class, 'store'])->whereNumber('id')->name('api.sales.returns.attachments.store');
+                Route::delete('/{id}/attachments/{fileId}', [SalesReturnAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.sales.returns.attachments.destroy');
+            });
+
+            // Customer advances and credit applied to invoices (Doc 16 Phase D1).
+            Route::prefix('advances')->group(function () {
+                Route::get('/', [CustomerAdvanceController::class, 'index'])->name('api.sales.advances.index');
+                Route::post('/', [CustomerAdvanceController::class, 'store'])->middleware('idempotent')->name('api.sales.advances.store');
+                Route::get('/{id}', [CustomerAdvanceController::class, 'show'])->whereNumber('id')->name('api.sales.advances.show');
+                Route::post('/{id}/reverse', [CustomerAdvanceController::class, 'reverse'])->whereNumber('id')->name('api.sales.advances.reverse');
+                Route::get('/{id}/invoices', [SalesAllocationController::class, 'advanceTargets'])->whereNumber('id')->name('api.sales.advances.invoices');
+            });
+
+            Route::get('/invoices/{id}/credit', [SalesAllocationController::class, 'sources'])->whereNumber('id')->name('api.sales.allocations.sources');
+            Route::post('/invoices/{id}/allocations', [SalesAllocationController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.sales.allocations.store');
+            Route::get('/credit-notes/{id}/invoices', [SalesAllocationController::class, 'noteTargets'])->whereNumber('id')->name('api.sales.allocations.note-invoices');
+            Route::post('/allocations/{id}/remove', [SalesAllocationController::class, 'remove'])->whereNumber('id')->name('api.sales.allocations.remove');
+        });
+
+        // The full Sales app's (Doc 16 Phase A): its Overview, and whom the form can name as salesperson and team.
+        Route::middleware('app:sales,full')->group(function () {
+            Route::get('/overview', [SalesOverviewController::class, 'show'])->name('api.sales.overview');
+            Route::get('/salespeople', [SalesTeamController::class, 'options'])->name('api.sales.salespeople');
+
+            // A customer's credit control and exposure (Doc 16 Phase G1).
+            Route::get('/customers/{id}/credit', [CustomerCreditController::class, 'show'])->whereNumber('id')->name('api.sales.customers.credit');
+            Route::put('/customers/{id}/credit', [CustomerCreditController::class, 'update'])->whereNumber('id')->name('api.sales.customers.credit.update');
+        });
+
         Route::get('/payments', [SalesPaymentController::class, 'index'])->name('api.sales.payments.index');
         Route::get('/payments/{id}', [SalesPaymentController::class, 'show'])->whereNumber('id')->name('api.sales.payments.show');
         Route::post('/payments/{id}/reverse', [SalesPaymentController::class, 'reverse'])->whereNumber('id')->name('api.sales.payments.reverse');
@@ -481,15 +736,15 @@ Route::prefix('v1')->group(function () {
         Route::post('/payments/{id}/attachments', [SalesPaymentAttachmentController::class, 'store'])->whereNumber('id')->name('api.sales.payments.attachments.store');
         Route::delete('/payments/{id}/attachments/{fileId}', [SalesPaymentAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.sales.payments.attachments.destroy');
 
-        Route::post('/invoices/{id}/payments', [SalesPaymentController::class, 'store'])->whereNumber('id')->name('api.sales.invoices.payments.store');
+        Route::post('/invoices/{id}/payments', [SalesPaymentController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.sales.invoices.payments.store');
         Route::get('/invoices/{id}/credit-note-defaults', [CreditNoteController::class, 'defaults'])->whereNumber('id')->name('api.sales.credit-notes.defaults');
         Route::post('/invoices/{id}/credit-notes/calculate', [CreditNoteController::class, 'calculate'])->whereNumber('id')->name('api.sales.credit-notes.calculate');
-        Route::post('/invoices/{id}/credit-notes', [CreditNoteController::class, 'store'])->whereNumber('id')->name('api.sales.credit-notes.store');
+        Route::post('/invoices/{id}/credit-notes', [CreditNoteController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.sales.credit-notes.store');
         Route::put('/credit-notes/{id}', [CreditNoteController::class, 'update'])->whereNumber('id')->name('api.sales.credit-notes.update');
-        Route::post('/credit-notes/{id}/refunds', [SalesRefundController::class, 'store'])->whereNumber('id')->name('api.sales.credit-notes.refunds.store');
+        Route::post('/credit-notes/{id}/refunds', [SalesRefundController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.sales.credit-notes.refunds.store');
 
-        // Every kind.
-        Route::prefix('{kind}')->where(['kind' => implode('|', array_keys(DocumentType::KINDS))])->group(function () {
+        // Every kind. Sales orders (Doc 16 Phase B) are the full Sales app's: on Sales Lite they are only read (sales.kind).
+        Route::prefix('{kind}')->where(['kind' => implode('|', array_keys(DocumentType::KINDS))])->middleware('sales.kind')->group(function () {
             Route::get('/', [SalesDocumentController::class, 'index'])->name('api.sales.index');
             Route::get('/{id}', [SalesDocumentController::class, 'show'])->whereNumber('id')->name('api.sales.show');
             Route::delete('/{id}', [SalesDocumentController::class, 'destroy'])->whereNumber('id')->name('api.sales.destroy');
@@ -499,21 +754,36 @@ Route::prefix('v1')->group(function () {
             Route::post('/{id}/link', [SalesLinkController::class, 'store'])->whereNumber('id')->name('api.sales.link.store');
             Route::delete('/{id}/link', [SalesLinkController::class, 'destroy'])->whereNumber('id')->name('api.sales.link.destroy');
 
-            foreach (['issue', 'send', 'accept', 'reject', 'cancel', 'void'] as $action) {
+            // confirm, hold, resume and complete are a sales order's.
+            foreach (['issue', 'send', 'accept', 'reject', 'cancel', 'void', 'confirm', 'hold', 'resume', 'complete'] as $action) {
                 Route::post("/{id}/{$action}", [SalesDocumentFlowController::class, $action])->whereNumber('id')->name("api.sales.{$action}");
             }
 
             Route::get('/{id}/attachments', [SalesDocumentAttachmentController::class, 'index'])->whereNumber('id')->name('api.sales.attachments.index');
             Route::post('/{id}/attachments', [SalesDocumentAttachmentController::class, 'store'])->whereNumber('id')->name('api.sales.attachments.store');
             Route::delete('/{id}/attachments/{fileId}', [SalesDocumentAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.sales.attachments.destroy');
+
+            // Its comments and activity timeline (Doc 14 Phase D).
+            Route::get('/{id}/activity', RecordActivityController::class)->whereNumber('id')->defaults('family', 'sales')->name('api.sales.activity');
+            Route::get('/{id}/comments', [RecordCommentController::class, 'index'])->whereNumber('id')->defaults('family', 'sales')->name('api.sales.comments.index');
+            Route::get('/{id}/comments/people', [RecordCommentController::class, 'people'])->whereNumber('id')->defaults('family', 'sales')->name('api.sales.comments.people');
+            Route::post('/{id}/comments', [RecordCommentController::class, 'store'])->whereNumber('id')->defaults('family', 'sales')->middleware('idempotent')->name('api.sales.comments.store');
+            Route::delete('/{id}/comments/{commentId}', [RecordCommentController::class, 'destroy'])->whereNumber(['id', 'commentId'])->defaults('family', 'sales')->name('api.sales.comments.destroy');
         });
 
         // The kinds the sales document form makes and changes - a credit note is made from its invoice.
-        Route::prefix('{kind}')->where(['kind' => implode('|', DocumentType::FORM_KINDS)])->group(function () {
-            Route::post('/', [SalesDocumentController::class, 'store'])->name('api.sales.store');
+        Route::prefix('{kind}')->where(['kind' => implode('|', DocumentType::FORM_KINDS)])->middleware('sales.kind')->group(function () {
+            Route::post('/', [SalesDocumentController::class, 'store'])->middleware('idempotent')->name('api.sales.store');
             Route::get('/defaults', [SalesFormController::class, 'defaults'])->name('api.sales.defaults');
             Route::put('/{id}', [SalesDocumentController::class, 'update'])->whereNumber('id')->name('api.sales.update');
-            Route::post('/{id}/convert', [SalesConversionController::class, 'store'])->whereNumber('id')->name('api.sales.convert');
+            // A confirmed sales order changed, with a reason (Doc 16 section 16.9).
+            Route::put('/{id}/amend', [SalesDocumentController::class, 'amend'])->whereNumber('id')->name('api.sales.amend');
+            Route::post('/{id}/convert', [SalesConversionController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.sales.convert');
+            Route::post('/{id}/duplicate', [SalesConversionController::class, 'duplicate'])->whereNumber('id')->middleware('idempotent')->name('api.sales.duplicate');
+            // A sales order's lines invoiced, some or all (Doc 16 Phase B2).
+            Route::post('/{id}/invoice', [SalesConversionController::class, 'invoice'])->whereNumber('id')->middleware('idempotent')->name('api.sales.invoice');
+            // A deposit invoice of a confirmed sales order (Doc 16 Phase D2).
+            Route::post('/{id}/deposit', [SalesConversionController::class, 'deposit'])->whereNumber('id')->middleware('idempotent')->name('api.sales.deposit');
             Route::get('/{id}/revisions', [SalesDocumentRevisionController::class, 'index'])->whereNumber('id')->name('api.sales.revisions.index');
             Route::get('/{id}/revisions/{revision}', [SalesDocumentRevisionController::class, 'show'])->whereNumber(['id', 'revision'])->name('api.sales.revisions.show');
         });
@@ -538,7 +808,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('/payments/{id}/attachments/{fileId}', [SupplierPaymentAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.purchases.payments.attachments.destroy');
 
         Route::get('/', [PurchaseController::class, 'index'])->name('api.purchases.index');
-        Route::post('/', [PurchaseController::class, 'store'])->name('api.purchases.store');
+        Route::post('/', [PurchaseController::class, 'store'])->middleware('idempotent')->name('api.purchases.store');
         Route::get('/defaults', [PurchaseFormController::class, 'defaults'])->name('api.purchases.defaults');
         Route::post('/calculate', [PurchaseFormController::class, 'calculate'])->name('api.purchases.calculate');
         Route::get('/export', [PurchaseController::class, 'export'])->name('api.purchases.export');
@@ -547,11 +817,18 @@ Route::prefix('v1')->group(function () {
         Route::delete('/{id}', [PurchaseController::class, 'destroy'])->whereNumber('id')->name('api.purchases.destroy');
         Route::post('/{id}/record', [PurchaseFlowController::class, 'record'])->whereNumber('id')->name('api.purchases.record');
         Route::post('/{id}/void', [PurchaseFlowController::class, 'void'])->whereNumber('id')->name('api.purchases.void');
-        Route::post('/{id}/payments', [SupplierPaymentController::class, 'store'])->whereNumber('id')->name('api.purchases.payments.store');
+        Route::post('/{id}/payments', [SupplierPaymentController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.purchases.payments.store');
         Route::get('/{id}/pdf', [PurchasePdfController::class, 'purchase'])->whereNumber('id')->name('api.purchases.pdf');
         Route::get('/{id}/attachments', [PurchaseAttachmentController::class, 'index'])->whereNumber('id')->name('api.purchases.attachments.index');
         Route::post('/{id}/attachments', [PurchaseAttachmentController::class, 'store'])->whereNumber('id')->name('api.purchases.attachments.store');
         Route::delete('/{id}/attachments/{fileId}', [PurchaseAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.purchases.attachments.destroy');
+
+        // Its comments and activity timeline (Doc 14 Phase D).
+        Route::get('/{id}/activity', RecordActivityController::class)->whereNumber('id')->defaults('family', 'purchases')->name('api.purchases.activity');
+        Route::get('/{id}/comments', [RecordCommentController::class, 'index'])->whereNumber('id')->defaults('family', 'purchases')->name('api.purchases.comments.index');
+        Route::get('/{id}/comments/people', [RecordCommentController::class, 'people'])->whereNumber('id')->defaults('family', 'purchases')->name('api.purchases.comments.people');
+        Route::post('/{id}/comments', [RecordCommentController::class, 'store'])->whereNumber('id')->defaults('family', 'purchases')->middleware('idempotent')->name('api.purchases.comments.store');
+        Route::delete('/{id}/comments/{commentId}', [RecordCommentController::class, 'destroy'])->whereNumber(['id', 'commentId'])->defaults('family', 'purchases')->name('api.purchases.comments.destroy');
     });
 
     /* ----------------------------------------------------------
@@ -580,7 +857,7 @@ Route::prefix('v1')->group(function () {
             Route::delete('/payments/{id}/attachments/{fileId}', [ExpensePaymentAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.expenses.payments.attachments.destroy');
 
             Route::get('/', [ExpenseController::class, 'index'])->name('api.expenses.index');
-            Route::post('/', [ExpenseController::class, 'store'])->name('api.expenses.store');
+            Route::post('/', [ExpenseController::class, 'store'])->middleware('idempotent')->name('api.expenses.store');
             Route::get('/defaults', [ExpenseFormController::class, 'defaults'])->name('api.expenses.defaults');
             Route::post('/calculate', [ExpenseFormController::class, 'calculate'])->name('api.expenses.calculate');
             Route::get('/export', [ExpenseController::class, 'export'])->name('api.expenses.export');
@@ -589,12 +866,142 @@ Route::prefix('v1')->group(function () {
             Route::delete('/{id}', [ExpenseController::class, 'destroy'])->whereNumber('id')->name('api.expenses.destroy');
             Route::post('/{id}/record', [ExpenseFlowController::class, 'record'])->whereNumber('id')->name('api.expenses.record');
             Route::post('/{id}/void', [ExpenseFlowController::class, 'void'])->whereNumber('id')->name('api.expenses.void');
-            Route::post('/{id}/payments', [ExpensePaymentController::class, 'store'])->whereNumber('id')->name('api.expenses.payments.store');
+            Route::post('/{id}/payments', [ExpensePaymentController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.expenses.payments.store');
             Route::get('/{id}/pdf', [ExpensePdfController::class, 'expense'])->whereNumber('id')->name('api.expenses.pdf');
             Route::get('/{id}/attachments', [ExpenseAttachmentController::class, 'index'])->whereNumber('id')->name('api.expenses.attachments.index');
             Route::post('/{id}/attachments', [ExpenseAttachmentController::class, 'store'])->whereNumber('id')->name('api.expenses.attachments.store');
             Route::delete('/{id}/attachments/{fileId}', [ExpenseAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.expenses.attachments.destroy');
+
+            // Its comments and activity timeline (Doc 14 Phase D).
+            Route::get('/{id}/activity', RecordActivityController::class)->whereNumber('id')->defaults('family', 'expenses')->name('api.expenses.activity');
+            Route::get('/{id}/comments', [RecordCommentController::class, 'index'])->whereNumber('id')->defaults('family', 'expenses')->name('api.expenses.comments.index');
+            Route::get('/{id}/comments/people', [RecordCommentController::class, 'people'])->whereNumber('id')->defaults('family', 'expenses')->name('api.expenses.comments.people');
+            Route::post('/{id}/comments', [RecordCommentController::class, 'store'])->whereNumber('id')->defaults('family', 'expenses')->middleware('idempotent')->name('api.expenses.comments.store');
+            Route::delete('/{id}/comments/{commentId}', [RecordCommentController::class, 'destroy'])->whereNumber(['id', 'commentId'])->defaults('family', 'expenses')->name('api.expenses.comments.destroy');
         });
+    });
+
+    /* ----------------------------------------------------------
+     | CRM (Doc 17): the Overview's figures (Phase G1) and the Forecast
+     | (Phase G2), counting only what the user sees.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm')->group(function () {
+        Route::get('/overview', [CrmOverviewController::class, 'show'])->name('api.crm.overview');
+        Route::get('/forecast', [CrmForecastController::class, 'show'])->name('api.crm.forecast');
+    });
+
+    /* --------------------------------------------------------
+     | CRM (Doc 17): leads (Phase B1) - the Leads page, what a lead's
+     | form chooses from, one lead, adding and changing one, and its steps.
+     | Each user sees the leads LeadVisibility gives them, only at the
+     | locations they may use. Working with opportunities only, a business
+     | reads its leads but changes none (crm.leads).
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access', 'crm.leads'])->prefix('crm/leads')->group(function () {
+        Route::get('/', [CrmLeadController::class, 'index'])->name('api.crm.leads.index');
+        Route::get('/options', [CrmLeadController::class, 'options'])->name('api.crm.leads.options');
+        Route::post('/', [CrmLeadController::class, 'store'])->middleware('idempotent')->name('api.crm.leads.store');
+        Route::get('/{id}', [CrmLeadController::class, 'show'])->whereNumber('id')->name('api.crm.leads.show');
+        Route::put('/{id}', [CrmLeadController::class, 'update'])->whereNumber('id')->name('api.crm.leads.update');
+
+        foreach (['assign', 'contact', 'qualify', 'unqualify', 'archive', 'reopen'] as $step) {
+            Route::post("/{id}/{$step}", [CrmLeadFlowController::class, $step])->whereNumber('id')->name("api.crm.leads.{$step}");
+        }
+
+        // Phase I1: a lead in the queue sent through the assignment rules.
+        Route::post('/{id}/assign-by-rules', [CrmLeadFlowController::class, 'assignByRules'])->whereNumber('id')->name('api.crm.leads.assign-by-rules');
+
+        // Converting a qualified lead into a contact and an opportunity (Phase C1).
+        Route::get('/{id}/conversion', [CrmLeadConversionController::class, 'show'])->whereNumber('id')->name('api.crm.leads.conversion');
+        Route::post('/{id}/convert', [CrmLeadConversionController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.crm.leads.convert');
+
+        // Its possible duplicates, and a decision about each (Phase C2).
+        Route::get('/{id}/duplicates', [CrmLeadDuplicateController::class, 'index'])->whereNumber('id')->name('api.crm.leads.duplicates.index');
+        foreach (['ignore', 'link', 'clear'] as $decision) {
+            Route::post("/{id}/duplicates/{$decision}", [CrmLeadDuplicateController::class, $decision])->whereNumber('id')->name("api.crm.leads.duplicates.{$decision}");
+        }
+
+        // Its files, comments and activity timeline (Phase B2b), Doc 14's.
+        Route::get('/{id}/attachments', [CrmLeadAttachmentController::class, 'index'])->whereNumber('id')->name('api.crm.leads.attachments.index');
+        Route::post('/{id}/attachments', [CrmLeadAttachmentController::class, 'store'])->whereNumber('id')->name('api.crm.leads.attachments.store');
+        Route::delete('/{id}/attachments/{fileId}', [CrmLeadAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.crm.leads.attachments.destroy');
+        Route::get('/{id}/activity', RecordActivityController::class)->whereNumber('id')->defaults('family', 'crm')->name('api.crm.leads.activity');
+        Route::get('/{id}/comments', [RecordCommentController::class, 'index'])->whereNumber('id')->defaults('family', 'crm')->name('api.crm.leads.comments.index');
+        Route::get('/{id}/comments/people', [RecordCommentController::class, 'people'])->whereNumber('id')->defaults('family', 'crm')->name('api.crm.leads.comments.people');
+        Route::post('/{id}/comments', [RecordCommentController::class, 'store'])->whereNumber('id')->defaults('family', 'crm')->middleware('idempotent')->name('api.crm.leads.comments.store');
+        Route::delete('/{id}/comments/{commentId}', [RecordCommentController::class, 'destroy'])->whereNumber(['id', 'commentId'])->defaults('family', 'crm')->name('api.crm.leads.comments.destroy');
+    });
+
+    /* ----------------------------------------------------------
+     | CRM's opportunities (Doc 17 Phase D1), in either way of working:
+     | the Opportunities page, one opportunity, adding and changing one,
+     | and moving it to another stage.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm/opportunities')->group(function () {
+        Route::get('/', [CrmOpportunityController::class, 'index'])->name('api.crm.opportunities.index');
+        Route::get('/options', [CrmOpportunityController::class, 'options'])->name('api.crm.opportunities.options');
+        // Phase D4: one pipeline's board, and a month's calendar.
+        Route::get('/board', [CrmOpportunityViewController::class, 'board'])->name('api.crm.opportunities.board');
+        Route::get('/calendar', [CrmOpportunityViewController::class, 'calendar'])->name('api.crm.opportunities.calendar');
+        Route::post('/', [CrmOpportunityController::class, 'store'])->middleware('idempotent')->name('api.crm.opportunities.store');
+        Route::get('/{id}', [CrmOpportunityController::class, 'show'])->whereNumber('id')->name('api.crm.opportunities.show');
+        Route::put('/{id}', [CrmOpportunityController::class, 'update'])->whereNumber('id')->name('api.crm.opportunities.update');
+        Route::post('/{id}/stage', [CrmOpportunityFlowController::class, 'stage'])->whereNumber('id')->name('api.crm.opportunities.stage');
+        // How it ends (Phase D2a): won or lost, reopened, archived and restored.
+        Route::post('/{id}/win', [CrmOpportunityClosingController::class, 'win'])->whereNumber('id')->name('api.crm.opportunities.win');
+        Route::post('/{id}/lose', [CrmOpportunityClosingController::class, 'lose'])->whereNumber('id')->name('api.crm.opportunities.lose');
+        Route::post('/{id}/reopen', [CrmOpportunityClosingController::class, 'reopen'])->whereNumber('id')->name('api.crm.opportunities.reopen');
+        Route::post('/{id}/archive', [CrmOpportunityFlowController::class, 'archive'])->whereNumber('id')->name('api.crm.opportunities.archive');
+        Route::post('/{id}/restore', [CrmOpportunityFlowController::class, 'restore'])->whereNumber('id')->name('api.crm.opportunities.restore');
+
+        // Its files, comments and activity timeline (Phase D2b), Doc 14's.
+        Route::get('/{id}/attachments', [CrmOpportunityAttachmentController::class, 'index'])->whereNumber('id')->name('api.crm.opportunities.attachments.index');
+        Route::post('/{id}/attachments', [CrmOpportunityAttachmentController::class, 'store'])->whereNumber('id')->name('api.crm.opportunities.attachments.store');
+        Route::delete('/{id}/attachments/{fileId}', [CrmOpportunityAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.crm.opportunities.attachments.destroy');
+        Route::get('/{id}/activity', RecordActivityController::class)->whereNumber('id')->defaults('family', 'opportunities')->name('api.crm.opportunities.activity');
+        // The sales documents made from it (Phase F1).
+        Route::get('/{id}/documents', CrmOpportunityDocumentController::class)->whereNumber('id')->name('api.crm.opportunities.documents');
+        Route::get('/{id}/comments', [RecordCommentController::class, 'index'])->whereNumber('id')->defaults('family', 'opportunities')->name('api.crm.opportunities.comments.index');
+        Route::get('/{id}/comments/people', [RecordCommentController::class, 'people'])->whereNumber('id')->defaults('family', 'opportunities')->name('api.crm.opportunities.comments.people');
+        Route::post('/{id}/comments', [RecordCommentController::class, 'store'])->whereNumber('id')->defaults('family', 'opportunities')->middleware('idempotent')->name('api.crm.opportunities.comments.store');
+        Route::delete('/{id}/comments/{commentId}', [RecordCommentController::class, 'destroy'])->whereNumber(['id', 'commentId'])->defaults('family', 'opportunities')->name('api.crm.opportunities.comments.destroy');
+    });
+
+    /*
+     | CRM's activities (Doc 17 Phase E1): the Activities page, a lead's, an
+     | opportunity's or a contact's, and planning, changing, completing and
+     | cancelling one. A record's are seen by whoever sees the record.
+     */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm/activities')->group(function () {
+        Route::get('/', [CrmActivityController::class, 'index'])->name('api.crm.activities.index');
+        Route::get('/options', [CrmActivityController::class, 'options'])->name('api.crm.activities.options');
+        Route::get('/regarding', [CrmActivityController::class, 'regarding'])->name('api.crm.activities.regarding');
+        Route::get('/for/{kind}/{id}', [CrmActivityController::class, 'forRecord'])->where('kind', 'lead|opportunity|contact')->whereNumber('id')->name('api.crm.activities.for');
+        Route::post('/', [CrmActivityController::class, 'store'])->middleware('idempotent')->name('api.crm.activities.store');
+        Route::put('/{id}', [CrmActivityController::class, 'update'])->whereNumber('id')->name('api.crm.activities.update');
+        Route::post('/{id}/complete', [CrmActivityController::class, 'complete'])->whereNumber('id')->name('api.crm.activities.complete');
+        Route::post('/{id}/cancel', [CrmActivityController::class, 'cancel'])->whereNumber('id')->name('api.crm.activities.cancel');
+    });
+
+    /*
+     | The timeline of a lead, an opportunity or a contact (Doc 17 Phase E3):
+     | its activities done, notes, changes, files and a contact's sales
+     | documents, newest first, for whoever sees the record.
+     */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->group(function () {
+        Route::get('/crm/timeline/{kind}/{id}', CrmTimelineController::class)->where('kind', 'lead|opportunity|contact')->whereNumber('id')->name('api.crm.timeline');
+        // Phase F4: the CRM part of a contact's profile - where they came from, and their opportunities.
+        Route::get('/crm/contacts/{id}/summary', CrmContactSummaryController::class)->whereNumber('id')->name('api.crm.contacts.summary');
+    });
+
+    /*
+     | E-mail from a lead, an opportunity or a contact (Doc 17 Phase F3a): what
+     | its form starts with, and sending it - through the queue, kept on the
+     | record's timeline.
+     */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm/emails')->group(function () {
+        Route::get('/draft/{kind}/{id}', [CrmEmailController::class, 'draft'])->where('kind', 'lead|opportunity|contact')->whereNumber('id')->name('api.crm.emails.draft');
+        Route::post('/', [CrmEmailController::class, 'store'])->middleware(['throttle:30,1', 'idempotent'])->name('api.crm.emails.store');
     });
 
     /* ----------------------------------------------------------
@@ -612,6 +1019,9 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'workspace', 'access'])->group(function () {
         Route::get('/navigation', NavigationController::class)->name('api.navigation');
         Route::get('/apps-center', AppsCenterController::class)->name('api.apps-center');
+        // An app's own page, and what turning one off would do (Doc 13 sections 6 and 8).
+        Route::get('/apps-center/{family}', AppDetailsController::class)->where('family', '[a-z0-9][a-z0-9_-]*')->name('api.apps-center.show');
+        Route::get('/apps/{appKey}/deactivation', [AppActivationController::class, 'impact'])->name('api.apps.deactivation');
         Route::post('/apps/{appKey}/activate', [AppActivationController::class, 'activate'])->name('api.apps.activate');
         Route::post('/apps/{appKey}/deactivate', [AppActivationController::class, 'deactivate'])->name('api.apps.deactivate');
     });

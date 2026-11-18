@@ -122,12 +122,12 @@ class ContactsApiTest extends TestCase
             ->assertJsonPath('data.is_active', true);
 
         $this->assertSame([
-            'id', 'contact_number', 'contact_type', 'role', 'name', 'trading_name', 'contact_person', 'job_title',
+            'id', 'version', 'contact_number', 'contact_type', 'role', 'name', 'trading_name', 'contact_person', 'job_title',
             'phone', 'alt_phone', 'email', 'website', 'preferred_language', 'tags',
             'billing_line1', 'billing_line2', 'billing_city', 'billing_state', 'billing_postal_code', 'billing_country',
             'shipping_same_as_billing', 'shipping_line1', 'shipping_line2', 'shipping_city', 'shipping_state', 'shipping_postal_code', 'shipping_country',
             'sales_currency', 'customer_payment_terms', 'purchase_currency', 'supplier_payment_terms',
-            'tax_number', 'tax_country', 'tax_treatment', 'tax_exemption_number', 'notes', 'is_active', 'in_use', 'in_sales', 'in_purchases', 'in_expenses',
+            'tax_number', 'tax_country', 'tax_treatment', 'tax_exemption_number', 'notes', 'is_active', 'merged', 'in_use', 'in_sales', 'in_purchases', 'in_expenses',
         ], array_keys($response->json('data')));
 
         $this->assertDatabaseHas('contacts', ['id' => $response->json('data.id'), 'workspace_id' => $this->businessOf($user)->id]);
@@ -389,16 +389,16 @@ class ContactsApiTest extends TestCase
 
         $this->postJson("/api/v1/contacts/{$contact->id}/deactivate")
             ->assertOk()
-            ->assertJsonPath('message', 'Contact deactivated.')
+            ->assertJsonPath('message', 'Contact archived.')
             ->assertJsonPath('data.is_active', false);
 
         $this->postJson("/api/v1/contacts/{$contact->id}/activate")
             ->assertOk()
-            ->assertJsonPath('message', 'Contact activated.')
+            ->assertJsonPath('message', 'Contact restored.')
             ->assertJsonPath('data.is_active', true);
 
         $this->assertSame(
-            ['Deactivated contact "Uddin Traders Ltd"', 'Activated contact "Uddin Traders Ltd"'],
+            ['Archived contact "Uddin Traders Ltd"', 'Restored contact "Uddin Traders Ltd"'],
             ActivityLog::where('user_id', $user->id)->orderBy('id')->pluck('description')->all(),
         );
     }

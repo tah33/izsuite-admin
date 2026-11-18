@@ -19,6 +19,7 @@
                         <th>{{ __('Rank') }}</th>
                         <th>{{ __('Plan') }}</th>
                         <th>{{ __('Key') }}</th>
+                        <th>{{ __('Price') }}</th>
                         <th>{{ __('Apps') }}</th>
                         <th>{{ __('Storage') }}</th>
                         <th>{{ __('Limits') }}</th>
@@ -31,13 +32,25 @@
                     @foreach($packages as $package)
                         <tr>
                             <td class="text-sm text-[var(--text-muted)]">{{ $package->rank }}</td>
-                            <td>
+                            <td class="min-w-[220px]">
                                 <span class="font-semibold text-[var(--text-primary)]">{{ $package->name }}</span>
                                 @if($package->description)
                                     <span class="block text-xs text-[var(--text-muted)] max-w-md">{{ $package->description }}</span>
                                 @endif
                             </td>
                             <td><code class="text-xs">{{ $package->key }}</code></td>
+                            <td class="text-sm whitespace-nowrap">
+                                @if($package->isFree())
+                                    {{ __('Free') }}
+                                @elseif($package->prices->isEmpty())
+                                    <span class="text-[var(--text-muted)]">{{ __('Not announced') }}</span>
+                                @else
+                                    {{-- The prices in force today, each currency's (Doc 15 Phase C3a). --}}
+                                    @foreach($package->prices as $price)
+                                        <span class="block">{{ $price->currency }} {{ $price->amount }} {{ $price->cycle === 'yearly' ? __('a year') : __('a month') }}</span>
+                                    @endforeach
+                                @endif
+                            </td>
                             <td class="text-sm">{{ $package->apps_count }}</td>
                             <td class="text-sm">
                                 @if($package->storage_limit_mb === null)
@@ -46,7 +59,7 @@
                                     {{ \App\Support\Bytes::format($package->storage_limit_mb * 1024 * 1024) }}
                                 @endif
                             </td>
-                            <td class="text-sm">
+                            <td class="text-sm whitespace-nowrap">
                                 @php
                                     $limits = array_filter([
                                         $package->business_limit !== null ? trans_choice(':count business per account|:count businesses per account', $package->business_limit) : null,
@@ -69,6 +82,15 @@
                                 @else
                                     <span class="badge badge-inactive">{{ __('No') }}</span>
                                 @endif
+                                {{-- On one cycle only, or in some countries only (Doc 15 Phase E3a). --}}
+                                @unless($package->isFree())
+                                    @if(count($package->cycles()) === 1)
+                                        <span class="block text-xs mt-1 text-[var(--text-muted)]">{{ $package->offersCycle('yearly') ? __('Yearly only') : __('Monthly only') }}</span>
+                                    @endif
+                                    @if($package->countries)
+                                        <span class="block text-xs mt-1 text-[var(--text-muted)]">{{ trans_choice('In :count country|In :count countries', count($package->countries)) }}</span>
+                                    @endif
+                                @endunless
                             </td>
                             <td class="text-end">
                                 <a href="{{ route('admin.packages.edit', $package->id) }}" class="btn btn-xs btn-secondary">

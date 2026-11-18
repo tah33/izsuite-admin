@@ -12,7 +12,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * customer's own tax treatment when it is not the standard one: their lines
  * then start with customer_tax_id - null being no tax. `customer` is the
  * contact asked about, when it is an active customer - the one a sale
- * started from their profile is made out to.
+ * started from their profile is made out to. `opportunity` is the CRM
+ * opportunity it is made from (Doc 17 Phase F1), with what it starts with:
+ * its location, salesperson and team, and a line for each interested item.
  */
 class SalesDefaultsResource extends JsonResource
 {
@@ -33,10 +35,24 @@ class SalesDefaultsResource extends JsonResource
             'taxes_enabled'      => $this->resource['taxes_enabled'],
             'line_discounts'     => $this->resource['line_discounts'],
             'document_discounts' => $this->resource['document_discounts'],
+            // What this user may discount and price (Doc 16 Phase F2).
+            'max_discount'       => $this->resource['max_discount'] ?? null,
+            'prices_by_hand'     => $this->resource['prices_by_hand'] ?? true,
             'default_tax_id'     => $this->resource['default_tax_id'],
             'customer_treatment' => $this->resource['customer_treatment'],
             'customer_tax_id'    => $this->resource['customer_tax_id'],
             'customer'           => $this->resource['customer'] ? ['id' => $this->resource['customer']->id, 'name' => $this->resource['customer']->name] : null,
+            // The full Sales app's starting shipping terms and salesperson (Doc 16 Phase H1).
+            'shipping_terms'     => $this->resource['shipping_terms'] ?? null,
+            'salesperson_id'     => $this->resource['salesperson_id'] ?? null,
+            'opportunity'        => ($from = $this->resource['opportunity'] ?? null) ? [
+                'id'             => $from['id'],
+                'name'           => $from['name'],
+                'location_id'    => $from['location_id'],
+                'salesperson_id' => $from['salesperson_id'],
+                'sales_team_id'  => $from['sales_team_id'],
+                'lines'          => $from['lines'],
+            ] : null,
         ];
     }
 }

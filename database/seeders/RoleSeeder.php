@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Admin\Role;
+use App\Support\AdminRoles;
 use Illuminate\Database\Seeder;
 
 class RoleSeeder extends Seeder
@@ -57,6 +58,9 @@ class RoleSeeder extends Seeder
                     'admin.roles.edit',
                     'admin.roles.update',
                     'admin.roles.destroy',
+                    'admin.audit-log.index',
+                    'admin.audit-log.show',
+                    'admin.audit-log.export',
                     'admin.tickets.index',
                     'admin.tickets.create',
                     'admin.tickets.store',
@@ -104,17 +108,6 @@ class RoleSeeder extends Seeder
                     'admin.contact-messages.reply',
                     'admin.activity-logs.index',
                     'admin.subscriptions.index',
-                    'admin.subscriptions.create',
-                    'admin.subscriptions.store',
-                    'admin.subscriptions.invoice',
-                    'admin.subscriptions.pause',
-                    'admin.subscriptions.resume',
-                    'admin.plans.index',
-                    'admin.plans.create',
-                    'admin.plans.store',
-                    'admin.plans.edit',
-                    'admin.plans.update',
-                    'admin.plans.destroy',
                     'admin.credit-packs.index',
                     'admin.credit-packs.create',
                     'admin.credit-packs.store',
@@ -204,5 +197,8 @@ class RoleSeeder extends Seeder
                 'permissions' => [],
             ]
         );
+
+        // The starting admin roles of Doc 15 section 15.3.
+        AdminRoles::createMissing();
     }
 }

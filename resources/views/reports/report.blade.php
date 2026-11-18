@@ -11,10 +11,11 @@
         }
 
         return match ($column['type']) {
-            'money'  => $format->money((string) $value, $column['currency'] ?? ($row['currency'] ?? '')),
-            'number' => $format->quantity((string) $value),
-            'date'   => preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $value) ? $format->date((string) $value) : (string) $value,
-            default  => (string) $value,
+            'money'   => $format->money((string) $value, $column['currency'] ?? ($row['currency'] ?? '')),
+            'number'  => $format->quantity((string) $value),
+            'percent' => $format->number((string) $value, 1).'%',
+            'date'    => preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $value) ? $format->date((string) $value) : (string) $value,
+            default   => (string) $value,
         };
     };
 @endphp
@@ -68,7 +69,7 @@
         <thead>
             <tr>
                 @foreach ($table->columns as $column)
-                    <th @class(['num' => in_array($column['type'], ['money', 'number'], true)])>{{ $column['label'] }}</th>
+                    <th @class(['num' => in_array($column['type'], ['money', 'number', 'percent'], true)])>{{ $column['label'] }}</th>
                 @endforeach
             </tr>
         </thead>
@@ -76,7 +77,7 @@
             @forelse ($table->rows as $row)
                 <tr>
                     @foreach ($table->columns as $column)
-                        <td @class(['num' => in_array($column['type'], ['money', 'number'], true)])>{{ $cell($column, $row) }}</td>
+                        <td @class(['num' => in_array($column['type'], ['money', 'number', 'percent'], true)])>{{ $cell($column, $row) }}</td>
                     @endforeach
                 </tr>
             @empty
@@ -87,7 +88,7 @@
             <tfoot>
                 <tr>
                     @foreach ($table->columns as $column)
-                        <td @class(['num' => in_array($column['type'], ['money', 'number'], true)])>{{ $cell($column, $table->totals) }}</td>
+                        <td @class(['num' => in_array($column['type'], ['money', 'number', 'percent'], true)])>{{ $cell($column, $table->totals) }}</td>
                     @endforeach
                 </tr>
             </tfoot>

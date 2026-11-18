@@ -30,6 +30,12 @@ class CurrencyRepository
         return Currency::active()->orderBy('name')->get();
     }
 
+    /** Every one on the list by name, switched on or not, for a dropdown. */
+    public function allByName(): Collection
+    {
+        return Currency::query()->orderBy('name')->get();
+    }
+
     /** Whether $code is one a business may use: on the list, and switched on. */
     public function isActive(string $code): bool
     {

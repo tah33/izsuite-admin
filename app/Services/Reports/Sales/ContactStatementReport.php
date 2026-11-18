@@ -160,6 +160,16 @@ class ContactStatementReport extends Report
             ]);
         }
 
+        // Money paid ahead (Doc 16 Phase D1): it lowers what the customer owes when it comes, wherever it is applied later.
+        foreach ($this->sales->advancesFor($workspace, self::DAWN, $to, ['contact_id' => $contactId, 'currency' => $currency, 'location_ids' => $locations]) as $advance) {
+            $entries[] = $this->entry($advance->payment_date, 2, $advance->id, 'Advance', $advance->number, null, [
+                'currency' => $advance->currency,
+                'original' => (string) $advance->amount,
+                'payment'  => $currency ? (string) $advance->amount : Decimal::round(Decimal::of($advance->base_amount)),
+                'link'     => "/sales/advances/{$advance->id}",
+            ]);
+        }
+
         usort($entries, fn (array $a, array $b) => [$a['date'], $a['order'], $a['id']] <=> [$b['date'], $b['order'], $b['id']]);
 
         return $entries;

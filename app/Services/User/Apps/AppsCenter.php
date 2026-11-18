@@ -4,15 +4,22 @@ namespace App\Services\User\Apps;
 
 use App\Models\Frontend\AppCategory;
 use App\Models\Frontend\Application;
+use App\Models\Frontend\MenuItem;
 use App\Models\User\Workspace;
+use App\Models\User\WorkspaceApp;
 use App\Repositories\Admin\AppCategoryRepository;
 use App\Repositories\Admin\AppRepository;
+use App\Repositories\Admin\MenuItemRepository;
+use App\Repositories\Billing\PackageRepository;
+use App\Repositories\User\WorkspaceRepository;
+use App\Services\Reports\ReportCatalog;
+use App\Support\Permissions;
 use Illuminate\Support\Collection;
 
 /**
  * The Apps Center for one business (GET /api/v1/apps-center): every listed app
- * family by category, with the state of each edition. Laravel works the states
- * out; Nuxt only renders them.
+ * family by category, with the state of each edition and the plan it needs
+ * (Doc 13 section 5). Laravel works the states out; Nuxt only renders them.
  *
  *   active            this edition is on                      → Turn off
  *   available         in the plan, family off                 → Turn on
@@ -21,20 +28,34 @@ use Illuminate\Support\Collection;
  *   needs_apps        something it needs is off               → turn those on first
  *   upgrade_required  not in this business's plan             → see plans
  *   coming_soon       listed but not available yet
+ *
+ * An app's own page (GET /api/v1/apps-center/{family}, section 6) adds its
+ * full description and features, and what it brings: sidebar pages, reports
+ * and permissions - read from the code that makes them, so they cannot drift.
  */
 class AppsCenter
 {
+    /** @var array<int, string> app id => the lowest plan that includes it */
+    private array $lowest = [];
+
+    /** @var array<int, ?string> business id => its country */
+    private array $countries = [];
+
     public function __construct(
         private AppDependencies $dependencies,
         private DeactivateApp $deactivate,
         private AppRepository $catalog,
         private AppCategoryRepository $categories,
+        private PackageRepository $packages,
+        private MenuItemRepository $menu,
+        private WorkspaceRepository $workspaces,
     ) {}
 
     public function for(Workspace $workspace): array
     {
-        $apps     = WorkspaceApps::for($workspace);
-        $families = $this->catalog->activeWithDependencies()->groupBy('family_key');
+        $this->lowest = $this->packages->lowestNames();
+        $apps         = WorkspaceApps::for($workspace);
+        $families     = $this->catalog->activeWithDependencies()->groupBy('family_key');
 
         return [
             'workspace' => [
@@ -63,10 +84,57 @@ class AppsCenter
         ];
     }
 
+    /** One app family's own page - 404 for one that is not listed. */
+    public function details(Workspace $workspace, string $family): array
+    {
+        $this->lowest = $this->packages->lowestNames();
+        $catalog      = $this->catalog->activeWithDependencies();
+        $editions     = $catalog->where('family_key', $family);
+
+        abort_if($editions->isEmpty(), 404, 'There is no such app.');
+
+        $apps    = WorkspaceApps::for($workspace);
+        $primary = $this->primary($editions);
+        $row     = $apps->row($family);
+        $on      = $row?->isActive() ? $row->app : null;
+
+        return [
+            ...$this->family($workspace, $apps, $family, $editions),
+            'category'    => $primary->category?->name,
+            'support_url' => $editions->pluck('support_url')->filter()->first(),
+            'editions'    => $editions
+                ->sortBy(fn (Application $app) => $app->edition->rank())
+                ->map(fn (Application $app) => [
+                    ...$this->edition($workspace, $apps, $app, $on),
+                    'description'      => $app->description,
+                    'long_description' => $app->long_description,
+                    'features'         => $app->features ?? [],
+                ])
+                ->values()
+                ->all(),
+            'pages'       => $this->menu->pagesOf($family)->map(fn (MenuItem $item) => ['label' => $item->label, 'edition' => $item->min_edition?->value])->values()->all(),
+            'reports'     => ReportCatalog::namesFor($family),
+            'permissions' => Permissions::groupLabelsOf($family),
+            // Other apps that need this one on (catalog-wide).
+            'needed_by'   => $catalog
+                ->filter(fn (Application $app) => $app->family_key !== $family && $app->dependencies->contains('requires_family', $family))
+                ->groupBy('family_key')
+                ->map(fn (Collection $group) => $this->primary($group)->name)
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /** $workspace's country, from its profile - which apps it is offered (Doc 15 Phase E2). */
+    private function countryOf(Workspace $workspace): ?string
+    {
+        return $this->countries[$workspace->id] ??= $this->workspaces->countryOf($workspace);
+    }
+
     /** The edition that names the family's card: Full, else the only one. */
     private function primary(Collection $editions): Application
     {
-        return $editions->sortByDesc(fn (Application $app) => $app->edition->rank())->first();
+        return Application::primaryOf($editions);
     }
 
     private function family(Workspace $workspace, WorkspaceApps $apps, string $family, Collection $editions): array
@@ -92,29 +160,41 @@ class AppsCenter
 
     private function edition(Workspace $workspace, WorkspaceApps $apps, Application $app, ?Application $on): array
     {
-        $missing = $this->dependencies->missing($apps, $app);
+        $missing   = $this->dependencies->missing($apps, $app);
+        // Apps on that it cannot be on beside (Doc 15 Phase E2): another family naming it, or named by it.
+        $conflicts = $apps->active()->filter(fn (WorkspaceApp $row) => $row->app->conflictsWith($app))->map(fn (WorkspaceApp $row) => $row->app->name)->values();
 
+        // An edition on stays on, whatever its catalog status since (Doc 15 section 15.10).
         $state = match (true) {
-            $app->status === 'coming_soon'                                => 'coming_soon',
             $on?->id === $app->id                                         => 'active',
             $on !== null && $on->edition->rank() > $app->edition->rank() => 'included',
+            $app->status === Application::COMING_SOON                     => 'coming_soon',
+            $app->status === Application::UNAVAILABLE                     => 'unavailable',
+            $app->status === Application::DEPRECATED                      => 'deprecated',
+            ! $app->offeredIn($this->countryOf($workspace))               => 'not_offered',
             ! $workspace->package?->allows($app)                          => 'upgrade_required',
+            $conflicts->isNotEmpty()                                      => 'conflicts',
             $missing->isNotEmpty()                                        => 'needs_apps',
             $on !== null                                                  => 'upgrade',
             default                                                       => 'available',
         };
 
         $result = [
-            'app_key'       => $app->app_key,
-            'name'          => $app->name,
-            'edition'       => $app->edition->value,
-            'edition_label' => $app->editionLabel(),
-            'state'         => $state,
-            'requires'      => $app->dependencies
+            'app_key'         => $app->app_key,
+            'name'            => $app->name,
+            'edition'         => $app->edition->value,
+            'edition_label'   => $app->editionLabel(),
+            'state'           => $state,
+            // Its catalog status - an edition on that is deprecated says so - and its release.
+            'status'          => $app->status,
+            'release_version' => $app->release_version,
+            'package'         => $this->lowest[$app->id] ?? null,
+            'requires'        => $app->dependencies
                 ->map(fn ($need) => $this->dependencies->familyName($need->requires_family, $need->min_edition))
                 ->values()
                 ->all(),
-            'missing'       => $state === 'needs_apps' ? $missing->all() : [],
+            'missing'         => $state === 'needs_apps' ? $missing->all() : [],
+            'conflicts_with'  => $state === 'conflicts' ? $conflicts->all() : [],
         ];
 
         if ($state === 'upgrade') {

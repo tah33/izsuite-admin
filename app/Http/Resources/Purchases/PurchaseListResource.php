@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Purchases;
 
+use App\Http\Resources\Concerns\HidesValues;
 use App\Services\Purchases\PurchaseRules;
 use App\Services\Shared\AllowedActions;
 use Illuminate\Http\Request;
@@ -16,6 +17,11 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class PurchaseListResource extends JsonResource
 {
+    use HidesValues;
+
+    /** What a user without Purchase Values does not see (Doc 12 section 14). */
+    private const VALUES = ['grand_total', 'balance_due'];
+
     public function __construct($resource, private string $today)
     {
         parent::__construct($resource);
@@ -25,7 +31,7 @@ class PurchaseListResource extends JsonResource
     {
         $rules = app(PurchaseRules::class);
 
-        return [
+        return $this->hideValues('purchases', [
             'id'                      => $this->id,
             'number'                  => $this->number,
             'status'                  => $this->status->value,
@@ -40,6 +46,6 @@ class PurchaseListResource extends JsonResource
             'grand_total'             => $this->grand_total,
             'balance_due'             => $this->balance_due,
             'actions'                 => app(AllowedActions::class)->record('purchases.purchases', $rules->actions($this->resource)),
-        ];
+        ], self::VALUES);
     }
 }

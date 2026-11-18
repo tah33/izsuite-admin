@@ -24,6 +24,16 @@ class PaymentMethodRepository
             ->withQueryString();
     }
 
+    /** The ways to pay businesses are offered: each switched on, offline or a gateway that is built - by their order. */
+    public function offered(array $builtGateways): Collection
+    {
+        return PaymentMethod::active()
+            ->where(fn ($query) => $query->where('type', 'offline')->orWhereIn('slug', $builtGateways))
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+    }
+
     public function getByType(string $type): Collection
     {
         return PaymentMethod::where('type', $type)

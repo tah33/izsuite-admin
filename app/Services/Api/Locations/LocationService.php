@@ -2,8 +2,11 @@
 
 namespace App\Services\Api\Locations;
 
+use App\Services\Shared\EditConflicts;
 use App\Models\User\Location;
 use App\Models\User\Workspace;
+use App\Repositories\User\CrmLeadRepository;
+use App\Repositories\User\CrmOpportunityRepository;
 use App\Repositories\User\LocationRepository;
 use App\Repositories\User\PaymentAccountRepository;
 use App\Repositories\User\ExpenseRepository;
@@ -40,6 +43,8 @@ class LocationService
         protected PaymentAccountRepository $paymentAccountRepository,
         protected PlanLimits $planLimits,
         protected WorkspaceAccess $access,
+        protected CrmLeadRepository $crmLeadRepository,
+        protected CrmOpportunityRepository $crmOpportunityRepository,
     ) {}
 
     public function list(Workspace $workspace): Collection
@@ -67,6 +72,9 @@ class LocationService
     {
         $location = $this->findOwned($workspace, $id);
 
+        // Changed by someone else since it was opened: refused (Doc 14 section 22).
+        EditConflicts::ensureUnchanged($location, 'this location');
+
         $this->locationRepository->update($location, $data);
 
         ActivityLogService::record('updated', "Updated location {$this->quoted($location)}", $location, [
@@ -77,10 +85,14 @@ class LocationService
         return $this->listed($workspace, $location);
     }
 
-    /** Turned on again: it takes new transactions. */
+    /** Turned on again: it takes new transactions - and counts toward the plan again, so it needs the room. */
     public function activate(Workspace $workspace, int $id): Location
     {
         $location = $this->findOwned($workspace, $id);
+
+        if (! $location->is_active) {
+            $this->planLimits->ensureCanAddLocation($workspace);
+        }
 
         $this->locationRepository->update($location, ['is_active' => true]);
 
@@ -144,6 +156,15 @@ class LocationService
 
         if ($this->expenseRepository->usesLocation($location)) {
             $this->refuse('Expenses were recorded at this location, so it cannot be deleted. Deactivate it instead.');
+        }
+
+        // A lead at no location would be seen only by those who may use every one (Doc 17 Phase B1).
+        if ($this->crmLeadRepository->usesLocation($location)) {
+            $this->refuse('Leads are at this location, so it cannot be deleted. Deactivate it instead.');
+        }
+
+        if ($this->crmOpportunityRepository->usesLocation($location)) {
+            $this->refuse('Opportunities are at this location, so it cannot be deleted. Deactivate it instead.');
         }
 
         // An account of the location would quietly become the whole business's.

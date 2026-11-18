@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\UsesEmailTemplate;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -17,7 +18,17 @@ use Illuminate\Queue\SerializesModels;
  */
 class WorkspaceInvitation extends Mailable
 {
-    use Queueable, SerializesModels;
+    use Queueable, SerializesModels, UsesEmailTemplate;
+
+    protected function templateKey(): string
+    {
+        return 'account.invitation';
+    }
+
+    protected function templateVariables(): array
+    {
+        return ['invitee' => $this->inviteeName, 'business' => $this->businessName, 'inviter' => $this->inviterName, 'role' => $this->roleName, 'days' => $this->days, 'link' => $this->link];
+    }
 
     public function __construct(
         public string $inviteeName,
@@ -31,12 +42,17 @@ class WorkspaceInvitation extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: "{$this->inviterName} invited you to {$this->businessName} on ".setting('site_name', config('app.name')),
+            subject: $this->templated()['subject'] ?? "{$this->inviterName} invited you to {$this->businessName} on ".setting('site_name', config('app.name')),
         );
     }
 
+    /** In the admin's words when it wrote them (Doc 15 Phase F2), else these. */
     public function content(): Content
     {
+        if ($words = $this->templated()) {
+            return $this->templatedContent($words);
+        }
+
         return new Content(view: 'emails.workspace-invitation');
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Concerns\SafeToRetry;
 use App\Services\Documents\DocumentMailer;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -15,7 +16,7 @@ use Illuminate\Foundation\Queue\Queueable;
  * The body travels with the job: it is the text the business wrote, filled in
  * when they sent it.
  */
-class SendDocumentEmail implements ShouldQueue
+class SendDocumentEmail implements SafeToRetry, ShouldQueue
 {
     use Queueable;
 

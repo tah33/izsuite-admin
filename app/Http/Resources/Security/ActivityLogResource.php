@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Security;
 
+use App\Support\SupportAccess;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -19,7 +20,8 @@ class ActivityLogResource extends JsonResource
         return [
             'id'          => $this->id,
             'at'          => $this->created_at?->toIso8601String(),
-            'user'        => $this->user?->name,
+            // A support session's work names izSuite support and who (Doc 15 section 15.22).
+            'user'        => SupportAccess::doneBy($this->properties) ?? $this->user?->name,
             'description' => $this->description,
             'changes'     => $this->properties['changes'] ?? [],
             'location'    => $this->location_name ?? null,

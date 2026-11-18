@@ -4,11 +4,17 @@ namespace App\Repositories\User;
 
 use App\Enums\DocumentType;
 use App\Enums\SalesDocumentStatus;
+use App\Models\User\CustomerAdvance;
 use App\Models\User\Item;
+use App\Models\User\PriceList;
+use App\Models\User\SalesAllocation;
+use App\Models\User\SalesDelivery;
+use App\Models\User\SalesReturn;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesDocumentLine;
 use App\Models\User\SalesPayment;
 use App\Models\User\Workspace;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -22,7 +28,8 @@ use Illuminate\Database\Eloquent\Collection;
  * $filters narrow them: location_id, contact_id, currency - a document's own,
  * or a payment's account's - document_currency for money moved against
  * documents in one currency, payment_account_id for money through one
- * account, and item_id or category_id for lines of one item or category.
+ * account, item_id or category_id for lines of one item or category, and
+ * priced for lines a price list priced.
  */
 class SalesReportRepository
 {
@@ -30,25 +37,56 @@ class SalesReportRepository
         'id', 'type', 'number', 'status', 'document_date', 'due_date', 'contact_id', 'location_id', 'source_id', 'currency', 'exchange_rate',
         'price_tax_mode', 'subtotal', 'discount_total', 'tax_total', 'grand_total', 'net_total', 'base_grand_total', 'base_tax_total',
         'base_net_total', 'taxes', 'reason', 'amount_paid', 'withholding_amount', 'applied_amount', 'refunded_amount', 'balance_due',
-        'payment_status', 'customer_snapshot',
+        'payment_status', 'customer_snapshot', 'salesperson_id', 'sales_team_id', 'source_app_id',
     ];
 
-    /** Issued invoices or credit notes dated from $from to $to, oldest first. */
+    /** Issued invoices or credit notes dated from $from to $to, oldest first - with who sold them and the app that made them (Doc 16 Phase H2a). */
     public function issued(Workspace $workspace, DocumentType $type, string $from, string $to, array $filters = []): Collection
     {
         return $this->documents($workspace, $type, $filters)
             ->whereBetween('document_date', [$from, $to])
-            ->with(['contact:id,name', 'location:id,name', 'source:id,number'])
+            ->with(['contact:id,name', 'location:id,name', 'source:id,number', 'salesperson:id,first_name,last_name', 'salesTeam:id,name', 'sourceApp:id,name'])
             ->orderBy('document_date')
             ->orderBy('id')
             ->get(self::FIGURES);
     }
 
     /**
+     * Issued invoices dated from $from to $to that gave a discount - on a line
+     * or on the whole - oldest first, with their lines' discounts summed, the
+     * customer, who sold them and why a discount went past a role's limit
+     * (Doc 16 Phase H2b).
+     */
+    public function discounted(Workspace $workspace, string $from, string $to, array $filters = []): Collection
+    {
+        return $this->documents($workspace, DocumentType::Invoice, $filters)
+            ->whereBetween('document_date', [$from, $to])
+            ->where(fn (Builder $query) => $query->where('discount_total', '>', 0)->orWhereHas('lines', fn (Builder $lines) => $lines->where('discount_amount', '>', 0)))
+            ->select([...self::FIGURES, 'discount_reason'])
+            ->withSum('lines as line_discounts', 'discount_amount')
+            ->with(['contact:id,name', 'salesperson:id,first_name,last_name'])
+            ->orderBy('document_date')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /** The business's $ids price lists, with each rule and what it names (Doc 16 Phase H2b). */
+    public function priceLists(Workspace $workspace, array $ids): Collection
+    {
+        return PriceList::query()
+            ->where('workspace_id', $workspace->id)
+            ->whereIn('id', $ids)
+            ->with(['rules.item:id,name', 'rules.category:id,name', 'rules.brand:id,name'])
+            ->get(['id', 'name', 'currency']);
+    }
+
+    /**
      * The lines of issued invoices or credit notes dated from $from to $to,
      * with what their share of the totals needs, and where their document
-     * falls: its date, customer, location and currency. An item's category is
-     * the one it has now.
+     * falls: its date, customer, location and currency - and (Doc 16 Phase
+     * H2a) its item's category and brand as they are now, its salesperson,
+     * team and the app that made it - and (Phase H2b) the price list and rule
+     * that priced it, and its item's purchase price now.
      */
     public function issuedLines(Workspace $workspace, DocumentType $type, string $from, string $to, array $filters = []): Collection
     {
@@ -56,6 +94,12 @@ class SalesReportRepository
             ->join('sales_documents', 'sales_documents.id', '=', 'sales_document_lines.sales_document_id')
             ->leftJoin('contacts', 'contacts.id', '=', 'sales_documents.contact_id')
             ->leftJoin('locations', 'locations.id', '=', 'sales_documents.location_id')
+            ->leftJoin('items', 'items.id', '=', 'sales_document_lines.item_id')
+            ->leftJoin('item_categories', 'item_categories.id', '=', 'items.category_id')
+            ->leftJoin('item_brands', 'item_brands.id', '=', 'items.brand_id')
+            ->leftJoin('users as salespeople', 'salespeople.id', '=', 'sales_documents.salesperson_id')
+            ->leftJoin('sales_teams', 'sales_teams.id', '=', 'sales_documents.sales_team_id')
+            ->leftJoin('apps as source_apps', 'source_apps.id', '=', 'sales_documents.source_app_id')
             ->where('sales_documents.workspace_id', $workspace->id)
             ->where('sales_documents.type', $type->value)
             ->where('sales_documents.status', SalesDocumentStatus::Issued->value)
@@ -69,12 +113,17 @@ class SalesReportRepository
                 'sales_document_lines.item_id',
                 Item::query()->where('workspace_id', $workspace->id)->where('category_id', $id)->select('id'),
             ))
+            ->when($filters['priced'] ?? false, fn (Builder $query) => $query->whereNotNull('sales_document_lines.price_list_id'))
             ->get([
                 'sales_document_lines.item_id', 'sales_document_lines.name', 'sales_document_lines.quantity', 'sales_document_lines.amount',
                 'sales_document_lines.tax_amount', 'sales_document_lines.sales_document_id', 'sales_documents.subtotal',
                 'sales_documents.discount_total', 'sales_documents.price_tax_mode', 'sales_documents.exchange_rate',
                 'sales_documents.document_date', 'sales_documents.contact_id', 'sales_documents.location_id', 'sales_documents.currency',
                 'sales_documents.customer_snapshot', 'contacts.name as contact_name', 'locations.name as location_name',
+                'items.category_id', 'item_categories.name as category_name', 'items.brand_id', 'item_brands.name as brand_name',
+                'sales_documents.salesperson_id', 'salespeople.first_name as salesperson_first_name', 'salespeople.last_name as salesperson_last_name',
+                'sales_documents.sales_team_id', 'sales_teams.name as team_name', 'sales_documents.source_app_id', 'source_apps.name as source_name',
+                'sales_document_lines.price_list_id', 'sales_document_lines.price_list_rule_id', 'items.purchase_price',
             ]);
     }
 
@@ -110,6 +159,8 @@ class SalesReportRepository
             ->when($filters['payment_account_id'] ?? null, fn (Builder $query, $id) => $query->where('payment_account_id', $id))
             ->when($filters['currency'] ?? null, fn (Builder $query, string $currency) => $query->whereHas('account', fn (Builder $query) => $query->where('currency', $currency)))
             ->when($filters['document_currency'] ?? null, fn (Builder $query, string $currency) => $query->whereHas('document', fn (Builder $query) => $query->where('currency', $currency)))
+            // By the salesperson or team of the invoice paid - or, for a refund, of its credit note's invoice (Doc 16 Phase A).
+            ->when(($filters['salesperson_id'] ?? null) || ($filters['sales_team_id'] ?? null), fn (Builder $query) => $query->whereHas('document', fn (Builder $document) => $document->where(fn (Builder $own) => $this->bySeller($own, $filters))->orWhereHas('source', fn (Builder $source) => $this->bySeller($source, $filters))))
             ->with(['document:id,type,number,currency,exchange_rate,source_id', 'contact:id,name', 'account:id,name,currency', 'location:id,name'])
             ->orderBy('payment_date')
             ->orderBy('id')
@@ -119,7 +170,9 @@ class SalesReportRepository
     /**
      * Issued invoices dated on or before $asOf, each with what had settled it
      * by then (paid_by, withheld_by, credited_by, refunded_by) - the parts of
-     * InvoiceSettlement's balance, as of that day.
+     * InvoiceSettlement's balance, as of that day - and of what was applied
+     * to it, how much came from advances (advanced_by). $filters may keep
+     * them to those dated from issued_from to issued_to (Doc 16 Phase H3c).
      */
     public function invoicesAsOf(Workspace $workspace, string $asOf, array $filters = []): Collection
     {
@@ -148,9 +201,30 @@ class SalesReportRepository
             ->where('sales_payments.payment_date', '<=', $asOf)
             ->groupBy('notes.source_id');
 
+        // Advances and credit notes applied to it by then, and its credit notes' credit applied elsewhere (Doc 16 Phase D1).
+        $allocatedIn = $this->allocationsAsOf($workspace, $asOf)
+            ->selectRaw('invoice_id, SUM(amount) as allocated_sum')
+            ->groupBy('invoice_id');
+
+        $allocatedOut = $this->allocationsAsOf($workspace, $asOf)
+            ->join('sales_documents as given', 'given.id', '=', 'sales_allocations.credit_note_id')
+            ->selectRaw('given.source_id, SUM(sales_allocations.amount) as given_sum')
+            ->groupBy('given.source_id');
+
+        $advanced = $this->allocationsAsOf($workspace, $asOf)
+            ->whereNotNull('sales_allocations.customer_advance_id')
+            ->selectRaw('invoice_id, SUM(amount) as advanced_sum')
+            ->groupBy('invoice_id');
+
         return $this->documents($workspace, DocumentType::Invoice, $filters, 'sales_documents.')
             ->select(array_map(fn (string $column) => "sales_documents.{$column}", self::FIGURES))
             ->selectRaw('COALESCE(p.paid_sum, 0) as paid_by, COALESCE(p.withheld_sum, 0) as withheld_by, COALESCE(c.credited_sum, 0) as credited_by, COALESCE(r.refunded_sum, 0) as refunded_by')
+            ->selectRaw('COALESCE(a.allocated_sum, 0) as allocated_by, COALESCE(g.given_sum, 0) as given_by, COALESCE(v.advanced_sum, 0) as advanced_by')
+            ->leftJoinSub($allocatedIn, 'a', 'a.invoice_id', '=', 'sales_documents.id')
+            ->leftJoinSub($allocatedOut, 'g', 'g.source_id', '=', 'sales_documents.id')
+            ->leftJoinSub($advanced, 'v', 'v.invoice_id', '=', 'sales_documents.id')
+            ->when($filters['issued_from'] ?? null, fn (Builder $query, string $from) => $query->where('sales_documents.document_date', '>=', $from))
+            ->when($filters['issued_to'] ?? null, fn (Builder $query, string $to) => $query->where('sales_documents.document_date', '<=', $to))
             ->leftJoinSub($payments, 'p', 'p.sales_document_id', '=', 'sales_documents.id')
             ->leftJoinSub($credits, 'c', 'c.source_id', '=', 'sales_documents.id')
             ->leftJoinSub($refunds, 'r', 'r.source_id', '=', 'sales_documents.id')
@@ -159,6 +233,37 @@ class SalesReportRepository
             ->orderBy('sales_documents.due_date')
             ->orderBy('sales_documents.id')
             ->get();
+    }
+
+    /** Allocations standing at the end of $asOf: made by then, and not taken off before the next day. */
+    private function allocationsAsOf(Workspace $workspace, string $asOf): Builder
+    {
+        return SalesAllocation::query()
+            ->where('sales_allocations.workspace_id', $workspace->id)
+            ->where('sales_allocations.allocation_date', '<=', $asOf)
+            ->where(fn (Builder $query) => $query->where('sales_allocations.status', SalesAllocation::ACTIVE)
+                ->orWhere('sales_allocations.removed_at', '>=', CarbonImmutable::parse($asOf)->addDay()->startOfDay()));
+    }
+
+    /**
+     * A customer's advances paid from $from to $to, not reversed (Doc 16
+     * Phase D1): their statement's money paid ahead. One taken at no location
+     * shows wherever its customer does.
+     */
+    public function advancesFor(Workspace $workspace, string $from, string $to, array $filters = []): Collection
+    {
+        $locations = $filters['location_ids'] ?? null;
+
+        return CustomerAdvance::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('status', CustomerAdvance::COMPLETED)
+            ->whereBetween('payment_date', [$from, $to])
+            ->when($filters['contact_id'] ?? null, fn (Builder $query, $id) => $query->where('contact_id', $id))
+            ->when($filters['currency'] ?? null, fn (Builder $query, string $currency) => $query->where('currency', $currency))
+            ->when($locations !== null, fn (Builder $query) => $query->where(fn (Builder $query) => $query->whereNull('location_id')->orWhereIn('location_id', $locations)))
+            ->orderBy('payment_date')
+            ->orderBy('id')
+            ->get(['id', 'number', 'payment_date', 'currency', 'amount', 'base_amount']);
     }
 
     /**
@@ -194,6 +299,14 @@ class SalesReportRepository
             ->get(['id', 'kind', 'number', 'status', 'payment_date', 'contact_id', 'payment_account_id', 'amount', 'created_at']);
     }
 
+    /** $query narrowed to the documents of $filters' salesperson and team. */
+    private function bySeller(Builder $query, array $filters): Builder
+    {
+        return $query
+            ->when($filters['salesperson_id'] ?? null, fn (Builder $query, $id) => $query->where('salesperson_id', $id))
+            ->when($filters['sales_team_id'] ?? null, fn (Builder $query, $id) => $query->where('sales_team_id', $id));
+    }
+
     /** Issued documents of $type with $filters - columns prefixed with $table where the query joins. */
     private function documents(Workspace $workspace, DocumentType $type, array $filters, string $table = ''): Builder
     {
@@ -204,6 +317,145 @@ class SalesReportRepository
             ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where("{$table}location_id", $id))
             ->when(isset($filters['location_ids']), fn (Builder $query) => $query->whereIn("{$table}location_id", $filters['location_ids']))
             ->when($filters['contact_id'] ?? null, fn (Builder $query, $id) => $query->where("{$table}contact_id", $id))
-            ->when($filters['currency'] ?? null, fn (Builder $query, string $currency) => $query->where("{$table}currency", $currency));
+            ->when($filters['currency'] ?? null, fn (Builder $query, string $currency) => $query->where("{$table}currency", $currency))
+            // The full Sales app's (Doc 16 Phase A): who sold it, and their team.
+            ->when($filters['salesperson_id'] ?? null, fn (Builder $query, $id) => $query->where("{$table}salesperson_id", $id))
+            ->when($filters['sales_team_id'] ?? null, fn (Builder $query, $id) => $query->where("{$table}sales_team_id", $id));
+    }
+
+    /** Quotations sent and not answered, while they hold on $today - the Dashboard's Sales Pipeline (Doc 16 Phase H1). */
+    public function awaitingAnswer(Workspace $workspace, string $today, array $filters = []): Collection
+    {
+        return $this->overviewDocuments($workspace, DocumentType::Quotation, $filters)
+            ->where('status', SalesDocumentStatus::Sent->value)
+            ->where(fn (Builder $query) => $query->whereNull('expiry_date')->orWhere('expiry_date', '>=', $today))
+            ->get(['id', 'base_grand_total']);
+    }
+
+    /**
+     * Quotations dated from $from to $to that went out - not drafts or
+     * cancelled ones - for the Sales Overview (Doc 16 section 16.5), with
+     * $filters as documents() takes them.
+     */
+    public function offers(Workspace $workspace, string $from, string $to, array $filters = []): Collection
+    {
+        return $this->overviewDocuments($workspace, DocumentType::Quotation, $filters)
+            ->whereNotIn('status', [SalesDocumentStatus::Draft->value, SalesDocumentStatus::Cancelled->value])
+            ->whereBetween('document_date', [$from, $to])
+            ->get(['id', 'status', 'currency', 'grand_total', 'base_grand_total']);
+    }
+
+    /**
+     * The same quotations for Quotation Performance and Conversion Rate (Doc
+     * 16 Phase H3a), oldest first: where each stands, its expiry, customer,
+     * salesperson and team.
+     */
+    public function quotationsOut(Workspace $workspace, string $from, string $to, array $filters = []): Collection
+    {
+        return $this->overviewDocuments($workspace, DocumentType::Quotation, $filters)
+            ->whereNotIn('status', [SalesDocumentStatus::Draft->value, SalesDocumentStatus::Cancelled->value])
+            ->whereBetween('document_date', [$from, $to])
+            ->with(['contact:id,name', 'salesperson:id,first_name,last_name', 'salesTeam:id,name'])
+            ->orderBy('document_date')
+            ->orderBy('id')
+            ->get(['id', 'status', 'document_date', 'expiry_date', 'contact_id', 'customer_snapshot', 'salesperson_id', 'sales_team_id', 'currency', 'base_grand_total']);
+    }
+
+    /**
+     * Draft and sent quotations dated up to $asOf whose expiry date was
+     * before it - expired, and not answered or converted since - the latest
+     * to expire first (Doc 16 Phase H3a).
+     */
+    public function expiredQuotations(Workspace $workspace, string $asOf, array $filters = []): Collection
+    {
+        return $this->overviewDocuments($workspace, DocumentType::Quotation, $filters)
+            ->whereIn('status', [SalesDocumentStatus::Draft->value, SalesDocumentStatus::Sent->value])
+            ->where('document_date', '<=', $asOf)
+            ->where('expiry_date', '<', $asOf)
+            ->with(['contact:id,name', 'salesperson:id,first_name,last_name'])
+            ->orderByDesc('expiry_date')
+            ->orderByDesc('id')
+            ->get(['id', 'number', 'status', 'document_date', 'expiry_date', 'contact_id', 'customer_snapshot', 'salesperson_id', 'currency', 'grand_total', 'base_grand_total']);
+    }
+
+    /**
+     * Open sales orders - confirmed or on hold - oldest first, whole, with
+     * their lines and each line's item type, the customer, salesperson and
+     * team (Doc 16 Phase H3b).
+     */
+    public function openOrders(Workspace $workspace, array $filters = []): Collection
+    {
+        return $this->overviewDocuments($workspace, DocumentType::SalesOrder, $filters)
+            ->whereIn('status', [SalesDocumentStatus::Confirmed->value, SalesDocumentStatus::OnHold->value])
+            ->with(['lines' => fn ($lines) => $lines->orderBy('position'), 'lines.item:id,type', 'contact:id,name', 'salesperson:id,first_name,last_name', 'salesTeam:id,name'])
+            ->orderBy('document_date')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * Returns dated from $from to $to that were submitted - not drafts or
+     * cancelled ones - with their lines' order lines and their order's
+     * customer, narrowed by the return's own location, as the Returns list
+     * is (Doc 16 Phase H3c).
+     */
+    public function returnsBetween(Workspace $workspace, string $from, string $to, array $filters = []): Collection
+    {
+        return SalesReturn::query()
+            ->where('workspace_id', $workspace->id)
+            ->whereNotIn('status', [SalesReturn::DRAFT, SalesReturn::CANCELLED])
+            ->whereBetween('return_date', [$from, $to])
+            ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('location_id', $id))
+            ->when(isset($filters['location_ids']), fn (Builder $query) => $query->whereIn('location_id', $filters['location_ids']))
+            ->with(['lines.orderLine:id,item_id,name', 'order', 'order.contact:id,name'])
+            ->orderBy('return_date')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * Deliveries that arrived from $from to $to, by the day they did, with
+     * their order's expected day and customer - narrowed by the delivery's
+     * own location, as the Deliveries list is (Doc 16 Phase H3b).
+     */
+    public function deliveredBetween(Workspace $workspace, string $from, string $to, array $filters = []): Collection
+    {
+        return SalesDelivery::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('status', SalesDelivery::DELIVERED)
+            ->whereBetween('delivered_on', [$from, $to])
+            ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('location_id', $id))
+            ->when(isset($filters['location_ids']), fn (Builder $query) => $query->whereIn('location_id', $filters['location_ids']))
+            ->with(['order', 'order.contact:id,name'])
+            ->orderBy('delivered_on')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * Sales orders confirmed - held and completed ones too, not drafts or
+     * cancelled ones - dated up to $to, for the Sales Overview's order figures
+     * (Doc 16 Phase B): those dated from $from, and those still open.
+     */
+    public function orders(Workspace $workspace, string $to, array $filters = []): Collection
+    {
+        return $this->overviewDocuments($workspace, DocumentType::SalesOrder, $filters)
+            ->whereIn('status', [SalesDocumentStatus::Confirmed->value, SalesDocumentStatus::OnHold->value, SalesDocumentStatus::Completed->value])
+            ->where('document_date', '<=', $to)
+            ->get(['id', 'status', 'document_date', 'delivery_status', 'invoice_status', 'currency', 'grand_total', 'base_grand_total']);
+    }
+
+    /** $type's documents with the Overview's filters: location, customer, currency, salesperson and team. */
+    private function overviewDocuments(Workspace $workspace, DocumentType $type, array $filters): Builder
+    {
+        return SalesDocument::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('type', $type->value)
+            ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('location_id', $id))
+            ->when(isset($filters['location_ids']), fn (Builder $query) => $query->whereIn('location_id', $filters['location_ids']))
+            ->when($filters['contact_id'] ?? null, fn (Builder $query, $id) => $query->where('contact_id', $id))
+            ->when($filters['currency'] ?? null, fn (Builder $query, string $currency) => $query->where('currency', $currency))
+            ->when($filters['salesperson_id'] ?? null, fn (Builder $query, $id) => $query->where('salesperson_id', $id))
+            ->when($filters['sales_team_id'] ?? null, fn (Builder $query, $id) => $query->where('sales_team_id', $id));
     }
 }

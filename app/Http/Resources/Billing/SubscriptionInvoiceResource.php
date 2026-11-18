@@ -1,0 +1,59 @@
+<?php
+
+namespace App\Http\Resources\Billing;
+
+use App\Models\Billing\SubscriptionInvoice;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+/**
+ * One of izSuite's invoices to the business (Doc 13 section 11's Billing
+ * History): its number, plan and period, what it comes to, when it is due or
+ * was paid, its receipt, and the business's transfer reference. The invoice
+ * still to be paid comes with its price and tax (Phase D1) and how to pay it.
+ *
+ * @property SubscriptionInvoice $resource
+ */
+class SubscriptionInvoiceResource extends JsonResource
+{
+    public function __construct($resource, private bool $toPay = false)
+    {
+        parent::__construct($resource);
+    }
+
+    public function toArray(Request $request): array
+    {
+        return [
+            'id'                 => $this->id,
+            'number'             => $this->number,
+            // new, renewal or upgrade
+            'kind'               => $this->kind,
+            // An upgrade's credit for the unused part of the period before
+            'credit'             => $this->credit,
+            'package'            => $this->package_name,
+            'cycle'              => $this->cycle,
+            'period_starts_on'   => $this->period_starts_on?->toDateString(),
+            'period_ends_on'     => $this->period_ends_on?->toDateString(),
+            'currency'           => $this->currency,
+            'total'              => $this->total,
+            'status'             => $this->status,
+            'issued_on'          => $this->issued_on->toDateString(),
+            'due_on'             => $this->due_on->toDateString(),
+            'paid_on'            => $this->paid_at?->toDateString(),
+            'receipt_number'     => $this->receipt_number,
+            'transfer_reference' => $this->transfer_reference,
+            // What izSuite has given back of it (Doc 15 Phase C2a), confirmed refunds only
+            'refunded'           => bcadd((string) ($this->refunded ?? '0'), '0', 2),
+            ...($this->toPay ? [
+                'amount'               => $this->amount,
+                // A promotion's discount and code (Doc 15 Phase C3b)
+                'discount'             => $this->discount,
+                'promotion_code'       => $this->promotion_code,
+                // izSuite's credit taken off it, before tax (Doc 15 Phase C2b)
+                'adjustment'           => $this->adjustment,
+                'tax'                  => SubscriptionTaxLineResource::of(['name' => $this->tax_name, 'rate' => $this->tax_rate, 'amount' => $this->tax, 'note' => $this->tax_note]),
+                'payment_instructions' => $this->payment_instructions,
+            ] : []),
+        ];
+    }
+}

@@ -100,6 +100,44 @@ class AppCatalogSeeder extends Seeder
      */
     private const FIRST = ['sales' => 10, 'purchases' => 20, 'expenses' => 30];
 
+    /**
+     * An app's own page (Doc 13 section 6): its full description and main
+     * features, for the apps that are built - app_key => [description,
+     * features]. Filled in where empty, so an admin's own words are kept.
+     */
+    private const DETAILS = [
+        'sales_lite' => [
+            'Everything a small business needs to quote, invoice and get paid: documents numbered your way, in your template and currency, shared as PDFs, by e-mail or by secure link.',
+            [
+                'Quotations, proforma invoices and invoices, with your numbering and template',
+                'A quotation or proforma turned into an invoice in one step',
+                'Customer payments, in part or in full, with receipts',
+                'Credit notes, and refunds of their credit',
+                'PDFs, e-mail and secure links for every document',
+                'Sales reports, and sales on the Dashboard',
+            ],
+        ],
+        'purchases_lite' => [
+            'Record what the business buys as the bills arrive, pay suppliers in part or in full, and see what is still owed.',
+            [
+                'Purchases from suppliers, with their bills attached',
+                'Supplier payments, in part or in full',
+                'What is owed to each supplier, and when it is due',
+                'Tax on purchases kept apart, where it can be claimed back',
+                'Purchase reports, and purchases on the Dashboard',
+            ],
+        ],
+        'expenses_lite' => [
+            'Keep every business expense with its receipt and category, paid now or later, with the tax that can be claimed back kept apart.',
+            [
+                'Expenses by category and payee, with receipts attached',
+                'Paid at once, or later in part or in full',
+                'Tax that can be claimed back kept apart',
+                'Expense reports, and expenses on the Dashboard',
+            ],
+        ],
+    ];
+
     /** family => [required family => minimum edition] */
     private const DEPENDENCIES = [
         'inventory'     => ['purchases' => 'lite'],
@@ -128,15 +166,30 @@ class AppCatalogSeeder extends Seeder
         ['apps', 'sales', 'Proforma Invoices', 'file-check', '/sales/proformas', 'lite', null],
         ['apps', 'sales', 'Credit Notes', 'receipt-text', '/sales/credit-notes', 'lite', null],
         ['apps', 'sales', 'Payments Received', 'hand-coins', '/sales/payments', 'lite', null],
+        ['apps', 'sales', 'Price Lists', 'tags', '/sales/price-lists', 'full', null],
         ['apps', 'sales', 'Sales Orders', 'clipboard-list', '/sales/orders', 'full', null],
+        // Doc 16 Phase C: delivery notes.
+        ['apps', 'sales', 'Deliveries', 'truck', '/sales/deliveries', 'full', null],
+        ['apps', 'sales', 'Returns', 'undo-2', '/sales/returns', 'full', null],
+        // Doc 16 Phase A: the Sales Overview, and the customers in the shared Contacts page.
+        ['apps', 'sales', 'Overview', 'layout-dashboard', '/sales/overview', 'full', null],
+        ['apps', 'sales', 'Customers', 'users', '/contacts?role=customer', 'full', null],
         ['apps', 'purchases', 'Purchases', 'file-minus', '/purchases', 'lite', null],
         ['apps', 'purchases', 'Payments Made', 'banknote', '/purchases/payments', 'lite', null],
         ['apps', 'purchases', 'Purchase Orders', 'clipboard-list', '/purchases/orders', 'full', null],
         ['apps', 'expenses', 'Expenses', 'wallet', '/expenses', 'lite', null],
         ['apps', 'expenses', 'Payments Made', 'banknote', '/expenses/payments', 'lite', null],
         ['apps', 'expenses', 'Recurring Expenses', 'repeat', '/expenses/recurring', 'full', null],
-        ['apps', 'crm', 'Leads', 'target', '/crm/leads', 'lite', null],
-        ['apps', 'crm', 'Deals', 'handshake', '/crm/deals', 'lite', null],
+        // Doc 17 Phase A1: Leads while the business uses them, Opportunities, and the customers in the shared Contacts page.
+        // Phase G1: the Overview first.
+        ['apps', 'crm', 'Overview', 'layout-dashboard', '/crm/overview', 'lite', null],
+        ['apps', 'crm', 'Leads', 'target', '/crm/leads', 'lite', 'crm_uses_leads'],
+        ['apps', 'crm', 'Opportunities', 'handshake', '/crm/opportunities', 'lite', null],
+        // Phase E1: activities.
+        ['apps', 'crm', 'Activities', 'calendar-check', '/crm/activities', 'lite', null],
+        // Phase G2: the Forecast.
+        ['apps', 'crm', 'Forecast', 'trending-up', '/crm/forecast', 'lite', null],
+        ['apps', 'crm', 'Customers', 'users', '/contacts?role=customer', 'lite', null],
         ['apps', 'inventory', 'Stock', 'boxes', '/inventory/stock', 'lite', null],
         ['apps', 'inventory', 'Adjustments', 'sliders-horizontal', '/inventory/adjustments', 'lite', null],
 
@@ -157,8 +210,19 @@ class AppCatalogSeeder extends Seeder
         '/sales/invoices'     => 'sales.invoices.view',
         '/sales/quotations'   => 'sales.quotations.view',
         '/sales/proformas'    => 'sales.proformas.view',
+        '/sales/orders'       => 'sales.orders.view',
+        '/sales/deliveries'   => 'sales.deliveries.view',
+        '/sales/returns'      => 'sales.returns.view',
         '/sales/credit-notes' => 'sales.credit_notes.view',
         '/sales/payments'     => 'sales.payments.view',
+        '/sales/price-lists'  => 'sales.price_lists.view',
+        '/sales/overview'     => 'sales.values.view',
+        '/contacts?role=customer' => 'contacts.view',
+        '/crm/overview'       => 'crm.opportunities.view',
+        '/crm/leads'          => 'crm.leads.view',
+        '/crm/opportunities'  => 'crm.opportunities.view',
+        '/crm/activities'     => 'crm.activities.view',
+        '/crm/forecast'       => 'crm.opportunities.view',
         '/purchases'          => 'purchases.purchases.view',
         '/purchases/payments' => 'purchases.payments.view',
         '/expenses'           => 'expenses.expenses.view',
@@ -201,6 +265,12 @@ class AppCatalogSeeder extends Seeder
                             'sort_order'  => $sortOrder,
                         ],
                     );
+
+                    // Its own page's words, where nobody has written any yet.
+                    if ($app->long_description === null && isset(self::DETAILS[$app->app_key])) {
+                        [$longDescription, $features] = self::DETAILS[$app->app_key];
+                        $app->update(['long_description' => $longDescription, 'features' => $features]);
+                    }
 
                     // Plan access only for an app made just now: an admin's
                     // later changes in Package Access are left alone.

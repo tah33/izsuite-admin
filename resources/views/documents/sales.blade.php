@@ -29,9 +29,13 @@
         @include('documents.partials.lines')
         @include('documents.partials.closing')
 
-        @if ($pdfUrl)
+        @if ($pdfUrl && ($business['powered_by'] ?? true))
             <p class="powered">Powered by izSuite</p>
         @endif
     </main>
+
+    @if (! empty($screen))
+        @include('documents.partials.respond')
+    @endif
 </body>
 </html>

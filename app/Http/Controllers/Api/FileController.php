@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Files\FileLimitsResource;
 use App\Http\Resources\Files\FileLinkResource;
 use App\Models\User\WorkspaceFile;
 use App\Services\Api\Files\FileLinkService;
+use App\Services\Files\FileLimits;
 use App\Services\Files\FileStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,7 +25,22 @@ class FileController extends Controller
     public function __construct(
         protected FileLinkService $fileLinkService,
         protected FileStorage $fileStorage,
+        protected FileLimits $fileLimits,
     ) {}
+
+    /** What a business may attach (Doc 14 section 14.12): the types and the largest file, as the admin set them. */
+    public function limits(): JsonResponse
+    {
+        try {
+            return response()->json([
+                'data' => new FileLimitsResource($this->fileLimits->attachments()),
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
 
     /** A link that downloads one of the business's files. Another business's answers like one that does not exist. */
     public function link(Request $request, int $id): JsonResponse

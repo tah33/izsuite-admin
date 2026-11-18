@@ -5,8 +5,12 @@ namespace App\Models\User;
 use App\Enums\FileCollection;
 use App\Models\Admin\Currency;
 use App\Models\Billing\Package;
+use App\Models\Billing\PackageVersion;
+use App\Models\Billing\SubscriptionInvoice;
+use App\Models\Billing\WorkspaceSubscription;
 use App\Models\Concerns\HasFiles;
 use App\Services\User\Apps\ProvisionWorkspaceApps;
+use App\Support\BusinessStatus;
 use App\Support\RegionalDefaults;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -121,6 +125,9 @@ class Workspace extends Model
             $workspace->sku_auto ??= false;
             $workspace->sku_prefix ??= 'SKU-';
             $workspace->barcode_format ??= 'any';
+
+            // Doc 15 section 15.6: every business starts Active.
+            $workspace->status ??= BusinessStatus::ACTIVE;
         });
 
         static::created(fn (self $workspace) => app(ProvisionWorkspaceApps::class)->handle($workspace));
@@ -194,6 +201,42 @@ class Workspace extends Model
     public function package(): BelongsTo
     {
         return $this->belongsTo(Package::class);
+    }
+
+    /** The version of its plan it stays on (Doc 15 Phase E3b); none, its plan's terms as they stand. */
+    public function packageVersion(): BelongsTo
+    {
+        return $this->belongsTo(PackageVersion::class);
+    }
+
+    /**
+     * The plan terms it is held to - its limits, branding, levels and grace
+     * (Doc 15 Phase E3b): the version of its plan it stayed on as a newer one
+     * started, or else its plan's terms as they stand.
+     */
+    public function terms(): Package|PackageVersion|null
+    {
+        $version = $this->package_version_id ? $this->packageVersion : null;
+
+        return $version && $version->package_id === $this->package_id ? $version : $this->package;
+    }
+
+    /** Where its izSuite invoices go (Doc 13 section 11). */
+    public function billing(): HasOne
+    {
+        return $this->hasOne(WorkspaceBilling::class);
+    }
+
+    /** Its subscription to a paid plan (Doc 13 Phase C), if it ever had one. */
+    public function subscription(): HasOne
+    {
+        return $this->hasOne(WorkspaceSubscription::class);
+    }
+
+    /** izSuite's invoices to it for its subscription. */
+    public function subscriptionInvoices(): HasMany
+    {
+        return $this->hasMany(SubscriptionInvoice::class);
     }
 
     /** One row per app family the business has turned on, now or before. */
@@ -276,6 +319,54 @@ class Workspace extends Model
         return $this->hasOne(SalesSetting::class);
     }
 
+    /** Settings > CRM (Doc 17 Phase A1). */
+    public function crmSetting(): HasOne
+    {
+        return $this->hasOne(CrmSetting::class);
+    }
+
+    /** Its lead sources, lost reasons and activity types (Doc 17 Phase A1). */
+    public function crmOptions(): HasMany
+    {
+        return $this->hasMany(CrmOption::class);
+    }
+
+    /** Its opportunity pipelines (Doc 17 Phase A2). */
+    public function crmPipelines(): HasMany
+    {
+        return $this->hasMany(CrmPipeline::class);
+    }
+
+    /** Its leads (Doc 17 Phase B1). */
+    public function crmLeads(): HasMany
+    {
+        return $this->hasMany(CrmLead::class);
+    }
+
+    /** Its opportunities (Doc 17 Phase C1). */
+    public function crmOpportunities(): HasMany
+    {
+        return $this->hasMany(CrmOpportunity::class);
+    }
+
+    /** Its CRM activities (Doc 17 Phase E1). */
+    public function crmActivities(): HasMany
+    {
+        return $this->hasMany(CrmActivity::class);
+    }
+
+    /** Its CRM e-mail templates (Doc 17 Phase F3b). */
+    public function crmEmailTemplates(): HasMany
+    {
+        return $this->hasMany(CrmEmailTemplate::class);
+    }
+
+    /** Its lead assignment rules (Doc 17 Phase I1). */
+    public function crmAssignmentRules(): HasMany
+    {
+        return $this->hasMany(CrmAssignmentRule::class);
+    }
+
     /** How each kind of document is numbered - a row only where a default was changed. */
     public function documentNumbering(): HasMany
     {
@@ -286,6 +377,22 @@ class Workspace extends Model
     public function salesDocuments(): HasMany
     {
         return $this->hasMany(SalesDocument::class);
+    }
+
+    /** Its sales orders' delivery notes (Doc 16 Phase C). */
+    public function salesDeliveries(): HasMany
+    {
+        return $this->hasMany(SalesDelivery::class);
+    }
+
+    public function customerAdvances(): HasMany
+    {
+        return $this->hasMany(CustomerAdvance::class);
+    }
+
+    public function salesAllocations(): HasMany
+    {
+        return $this->hasMany(SalesAllocation::class);
     }
 
     /** Settings > Purchases - none until they are first saved. */
@@ -380,10 +487,34 @@ class Workspace extends Model
         return $this->hasMany(DocumentLink::class);
     }
 
+    /** What its customers did through secure links (Doc 16 Phase G2). */
+    public function customerResponses(): HasMany
+    {
+        return $this->hasMany(CustomerResponse::class);
+    }
+
     /** Every file the business keeps, whichever record it belongs to - what its storage counts. */
     public function businessFiles(): HasMany
     {
         return $this->hasMany(WorkspaceFile::class);
+    }
+
+    /** Every change to its status, by the admin panel (Doc 15 section 15.6). */
+    public function statusChanges(): HasMany
+    {
+        return $this->hasMany(WorkspaceStatusChange::class);
+    }
+
+    /** The support cases about it, opened from the app or by izSuite staff (Doc 15 section 15.22). */
+    public function supportCases(): HasMany
+    {
+        return $this->hasMany(Ticket::class);
+    }
+
+    /** izSuite support's sessions in it (Doc 15 section 15.22). */
+    public function supportSessions(): HasMany
+    {
+        return $this->hasMany(SupportSession::class);
     }
 
     /** The logo on its documents and pages (Settings > Business). */

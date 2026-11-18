@@ -4,8 +4,8 @@ namespace App\Services\Admin;
 
 use App\Models\User\User;
 use App\Repositories\Admin\ClientRepository;
+use App\Repositories\Admin\ConsentRecordRepository;
 use App\Repositories\Billing\PackageRepository;
-use App\Services\Api\Auth\LoginAsService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -19,12 +19,32 @@ class ClientService
     public function __construct(
         protected ClientRepository $clientRepository,
         protected PackageRepository $packageRepository,
-        protected LoginAsService $loginAs,
+        protected ConsentRecordRepository $consentRecords,
     ) {}
 
-    public function paginate(string $search, ?string $package, int $perPage = 15): LengthAwarePaginator
+    /** A page of accounts, by ListClientsRequest's filters. */
+    public function paginate(array $filters, int $perPage = 15): LengthAwarePaginator
     {
-        return $this->clientRepository->paginate($search, $package, $perPage);
+        return $this->clientRepository->paginate($filters, $perPage);
+    }
+
+    /**
+     * What a client's page shows besides the account and its businesses (Doc
+     * 15 section 15.7): its recent failed sign-ins, the other accounts that
+     * give its phone number, the latest admin actions on it, and its consent
+     * records (Phase G3).
+     *
+     * @return array{failedSignIns: Collection, sharingPhone: Collection, activity: Collection, consents: Collection}
+     */
+    public function security(User $client): array
+    {
+        return [
+            'failedSignIns' => $this->clientRepository->recentFailedSignIns($client),
+            'sharingPhone'  => $this->clientRepository->sharingPhone($client),
+            'activity'      => $this->clientRepository->adminActivity($client),
+            // Its consent records, newest first (Doc 15 Phase G3).
+            'consents'      => $this->consentRecords->forUser($client),
+        ];
     }
 
     /** Every plan, lowest first, for the filter and each business's plan. */
@@ -65,17 +85,5 @@ class ClientService
             'items'      => (int) $businesses->sum('items_count'),
             'storage'    => (int) $businesses->sum('storage_bytes'),
         ];
-    }
-
-    /** Why the admin cannot sign in as $client now, if they cannot. */
-    public function loginAsProblem(User $client): ?string
-    {
-        return $this->loginAs->problem($client);
-    }
-
-    /** The website link that opens $client's dashboard, signed in as them. */
-    public function loginAsLink(User $client, User $admin): string
-    {
-        return $this->loginAs->link($client, $admin);
     }
 }

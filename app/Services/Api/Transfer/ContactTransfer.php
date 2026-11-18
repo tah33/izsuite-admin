@@ -9,6 +9,7 @@ use App\Repositories\Admin\LanguageRepository;
 use App\Repositories\User\ContactRepository;
 use App\Services\Api\Contacts\ContactDuplicates;
 use App\Services\Api\Contacts\ContactService;
+use App\Services\Shared\WorkspaceAccess;
 use App\Support\Countries;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\LazyCollection;
@@ -42,6 +43,7 @@ class ContactTransfer implements Transfer
         protected ContactService $contactService,
         protected ContactDuplicates $contactDuplicates,
         protected LanguageRepository $languageRepository,
+        protected WorkspaceAccess $access,
     ) {}
 
     public function plural(): string
@@ -145,8 +147,9 @@ class ContactTransfer implements Transfer
             'Customer Payment Terms'    => fn (Contact $contact) => $contact->customer_payment_terms,
             'Default Purchase Currency' => fn (Contact $contact) => $contact->purchase_currency,
             'Supplier Payment Terms'    => fn (Contact $contact) => $contact->supplier_payment_terms,
-            // Tax details only while the business uses taxes, as on its pages.
-            ...($workspace->usesTaxes() ? [
+            // Tax details only while the business uses taxes, as on its pages -
+            // and for a user who may see tax information (Doc 12 section 14).
+            ...($workspace->usesTaxes() && $this->access->can('taxes.view') ? [
                 'Tax ID'               => fn (Contact $contact) => $contact->tax_number,
                 'Tax Country'          => fn (Contact $contact) => Countries::name($contact->tax_country),
                 'Tax Treatment'        => fn (Contact $contact) => $contact->tax_treatment?->label(),

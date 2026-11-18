@@ -4,6 +4,7 @@ namespace App\Services\Api\PaymentAccounts;
 
 use App\Models\User\AccountTransaction;
 use App\Models\User\AccountTransfer;
+use App\Models\User\CustomerAdvance;
 use App\Models\User\PaymentAccount;
 use App\Models\User\SalesPayment;
 use App\Models\User\ExpensePayment;
@@ -52,6 +53,27 @@ class AccountLedger
             'source_id'          => $payment->id,
             'reference'          => $payment->number ?? $payment->reference,
             'created_by'         => $payment->created_by,
+        ]);
+    }
+
+    /** The row a customer advance writes (Doc 16 Phase D1): money in, naming the order or invoice it came with. */
+    public function recordAdvance(Workspace $workspace, CustomerAdvance $advance): void
+    {
+        $this->accountTransactionRepository->create($workspace, [
+            'payment_account_id' => $advance->payment_account_id,
+            'transaction_date'   => $advance->payment_date,
+            'type'               => 'customer_advance',
+            'direction'          => AccountTransaction::IN,
+            'amount'             => $advance->account_amount,
+            'base_amount'        => $advance->base_amount,
+            'status'             => AccountTransaction::COMPLETED,
+            'contact_id'         => $advance->contact_id,
+            'location_id'        => $advance->location_id,
+            'sales_document_id'  => $advance->sales_document_id,
+            'source_type'        => $advance->getMorphClass(),
+            'source_id'          => $advance->id,
+            'reference'          => $advance->number,
+            'created_by'         => $advance->created_by,
         ]);
     }
 

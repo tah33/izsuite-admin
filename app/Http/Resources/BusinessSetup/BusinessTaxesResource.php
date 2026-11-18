@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\BusinessSetup;
 
+use App\Http\Resources\Concerns\HidesValues;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -13,9 +14,14 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class BusinessTaxesResource extends JsonResource
 {
+    use HidesValues;
+
+    /** What a user without View Tax Information does not see: the business's tax registration (Doc 12 section 14). */
+    private const REGISTRATION = ['tax_registration_status', 'tax_country', 'tax_1_name', 'tax_1_no', 'tax_2_name', 'tax_2_no'];
+
     public function toArray(Request $request): array
     {
-        return [
+        return $this->hideWithout('taxes.view', [
             'tax_mode'                => $this->resource['tax_mode'],
             'price_tax_mode'          => $this->resource['price_tax_mode'],
             'tax_rounding'            => $this->resource['tax_rounding'],
@@ -29,6 +35,6 @@ class BusinessTaxesResource extends JsonResource
             'tax_1_no'                => $this->resource['tax_1_no'],
             'tax_2_name'              => $this->resource['tax_2_name'],
             'tax_2_no'                => $this->resource['tax_2_no'],
-        ];
+        ], self::REGISTRATION);
     }
 }

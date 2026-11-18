@@ -19,7 +19,7 @@ class SalesDefaultsRequest extends FormRequest
         }
     }
 
-    /** What a new document's defaults follow: the customer chosen, its date, and a currency picked by hand. */
+    /** What a new document's defaults follow: the customer chosen, its date, a currency picked by hand, and the CRM opportunity it is made from (Doc 17 Phase F1). */
     public function rules(): array
     {
         $workspace = $this->attributes->get('workspace');
@@ -28,6 +28,7 @@ class SalesDefaultsRequest extends FormRequest
             'contact_id'    => ['nullable', 'integer'],
             'document_date' => ['nullable', 'date_format:Y-m-d'],
             'currency'      => ['nullable', 'string', Rule::in($workspace?->currencyCodes() ?? [])],
+            'opportunity_id' => ['nullable', 'integer'],
         ];
     }
 }

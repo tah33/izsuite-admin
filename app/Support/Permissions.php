@@ -15,6 +15,15 @@ namespace App\Support;
  * need Edit Draft, a draft needs the contacts and items it is made from, and
  * a payment the record it pays and the payment accounts.
  *
+ * An app's values - amounts, prices, totals - have a View of their own
+ * (section 14): a role without it sees the app's records with their values
+ * hidden. Anything more than viewing such a record - making, changing,
+ * sending, paying, exporting - needs its values in sight. So do items'
+ * purchase prices, payment accounts' balances and full details, and tax
+ * information: a role sees them only with their own permission, and needs it
+ * to change what holds them. The Activity Log, which records them all as they
+ * were, needs every one of them.
+ *
  * ALL stands for every permission there is, apps turned on later included:
  * what the Business Owner and a role with full access hold.
  */
@@ -35,11 +44,15 @@ final class Permissions
     /** group => [label, app family (null: Core Workspace), [action => label]], in the order a role shows them. */
     public const GROUPS = [
         'dashboard'        => ['Dashboard', null, ['view' => self::VIEW]],
-        'contacts'         => ['Contacts', null, ['view' => self::VIEW, 'create' => 'Create', 'edit' => 'Edit', 'delete' => 'Delete', 'import' => 'Import', 'export' => 'Export']],
-        'items'            => ['Items', null, ['view' => self::VIEW, 'create' => 'Create', 'edit' => 'Edit', 'delete' => 'Delete', 'import' => 'Import', 'export' => 'Export']],
-        'payment_accounts' => ['Payment Accounts', null, ['view' => self::VIEW, 'create' => 'Create', 'edit' => 'Edit', 'delete' => 'Delete', 'transfer' => 'Transfer Money', 'export' => 'Export']],
-        'documents'        => ['Documents', null, ['view' => self::VIEW, 'export' => 'Export']],
+        'contacts'         => ['Contacts', null, ['view' => self::VIEW, 'create' => 'Create', 'edit' => 'Edit', 'delete' => 'Delete', 'import' => 'Import', 'export' => 'Export', 'merge' => 'Merge']],
+        'items'            => ['Items', null, ['view' => self::VIEW, 'create' => 'Create', 'edit' => 'Edit', 'delete' => 'Delete', 'import' => 'Import', 'export' => 'Export', 'costs' => 'View Purchase Prices or Costs']],
+        'payment_accounts' => ['Payment Accounts', null, [
+            'view' => self::VIEW, 'create' => 'Create', 'edit' => 'Edit', 'delete' => 'Delete', 'transfer' => 'Transfer Money', 'export' => 'Export',
+            'balances' => 'View Balances', 'details' => 'View Full Account Details',
+        ]],
+        'documents'        => ['Documents', null, ['view' => self::VIEW, 'export' => 'Export', 'number' => 'Enter Numbers by Hand']],
         'reports'          => ['Reports', null, ['view' => 'View Reports', 'export' => 'Export']],
+        'taxes'            => ['Tax Information', null, ['view' => 'View Tax Information']],
         'settings'         => ['Settings', null, [
             'view'         => self::VIEW,
             'business'     => 'Manage Business Settings',
@@ -54,34 +67,122 @@ final class Permissions
 
         'sales.quotations'   => ['Quotations', 'sales', [...self::DRAFTS, 'send' => 'Send or Share', 'cancel' => 'Cancel', 'delete' => 'Delete Draft']],
         'sales.proformas'    => ['Proforma Invoices', 'sales', [...self::DRAFTS, 'send' => 'Send or Share', 'cancel' => 'Cancel', 'delete' => 'Delete Draft']],
+        // The full Sales app's (Doc 16 Phase B): a fourth element names the edition it shows with.
+        'sales.orders'       => ['Sales Orders', 'sales', [
+            ...self::DRAFTS, 'confirm' => 'Confirm, Hold or Complete', 'amend' => 'Edit Confirmed Orders', 'send' => 'Send or Share', 'cancel' => 'Cancel', 'delete' => 'Delete Draft',
+            'invoice_beyond' => 'Invoice Beyond the Order',
+        ], 'full'],
+        // Delivery notes (Doc 16 Phase C): no values on them.
+        'sales.deliveries'   => ['Deliveries', 'sales', [
+            ...self::DRAFTS, 'deliver' => 'Mark Ready or Delivered', 'cancel' => 'Cancel', 'delete' => 'Delete Draft',
+        ], 'full'],
+        // Customer returns (Doc 16 Phase E): no values on them.
+        'sales.returns'      => ['Returns', 'sales', [
+            ...self::DRAFTS, 'authorise' => 'Authorise or Reject', 'receive' => 'Mark Received or Completed', 'cancel' => 'Cancel', 'delete' => 'Delete Draft',
+        ], 'full'],
         'sales.invoices'     => ['Invoices', 'sales', [...self::DRAFTS, 'issue' => 'Issue', 'send' => 'Send or Share', 'void' => 'Void', 'delete' => 'Delete Draft']],
         'sales.payments'     => ['Customer Payments', 'sales', self::PAYMENTS],
+        // Customer advances, and credit applied to invoices (Doc 16 Phase D1).
+        'sales.advances'     => ['Customer Advances', 'sales', [
+            'view' => self::VIEW, 'record' => 'Record Advance', 'apply' => 'Apply Advances and Credit', 'reverse' => 'Reverse Advance',
+        ], 'full'],
         'sales.credit_notes' => ['Credit Notes', 'sales', [...self::DRAFTS, 'issue' => 'Issue', 'send' => 'Send or Share', 'void' => 'Void', 'delete' => 'Delete Draft']],
         'sales.refunds'      => ['Refunds', 'sales', ['record' => 'Record Refund']],
+        // A price typed by hand, and a discount past the role's largest (Doc 16 Phase F2).
+        'sales.pricing'      => ['Prices and Discounts', 'sales', ['override' => 'Change Prices by Hand', 'beyond' => 'Discount Beyond the Limit'], 'full'],
+        // A customer's credit limit, and going past it (Doc 16 Phase G1).
+        'sales.credit'       => ['Customer Credit', 'sales', ['manage' => 'Set Credit Limits', 'override' => 'Override Credit Limits'], 'full'],
+        // Price lists (Doc 16 Phase F1).
+        'sales.price_lists'  => ['Price Lists', 'sales', ['view' => self::VIEW, 'manage' => 'Add or Change'], 'full'],
+        'sales.values'       => ['Sales Values', 'sales', ['view' => 'View Sales Values']],
         'sales.settings'     => ['Sales Settings', 'sales', self::APP_SETTINGS],
 
         'purchases.purchases'   => ['Purchases', 'purchases', [...self::DRAFTS, 'record' => 'Record', 'void' => 'Void', 'delete' => 'Delete Draft', 'export' => 'Export']],
         'purchases.payments'    => ['Supplier Payments', 'purchases', self::PAYMENTS],
         'purchases.attachments' => ['Purchase Attachments', 'purchases', self::ATTACHMENTS],
+        'purchases.values'      => ['Purchase Values', 'purchases', ['view' => 'View Purchase Values']],
         'purchases.settings'    => ['Purchase Settings', 'purchases', self::APP_SETTINGS],
 
         'expenses.expenses'    => ['Expenses', 'expenses', [...self::DRAFTS, 'record' => 'Record', 'void' => 'Void', 'delete' => 'Delete Draft', 'export' => 'Export']],
         'expenses.categories'  => ['Expense Categories', 'expenses', ['view' => self::VIEW, 'manage' => 'Add or Change']],
         'expenses.payments'    => ['Expense Payments', 'expenses', self::PAYMENTS],
         'expenses.attachments' => ['Receipt Attachments', 'expenses', self::ATTACHMENTS],
+        'expenses.values'      => ['Expense Values', 'expenses', ['view' => 'View Expense Values']],
         'expenses.settings'    => ['Expense Settings', 'expenses', self::APP_SETTINGS],
+
+        // CRM (Doc 17 section 17.30): each phase adds its own - Phase A1 its settings, B1 leads and whose records are seen.
+        'crm.leads'    => ['Leads', 'crm', ['view' => self::VIEW, 'manage' => 'Create and Edit', 'assign' => 'Assign Leads', 'reopen' => 'Reopen Unqualified or Archived', 'convert' => 'Convert Leads']],
+        // Phase D1: opportunities - the stage they are at, and a probability other than the stage's, apart; D2a their ending.
+        'crm.opportunities' => ['Opportunities', 'crm', ['view' => self::VIEW, 'manage' => 'Create and Edit', 'stage' => 'Change Stages', 'probability' => 'Change Probability', 'close' => 'Mark Won or Lost', 'reopen' => 'Reopen Won or Lost']],
+        // Phase E1: activities - planning, changing, completing and cancelling them are Create and Edit.
+        'crm.activities' => ['Activities', 'crm', ['view' => self::VIEW, 'manage' => 'Create and Edit']],
+        // Phase F3a: e-mail from a lead, an opportunity or a contact the user sees.
+        'crm.emails' => ['E-mail', 'crm', ['send' => 'Send E-mail']],
+        // Without either, a user sees the CRM records they own (LeadVisibility).
+        'crm.records'  => ['CRM Records', 'crm', ['team' => 'View Team Records', 'all' => 'View All CRM Records']],
+        // Phase H1: CRM's reports on the Reports page, each with the view of what it counts besides.
+        'crm.reports'  => ['CRM Reports', 'crm', ['view' => 'View CRM Reports']],
+        // Phase I1: the lead assignment rules in Settings → CRM - and I2's scoring rules.
+        'crm.rules'    => ['Assignment and Scoring Rules', 'crm', ['manage' => 'Manage Assignment and Scoring Rules']],
+        'crm.settings' => ['CRM Settings', 'crm', self::APP_SETTINGS],
+    ];
+
+    /** The groups whose records carry their app's values: anything but viewing one needs them. */
+    private const VALUED = [
+        'sales.quotations', 'sales.proformas', 'sales.orders', 'sales.invoices', 'sales.payments', 'sales.advances', 'sales.credit_notes', 'sales.refunds',
+        'purchases.purchases', 'purchases.payments',
+        'expenses.expenses', 'expenses.payments',
     ];
 
     /** What a permission needs besides its group's View (and Edit Draft, for Issue and Record). */
     private const REQUIRES = [
+        // A form or a file holds what it changes: a contact's tax details, an item's purchase price, an account's balance and numbers.
+        'contacts.create'            => ['taxes.view'],
+        'contacts.edit'              => ['taxes.view'],
+        'contacts.import'            => ['taxes.view'],
+        // Merging one contact into another (Doc 17 Phase C3) edits the one kept and archives the other.
+        'contacts.merge'             => ['contacts.edit'],
+        'items.create'               => ['items.costs'],
+        'items.edit'                 => ['items.costs'],
+        'items.import'               => ['items.costs'],
+        'payment_accounts.create'    => ['payment_accounts.balances', 'payment_accounts.details'],
+        'payment_accounts.edit'      => ['payment_accounts.balances', 'payment_accounts.details'],
+        'payment_accounts.transfer'  => ['payment_accounts.balances'],
+        'payment_accounts.export'    => ['payment_accounts.balances'],
+        'settings.currency_tax'      => ['taxes.view'],
+        // The Activity Log writes down what was changed and paid - amounts, prices, balances, numbers and tax details as they were.
+        'settings.audit'             => [
+            'items.costs', 'payment_accounts.balances', 'payment_accounts.details', 'taxes.view',
+            'sales.values.view', 'purchases.values.view', 'expenses.values.view',
+        ],
+
         'sales.quotations.create'    => ['contacts.view', 'items.view'],
         'sales.proformas.create'     => ['contacts.view', 'items.view'],
+        'sales.orders.create'        => ['contacts.view', 'items.view'],
+        'sales.orders.amend'         => ['sales.orders.edit'],
+        'sales.orders.invoice_beyond' => ['sales.invoices.create'],
+        'sales.deliveries.create'    => ['sales.orders.view'],
+        'sales.returns.create'       => ['sales.orders.view'],
         'sales.invoices.create'      => ['contacts.view', 'items.view'],
         'sales.credit_notes.create'  => ['sales.invoices.view'],
         'sales.payments.record'      => ['sales.invoices.view', 'payment_accounts.view'],
         'sales.payments.reverse'     => ['payment_accounts.view'],
+        'sales.advances.record'      => ['contacts.view', 'payment_accounts.view'],
+        'sales.advances.apply'       => ['sales.invoices.view'],
+        'sales.advances.reverse'     => ['payment_accounts.view'],
+        // A customer's credit is told in amounts: what they owe against their limit.
+        'sales.credit.manage'        => ['contacts.view', 'sales.values.view'],
+        'sales.credit.override'      => ['sales.values.view'],
         'sales.refunds.record'       => ['sales.credit_notes.view', 'payment_accounts.view'],
         'sales.settings.manage'      => ['settings.view'],
+        // Converting a lead (Doc 17 Phase C1) finds or makes its contact; a new one needs contacts.create besides.
+        'crm.leads.convert'          => ['crm.leads.manage', 'contacts.view'],
+        // An opportunity is for one of the business's contacts (Phase D1).
+        'crm.opportunities.manage'   => ['contacts.view'],
+        // CRM's reports are on the Reports page (Phase H1).
+        'crm.reports.view'           => ['reports.view'],
+        // Its rules are in Settings → CRM (Phase I1).
+        'crm.rules.manage'           => ['settings.view'],
         'purchases.purchases.create' => ['contacts.view', 'items.view'],
         'purchases.payments.record'  => ['purchases.purchases.view', 'payment_accounts.view'],
         'purchases.payments.reverse' => ['payment_accounts.view'],
@@ -117,15 +218,29 @@ final class Permissions
     {
         $keys = [];
 
-        foreach (self::GROUPS as $group => [, $family, $actions]) {
-            if ($family === null || $families === null || in_array($family, $families, true)) {
-                foreach (array_keys($actions) as $action) {
+        foreach (self::GROUPS as $group => $definition) {
+            if (self::offered($definition, $families)) {
+                foreach (array_keys($definition[2]) as $action) {
                     $keys[] = "{$group}.{$action}";
                 }
             }
         }
 
         return $keys;
+    }
+
+    /**
+     * Whether a group counts among $families' (null: every app's): the Core
+     * Workspace's always, an app's while it is on - and a full edition's
+     * group only with "{family}:full" among them (WorkspaceApps::permissionFamilies).
+     */
+    private static function offered(array $definition, ?array $families): bool
+    {
+        $family  = $definition[1];
+        $edition = $definition[3] ?? null;
+
+        return $family === null || $families === null
+            || (in_array($family, $families, true) && ($edition === null || in_array("{$family}:{$edition}", $families, true)));
     }
 
     public static function exists(string $permission): bool
@@ -199,12 +314,23 @@ final class Permissions
                 'dashboard.view', 'contacts.view', 'contacts.create', 'contacts.edit', 'items.view', 'documents.view',
                 ...self::actionsOf('sales.quotations', ['view', 'create', 'edit', 'send', 'cancel', 'delete']),
                 ...self::actionsOf('sales.proformas', ['view', 'create', 'edit', 'send', 'cancel', 'delete']),
+                ...self::actionsOf('sales.orders', ['view', 'create', 'edit', 'confirm', 'send', 'cancel', 'delete']),
+                ...self::actionsOf('sales.deliveries', ['view', 'create', 'edit', 'deliver']),
+                ...self::actionsOf('sales.returns', ['view', 'create', 'edit']),
+                'sales.pricing.override',
                 ...self::actionsOf('sales.invoices', ['view', 'create', 'edit', 'issue', 'send', 'delete']),
                 'sales.payments.view', 'sales.payments.record', 'sales.credit_notes.view',
+                ...self::actionsOf('sales.advances', ['view', 'record', 'apply']),
+                // Their own leads (Doc 17 Phase B1).
+                'crm.leads.view', 'crm.leads.manage', 'crm.leads.convert',
+                // And their opportunities (Phase D1), won or lost (D2a), without a probability of their own or reopening.
+                'crm.opportunities.view', 'crm.opportunities.manage', 'crm.opportunities.stage', 'crm.opportunities.close',
+                // And their activities (Phase E1), and e-mail from their records (F3a).
+                'crm.activities.view', 'crm.activities.manage', 'crm.emails.send',
             ],
 
             'purchase_user' => [
-                'dashboard.view', 'contacts.view', 'contacts.create', 'contacts.edit', 'items.view', 'documents.view',
+                'dashboard.view', 'contacts.view', 'contacts.create', 'contacts.edit', 'items.view', 'items.costs', 'documents.view',
                 ...self::actionsOf('purchases.purchases', ['view', 'create', 'edit', 'record', 'delete']),
                 'purchases.payments.view', 'purchases.payments.record', 'purchases.attachments.view', 'purchases.attachments.manage',
             ],
@@ -217,9 +343,12 @@ final class Permissions
             ],
 
             'finance_user' => [
-                'dashboard.view', 'contacts.view', 'documents.view', 'reports.view', 'reports.export',
-                ...self::actionsOf('payment_accounts', ['view', 'create', 'edit', 'transfer', 'export']),
+                'dashboard.view', 'contacts.view', 'documents.view', 'reports.view', 'reports.export', 'taxes.view',
+                ...self::actionsOf('payment_accounts', ['view', 'create', 'edit', 'transfer', 'export', 'balances', 'details']),
                 'sales.invoices.view', 'sales.credit_notes.view', 'sales.payments.view', 'sales.payments.record', 'sales.payments.reverse', 'sales.refunds.record',
+                ...self::actionsOf('sales.advances', ['view', 'record', 'apply', 'reverse']),
+                // Credit control is finance's (Doc 16 Phase G1).
+                'sales.credit.manage', 'sales.credit.override',
                 'purchases.purchases.view', 'purchases.payments.view', 'purchases.payments.record', 'purchases.payments.reverse',
                 'expenses.expenses.view', 'expenses.payments.view', 'expenses.payments.record', 'expenses.payments.reverse',
             ],
@@ -244,8 +373,10 @@ final class Permissions
     {
         $groups = [];
 
-        foreach (self::GROUPS as $group => [$label, $family, $actions]) {
-            if ($family !== null && ! in_array($family, $families, true)) {
+        foreach (self::GROUPS as $group => $definition) {
+            [$label, $family, $actions] = $definition;
+
+            if (! self::offered($definition, $families)) {
                 continue;
             }
 
@@ -262,6 +393,17 @@ final class Permissions
         }
 
         return $groups;
+    }
+
+    /**
+     * The permission groups app $family brings to roles (Doc 13 section 6),
+     * by their labels: "Quotations", "Invoices", "Sales Values"…
+     *
+     * @return list<string>
+     */
+    public static function groupLabelsOf(string $family): array
+    {
+        return array_values(array_map(fn (array $group) => $group[0], array_filter(self::GROUPS, fn (array $group) => $group[1] === $family)));
     }
 
     /** A permission's label as one line of the Activity Log: "Invoices: Issue". */
@@ -285,8 +427,12 @@ final class Permissions
             $needs[] = "{$group}.view";
         }
 
-        if (in_array($action, ['issue', 'record'], true) && isset($actions['edit'])) {
+        if (in_array($action, ['issue', 'record', 'confirm', 'deliver'], true) && isset($actions['edit'])) {
             $needs[] = "{$group}.edit";
+        }
+
+        if ($action !== 'view' && in_array($group, self::VALUED, true)) {
+            $needs[] = self::GROUPS[$group][1].'.values.view';
         }
 
         return $needs;

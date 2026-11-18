@@ -59,9 +59,11 @@ class SalesPaymentController extends Controller
     {
         try {
             $payment = $this->salesPaymentService->record($this->currentWorkspace($request), $id, $request->user(), $request->validated());
+            // What it brought over the balance, kept as the customer's advance (Doc 16 Phase D1).
+            $kept = $payment->relationLoaded('keptAdvance') ? $payment->getRelation('keptAdvance') : null;
 
             return response()->json([
-                'message' => "Payment recorded. Receipt {$payment->number}.",
+                'message' => "Payment recorded. Receipt {$payment->number}.".($kept ? " {$kept->currency} {$kept->amount} kept as advance {$kept->number}." : ''),
                 'data'    => new SalesPaymentResource($payment),
             ], 201);
 

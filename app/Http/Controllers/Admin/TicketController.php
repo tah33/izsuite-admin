@@ -3,11 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ListTicketsRequest;
+use App\Http\Requests\Admin\NewTicketRequest;
 use App\Http\Requests\Admin\ReplyTicketRequest;
 use App\Http\Requests\Admin\StoreTicketRequest;
 use App\Http\Requests\Admin\UpdateTicketRequest;
 use App\Services\Admin\TicketService;
-use Illuminate\Http\Request;
 
 class TicketController extends Controller
 {
@@ -16,19 +17,15 @@ class TicketController extends Controller
     ) {}
 
     /**
-     * Display a listing of tickets.
+     * The support cases: by status, words, or one business's (Doc 15 section 15.22).
      */
-    public function index(Request $request)
+    public function index(ListTicketsRequest $request)
     {
         try {
-            $filters = [
-                'status' => $request->get('status'),
-                'search' => $request->get('search'),
-            ];
+            $tickets  = $this->ticketService->getTickets($request->validated());
+            $business = $this->ticketService->findBusiness($request->validated('workspace'));
 
-            $tickets = $this->ticketService->getTickets($filters);
-
-            return view('admin.tickets.index', compact('tickets'));
+            return view('admin.tickets.index', compact('tickets', 'business'));
 
         } catch (\Throwable $e) {
             report($e);
@@ -37,15 +34,16 @@ class TicketController extends Controller
     }
 
     /**
-     * Show the form for creating a new ticket.
+     * The new-case form: for someone in a business when opened from its page.
      */
-    public function create()
+    public function create(NewTicketRequest $request)
     {
         try {
-            $users = $this->ticketService->getUsers();
-            $staff = $this->ticketService->getStaff();
+            $business = $this->ticketService->findBusiness($request->validated('workspace'));
+            $users    = $this->ticketService->getUsers($business);
+            $staff    = $this->ticketService->getStaff();
 
-            return view('admin.tickets.create', compact('users', 'staff'));
+            return view('admin.tickets.create', compact('users', 'staff', 'business'));
 
         } catch (\Throwable $e) {
             report($e);
@@ -60,11 +58,13 @@ class TicketController extends Controller
     {
         try {
             $ticket = $this->ticketService->createTicket(
-                userId: $request->user_id,
-                subject: $request->subject,
-                priority: $request->priority,
-                message: $request->message,
-                assignedTo: $request->assigned_to,
+                admin: $request->user(),
+                userId: (int) $request->validated('user_id'),
+                subject: $request->validated('subject'),
+                priority: $request->validated('priority'),
+                message: $request->validated('message'),
+                assignedTo: $request->validated('assigned_to'),
+                workspaceId: $request->validated('workspace_id'),
             );
 
             return redirect()->route('admin.tickets.show', $ticket->id)

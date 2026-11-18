@@ -3,13 +3,19 @@
 namespace App\Services\User\Apps;
 
 use App\Enums\Edition;
+use App\Enums\FileCollection;
 use App\Models\Frontend\MenuItem;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceApp;
 use App\Repositories\Admin\MenuItemRepository;
+use App\Repositories\User\SalesSettingRepository;
+use App\Repositories\User\WorkspaceFileRepository;
+use App\Services\Files\FileStorage;
 use App\Services\Shared\BusinessCalendar;
+use App\Services\Shared\Features;
 use App\Services\Shared\WorkspaceAccess;
+use App\Services\User\Workspaces\BusinessStatusService;
 use App\Support\Permissions;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -31,12 +37,43 @@ use Illuminate\Support\Facades\Cache;
  */
 class NavigationBuilder
 {
+    /**
+     * A full edition's menu where it orders its pages otherwise than Lite: Sales
+     * as Doc 16 section 16.3 lists it - Sales Lite keeps Doc 08's, Invoices
+     * first - and CRM, which has one edition, as Doc 17 section 17.3 does. A
+     * page not built yet is simply not there.
+     */
+    private const FULL_ORDER = [
+        'sales' => [
+            '/sales/overview', '/sales/quotations', '/sales/proformas', '/sales/orders', '/sales/deliveries', '/sales/invoices',
+            '/sales/returns', '/sales/credit-notes', '/sales/payments', '/sales/price-lists', '/contacts?role=customer',
+        ],
+        'crm' => ['/crm/overview', '/crm/leads', '/crm/opportunities', '/crm/activities', '/crm/forecast', '/contacts?role=customer'],
+    ];
+
     public function __construct(
         private ShowIfRules $rules,
         private MenuItemRepository $menuItems,
         private BusinessCalendar $calendar,
         private WorkspaceAccess $access,
+        private WorkspaceFileRepository $workspaceFiles,
+        private FileStorage $fileStorage,
+        private BusinessStatusService $statuses,
+        private Features $features,
+        private SalesSettingRepository $salesSettings,
     ) {}
+
+    /** @return array{start_as: string, deposit_percent: ?string, backorders: string} */
+    private function salesChoices(Workspace $workspace): array
+    {
+        $settings = $this->salesSettings->forWorkspace($workspace);
+
+        return [
+            'start_as'        => $settings->new_sales_start_as,
+            'deposit_percent' => $settings->deposit_percent === null ? null : (string) $settings->deposit_percent,
+            'backorders'      => $settings->backorders,
+        ];
+    }
 
     public function for(?Workspace $workspace, User $user): array
     {
@@ -48,7 +85,29 @@ class NavigationBuilder
             CatalogVersion::current(),
         );
 
-        return Cache::remember($key, now()->addDay(), fn () => $this->build($workspace, $user));
+        $navigation = Cache::remember($key, now()->addDay(), fn () => $this->build($workspace, $user));
+
+        // The business's logo beside its name in the header (Doc 14 section 3).
+        // It is read fresh, not cached: a new logo replaces the old file
+        // without the business's nav_version going up.
+        if ($workspace && $navigation['workspace']) {
+            $navigation['workspace']['logo_url'] = $this->logoUrl($workspace);
+
+            // Its status, read fresh too (Doc 15 section 15.6): null while Active.
+            $navigation['workspace']['status'] = $this->statuses->forNavigation($workspace, $user);
+        }
+
+        // The features on for it (Doc 15 section 15.12), fresh: a flag switched off counts at once.
+        $navigation['features'] = $workspace ? $this->features->for($workspace) : [];
+
+        return $navigation;
+    }
+
+    private function logoUrl(Workspace $workspace): ?string
+    {
+        $logo = $this->workspaceFiles->inCollection($workspace, FileCollection::Logo)->first();
+
+        return $logo ? $this->fileStorage->url($logo, thumbnail: true) : null;
     }
 
     private function build(?Workspace $workspace, User $user): array
@@ -94,6 +153,10 @@ class NavigationBuilder
 
                 // Until it is, the business opens its setup wizard (Doc 11 section 3).
                 'setup_completed' => $workspace->isSetUp(),
+
+                // The full Sales app's choices pages act on (Doc 16 Phase H1): what New Sale opens,
+                // a deposit's starting percentage and the backorder rule. Null on Sales Lite.
+                'sales'           => $apps?->has('sales', Edition::Full) ? $this->salesChoices($workspace) : null,
             ] : null,
 
             // An object even when empty, so the client always gets a map.
@@ -139,11 +202,27 @@ class NavigationBuilder
                 'label'    => $row->app->name,
                 'icon'     => $row->app->icon,
                 'edition'  => $row->app->edition->value,
-                'children' => $this->tree($items->where('family_key', $row->family_key)),
+                'children' => $this->tree($this->inEditionOrder($items->where('family_key', $row->family_key), $row)),
             ])
             ->filter(fn (array $entry) => ! $pruneEmpty || $entry['children'] !== [])
             ->values()
             ->all();
+    }
+
+    /**
+     * $items - a family's - in its full edition's own order where it has one
+     * (FULL_ORDER), the rest after them as they come. The Lite edition keeps
+     * the menu's order.
+     */
+    private function inEditionOrder(Collection $items, WorkspaceApp $row): Collection
+    {
+        $order = $row->app->edition === Edition::Full ? (self::FULL_ORDER[$row->family_key] ?? null) : null;
+
+        if (! $order) {
+            return $items;
+        }
+
+        return $items->sortBy(fn (MenuItem $item) => [array_search($item->route, $order, true) === false ? PHP_INT_MAX : array_search($item->route, $order, true), $item->sort_order]);
     }
 
     private function tree(Collection $items, ?int $parentId = null): array

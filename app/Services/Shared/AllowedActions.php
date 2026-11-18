@@ -3,6 +3,12 @@
 namespace App\Services\Shared;
 
 use App\Enums\DocumentType;
+use App\Enums\Edition;
+use App\Models\User\Workspace;
+use App\Repositories\User\CrmSettingRepository;
+use App\Repositories\User\SalesSettingRepository;
+use App\Services\User\Apps\WorkspaceApps;
+use Illuminate\Http\Request;
 
 /**
  * The actions a record offers (Doc 12 section 13), less those the signed-in
@@ -19,32 +25,155 @@ class AllowedActions
         protected WorkspaceAccess $access,
     ) {}
 
-    /** A sales document's actions, by its kind. */
+    /**
+     * A sales document's actions, by its kind. On Sales Lite a sales order -
+     * the full Sales app's (Doc 16 Phase B) - offers none, as it is only read,
+     * and nothing converts to one.
+     */
     public function sales(DocumentType $type, array $actions): array
     {
         $kind = $type->permissionGroup();
 
+        if (! $this->fullSales()) {
+            $actions = $type->edition() === Edition::Full ? [] : array_values(array_diff($actions, ['convert_to_sales_order', 'apply_credit']));
+        }
+
+        // Advances are taken only where Settings > Sales has them on (Doc 16 section 16.15).
+        if (in_array('record_advance', $actions, true) && ! $this->advancesOn()) {
+            $actions = array_values(array_diff($actions, ['record_advance']));
+        }
+
         return $this->keep($actions, [
-            'edit'                => "{$kind}.edit",
-            'accept'              => "{$kind}.edit",
-            'reject'              => "{$kind}.edit",
-            'issue'               => "{$kind}.issue",
-            'send'                => "{$kind}.send",
-            'cancel'              => "{$kind}.cancel",
-            'void'                => "{$kind}.void",
-            'delete'              => "{$kind}.delete",
-            'convert_to_proforma' => 'sales.proformas.create',
-            'convert_to_invoice'  => 'sales.invoices.create',
-            'record_payment'      => 'sales.payments.record',
-            'credit_note'         => 'sales.credit_notes.create',
-            'refund'              => $type === DocumentType::Invoice ? ['sales.credit_notes.create', 'sales.refunds.record'] : 'sales.refunds.record',
+            'edit'                   => "{$kind}.edit",
+            'accept'                 => "{$kind}.edit",
+            'reject'                 => "{$kind}.edit",
+            'issue'                  => "{$kind}.issue",
+            'send'                   => "{$kind}.send",
+            'cancel'                 => "{$kind}.cancel",
+            'void'                   => "{$kind}.void",
+            'delete'                 => "{$kind}.delete",
+            'confirm'                => "{$kind}.confirm",
+            'hold'                   => "{$kind}.confirm",
+            'resume'                 => "{$kind}.confirm",
+            'complete'               => "{$kind}.confirm",
+            'amend'                  => "{$kind}.amend",
+            'duplicate'              => "{$kind}.create",
+            'convert_to_proforma'    => 'sales.proformas.create',
+            'convert_to_sales_order' => 'sales.orders.create',
+            'convert_to_invoice'     => 'sales.invoices.create',
+            'create_proforma'        => 'sales.proformas.create',
+            'create_invoice'         => 'sales.invoices.create',
+            'create_deposit'         => 'sales.invoices.create',
+            'create_return'          => 'sales.returns.create',
+            'create_delivery'        => 'sales.deliveries.create',
+            'record_advance'         => 'sales.advances.record',
+            'apply_credit'           => 'sales.advances.apply',
+            'record_payment'         => 'sales.payments.record',
+            'credit_note'            => 'sales.credit_notes.create',
+            'refund'                 => $type === DocumentType::Invoice ? ['sales.credit_notes.create', 'sales.refunds.record'] : 'sales.refunds.record',
         ]);
     }
 
-    /** How a sales document reaches its customer - e-mail, reminder, a link: its kind's Send or Share. */
+    /** How a sales document reaches its customer - e-mail, reminder, a link: its kind's Send or Share - none for an order on Sales Lite. */
     public function delivery(DocumentType $type, array $ways): array
     {
+        if ($type->edition() === Edition::Full && ! $this->fullSales()) {
+            return [];
+        }
+
         return $this->access->can("{$type->permissionGroup()}.send") ? $ways : [];
+    }
+
+    /** A delivery note's actions (Doc 16 Phase C): Ready and Delivered come under Mark Ready or Delivered. */
+    /** A customer return's (Doc 16 Phase E). */
+    public function salesReturn(array $actions): array
+    {
+        return $this->keep($actions, [
+            'edit'      => 'sales.returns.edit',
+            'submit'    => 'sales.returns.edit',
+            'authorise' => 'sales.returns.authorise',
+            'reject'    => 'sales.returns.authorise',
+            'receive'   => 'sales.returns.receive',
+            'complete'  => 'sales.returns.receive',
+            'cancel'    => 'sales.returns.cancel',
+            'delete'    => 'sales.returns.delete',
+        ]);
+    }
+
+    /** A customer advance's (Doc 16 Phase D1). */
+    public function advance(array $actions): array
+    {
+        return $this->keep($actions, ['apply' => 'sales.advances.apply', 'reverse' => 'sales.advances.reverse']);
+    }
+
+    public function deliveryNote(array $actions): array
+    {
+        return $this->keep($actions, [
+            'edit'    => 'sales.deliveries.edit',
+            'ready'   => 'sales.deliveries.deliver',
+            'deliver' => 'sales.deliveries.deliver',
+            'cancel'  => 'sales.deliveries.cancel',
+            'delete'  => 'sales.deliveries.delete',
+            'return'  => 'sales.returns.create',
+        ]);
+    }
+
+    /** A lead's (Doc 17 Phase B1): none while the business works with opportunities only, when leads are read but not changed. */
+    public function lead(array $actions): array
+    {
+        $workspace = app(Request::class)->attributes->get('workspace');
+
+        if ($workspace instanceof Workspace && ! app(CrmSettingRepository::class)->forWorkspace($workspace)->usesLeads()) {
+            return [];
+        }
+
+        return $this->keep($actions, [
+            'edit'      => 'crm.leads.manage',
+            'contact'   => 'crm.leads.manage',
+            'qualify'   => 'crm.leads.manage',
+            'unqualify' => 'crm.leads.manage',
+            'archive'   => 'crm.leads.manage',
+            'assign'    => 'crm.leads.assign',
+            'reopen'    => 'crm.leads.reopen',
+            'convert'   => 'crm.leads.convert',
+        ]);
+    }
+
+    /** An opportunity's (Doc 17 Phases D1 and D2a), in either way of working. */
+    public function opportunity(array $actions): array
+    {
+        return $this->keep($actions, [
+            'edit'    => 'crm.opportunities.manage',
+            'stage'   => 'crm.opportunities.stage',
+            'win'     => 'crm.opportunities.close',
+            'lose'    => 'crm.opportunities.close',
+            'reopen'  => 'crm.opportunities.reopen',
+            'archive' => 'crm.opportunities.manage',
+            'restore' => 'crm.opportunities.manage',
+        ]);
+    }
+
+    /** Whether the business the request is for has the full Sales app on. */
+    /** Settings > Sales's Customer Advances, read once a request. */
+    private function advancesOn(): bool
+    {
+        $request = app(Request::class);
+
+        if (! $request->attributes->has('sales.advances_on')) {
+            $workspace = $request->attributes->get('workspace');
+
+            $request->attributes->set('sales.advances_on', $workspace instanceof Workspace
+                && (bool) (app(SalesSettingRepository::class)->forWorkspace($workspace)->customer_advances ?? true));
+        }
+
+        return (bool) $request->attributes->get('sales.advances_on');
+    }
+
+    private function fullSales(): bool
+    {
+        $workspace = app(Request::class)->attributes->get('workspace');
+
+        return $workspace instanceof Workspace && WorkspaceApps::for($workspace)->has('sales', Edition::Full);
     }
 
     /** A purchase's or an expense's actions - $group "purchases.purchases" or "expenses.expenses". */

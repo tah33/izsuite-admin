@@ -2,8 +2,10 @@
 
 namespace App\Services\Api\PaymentAccounts;
 
+use App\Services\Shared\EditConflicts;
 use App\Models\User\PaymentAccount;
 use App\Models\User\Workspace;
+use App\Repositories\Shared\RecordAuthorRepository;
 use App\Repositories\User\AccountTransactionRepository;
 use App\Repositories\User\PaymentAccountRepository;
 use App\Services\Shared\ActivityLogService;
@@ -43,6 +45,7 @@ class PaymentAccountService
         protected PaymentAccountRepository $paymentAccountRepository,
         protected AccountTransactionRepository $accountTransactionRepository,
         protected WorkspaceAccess $access,
+        protected RecordAuthorRepository $recordAuthorRepository,
     ) {}
 
     /** Every account, each with its recorded balance and whether money has moved through it. */
@@ -58,7 +61,8 @@ class PaymentAccountService
     /** One account, with its recorded balance. Another business's answers like one that does not exist. */
     public function find(Workspace $workspace, int $id): PaymentAccount
     {
-        $account = $this->findOwned($workspace, $id);
+        // With who added it and who last changed it, for its own page (Doc 14 section 14.5).
+        $account = $this->recordAuthorRepository->load($this->findOwned($workspace, $id));
 
         return $this->withBalance($account, $this->accountTransactionRepository->netFor($account), $this->accountTransactionRepository->existsFor($account));
     }
@@ -78,6 +82,9 @@ class PaymentAccountService
     public function update(Workspace $workspace, int $id, array $data): PaymentAccount
     {
         $account     = $this->findOwned($workspace, $id);
+
+        // Changed by someone else since it was opened: refused (Doc 14 section 22).
+        EditConflicts::ensureUnchanged($account, 'this account');
         $replacement = Arr::only($data, self::REPLACEMENTS);
         $data        = $this->withOpeningBalance($this->withCleanInstructions(Arr::except($data, self::REPLACEMENTS)));
 
@@ -170,7 +177,7 @@ class PaymentAccountService
                 : ['is_active' => false, 'default_receiving' => false, 'default_payment' => false]);
         });
 
-        ActivityLogService::record('updated', ($active ? 'Activated' : 'Deactivated')." payment account {$this->quoted($account)}", $account, [
+        ActivityLogService::record('updated', ($active ? 'Restored' : 'Archived')." payment account {$this->quoted($account)}", $account, [
             'source' => 'api',
             'fields' => $account->wasChanged('is_active') ? ['is_active'] : [],
         ]);

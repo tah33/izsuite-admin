@@ -11,7 +11,8 @@ use Illuminate\Database\Eloquent\Collection;
 class WorkspaceMemberRepository
 {
     /** What a member comes back with: role, account (last sign-in) and locations. */
-    private const RELATIONS = ['role:id,name,template', 'user:id,email,email_verified_at,last_login_at', 'locations:id'];
+    // The user's name too, for whoever lists them by it - the people a lead can be given to (Doc 17 Phase B1).
+    private const RELATIONS = ['role:id,name,template', 'user:id,first_name,last_name,email,email_verified_at,last_login_at', 'locations:id'];
 
     /** $user's membership of the business while it is active, with its role and locations. */
     public function activeFor(Workspace $workspace, User $user): ?WorkspaceMember
@@ -47,6 +48,18 @@ class WorkspaceMemberRepository
     public function findFor(Workspace $workspace, int $id): ?WorkspaceMember
     {
         return $workspace->members()->with(self::RELATIONS)->find($id);
+    }
+
+    /** Those a plan's user limit counts - active and invited - the owner first, then the active, by name (Doc 13 section 14). */
+    public function countedFor(Workspace $workspace): Collection
+    {
+        return $workspace->members()->with('role:id,name')->whereIn('status', WorkspaceMember::COUNTED)->get()
+            ->sortBy(fn (WorkspaceMember $member) => [
+                $member->isOwnerOf($workspace) ? 0 : 1,
+                $member->status === WorkspaceMember::ACTIVE ? 0 : 1,
+                mb_strtolower((string) $member->name),
+            ])
+            ->values();
     }
 
     /** The business's member invited as $email - whatever their status. */
@@ -109,6 +122,16 @@ class WorkspaceMemberRepository
     public function delete(WorkspaceMember $member): void
     {
         $member->delete();
+    }
+
+    /**
+     * Writes $details - name, phone, language, time zone - onto $user's
+     * record in every business they belong to; a removed one keeps what it
+     * had. How many records changed.
+     */
+    public function updateDetailsOf(User $user, array $details): int
+    {
+        return WorkspaceMember::where('user_id', $user->id)->where('status', '!=', WorkspaceMember::REMOVED)->update($details);
     }
 
     /** Those who count toward the package's user limit: pending and active. */

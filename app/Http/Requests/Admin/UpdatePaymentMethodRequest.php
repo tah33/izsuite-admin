@@ -3,7 +3,9 @@
 namespace App\Http\Requests\Admin;
 
 use App\Repositories\Admin\PaymentMethodRepository;
+use App\Support\Countries;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdatePaymentMethodRequest extends FormRequest
 {
@@ -21,12 +23,26 @@ class UpdatePaymentMethodRequest extends FormRequest
             return [];
         }
 
+        // A method that takes real payments needs the password again and a reason (Doc 15 section 15.25);
+        // either kind names the billing countries it is offered in, none for every country (Phase F3b).
+        $confirmation = [
+            'confirm_password' => ['nullable', 'string', 'max:255'],
+            'reason'           => ['nullable', 'string', 'max:500'],
+            'countries'        => ['nullable', 'array'],
+            'countries.*'      => [Rule::in(Countries::codes())],
+        ];
+
+        // Stripe's keys, test and live apart (Doc 13 Phase D2): each by its own prefix. Left blank, the kept one stays.
         if ($method->type === 'online') {
-            return [
-                'is_active'   => ['nullable'],
-                'is_sandbox'  => ['nullable'],
-                'credentials' => ['nullable', 'array'],
-            ];
+            $rules = ['is_active' => ['nullable'], 'is_sandbox' => ['nullable'], 'credentials' => ['nullable', 'array'], ...$confirmation];
+
+            foreach (['test', 'live'] as $mode) {
+                $rules["credentials.{$mode}.publishable_key"] = ['nullable', 'string', 'max:255', "starts_with:pk_{$mode}_"];
+                $rules["credentials.{$mode}.secret_key"]      = ['nullable', 'string', 'max:255', "starts_with:sk_{$mode}_,rk_{$mode}_"];
+                $rules["credentials.{$mode}.webhook_secret"]  = ['nullable', 'string', 'max:255', 'starts_with:whsec_'];
+            }
+
+            return $rules;
         }
 
         return [
@@ -36,6 +52,20 @@ class UpdatePaymentMethodRequest extends FormRequest
             'image'        => ['nullable', 'image', 'mimes:jpg,jpeg,png,svg,webp', 'max:2048'],
             'is_active'    => ['nullable'],
             'sort_order'   => ['nullable', 'integer', 'min:0'],
+            ...$confirmation,
         ];
+    }
+
+    public function attributes(): array
+    {
+        $names = [];
+
+        foreach (['test', 'live'] as $mode) {
+            $names["credentials.{$mode}.publishable_key"] = "{$mode} publishable key";
+            $names["credentials.{$mode}.secret_key"]      = "{$mode} secret key";
+            $names["credentials.{$mode}.webhook_secret"]  = "{$mode} webhook signing secret";
+        }
+
+        return $names;
     }
 }

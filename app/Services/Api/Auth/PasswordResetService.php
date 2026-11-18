@@ -46,6 +46,9 @@ class PasswordResetService
      */
     public const RESET_TOKEN_TTL_MINUTES = 15;
 
+    /** The lifetime of the reset link izSuite support e-mails (Doc 15 section 15.7). */
+    public const LINK_TTL_MINUTES        = 60;
+
     private const WRONG_CODE_MESSAGE     = 'That code is not correct. Check the email and try again.';
 
     private const EXPIRED_CODE_MESSAGE   = 'That code has expired. Request a new one and try again.';
@@ -150,7 +153,32 @@ class PasswordResetService
             // to open a second reset.
             $this->passwordResetRepository->deleteCode($email);
 
-            $this->passwordResetRepository->saveToken($email, ['token' => Hash::make($resetToken), 'created_at' => now()]);
+            $this->passwordResetRepository->saveToken($email, [
+                'token' => Hash::make($resetToken), 'created_at' => now(), 'expires_at' => now()->addMinutes(self::RESET_TOKEN_TTL_MINUTES),
+            ]);
+        });
+
+        return $resetToken;
+    }
+
+    /**
+     * A reset ticket for $user that izSuite support sends them as a link (Doc
+     * 15 section 15.7): single-use, and good for LINK_TTL_MINUTES, as it has
+     * to wait in an inbox. It replaces any code or ticket before it. Nobody
+     * but the e-mail's reader sees it.
+     *
+     * @return string the ticket, for the link
+     */
+    public function issueLink(User $user): string
+    {
+        $resetToken = Str::random(64);
+
+        DB::transaction(function () use ($user, $resetToken) {
+            $this->passwordResetRepository->deleteCode($user->email);
+
+            $this->passwordResetRepository->saveToken($user->email, [
+                'token' => Hash::make($resetToken), 'created_at' => now(), 'expires_at' => now()->addMinutes(self::LINK_TTL_MINUTES),
+            ]);
         });
 
         return $resetToken;
@@ -174,9 +202,10 @@ class PasswordResetService
             $this->reject(self::BAD_TOKEN_MESSAGE, self::BAD_TOKEN_ACTION);
         }
 
-        $issuedAt = Carbon::parse($record->created_at);
+        // Each ticket keeps its own end; one from before it did ends 15 minutes after it was made.
+        $endsAt   = $record->expires_at ? Carbon::parse($record->expires_at) : Carbon::parse($record->created_at)->addMinutes(self::RESET_TOKEN_TTL_MINUTES);
 
-        if (now()->greaterThan($issuedAt->addMinutes(self::RESET_TOKEN_TTL_MINUTES))) {
+        if (now()->greaterThan($endsAt)) {
             $this->passwordResetRepository->deleteToken($email);
 
             $this->reject(self::BAD_TOKEN_MESSAGE, self::BAD_TOKEN_ACTION);

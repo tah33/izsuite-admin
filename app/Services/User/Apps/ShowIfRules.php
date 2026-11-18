@@ -3,6 +3,7 @@
 namespace App\Services\User\Apps;
 
 use App\Models\User\Workspace;
+use App\Repositories\User\CrmSettingRepository;
 use App\Repositories\User\PaymentAccountRepository;
 
 /**
@@ -15,6 +16,7 @@ class ShowIfRules
 {
     public function __construct(
         private PaymentAccountRepository $paymentAccounts,
+        private CrmSettingRepository $crmSettings,
     ) {}
 
     /** key => label, for the Menu Builder's dropdown. */
@@ -22,6 +24,7 @@ class ShowIfRules
     {
         return [
             'has_payment_account' => 'Has a payment account',
+            'crm_uses_leads'      => 'CRM uses leads',
         ];
     }
 
@@ -33,6 +36,8 @@ class ShowIfRules
             // the business's nav_version (see PaymentAccount), so the cached
             // sidebar follows.
             'has_payment_account' => $workspace !== null && $this->paymentAccounts->existsFor($workspace),
+            // Leads, unless the business uses opportunities only (Doc 17 section 17.5). Saving the mode bumps nav_version.
+            'crm_uses_leads'      => $workspace !== null && $this->crmSettings->forWorkspace($workspace)->usesLeads(),
             default               => false,
         };
     }

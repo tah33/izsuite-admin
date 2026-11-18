@@ -16,6 +16,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class ExchangeRate extends Model
 {
+    /**
+     * Where a transaction's exchange rate came from (Doc 14 section 14.9 -
+     * kept as exchange_rate_source): the business's own rate in force on its
+     * date, or entered on the transaction.
+     */
+    public const SOURCE_BUSINESS = 'business';
+
+    public const SOURCE_TRANSACTION = 'transaction';
+
     protected $fillable = [
         'currency',
         'base_currency',

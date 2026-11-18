@@ -87,7 +87,7 @@ class RolesApiTest extends TestCase
         $this->assertFalse($groups->has('purchases.purchases'));
         $this->assertSame(['key', 'label', 'family', 'permissions'], array_keys($groups['sales.invoices']));
         $this->assertSame(
-            ['key' => 'sales.invoices.issue', 'label' => 'Issue', 'requires' => ['sales.invoices.view', 'sales.invoices.edit']],
+            ['key' => 'sales.invoices.issue', 'label' => 'Issue', 'requires' => ['sales.invoices.view', 'sales.invoices.edit', 'sales.values.view']],
             collect($groups['sales.invoices']['permissions'])->firstWhere('key', 'sales.invoices.issue'),
         );
     }
@@ -100,7 +100,7 @@ class RolesApiTest extends TestCase
 
         $response->assertJsonPath('message', 'Role "Cashier" added.')
             ->assertJsonPath('data.kind', 'custom')
-            ->assertJsonPath('data.permissions', ['payment_accounts.view', 'sales.invoices.view', 'sales.payments.view', 'sales.payments.record']);
+            ->assertJsonPath('data.permissions', ['payment_accounts.view', 'sales.invoices.view', 'sales.payments.view', 'sales.payments.record', 'sales.values.view']);
 
         $this->postJson('/api/v1/roles', ['name' => 'Cashier', 'permissions' => []])
             ->assertJsonValidationErrors(['name' => 'The business has a role of this name already.']);
@@ -122,7 +122,7 @@ class RolesApiTest extends TestCase
             'name' => 'Sales Desk', 'description' => $role->description, 'permissions' => ['sales.invoices.view', 'sales.invoices.void', 'contacts.view'],
         ])->assertOk()->assertJsonPath('message', 'Role "Sales Desk" saved.');
 
-        $this->assertSame(['contacts.view', 'sales.invoices.view', 'sales.invoices.void', 'purchases.purchases.view'], $role->fresh()->permissions);
+        $this->assertSame(['contacts.view', 'sales.invoices.view', 'sales.invoices.void', 'sales.values.view', 'purchases.purchases.view'], $role->fresh()->permissions);
         $this->assertGreaterThan($version, $this->business->fresh()->nav_version);
 
         $changes = ActivityLog::where('description', 'Updated role "Sales Desk"')->sole()->properties['changes'];

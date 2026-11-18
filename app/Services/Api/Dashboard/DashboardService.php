@@ -3,6 +3,8 @@
 namespace App\Services\Api\Dashboard;
 
 use App\Enums\DocumentType;
+use App\Enums\Edition;
+use App\Enums\SalesDocumentStatus;
 use App\Models\User\Expense;
 use App\Models\User\ExpensePayment;
 use App\Models\User\PaymentAccount;
@@ -10,12 +12,14 @@ use App\Models\User\Purchase;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesPayment;
 use App\Models\User\SupplierPayment;
+use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\AccountTransactionRepository;
 use App\Repositories\User\ExpenseReportRepository;
 use App\Repositories\User\PaymentAccountRepository;
 use App\Repositories\User\PurchaseReportRepository;
 use App\Repositories\User\SalesReportRepository;
+use App\Services\Api\Crm\CrmOverviewService;
 use App\Services\Reports\ReportPeriod;
 use App\Services\Reports\Sales\OutstandingInvoicesReport;
 use App\Services\Reports\Sales\SalesTrendReport;
@@ -35,12 +39,15 @@ use Illuminate\Support\Collection;
  * Expenses is on, the Transaction Overview with a series for each of them,
  * the newest transactions of all three, and each payment account's balance.
  * Totals are in the base currency; what is owed, and balances, as they
- * stood at the end of the range - or today, if it ends later.
+ * stood at the end of the range - or today, if it ends later. While CRM is
+ * on, its figures (Doc 17 section 17.28 - Phase G4), as the CRM Overview
+ * counts them: operational, never sales.
  *
- * Each part only for a role that may see it (Doc 12 section 21): an app's
- * cards and series with its records' View, each kind of transaction with its
- * own, the balances with Payment Accounts' - null otherwise, as for an app
- * that is off.
+ * Each part only for a role that may see it (Doc 12 sections 14 and 21): an
+ * app's cards and series with its records' View and its Values, each kind of
+ * transaction with its own View - its amount with its app's Values - the
+ * balances with Payment Accounts' View and View Balances, CRM's figures with
+ * View Opportunities - null otherwise, as for an app that is off.
  */
 class DashboardService
 {
@@ -63,10 +70,11 @@ class DashboardService
         protected PaymentAccountRepository $paymentAccountRepository,
         protected AccountTransactionRepository $accountTransactionRepository,
         protected WorkspaceAccess $access,
+        protected CrmOverviewService $crmOverview,
     ) {}
 
-    /** $input is validated (see DashboardRequest). */
-    public function summary(Workspace $workspace, array $input): array
+    /** $input is validated (see DashboardRequest); $user is the one it is for, whom CRM's figures count for. */
+    public function summary(Workspace $workspace, User $user, array $input): array
     {
         [$from, $to] = $this->reportPeriod->range($workspace, $input['range'] ?? null, $input['date_from'] ?? null, $input['date_to'] ?? null);
 
@@ -75,7 +83,7 @@ class DashboardService
         $filters = ['from' => $from, 'to' => $to, 'location_id' => $input['location_id'] ?? null, 'location_ids' => $this->access->locations(), 'week_start' => $workspace->weekStartDay(), 'date_format' => $workspace->date_format];
         $apps    = WorkspaceApps::for($workspace);
         $sources = array_filter(['sales' => $apps->row('sales')?->app?->name, 'purchases' => $apps->row('purchases')?->app?->name, 'expenses' => $apps->row('expenses')?->app?->name]);
-        $on      = fn (string $family) => $apps->has($family) && isset($sources[$family]) && $this->access->can(self::VIEWS[$family]);
+        $on      = fn (string $family) => $apps->has($family) && isset($sources[$family]) && $this->access->can(self::VIEWS[$family]) && $this->access->seesValues($family);
 
         return [
             'from'      => $from,
@@ -88,7 +96,11 @@ class DashboardService
                 ? $this->chart($workspace, $filters, $on('sales'), $on('purchases'), $on('expenses'))
                 : null,
             'recent'    => $this->recent($workspace, $filters['location_id'], $today, array_filter($sources, fn (string $family) => $apps->has($family), ARRAY_FILTER_USE_KEY)),
-            'accounts'  => $this->access->can('payment_accounts.view') ? $this->accounts($workspace, $asOf) : null,
+            'accounts'  => $this->access->can('payment_accounts.view') && $this->access->can('payment_accounts.balances') ? $this->accounts($workspace, $asOf) : null,
+            // Phase G4: CRM's, the leads it adds counted over the range, the rest as they stand now.
+            'crm'       => $apps->has('crm') && $this->access->can('crm.opportunities.view')
+                ? $this->crmOverview->dashboard($workspace, $user, $from, $to, isset($input['location_id']) ? (int) $input['location_id'] : null)
+                : null,
         ];
     }
 
@@ -111,6 +123,28 @@ class DashboardService
             'overdue'           => Decimal::sum(array_column($overdue, 'base_outstanding')),
             'overdue_count'     => count($overdue),
             'outstanding_rows'  => array_slice($outstanding, 0, self::OUTSTANDING_SHOWN),
+            'pipeline'          => WorkspaceApps::for($workspace)->has('sales', Edition::Full) ? $this->pipeline($workspace, $filters, $asOf) : null,
+        ];
+    }
+
+    /**
+     * The full Sales app's Sales Pipeline (Doc 16 section 16.25 - Phase H1):
+     * quotations awaiting an answer, orders confirmed in the range, and those
+     * still to deliver or to invoice - each with its count and value in the
+     * base currency, for a role that sees that kind of document, null otherwise.
+     */
+    private function pipeline(Workspace $workspace, array $filters, string $asOf): array
+    {
+        $figure = fn (Collection $documents) => ['count' => $documents->count(), 'value' => Decimal::sum($documents->map(fn (SalesDocument $document) => Decimal::of($document->base_grand_total)))];
+        $orders = $this->access->can('sales.orders.view') ? $this->salesReportRepository->orders($workspace, $filters['to'], $filters) : null;
+        // The status is cast to its enum, so it is compared as one.
+        $open   = $orders?->filter(fn (SalesDocument $order) => in_array($order->status, [SalesDocumentStatus::Confirmed, SalesDocumentStatus::OnHold], true));
+
+        return [
+            'awaiting'   => $this->access->can('sales.quotations.view') ? $figure($this->salesReportRepository->awaitingAnswer($workspace, $asOf, $filters)) : null,
+            'confirmed'  => $orders ? $figure($orders->filter(fn (SalesDocument $order) => $order->document_date >= $filters['from'])) : null,
+            'to_deliver' => $open ? $figure($open->filter(fn (SalesDocument $order) => in_array($order->delivery_status, ['not_delivered', 'partially_delivered'], true))) : null,
+            'to_invoice' => $open ? $figure($open->filter(fn (SalesDocument $order) => $order->invoice_status !== 'invoiced')) : null,
         ];
     }
 
@@ -215,7 +249,7 @@ class DashboardService
             'type'     => $document->type->label(),
             'number'   => $document->number,
             'contact'  => $this->salesFigures->customerName($document),
-            'amount'   => (string) $document->grand_total,
+            'amount'   => $this->shown('sales', (string) $document->grand_total),
             'currency' => $document->currency,
             'status'   => $this->salesDocumentRules->status($document, $today),
             'source'   => $source,
@@ -228,7 +262,7 @@ class DashboardService
             'type'     => $payment->kind === SalesPayment::REFUND ? 'Customer Refund' : 'Customer Payment',
             'number'   => $payment->number,
             'contact'  => $payment->contact?->name,
-            'amount'   => (string) $payment->amount,
+            'amount'   => $this->shown('sales', (string) $payment->amount),
             'currency' => $payment->account?->currency,
             'status'   => $payment->status,
             'source'   => $source,
@@ -246,7 +280,7 @@ class DashboardService
             'type'     => 'Purchase',
             'number'   => $purchase->number,
             'contact'  => $purchase->supplier_snapshot['name'] ?? $purchase->contact?->name,
-            'amount'   => (string) $purchase->grand_total,
+            'amount'   => $this->shown('purchases', (string) $purchase->grand_total),
             'currency' => $purchase->currency,
             'status'   => $purchase->status->value,
             'source'   => $source,
@@ -259,7 +293,7 @@ class DashboardService
             'type'     => 'Supplier Payment',
             'number'   => $payment->number,
             'contact'  => $payment->contact?->name,
-            'amount'   => (string) $payment->amount,
+            'amount'   => $this->shown('purchases', (string) $payment->amount),
             'currency' => $payment->account?->currency,
             'status'   => $payment->status,
             'source'   => $source,
@@ -277,7 +311,7 @@ class DashboardService
             'type'     => 'Expense',
             'number'   => $expense->number,
             'contact'  => $expense->payeeName(),
-            'amount'   => (string) $expense->grand_total,
+            'amount'   => $this->shown('expenses', (string) $expense->grand_total),
             'currency' => $expense->currency,
             'status'   => $expense->status->value,
             'source'   => $source,
@@ -290,7 +324,7 @@ class DashboardService
             'type'     => 'Expense Payment',
             'number'   => $payment->number,
             'contact'  => $payment->expense?->payeeName(),
-            'amount'   => (string) $payment->amount,
+            'amount'   => $this->shown('expenses', (string) $payment->amount),
             'currency' => $payment->account?->currency,
             'status'   => $payment->status,
             'source'   => $source,
@@ -299,6 +333,12 @@ class DashboardService
         ]);
 
         return $expenses->concat($payments)->all();
+    }
+
+    /** $amount, while the role may see $family's values (Doc 12 section 14) - null otherwise. */
+    private function shown(string $family, string $amount): ?string
+    {
+        return $this->access->seesValues($family) ? $amount : null;
     }
 
     /** What $query finds, while the role holds $permission (Doc 12) - nothing otherwise. */

@@ -8,6 +8,7 @@ use App\Models\User\Workspace;
 use App\Models\User\WorkspaceMember;
 use App\Repositories\User\WorkspaceMemberRepository;
 use App\Support\Permissions;
+use App\Support\SupportAccess;
 use Illuminate\Http\Request;
 
 /**
@@ -49,12 +50,23 @@ class WorkspaceAccess
         return $this->resolved($user, $workspace)['locations'];
     }
 
-    /** Whether $user holds $permissions - any one of them, when several. */
+    /**
+     * Whether $user holds $permissions - any one of them, when several. A
+     * support session never holds what is withheld from it, whatever the
+     * owner's account may (Doc 15 section 15.22): payment accounts' full
+     * details, which then show masked.
+     */
     public function allows(User $user, Workspace $workspace, string|array $permissions): bool
     {
+        $asked = (array) $permissions;
+
+        if (SupportAccess::current() !== null && ($asked = array_values(array_diff($asked, SupportAccess::WITHHELD))) === []) {
+            return false;
+        }
+
         $granted = $this->granted($user, $workspace);
 
-        return in_array(Permissions::ALL, $granted, true) || array_intersect((array) $permissions, $granted) !== [];
+        return in_array(Permissions::ALL, $granted, true) || array_intersect($asked, $granted) !== [];
     }
 
     /** Whether the signed-in user may, in the business the request is for. */
@@ -86,6 +98,18 @@ class WorkspaceAccess
         return $request->user() !== null && $workspace instanceof Workspace ? $this->locationsOf($request->user(), $workspace) : [];
     }
 
+    /** The signed-in user the request is for: whom can() and locations() ask about - CRM's reports count what they see (Doc 17 Phase H1). */
+    public function user(): ?User
+    {
+        return app(Request::class)->user();
+    }
+
+    /** Whether the signed-in user may see $family's values: its records' amounts, prices and totals (Doc 12 section 14). */
+    public function seesValues(string $family): bool
+    {
+        return $this->can("{$family}.values.view");
+    }
+
     /** Whether the signed-in user may use location $id: see and make records there. */
     public function usesLocation(int $id): bool
     {
@@ -106,7 +130,27 @@ class WorkspaceAccess
         return array_values(array_filter($types, fn (DocumentType $type) => $this->can("{$type->permissionGroup()}.view")));
     }
 
-    /** @return array{granted: list<string>, locations: list<int>|null} */
+    /**
+     * The role the signed-in user holds in the business the request is for -
+     * null for its owner, whose own is the protected Business Owner, and for
+     * someone who is not an active member. Nobody changes their own role
+     * (Doc 12 section 22).
+     */
+    public function role(): ?int
+    {
+        $request   = app(Request::class);
+        $workspace = $request->attributes->get('workspace');
+
+        return $request->user() !== null && $workspace instanceof Workspace ? $this->roleOf($request->user(), $workspace) : null;
+    }
+
+    /** As role(), for $user in $workspace. */
+    public function roleOf(User $user, Workspace $workspace): ?int
+    {
+        return $this->resolved($user, $workspace)['role'];
+    }
+
+    /** @return array{granted: list<string>, locations: list<int>|null, role: int|null} */
     private function resolved(User $user, Workspace $workspace): array
     {
         $request = app()->bound('request') ? app(Request::class) : null;
@@ -122,16 +166,17 @@ class WorkspaceAccess
         return $resolved;
     }
 
-    /** @return array{granted: list<string>, locations: list<int>|null} */
+    /** @return array{granted: list<string>, locations: list<int>|null, role: int|null} */
     private function resolve(User $user, Workspace $workspace): array
     {
         if ($workspace->isOwnedBy($user)) {
-            return ['granted' => [Permissions::ALL], 'locations' => null];
+            return ['granted' => [Permissions::ALL], 'locations' => null, 'role' => null];
         }
 
         $member = $this->members->activeFor($workspace, $user);
 
         return [
+            'role'      => $member ? (int) $member->role_id : null,
             'granted'   => $member?->role?->is_active ? $member->role->granted() : [],
             'locations' => match (true) {
                 $member === null                                                 => [],

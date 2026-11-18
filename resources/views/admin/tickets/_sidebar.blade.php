@@ -13,6 +13,15 @@
             </div>
         </div>
         <div class="text-sm">
+            {{-- The business the case is about, when it came from the app (Doc 15 section 15.22). --}}
+            <div class="flex justify-between gap-3 py-2 border-b border-gray-100 dark:border-gray-700">
+                <span class="text-muted">{{ __('Business') }}</span>
+                @if($ticket->workspace && auth()->user()->role?->hasPermission('admin.businesses.show'))
+                    <a href="{{ route('admin.businesses.show', $ticket->workspace_id) }}" class="text-[var(--primary)] text-end">{{ $ticket->workspace->name }}</a>
+                @else
+                    <span class="text-end">{{ $ticket->workspace?->name ?? __('None named') }}</span>
+                @endif
+            </div>
             <div class="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700">
                 <span class="text-muted">{{ __('Registered') }}</span>
                 <span>{{ $ticket->user->created_at->format('M d, Y') }}</span>

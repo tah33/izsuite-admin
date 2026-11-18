@@ -6,10 +6,12 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\WorkspaceFileRepository;
 use App\Repositories\User\WorkspaceRepository;
+use App\Services\Admin\Privacy\LegalHoldService;
 use App\Services\Files\FileStorage;
 use App\Services\Shared\ActivityLogService;
 use App\Services\User\Workspaces\PlanLimits;
 use App\Services\User\Workspaces\SetUpNewWorkspace;
+use App\Support\SupportAccess;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -22,12 +24,18 @@ class WorkspaceService
         protected SetUpNewWorkspace $setUpNewWorkspace,
         protected WorkspaceFileRepository $workspaceFileRepository,
         protected PlanLimits $planLimits,
+        protected LegalHoldService $legalHolds,
     ) {}
 
     /** The businesses $user owns, and those they are an active member of - for the top bar to pick from. */
     public function list(User $user): Collection
     {
-        return $this->workspaceRepository->getOpenTo($user);
+        $workspaces = $this->workspaceRepository->getOpenTo($user);
+
+        // A support session sees the one business it is for (Doc 15 section 15.22).
+        $session = SupportAccess::current();
+
+        return $session ? $workspaces->where('id', $session->workspace_id)->values() : $workspaces;
     }
 
     /**
@@ -72,6 +80,9 @@ class WorkspaceService
     public function delete(User $user, int $id): void
     {
         $workspace = $this->findOwned($user, $id);
+
+        // A legal hold keeps everything of the business (Doc 15 Phase G2).
+        abort_if($this->legalHolds->isHeld($workspace), 403, LegalHoldService::REFUSAL);
 
         // The business's own data - locations, settings, users, contacts, items,
         // payment accounts, the rows of its files - goes with it: the database

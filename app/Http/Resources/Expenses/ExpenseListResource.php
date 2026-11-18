@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Expenses;
 
+use App\Http\Resources\Concerns\HidesValues;
 use App\Models\User\ExpenseLine;
 use App\Services\Expenses\ExpenseRules;
 use App\Services\Shared\AllowedActions;
@@ -19,6 +20,11 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class ExpenseListResource extends JsonResource
 {
+    use HidesValues;
+
+    /** What a user without Expense Values does not see (Doc 12 section 14). */
+    private const VALUES = ['grand_total', 'amount_paid', 'balance_due'];
+
     public function __construct($resource, private string $today)
     {
         parent::__construct($resource);
@@ -28,7 +34,7 @@ class ExpenseListResource extends JsonResource
     {
         $rules = app(ExpenseRules::class);
 
-        return [
+        return $this->hideValues('expenses', [
             'id'             => $this->id,
             'number'         => $this->number,
             'status'         => $this->status->value,
@@ -45,6 +51,6 @@ class ExpenseListResource extends JsonResource
             'amount_paid'    => $this->amount_paid,
             'balance_due'    => $this->balance_due,
             'actions'        => app(AllowedActions::class)->record('expenses.expenses', $rules->actions($this->resource)),
-        ];
+        ], self::VALUES);
     }
 }

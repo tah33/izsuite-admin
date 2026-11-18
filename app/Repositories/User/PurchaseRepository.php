@@ -24,7 +24,7 @@ use Illuminate\Support\LazyCollection;
 class PurchaseRepository
 {
     /** What a purchase's page and edit form show with it - its payments with the account each came out of. */
-    private const SHOWN_WITH = ['lines', 'contact', 'location:id,name', 'payments.account:id,name,currency'];
+    private const SHOWN_WITH = ['lines', 'contact', 'location:id,name', 'payments.account:id,name,currency', 'sourceApp:id,name', 'creator:id,first_name,last_name'];
 
     public function paginateFor(Workspace $workspace, array $filters, int $perPage, string $today): LengthAwarePaginator
     {
@@ -90,12 +90,13 @@ class PurchaseRepository
         return $purchase;
     }
 
-    /** Its lines become $rows, in their order. */
+    /** Its lines become $rows, in their order - and it counts as changed, for anyone saving over it (Doc 14 section 22). */
     public function replaceLines(Purchase $purchase, array $rows): void
     {
         $purchase->lines()->delete();
         $purchase->lines()->createMany($rows);
         $purchase->unsetRelation('lines');
+        $purchase->touch();
     }
 
     public function delete(Purchase $purchase): void

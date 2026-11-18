@@ -68,8 +68,8 @@ class AdminStaffTest extends TestCase
         $store = fn (string $role) => $this->postJson(route('admin.staff.store'), [
             'first_name'            => 'Nadia',
             'email'                 => "nadia.{$role}@example.com",
-            'password'              => 'Secret#1234',
-            'password_confirmation' => 'Secret#1234',
+            'password'              => 'Secret#123456',
+            'password_confirmation' => 'Secret#123456',
             'role_id'               => $this->roleId($role),
         ]);
 

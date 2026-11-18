@@ -7,10 +7,11 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * Settings > Subscription, and the upload panels' warning: the business's
- * package, its storage as StorageUsage::summary() measures it, and its users
- * and locations against the package's limits (see PlanLimits::usage()) - a
- * limit of null is none.
+ * Settings > Subscription, the Dashboard's limit warning and the upload
+ * panels' warning: the business's package, its storage as
+ * StorageUsage::summary() measures it, and its users and locations against
+ * the package's limits, each with its state - ok, warning, full or over (see
+ * PlanLimits::usage()). A limit of null is none.
  *
  * @property Workspace $resource
  */

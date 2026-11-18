@@ -99,9 +99,12 @@ class AdminAppSystemTest extends TestCase
         $crm = $this->app('crm', 'crm', 'full', 'premium');
         $this->actingAs($this->admin);
 
-        // Only Standard ticked: Premium follows.
-        $this->putJson(route('admin.package-access.update'), ['access' => [$crm->id => [$this->packages['standard']->id]]])
-            ->assertOk();
+        // Only Standard ticked: Premium follows. Every plan's apps change, so the password and a reason (Doc 15 section 15.25).
+        $this->putJson(route('admin.package-access.update'), [
+            'access'           => [$crm->id => [$this->packages['standard']->id]],
+            'confirm_password' => 'password',
+            'reason'           => 'CRM moves to Standard',
+        ])->assertOk();
 
         $this->assertSame(['crm' => ['standard', 'premium']], $this->access());
     }
@@ -211,5 +214,24 @@ class AdminAppSystemTest extends TestCase
         $sales->refresh();
         $this->assertFalse($sales->is_active);
         $this->assertSame(['sales', 'sales', 'full'], [$sales->app_key, $sales->family_key, $sales->edition->value]);
+    }
+
+    public function test_an_apps_page_is_written_in_its_form(): void
+    {
+        $sales = $this->app('sales', 'sales');
+        $this->actingAs($this->admin);
+
+        // Features one a line, blank lines dropped (Doc 13 section 6).
+        $this->putJson(route('admin.apps.update', $sales->id), [
+            'name' => 'Sales', 'category_id' => $this->category->id, 'status' => 'available', 'sort_order' => 5, 'is_active' => true,
+            'long_description' => 'Everything to sell.', 'features_text' => "Sales orders\n\n  Price lists  \n", 'support_url' => 'https://help.example.test/sales',
+        ])->assertOk();
+
+        $sales->refresh();
+        $this->assertSame(['Everything to sell.', ['Sales orders', 'Price lists'], 'https://help.example.test/sales'], [$sales->long_description, $sales->features, $sales->support_url]);
+
+        $this->putJson(route('admin.apps.update', $sales->id), [
+            'name' => 'Sales', 'category_id' => $this->category->id, 'status' => 'available', 'sort_order' => 5, 'support_url' => 'not a link',
+        ])->assertJsonValidationErrors('support_url');
     }
 }

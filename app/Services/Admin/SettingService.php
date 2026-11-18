@@ -9,6 +9,7 @@ use App\Repositories\Admin\LanguageRepository;
 use App\Repositories\Admin\SettingRepository;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Support\ImageService;
+use App\Support\SettingChanges;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
@@ -50,6 +51,19 @@ class SettingService
         'site_favicon'           => ['value' => '', 'group' => 'branding'],
         'primary_color'          => ['value' => '#1769E8', 'group' => 'branding'],
         'footer_text'            => ['value' => '', 'group' => 'branding'],
+
+        // Billing: izSuite's details on its subscription invoices and receipts (Doc 13 Phase C)
+        'billing_company_name'     => ['value' => 'izSuite', 'group' => 'billing'],
+        'billing_company_address'  => ['value' => '', 'group' => 'billing'],
+        'billing_company_email'    => ['value' => '', 'group' => 'billing'],
+        'billing_company_tax_id'   => ['value' => '', 'group' => 'billing'],
+        'billing_invoice_due_days' => ['value' => '7', 'group' => 'billing'],
+        // Grace days a declined saved card is charged again on, besides the last (Doc 13 Phase D3)
+        'billing_retry_days'       => ['value' => '1,3', 'group' => 'billing'],
+
+        // Files: what a business may attach to its records, within what izSuite takes (Doc 14 Phase E2)
+        'files_attachment_types'   => ['value' => 'pdf,jpg,jpeg,png,webp,gif,doc,docx,xls,xlsx,ppt,pptx,odt,ods,csv,txt,zip', 'group' => 'files'],
+        'files_attachment_max_mb'  => ['value' => '10', 'group' => 'files'],
     ];
 
     public function __construct(
@@ -165,9 +179,17 @@ class SettingService
             $this->handleBrandingUploads($files, $settings);
         }
 
+        // For the audit log (Doc 15 section 15.26): each value before and after. A secret is named, never shown.
+        $before  = array_combine(array_keys($settings), array_map(fn (string $key) => $this->settingRepo->get($key), array_keys($settings))) ?: [];
+        $text    = fn (mixed $value) => is_scalar($value) || $value === null ? (string) $value : (string) json_encode($value);
+        $secrets = array_values(array_filter(array_keys($settings), fn (string $key) => SettingChanges::isSecret($key) && $text($before[$key] ?? null) !== $text($settings[$key])));
+
         $this->bulkUpdate($settings);
 
-        ActivityLogService::record('updated', "Updated site settings group: $group");
+        ActivityLogService::record('updated', "Updated site settings group: $group", null, [
+            'changes' => SettingChanges::between($before, $settings),
+            ...($secrets ? ['secrets_changed' => $secrets] : []),
+        ]);
     }
 
     /**

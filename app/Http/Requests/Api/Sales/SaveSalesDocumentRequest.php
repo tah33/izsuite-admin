@@ -3,6 +3,13 @@
 namespace App\Http\Requests\Api\Sales;
 
 use App\Enums\DocumentType;
+use App\Enums\Edition;
+use App\Models\User\SalesDocument;
+use App\Repositories\User\SalesTeamRepository;
+use App\Services\Crm\OpportunityDocuments;
+use App\Services\User\Apps\WorkspaceApps;
+use App\Support\Countries;
+use Illuminate\Support\Arr;
 use App\Http\Requests\Api\Concerns\RoundsExchangeRates;
 use App\Models\User\Contact;
 use App\Models\User\Location;
@@ -11,6 +18,8 @@ use App\Repositories\User\LocationRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Services\Shared\BusinessCalendar;
 use Illuminate\Foundation\Http\FormRequest;
+use App\Models\User\PriceList;
+use App\Models\User\PriceListRule;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -61,6 +70,11 @@ class SaveSalesDocumentRequest extends FormRequest
 
         if (is_array($this->input('lines')) && ! $workspace?->usesTaxes()) {
             $this->merge(['lines' => array_map(fn ($line) => is_array($line) ? [...$line, 'tax_rate_id' => null] : $line, $this->input('lines'))]);
+        }
+
+        // Only the full Sales app keeps these (Doc 16 Phase A): from Sales Lite's form they are left as they are.
+        if (! $workspace || ! WorkspaceApps::for($workspace)->has('sales', Edition::Full)) {
+            $this->replace(Arr::except($this->all(), SalesDocument::FULL_FIELDS));
         }
     }
 
@@ -122,31 +136,106 @@ class SaveSalesDocumentRequest extends FormRequest
             'discount_type'          => ['nullable', Rule::in(['percent', 'amount'])],
             'discount_value'         => ['nullable', 'numeric', 'decimal:0,4', 'min:0', 'max:9999999999999.99'],
             'notes'                  => ['nullable', 'string', 'max:5000'],
+            'internal_notes'         => ['nullable', 'string', 'max:5000'],
             'terms'                  => ['nullable', 'string', 'max:10000'],
             'payment_instructions'   => ['nullable', 'string', 'max:5000'],
+            // An invoice made from a sales order, billing beyond what it has left: why (Doc 16 Phase B2).
+            'over_invoice_reason'    => ['sometimes', 'nullable', 'string', 'max:500'],
+            // The CRM opportunity a new one is made from (Doc 17 Phase F1); a saved one keeps its own.
+            'opportunity_id'         => ['sometimes', 'nullable', 'integer'],
+            // The full Sales app's (Doc 16 Phase A); sent only from its form.
+            'salesperson_id'         => ['sometimes', 'nullable', 'integer'],
+            'sales_team_id'          => ['sometimes', 'nullable', 'integer'],
+            'expected_delivery_date' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
+            'shipping_method'        => ['sometimes', 'nullable', 'string', 'max:100'],
+            'shipping_terms'         => ['sometimes', 'nullable', 'string', 'max:100'],
+            ...$this->addressRules('billing_address'),
+            ...$this->addressRules('shipping_address'),
             'lines'                  => $draft ? ['nullable', 'array', 'max:200'] : ['required', 'array', 'min:1', 'max:200'],
+            // A sales order's line as it was, changed in place (Doc 16 Phase B): one of another document is a new line.
+            'lines.*.id'             => ['nullable', 'integer'],
+            // The line of its source a line was made from, kept through edits - an invoice's sales order line (Phase B2).
+            'lines.*.source_line_id' => ['nullable', 'integer'],
+            // A deduction of a deposit invoice (Doc 16 Phase D2): the one line whose price is negative.
+            'lines.*.deposit_invoice_id' => ['nullable', 'integer'],
+            // Why the discount goes past what the user's role gives (Doc 16 Phase F2).
+            'discount_reason'            => ['nullable', 'string', 'max:500'],
+            // The price list and rule that priced it (Doc 16 Phase F1): the business's own.
+            'lines.*.price_list_id'      => ['nullable', 'integer', Rule::exists(PriceList::class, 'id')->where('workspace_id', $workspace?->id)],
+            'lines.*.price_list_rule_id' => ['nullable', 'integer', Rule::exists(PriceListRule::class, 'id')->whereIn('price_list_id', PriceList::query()->where('workspace_id', $workspace?->id)->pluck('id')->all())],
             'lines.*.item_id'        => ['nullable', 'integer'],
             'lines.*.name'           => [$must(), 'string', 'max:255'],
             'lines.*.description'    => ['nullable', 'string', 'max:5000'],
             'lines.*.quantity'       => [$must(), 'numeric', 'decimal:0,3', 'gt:0', 'max:999999999.999'],
             'lines.*.unit'           => ['nullable', 'string', 'max:20'],
-            'lines.*.unit_price'     => [$must(), 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999999.99'],
+            'lines.*.unit_price'     => [$must(), 'numeric', 'decimal:0,2', 'min:-9999999999999.99', 'max:9999999999999.99', function (string $attribute, mixed $value, \Closure $fail) {
+                if (is_numeric($value) && $value < 0 && ! $this->input(str_replace('unit_price', 'deposit_invoice_id', $attribute))) {
+                    $fail('A price cannot be negative. Returns and reductions are credit notes.');
+                }
+            }],
             'lines.*.discount_type'  => ['nullable', Rule::in(['percent', 'amount'])],
             'lines.*.discount_value' => ['nullable', 'numeric', 'decimal:0,4', 'min:0', 'max:9999999999999.99'],
             'lines.*.tax_rate_id'    => ['nullable', 'integer'],
         ];
     }
 
-    /** What needs the database or the settings - see SalesDocumentChecks. */
+    /** A document's own address, or none: the customer's. */
+    private function addressRules(string $field): array
+    {
+        return [
+            $field                  => ['sometimes', 'nullable', 'array:'.implode(',', SalesDocument::ADDRESS_PARTS)],
+            "{$field}.line1"        => ['nullable', 'string', 'max:255'],
+            "{$field}.line2"        => ['nullable', 'string', 'max:255'],
+            "{$field}.city"         => ['nullable', 'string', 'max:100'],
+            "{$field}.state"        => ['nullable', 'string', 'max:100'],
+            "{$field}.postal_code"  => ['nullable', 'string', 'max:20'],
+            "{$field}.country"      => ['nullable', Rule::in(Countries::codes())],
+        ];
+    }
+
+    /**
+     * What needs the database or the settings - see SalesDocumentChecks - the
+     * salesperson and team being the business's own, and a new document's
+     * opportunity being one it may be made from (OpportunityDocuments).
+     */
     public function after(): array
     {
-        return [fn (Validator $validator) => app(SalesDocumentChecks::class)->check(
-            $validator,
-            $this->attributes->get('workspace'),
-            DocumentType::fromKind((string) $this->route('kind')),
-            $this->route('id') ? (int) $this->route('id') : null,
-            $this->all(),
-        )];
+        return [
+            fn (Validator $validator) => app(SalesDocumentChecks::class)->check(
+                $validator,
+                $this->attributes->get('workspace'),
+                DocumentType::fromKind((string) $this->route('kind')),
+                $this->route('id') ? (int) $this->route('id') : null,
+                $this->all(),
+            ),
+            function (Validator $validator) {
+                $workspace = $this->attributes->get('workspace');
+                $teams     = app(SalesTeamRepository::class);
+
+                if ($this->filled('salesperson_id') && ! $teams->isMember($workspace, (int) $this->input('salesperson_id'))) {
+                    $validator->errors()->add('salesperson_id', 'Choose a member of this business.');
+                }
+
+                if ($this->filled('sales_team_id') && ! $teams->find($workspace, (int) $this->input('sales_team_id'))) {
+                    $validator->errors()->add('sales_team_id', 'Choose one of the business\'s sales teams.');
+                }
+            },
+            function (Validator $validator) {
+                if ($this->route('id') || ! $this->filled('opportunity_id') || $validator->errors()->has('opportunity_id')) {
+                    return;
+                }
+
+                $documents = app(OpportunityDocuments::class);
+                $refusal   = $documents->refusal(
+                    $documents->seen($this->attributes->get('workspace'), $this->user(), (int) $this->input('opportunity_id')),
+                    $this->filled('contact_id') ? (int) $this->input('contact_id') : null,
+                );
+
+                if ($refusal) {
+                    $validator->errors()->add(...$refusal);
+                }
+            },
+        ];
     }
 
     public function attributes(): array

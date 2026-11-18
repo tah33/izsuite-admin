@@ -9,6 +9,7 @@ use App\Enums\SalesDocumentStatus;
 use App\Models\User\Expense;
 use App\Models\User\ExpensePayment;
 use App\Models\User\Purchase;
+use App\Models\User\SalesDelivery;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesPayment;
 use App\Models\User\SupplierPayment;
@@ -44,16 +45,20 @@ class DocumentRenderer
 
     /**
      * $pdfUrl draws it for a screen, as its secure link shows it, with a link
-     * to download its PDF. A template preview's sample carries the settings
-     * being tried as its snapshot.
+     * to download its PDF - and $screen, the customer's answer and comment
+     * forms under it (Doc 16 Phase G2, CustomerResponses::screen). A template
+     * preview's sample carries the settings being tried as its snapshot.
      */
-    public function sales(Workspace $workspace, SalesDocument $document, ?string $pdfUrl = null): RenderedDocument
+    public function sales(Workspace $workspace, SalesDocument $document, ?string $pdfUrl = null, ?array $screen = null): RenderedDocument
     {
         $template = $this->documentTemplates->settingsFor($workspace, $document->type, $document->template_snapshot);
         $format   = DocumentFormat::of($template);
         $business = $document->business_snapshot ?? $this->salesSnapshots->business($workspace, $document->location, $document->type->isPaidFrom() ? $document->currency : null);
-        $customer = $document->customer_snapshot ?? ($document->contact ? $this->salesSnapshots->customer($document->contact) : null);
-        $label    = $document->type->label();
+        $customer = $document->customer_snapshot ?? ($document->contact ? $this->salesSnapshots->customerOf($document) : null);
+        // A sales order's deposit invoice says so (Doc 16 Phase D2).
+        $label    = $document->is_deposit ? 'Deposit Invoice' : $document->type->label();
+        // Where it goes, once the document says how or when (Doc 16 Phase A): its own address, else the customer's.
+        $shipping = $document->shipping_address || $document->shipping_method || $document->shipping_terms || $document->expected_delivery_date;
 
         $data = [
             'title'     => $document->number ? "{$label} {$document->number}" : "Draft {$label}",
@@ -65,8 +70,9 @@ class DocumentRenderer
             'logo'      => $this->image($workspace, $template['show_logo'] ? ($business['logo_file_id'] ?? null) : null),
             'signature' => $this->image($workspace, $template['signature_file_id'] ?? null),
             'customer'  => $customer,
+            'shipTo'    => $shipping && $customer ? ($customer['shipping_address'] ?? $customer['billing_address'] ?? null) : null,
             'partyLabel' => match ($document->type) {
-                DocumentType::Invoice, DocumentType::Proforma => 'Bill To',
+                DocumentType::Invoice, DocumentType::Proforma, DocumentType::SalesOrder => 'Bill To',
                 DocumentType::CreditNote                       => 'Credit To',
                 default                                        => 'Prepared For',
             },
@@ -78,13 +84,71 @@ class DocumentRenderer
             'proforma'  => $document->type === DocumentType::Proforma,
             'lang'      => $template['language'],
             'pdfUrl'    => $pdfUrl,
+            'screen'    => $pdfUrl ? $screen : null,
         ];
 
         return new RenderedDocument(
             view('documents.sales', $data)->render(),
-            view('documents.footer', ['template' => $template])->render(),
+            $this->footer($template, $business),
             $template['paper_size'],
             $this->filename($label, $document->number, $document->id),
+        );
+    }
+
+    /**
+     * A sales order's delivery note (Doc 16 Phase C), in the order's template,
+     * with its business and customer as the order kept them. It goes to its
+     * own address, else the order's shipping address, else the customer's.
+     */
+    public function delivery(Workspace $workspace, SalesDelivery $delivery): RenderedDocument
+    {
+        $order    = $delivery->order;
+        $template = $this->documentTemplates->settingsFor($workspace, DocumentType::SalesOrder, $order->template_snapshot);
+        $format   = DocumentFormat::of($template);
+        $business = $order->business_snapshot ?? $this->salesSnapshots->business($workspace, $order->location);
+        $customer = $order->customer_snapshot ?? ($order->contact ? $this->salesSnapshots->customerOf($order) : null);
+        $label    = DocumentType::Delivery->label();
+
+        $data = [
+            'title'      => $delivery->number ? "{$label} {$delivery->number}" : "Draft {$label}",
+            'number'     => $delivery->number,
+            'stamp'      => match ($delivery->status) {
+                SalesDelivery::DRAFT     => 'Draft',
+                SalesDelivery::CANCELLED => 'Cancelled',
+                default                  => null,
+            },
+            'label'      => $label,
+            'template'   => $template,
+            'business'   => $business,
+            'logo'       => $this->image($workspace, $template['show_logo'] ? ($business['logo_file_id'] ?? null) : null),
+            'customer'   => $customer,
+            'partyLabel' => 'Customer',
+            'shipTo'     => $delivery->shipping_address
+                ? $this->salesSnapshots->addressLines($delivery->shipping_address)
+                : ($customer['shipping_address'] ?? $customer['billing_address'] ?? null),
+            'facts'      => array_values(array_filter([
+                ['Date', $format->date($delivery->delivery_date)],
+                ['Order', (string) $order->number],
+                $delivery->carrier ? ['Carrier', $delivery->carrier] : null,
+                $delivery->tracking_number ? ['Tracking No.', $delivery->tracking_number] : null,
+                $delivery->vehicle ? ['Vehicle or Driver', $delivery->vehicle] : null,
+                $delivery->delivered_on ? ['Delivered On', $format->date($delivery->delivered_on)] : null,
+            ])),
+            'rows'       => $delivery->lines->map(fn ($line) => [
+                'name'     => $line->orderLine?->name,
+                'quantity' => $format->quantity((string) $line->quantity),
+                'unit'     => $line->orderLine?->unit,
+            ])->all(),
+            'notes'      => $delivery->notes,
+            'recipient'  => $delivery->recipient_name,
+            'lang'       => $template['language'],
+        ];
+
+        return new RenderedDocument(
+            view('documents.delivery', $data)->render(),
+            $this->footer($template, $business),
+            $template['paper_size'],
+            $this->filename('Delivery-Note', $delivery->number, $delivery->id),
         );
     }
 
@@ -116,7 +180,7 @@ class DocumentRenderer
 
         return new RenderedDocument(
             view('documents.receipt', $data)->render(),
-            view('documents.footer', ['template' => $template])->render(),
+            $this->footer($template, $business),
             $template['paper_size'],
             $this->filename('Receipt', $payment->number, $payment->id),
         );
@@ -155,7 +219,7 @@ class DocumentRenderer
 
         return new RenderedDocument(
             view('documents.record', $data)->render(),
-            view('documents.footer', ['template' => $template])->render(),
+            $this->footer($template, $business),
             $template['paper_size'],
             $this->filename('Purchase', $purchase->number, $purchase->id),
         );
@@ -197,7 +261,7 @@ class DocumentRenderer
 
         return new RenderedDocument(
             view('documents.record', $data)->render(),
-            view('documents.footer', ['template' => $template])->render(),
+            $this->footer($template, $business),
             $template['paper_size'],
             $this->filename('Expense', $expense->number, $expense->id),
         );
@@ -231,7 +295,7 @@ class DocumentRenderer
 
         return new RenderedDocument(
             view('documents.receipt', $data)->render(),
-            view('documents.footer', ['template' => $template])->render(),
+            $this->footer($template, $business),
             $template['paper_size'],
             $this->filename('Voucher', $payment->number, $payment->id),
         );
@@ -266,7 +330,7 @@ class DocumentRenderer
 
         return new RenderedDocument(
             view('documents.receipt', $data)->render(),
-            view('documents.footer', ['template' => $template])->render(),
+            $this->footer($template, $business),
             $template['paper_size'],
             $this->filename('Voucher', $payment->number, $payment->id),
         );
@@ -283,6 +347,17 @@ class DocumentRenderer
                 && Decimal::isZero((string) $document->balance_due) => 'Paid',
             default                                               => null,
         };
+    }
+
+    /**
+     * The foot of each page, "Powered by izSuite" included as the document
+     * was issued with it (Doc 13 section 18): its business snapshot says so.
+     * One issued before plans could take it off has no word, so it keeps it;
+     * a draft follows the plan the business is on now.
+     */
+    private function footer(array $template, array $business): string
+    {
+        return view('documents.footer', ['template' => $template, 'poweredBy' => $business['powered_by'] ?? true])->render();
     }
 
     /** A business file - the logo, a signature - as a data: address, or null when it is not there. */

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\OverviewRequest;
 use App\Http\Requests\Admin\SwitchAdminCurrencyRequest;
 use App\Http\Requests\Admin\SwitchAdminLanguageRequest;
 use App\Services\Admin\CurrencyService;
@@ -18,14 +19,12 @@ class OverviewController extends Controller
     ) {}
 
     /**
-     * Show admin overview dashboard.
+     * Admin > Overview (Doc 15 section 15.4 - Phase D1): the platform's figures, for the filters chosen.
      */
-    public function index()
+    public function index(OverviewRequest $request)
     {
         try {
-            $data = $this->overviewService->getOverviewData();
-
-            return view('admin.overview.index', $data);
+            return view('admin.overview.index', $this->overviewService->dashboard($request->validated(), $request->user()));
 
         } catch (\Throwable $e) {
             report($e);

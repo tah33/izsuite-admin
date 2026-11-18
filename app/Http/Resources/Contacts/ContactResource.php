@@ -2,11 +2,18 @@
 
 namespace App\Http\Resources\Contacts;
 
+use App\Services\Shared\EditConflicts;
+use App\Http\Resources\Concerns\HidesValues;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class ContactResource extends JsonResource
 {
+    use HidesValues;
+
+    /** What a user without View Tax Information does not see (Doc 12 section 14). */
+    public const TAX_DETAILS = ['tax_number', 'tax_country', 'tax_treatment', 'tax_exemption_number'];
+
     /**
      * Every field, flat, as the table holds it: countries as codes, a default
      * currency of null meaning the base currency, payment terms in days, and
@@ -18,8 +25,10 @@ class ContactResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return [
+        return $this->hideWithout('taxes.view', [
             'id'                       => $this->id,
+            // When it was last changed: sent back as If-Match when it is saved (Doc 14 section 22).
+            'version' => EditConflicts::version($this->resource),
             'contact_number'           => $this->contact_number,
             'contact_type'             => $this->contact_type,
             'role'                     => $this->role,
@@ -56,10 +65,35 @@ class ContactResource extends JsonResource
             'tax_exemption_number'     => $this->tax_exemption_number,
             'notes'                    => $this->notes,
             'is_active'                => $this->is_active,
+            // Merged into another contact (Doc 17 Phase C3): archived, and no longer changed.
+            'merged'                   => $this->merged_into_id !== null,
+
+            // On its own page: the contact it was merged into - when and by whom - or those merged into it
+            'merged_into' => $this->whenLoaded('mergedInto', fn () => $this->mergedInto ? [
+                'id'             => $this->mergedInto->id,
+                'contact_number' => $this->mergedInto->contact_number,
+                'name'           => $this->mergedInto->name,
+                'merged_at'      => $this->merged_at?->toIso8601String(),
+                'merged_by'      => $this->merger?->name,
+            ] : null),
+            'merged_contacts' => $this->whenLoaded('mergedContacts', fn () => $this->mergedContacts->map(fn ($contact) => [
+                'id'             => $contact->id,
+                'contact_number' => $contact->contact_number,
+                'name'           => $contact->name,
+                'merged_at'      => $contact->merged_at?->toIso8601String(),
+            ])->all()),
+
+            // Who added it and who last changed it (Doc 14 section 14.5), where it was read with them
+            'authors' => $this->whenLoaded('creator', fn () => [
+                'added_by'   => $this->creator?->name,
+                'added_at'   => $this->created_at?->toIso8601String(),
+                'changed_by' => $this->updater?->name,
+                'changed_at' => $this->updated_at?->toIso8601String(),
+            ]),
             'in_use'                   => (bool) ($this->in_sales ?? false) || (bool) ($this->in_purchases ?? false) || (bool) ($this->in_expenses ?? false),
             'in_sales'                 => (bool) ($this->in_sales ?? false),
             'in_purchases'             => (bool) ($this->in_purchases ?? false),
             'in_expenses'              => (bool) ($this->in_expenses ?? false),
-        ];
+        ], self::TAX_DETAILS);
     }
 }

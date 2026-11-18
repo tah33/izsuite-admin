@@ -8,8 +8,10 @@ use App\Models\User\Workspace;
 use App\Repositories\User\DocumentNumberingRepository;
 use App\Repositories\User\LocationRepository;
 use App\Services\Shared\BusinessCalendar;
+use App\Services\Shared\WorkspaceAccess;
 use App\Services\User\Workspaces\WorkspaceSequence;
 use Carbon\CarbonInterface;
+use Illuminate\Validation\ValidationException;
 
 /**
  * The numbering service (Doc 14 section 14.6): the permanent number a document
@@ -39,7 +41,39 @@ class DocumentNumbers
         private WorkspaceSequence $workspaceSequence,
         private BusinessCalendar $businessCalendar,
         private LocationRepository $locationRepository,
+        private WorkspaceAccess $access,
     ) {}
+
+    /**
+     * The number typed for a document as it is issued or recorded (Doc 14
+     * section 14.6), as it is to be kept: null when none was typed, and the
+     * next number comes as usual. Typing one needs Enter Numbers by Hand
+     * (documents.number), and the number must not be on another document of
+     * its kind ($taken). A typed number that is taken is never put on, and
+     * next() skips it later on.
+     *
+     * @param  callable(string): bool  $taken
+     */
+    public function typed(DocumentType $type, ?string $typed, callable $taken): ?string
+    {
+        $number = trim((string) $typed);
+
+        if ($number === '') {
+            return null;
+        }
+
+        if (! $this->access->can('documents.number')) {
+            throw ValidationException::withMessages(['number' => 'Your role does not allow typing a number. Leave it empty for the next one.']);
+        }
+
+        if ($taken($number)) {
+            $noun = strtolower($type->label());
+
+            throw ValidationException::withMessages(['number' => "{$number} is on another {$noun} already. Choose another number."]);
+        }
+
+        return $number;
+    }
 
     /** How $type is numbered: the business's own way, or the defaults. */
     public function scheme(Workspace $workspace, DocumentType $type): DocumentNumbering

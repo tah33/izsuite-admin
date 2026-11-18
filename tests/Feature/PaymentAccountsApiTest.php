@@ -93,7 +93,7 @@ class PaymentAccountsApiTest extends TestCase
 
         $this->assertSame(
             [
-                'id', 'type', 'name', 'currency', 'location_id', 'location', 'bank_name', 'holder_name', 'account_number', 'branch', 'swift_code', 'bank_country',
+                'id', 'version', 'type', 'name', 'currency', 'location_id', 'location', 'bank_name', 'holder_name', 'account_number', 'branch', 'swift_code', 'bank_country',
                 'merchant_name', 'merchant_number', 'settlement_currency', 'opening_balance', 'opening_balance_date', 'balance', 'has_transactions',
                 'payment_instructions', 'show_on_documents', 'allow_customer_payments', 'allow_supplier_payments', 'default_receiving', 'default_payment', 'notes', 'is_active',
             ],

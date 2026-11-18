@@ -2,15 +2,21 @@
 
 namespace App\Http\Resources\Purchases;
 
+use App\Http\Resources\Concerns\HidesValues;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /** One line of a purchase, as its page and edit form show it - its tax as it was kept, or null for none. */
 class PurchaseLineResource extends JsonResource
 {
+    use HidesValues;
+
+    /** What a user without Purchase Values does not see (Doc 12 section 14). */
+    private const VALUES = ['unit_price', 'discount_value', 'discount_amount', 'amount'];
+
     public function toArray(Request $request): array
     {
-        return [
+        return $this->hideValues('purchases', [
             'id'              => $this->id,
             'item_id'         => $this->item_id,
             'name'            => $this->name,
@@ -26,6 +32,6 @@ class PurchaseLineResource extends JsonResource
             'tax'             => $this->tax_name !== null
                 ? ['name' => $this->tax_name, 'code' => $this->tax_code, 'rate' => $this->tax_rate, 'treatment' => $this->tax_treatment]
                 : null,
-        ];
+        ], self::VALUES);
     }
 }

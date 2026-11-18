@@ -6,7 +6,9 @@ use App\Models\Shared\ActivityLog;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\Shared\ActivityLogRepository;
+use App\Services\Admin\AdminAuditLogService;
 use App\Support\SettingChanges;
+use App\Support\SupportAccess;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -37,25 +39,40 @@ class ActivityLogService
      * for. An update records what changed - each setting's previous and new
      * value (SettingChanges) - from $subject's last save, unless $properties
      * says it already; a record with a location keeps which.
+     *
+     * What an admin does - or what is done to an admin's account - goes to
+     * the admin panel's own audit log instead (Doc 15 section 15.26), never
+     * into a business's.
      */
     public function log(string $action, string $description, ?Model $subject = null, ?array $properties = null, ?User $actor = null): ?ActivityLog
     {
         $actor ??= auth()->user();
 
-        if ($this->shouldSkipAdminActivity($actor, $subject)) {
+        $changes = $action === 'updated' && $subject && ! isset($properties['changes']) ? SettingChanges::of($subject) : [];
+
+        if ($this->isAdminActivity($actor, $subject)) {
+            app(AdminAuditLogService::class)->record($action, $description, $subject, [
+                ...($properties ?? []),
+                ...($changes ? ['changes' => $changes] : []),
+            ], $actor ?? ($subject instanceof User ? $subject : null));
+
+            $this->markRequestAsActivityLogged();
+
             return null;
         }
 
-        $changes = $action === 'updated' && $subject && ! isset($properties['changes']) ? SettingChanges::of($subject) : [];
+        // On a support session (Doc 15 section 15.22) it is izSuite support's doing, not the owner's whose account it uses.
+        $support    = SupportAccess::current();
 
         $properties = [
             ...($properties ?? []),
             ...($changes ? ['changes' => $changes] : []),
             ...($subject?->getAttribute('location_id') ? ['location_id' => (int) $subject->getAttribute('location_id')] : []),
+            ...($support ? ['support' => ['session' => $support->id, 'admin' => $support->admin_name]] : []),
         ];
 
         $log   = $this->repo->create([
-            'user_id'      => $this->resolveActorId($actor, $subject),
+            'user_id'      => $support ? null : $this->resolveActorId($actor, $subject),
             'workspace_id' => $this->resolveWorkspaceId($subject),
             'action'       => $action,
             'model_type'   => $subject ? get_class($subject) : null,
@@ -76,6 +93,51 @@ class ActivityLogService
     }
 
     /**
+     * An entry in $workspace's own Activity Log about izSuite support's
+     * session there (Doc 15 section 15.22) - its start and end, written from
+     * the admin panel or a scheduled job, where log() would send it to the
+     * admin audit log instead. The customer sees who and why.
+     */
+    public static function recordSupport(Workspace $workspace, string $action, string $description, int $sessionId, string $adminName, array $properties = []): ActivityLog
+    {
+        // Named here, so LogApiWriteActivity writes no generic entry for the same request.
+        static::skipForThisRequest();
+
+        return app(ActivityLogRepository::class)->create([
+            'user_id'      => null,
+            'workspace_id' => $workspace->id,
+            'action'       => $action,
+            'model_type'   => Workspace::class,
+            'model_id'     => $workspace->id,
+            'description'  => $description,
+            'properties'   => [...$properties, 'support' => ['session' => $sessionId, 'admin' => $adminName]],
+            'ip_address'   => app()->bound('request') ? app(Request::class)->ip() : null,
+        ]);
+    }
+
+    /**
+     * An entry in $workspace's own Activity Log about what a customer did
+     * through a document's secure link (Doc 16 Phase G2): no one in the
+     * business did it - whoever may be signed in to that browser - so it is
+     * put down to no one, from the customer's address.
+     */
+    public static function recordCustomer(Workspace $workspace, string $action, string $description, Model $subject, array $properties = []): ActivityLog
+    {
+        static::skipForThisRequest();
+
+        return app(ActivityLogRepository::class)->create([
+            'user_id'      => null,
+            'workspace_id' => $workspace->id,
+            'action'       => $action,
+            'model_type'   => get_class($subject),
+            'model_id'     => $subject->getKey(),
+            'description'  => $description,
+            'properties'   => [...$properties, ...($subject->getAttribute('location_id') ? ['location_id' => (int) $subject->getAttribute('location_id')] : [])],
+            'ip_address'   => app()->bound('request') ? app(Request::class)->ip() : null,
+        ]);
+    }
+
+    /**
      * Keeps LogApiWriteActivity from writing its generic entry for this
      * request, which changes nothing worth one - or is logged later, by name,
      * once its work is done in the background (an import).
@@ -85,7 +147,7 @@ class ActivityLogService
         app(static::class)->markRequestAsActivityLogged();
     }
 
-    private function shouldSkipAdminActivity(?User $actor, ?Model $subject): bool
+    private function isAdminActivity(?User $actor, ?Model $subject): bool
     {
         if ($actor?->isAdmin()) {
             return true;

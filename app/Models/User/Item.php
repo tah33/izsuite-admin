@@ -4,6 +4,7 @@ namespace App\Models\User;
 
 use App\Enums\FileCollection;
 use App\Models\Concerns\HasFiles;
+use App\Models\Concerns\RecordsAuthors;
 use App\Services\User\Workspaces\WorkspaceSequence;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,6 +27,7 @@ use Illuminate\Database\Eloquent\Relations\MorphOne;
 class Item extends Model
 {
     use HasFiles;
+    use RecordsAuthors;
 
     public const TYPE_PHYSICAL = 'physical';
 
@@ -75,6 +77,8 @@ class Item extends Model
         'sale_price',
         'sales_tax_id',
         'sales_description',
+        // What its sales orders invoice - ordered or delivered quantities - null for the business's (Doc 16 Phase B).
+        'invoice_policy',
         'purchase_price',
         'purchase_tax_id',
         'purchase_description',

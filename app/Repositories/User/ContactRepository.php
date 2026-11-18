@@ -31,6 +31,7 @@ class ContactRepository
      * - type: business or individual.
      * - status: active or inactive.
      * - tax_treatment, when $withTaxId: exactly.
+     * - unmerged: leaving out those merged into another (Doc 17 Phase C3).
      *
      * Each comes with `in_sales` and `in_purchases`: whether a sales document
      * or a purchase names it.
@@ -61,6 +62,7 @@ class ContactRepository
             ->when($filters['type'] ?? null, fn (Builder $query, string $type) => $query->where('contact_type', $type))
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('is_active', $status === 'active'))
             ->when($withTaxId && ($filters['tax_treatment'] ?? null), fn (Builder $query) => $query->where('tax_treatment', $filters['tax_treatment']))
+            ->when(filter_var($filters['unmerged'] ?? false, FILTER_VALIDATE_BOOLEAN), fn (Builder $query) => $query->whereNull('merged_into_id'))
             ->when(filter_var($filters['for_sale'] ?? false, FILTER_VALIDATE_BOOLEAN), fn (Builder $query) => $query
                 ->where('role', '!=', Contact::ROLE_SUPPLIER)
                 ->where('is_active', true))
@@ -77,12 +79,38 @@ class ContactRepository
         return $workspace->contacts()->withExists(self::USED_ON)->find($id);
     }
 
+    /** Whether another contact was merged into it (Doc 17 Phase C3). */
+    public function hasMergedContacts(Contact $contact): bool
+    {
+        return Contact::where('merged_into_id', $contact->id)->exists();
+    }
+
+    /** For its page (Doc 17 Phase C3): the contact it was merged into, and who did it, or those merged into it. */
+    public function loadMerges(Contact $contact): Contact
+    {
+        return $contact->load([
+            'mergedInto:id,contact_number,name',
+            'merger:id,first_name,last_name',
+            'mergedContacts:id,contact_number,name,merged_into_id,merged_at',
+        ]);
+    }
+
+    /** The business's contacts among $ids, and any with a credit limit - Customer Credit Exposure's (Doc 16 Phase H3c). */
+    public function creditCustomers(Workspace $workspace, array $ids): Collection
+    {
+        return $workspace->contacts()
+            ->where(fn (Builder $query) => $query->whereIn('id', $ids)->orWhereNotNull('credit_limit'))
+            ->orderBy('name')
+            ->get();
+    }
+
     /**
      * The business's contacts that $probe might be another copy of - up to
      * twenty, alphabetical. $probe holds what to compare, already tidied (see
      * ContactDuplicates): names (lower case), email (lower case), phones (the
      * last digits of each number) and tax (lower case, without separators).
-     * Nothing to compare finds nothing.
+     * Nothing to compare finds nothing. A contact merged into another is not
+     * one: the one it was merged into is.
      */
     public function possibleDuplicatesOf(Workspace $workspace, array $probe, ?int $exceptId): Collection
     {
@@ -91,6 +119,7 @@ class ContactRepository
         }
 
         return Contact::where('workspace_id', $workspace->id)
+            ->whereNull('merged_into_id')
             ->when($exceptId, fn (Builder $query, int $id) => $query->where('id', '!=', $id))
             ->where(function (Builder $query) use ($probe) {
                 foreach ($probe['names'] as $name) {
@@ -115,6 +144,55 @@ class ContactRepository
             ->orderBy('id')
             ->limit(20)
             ->get();
+    }
+
+    /**
+     * The business's contacts that share any of $names (their name or
+     * trading name), $emails or $phones (a phone's last digits) - tidied as
+     * possibleDuplicatesOf() takes them. For a page of leads at once (Doc 17
+     * Phase C2): which of them may already be contacts - not those merged
+     * into another.
+     *
+     * @param  list<string>  $names
+     * @param  list<string>  $emails
+     * @param  list<string>  $phones
+     */
+    public function matchingAny(Workspace $workspace, array $names, array $emails, array $phones): Collection
+    {
+        if (! $names && ! $emails && ! $phones) {
+            return new Collection;
+        }
+
+        return Contact::where('workspace_id', $workspace->id)
+            ->whereNull('merged_into_id')
+            ->where(function (Builder $query) use ($names, $emails, $phones) {
+                if ($names) {
+                    $placeholders = implode(', ', array_fill(0, count($names), '?'));
+                    $query->orWhereRaw("LOWER(TRIM(name)) IN ({$placeholders})", $names)
+                        ->orWhereRaw("LOWER(TRIM(trading_name)) IN ({$placeholders})", $names);
+                }
+
+                if ($emails) {
+                    $query->orWhereRaw('LOWER(TRIM(email)) IN ('.implode(', ', array_fill(0, count($emails), '?')).')', $emails);
+                }
+
+                foreach ($phones as $digits) {
+                    $query->orWhereRaw($this->digitsOf('phone').' LIKE ?', ["%{$digits}"])
+                        ->orWhereRaw($this->digitsOf('alt_phone').' LIKE ?', ["%{$digits}"]);
+                }
+            })
+            ->orderBy('name')
+            ->limit(200)
+            ->get(['id', 'contact_number', 'name', 'trading_name', 'email', 'phone', 'alt_phone']);
+    }
+
+    /** Of $ids, the business's contacts, by id: those a decision names that no longer match. */
+    public function findManyFor(Workspace $workspace, array $ids): Collection
+    {
+        return $ids === [] ? new Collection : Contact::where('workspace_id', $workspace->id)
+            ->whereIn('id', $ids)
+            ->get(['id', 'contact_number', 'name', 'trading_name', 'email', 'phone', 'alt_phone'])
+            ->keyBy('id');
     }
 
     /**

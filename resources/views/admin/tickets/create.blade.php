@@ -8,7 +8,7 @@
 @section('content')
     <div class="mb-6">
         <div class="flex items-center gap-2 text-sm mb-2 text-[var(--text-muted)]">
-            <a href="{{ route('admin.tickets.index') }}" class="hover:underline">← {{ __('Back to tickets') }}</a>
+            <a href="{{ $business ? route('admin.businesses.show', $business->id) : route('admin.tickets.index') }}" class="hover:underline">← {{ $business ? $business->name : __('Back to tickets') }}</a>
         </div>
         <h1 class="page-title">{{ __('Create Ticket') }}</h1>
     </div>
@@ -41,13 +41,22 @@
 
             {{-- Sidebar Options --}}
             <div class="space-y-5">
+                {{-- From a business's page, the case is about that business and for someone in it, its owner first (Doc 15 section 15.22). --}}
+                @if($business)
+                    <input type="hidden" name="workspace_id" value="{{ $business->id }}">
+                    <div>
+                        <span class="form-label">{{ __('Business') }}</span>
+                        <p class="text-sm font-medium text-[var(--text-primary)]">{{ $business->name }}</p>
+                    </div>
+                @endif
+
                 {{-- User --}}
                 <div>
                     <label for="user_id" class="form-label">{{ __('User') }} <span class="text-red-500">*</span></label>
                     <select name="user_id" id="user_id" class="form-select w-full" required>
                         <option value="">{{ __('Select user...') }}</option>
                         @foreach($users as $user)
-                            <option value="{{ $user->id }}" {{ old('user_id') == $user->id ? 'selected' : '' }}>
+                            <option value="{{ $user->id }}" {{ (int) old('user_id', $business?->user_id) === $user->id ? 'selected' : '' }}>
                                 {{ $user->name }} ({{ $user->email }})
                             </option>
                         @endforeach

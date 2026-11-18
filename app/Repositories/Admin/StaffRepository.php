@@ -28,6 +28,12 @@ class StaffRepository
             ->withQueryString();
     }
 
+    /** @return \Illuminate\Database\Eloquent\Collection<int, User> staff who may sign in, the Super Admin too, by name - who may be made responsible for something */
+    public function active(): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->staff()->where('status', User::ACTIVE)->orderBy('first_name')->orderBy('last_name')->get(['id', 'first_name', 'last_name', 'email']);
+    }
+
     /** A staff member; a client or any other non-staff account is not found. */
     public function find(int $id): ?User
     {

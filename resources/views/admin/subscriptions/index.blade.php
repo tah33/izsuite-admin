@@ -1,129 +1,44 @@
 @extends('layouts.admin')
-@section('title', __('Subscription History'))
+@section('title', __('Subscriptions'))
 
+{{-- Doc 15 section 15.13: every business's subscription to a paid plan. A business on Billing Starter, with none running, is in Admin > Businesses. --}}
 @section('content')
-    {{-- One toolbar row: filters on the left, page actions on the right. --}}
-    @include('admin.subscriptions._filters')
-
-    <div class="card overflow-x-auto">
-        <table class="data-table w-full">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>{{ __('User') }}</th>
-                    <th>{{ __('Plan') }}</th>
-                    <th>{{ __('Payment ID') }}</th>
-                    <th>{{ __('Amount') }}</th>
-                    <th>{{ __('Billing') }}</th>
-                    <th>{{ __('Status') }}</th>
-                    <th>{{ __('Period') }}</th>
-                    <th>{{ __('Created') }}</th>
-                    <th class="text-end">{{ __('Actions') }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($subscriptions as $subscription)
-                    @include('admin.subscriptions._row')
-                @empty
-                    <tr>
-                        <td colspan="10" class="text-center py-8 text-[var(--text-muted)]">
-                            <i data-lucide="history" class="w-8 h-8 mx-auto mb-2 opacity-40"></i>
-                            <p>{{ __('No subscriptions found for the selected filters.') }}</p>
-                        </td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
+    <div class="mb-4">
+        <h1 class="page-title">{{ __('Subscriptions') }}</h1>
+        <p class="page-subtitle">{{ __('Businesses\' subscriptions to the paid plans: where each stands, and how it is paid.') }}</p>
     </div>
 
-    @if($subscriptions->hasPages())
-        <div class="mt-4">
-            {{ $subscriptions->links() }}
+    @include('admin.subscriptions._filters')
+
+    <div class="card overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>{{ __('Business') }}</th>
+                        <th>{{ __('Plan') }}</th>
+                        <th>{{ __('Status') }}</th>
+                        <th>{{ __('Dates') }}</th>
+                        <th>{{ __('Payment') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($subscriptions as $subscription)
+                        @include('admin.subscriptions._row')
+                    @empty
+                        <tr>
+                            <td colspan="5" class="text-center py-8 text-[var(--text-muted)]">
+                                <i data-lucide="repeat" class="w-8 h-8 mx-auto mb-2 opacity-40"></i>
+                                <p>{{ __('No subscriptions match.') }}</p>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
-    @endif
+
+        @if($subscriptions->hasPages())
+            <div class="p-4 border-t border-[var(--card-border)]">{{ $subscriptions->links() }}</div>
+        @endif
+    </div>
 @endsection
-
-@push('scripts')
-<script>
-    var copyToastTimer = null;
-
-    function showCopyToast(message, isError) {
-        var toast = document.getElementById('copy-payment-toast');
-
-        if (!toast) {
-            toast = document.createElement('div');
-            toast.id = 'copy-payment-toast';
-            toast.setAttribute('role', 'status');
-            toast.style.position = 'fixed';
-            toast.style.top = '18px';
-            toast.style.right = '18px';
-            toast.style.zIndex = '9999';
-            toast.style.padding = '10px 14px';
-            toast.style.borderRadius = '8px';
-            toast.style.fontSize = '13px';
-            toast.style.fontWeight = '600';
-            toast.style.color = '#ffffff';
-            toast.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.18)';
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateY(-6px)';
-            toast.style.transition = 'opacity 160ms ease, transform 160ms ease';
-            toast.style.pointerEvents = 'none';
-            document.body.appendChild(toast);
-        }
-
-        toast.textContent = message;
-        toast.style.background = isError ? '#ef4444' : getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#1769E8';
-        toast.style.opacity = '1';
-        toast.style.transform = 'translateY(0)';
-
-        if (copyToastTimer) {
-            clearTimeout(copyToastTimer);
-        }
-
-        copyToastTimer = setTimeout(function () {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateY(-6px)';
-        }, 1400);
-    }
-
-    async function copyToClipboard(text) {
-        if (navigator.clipboard && window.isSecureContext) {
-            await navigator.clipboard.writeText(text);
-            return;
-        }
-
-        var input = document.createElement('textarea');
-        input.value = text;
-        input.setAttribute('readonly', '');
-        input.style.position = 'absolute';
-        input.style.left = '-9999px';
-        document.body.appendChild(input);
-        input.select();
-        document.execCommand('copy');
-        document.body.removeChild(input);
-    }
-
-    document.addEventListener('click', async function (event) {
-        var button = event.target.closest('.copy-payment-id');
-        if (!button) return;
-
-        var paymentId = button.getAttribute('data-payment-id');
-        if (!paymentId) return;
-
-        var originalTitle = button.getAttribute('title') || '';
-
-        try {
-            await copyToClipboard(paymentId);
-            button.setAttribute('title', '{{ __('Copied') }}');
-            showCopyToast('{{ __('Copied payment ID') }}', false);
-        } catch (error) {
-            button.setAttribute('title', '{{ __('Copy failed') }}');
-            showCopyToast('{{ __('Copy failed') }}', true);
-        }
-
-        setTimeout(function () {
-            button.setAttribute('title', originalTitle);
-        }, 1200);
-    });
-</script>
-@endpush

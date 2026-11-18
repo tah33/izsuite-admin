@@ -14,7 +14,8 @@ class StoreTicketRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'user_id'     => ['required', 'exists:users,id'],
+            'user_id'      => ['required', 'exists:users,id'],
+            'workspace_id' => ['nullable', 'integer', 'exists:workspaces,id'],
             'subject'     => ['required', 'string', 'max:255'],
             'priority'    => ['required', 'in:low,medium,high'],
             'assigned_to' => ['nullable', 'exists:users,id'],

@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Concerns\SafeToRetry;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Storage;
@@ -15,7 +16,7 @@ use Illuminate\Support\Facades\Storage;
  * A copy already gone is fine. One that cannot be removed is reported and the
  * rest are still tried.
  */
-class DeleteStoredFiles implements ShouldQueue
+class DeleteStoredFiles implements SafeToRetry, ShouldQueue
 {
     use Queueable;
 

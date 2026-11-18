@@ -25,7 +25,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * business's apps keep - never a copy of them. Each row opens its source
  * record; nothing here changes a document (section 10). An app turned off
  * keeps its documents listed, read-only (section 19). Only the kinds the
- * user's role may view are listed (Doc 12), so each row opens.
+ * user's role may view are listed (Doc 12), so each row opens - with its
+ * total and balance only for those whose app's values they may see.
  */
 class DocumentIndexService
 {
@@ -40,7 +41,7 @@ class DocumentIndexService
     /** $filters are validated (see ListDocumentsRequest). */
     public function list(Workspace $workspace, array $filters, int $perPage): LengthAwarePaginator
     {
-        return $this->documentIndexRepository->paginateFor($workspace, [...$filters, 'location_ids' => $this->access->locations()], $perPage, $this->today($workspace), $this->types());
+        return $this->documentIndexRepository->paginateFor($workspace, $this->scoped($filters), $perPage, $this->today($workspace), $this->types());
     }
 
     public function today(Workspace $workspace): string
@@ -66,7 +67,7 @@ class DocumentIndexService
         $today   = $this->today($workspace);
         $sources = $this->sources($workspace);
         $types   = $this->types();
-        $count   = $this->documentIndexRepository->countFor($workspace, [...$filters, 'location_ids' => $this->access->locations()], $today, $types);
+        $count   = $this->documentIndexRepository->countFor($workspace, $this->scoped($filters), $today, $types);
 
         ActivityLogService::record('exported', "Exported {$count} documents", $workspace, [
             'source'  => 'api',
@@ -74,7 +75,7 @@ class DocumentIndexService
         ]);
 
         $rows = (function () use ($workspace, $filters, $today, $sources, $types) {
-            foreach ($this->documentIndexRepository->lazyFor($workspace, [...$filters, 'location_ids' => $this->access->locations()], $today, $types) as $document) {
+            foreach ($this->documentIndexRepository->lazyFor($workspace, $this->scoped($filters), $today, $types) as $document) {
                 yield $this->csvRow($document, $today, $sources);
             }
         })();
@@ -92,6 +93,25 @@ class DocumentIndexService
         return $this->access->viewable([...array_values(DocumentType::KINDS), DocumentType::Purchase, DocumentType::Expense]);
     }
 
+    /**
+     * $filters kept to what the user may see (Doc 12): their locations, and
+     * a search by amount only among the apps whose values they may see.
+     */
+    private function scoped(array $filters): array
+    {
+        return [
+            ...$filters,
+            'location_ids' => $this->access->locations(),
+            'values'       => ['sales' => $this->access->seesValues('sales'), 'purchases' => $this->access->seesValues('purchases'), 'expenses' => $this->access->seesValues('expenses')],
+        ];
+    }
+
+    /** $amount, while the user may see $family's values (Doc 12 section 14) - blank otherwise. */
+    private function shown(string $family, string $amount): string
+    {
+        return $this->access->seesValues($family) ? $amount : '';
+    }
+
     private function csvRow(SalesDocument|Purchase|Expense $document, string $today, array $sources): array
     {
         if ($document instanceof Expense) {
@@ -103,9 +123,9 @@ class DocumentIndexService
                 $sources['expenses'] ?? '',
                 $document->status->label(),
                 ucwords(str_replace('_', ' ', (string) $document->payment_status)),
-                (string) $document->grand_total,
+                $this->shown('expenses', (string) $document->grand_total),
                 $document->currency,
-                $document->status === ExpenseStatus::Recorded ? (string) $document->balance_due : '',
+                $document->status === ExpenseStatus::Recorded ? $this->shown('expenses', (string) $document->balance_due) : '',
                 $document->location?->name ?? '',
             ];
         }
@@ -119,9 +139,9 @@ class DocumentIndexService
                 $sources['purchases'] ?? '',
                 $document->status->label(),
                 ucwords(str_replace('_', ' ', (string) $document->payment_status)),
-                (string) $document->grand_total,
+                $this->shown('purchases', (string) $document->grand_total),
                 $document->currency,
-                $document->status === PurchaseStatus::Recorded ? (string) $document->balance_due : '',
+                $document->status === PurchaseStatus::Recorded ? $this->shown('purchases', (string) $document->balance_due) : '',
                 $document->location?->name ?? '',
             ];
         }
@@ -134,9 +154,9 @@ class DocumentIndexService
             $sources[$document->type->family()] ?? '',
             ucfirst($this->salesDocumentRules->status($document, $today)),
             ucwords(str_replace('_', ' ', (string) $document->payment_status)),
-            (string) $document->grand_total,
+            $this->shown('sales', (string) $document->grand_total),
             $document->currency,
-            $this->salesDocumentRules->holdsBalance($document) ? (string) $document->balance_due : '',
+            $this->salesDocumentRules->holdsBalance($document) ? $this->shown('sales', (string) $document->balance_due) : '',
             $document->location?->name ?? '',
         ];
     }

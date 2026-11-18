@@ -11,8 +11,8 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * whoever has it sees the document and downloads its PDF, without signing in
  * - nothing else, and never the business's internal notes or numbers.
  *
- * It works until it is revoked, or its document is voided or cancelled. Each
- * view is counted.
+ * It works until it is revoked, it expires (Doc 16 Phase G2), or its
+ * document is voided or cancelled. Each view is counted.
  */
 class DocumentLink extends Model
 {
@@ -22,6 +22,8 @@ class DocumentLink extends Model
         'token',
         'created_by',
         'revoked_at',
+        // When it stops working, from Settings > Sales's days (Doc 16 Phase G2): null for never.
+        'expires_at',
         'views',
         'last_viewed_at',
     ];
@@ -32,6 +34,7 @@ class DocumentLink extends Model
 
     protected $casts = [
         'revoked_at'     => 'datetime',
+        'expires_at'     => 'datetime',
         'views'          => 'integer',
         'last_viewed_at' => 'datetime',
     ];

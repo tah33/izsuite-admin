@@ -21,6 +21,8 @@ class NavigationResource extends JsonResource
                 'id'             => $workspace['id'],
                 'business_id'    => $workspace['business_id'] ?? null,
                 'name'           => $workspace['name'],
+                // Shown beside the name in the header; null without one.
+                'logo_url'       => $workspace['logo_url'] ?? null,
                 'package'        => $workspace['package'] ? ['name' => $workspace['package']['name']] : null,
                 'base_currency'  => $workspace['base_currency'],
                 'currencies'     => $workspace['currencies'],
@@ -30,6 +32,10 @@ class NavigationResource extends JsonResource
                 'warranty_enabled' => $workspace['warranty_enabled'] ?? true,
                 'regional'        => $workspace['regional'] ?? null,
                 'setup_completed' => $workspace['setup_completed'] ?? true,
+                // Doc 15 section 15.6: null while Active; else its banner or why it cannot be opened.
+                'status'          => $workspace['status'] ?? null,
+                // Doc 16 Phase H1: what New Sale opens, a deposit's starting percentage and the backorder rule - null on Sales Lite.
+                'sales'           => $workspace['sales'] ?? null,
             ] : null,
 
             // By family. An object even when empty, so the client always gets a
@@ -46,6 +52,9 @@ class NavigationResource extends JsonResource
 
             // Whether they may use every location (Doc 12 section 20).
             'all_locations' => $this->resource['all_locations'] ?? true,
+
+            // The keys of the features on for the business (Doc 15 section 15.12).
+            'features'      => $this->resource['features'] ?? [],
 
             'menu'      => [
                 'core'   => $this->resource['menu']['core'],

@@ -6,19 +6,24 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Auth\ChangePasswordRequest;
 use App\Http\Requests\Api\Auth\LoginRequest;
 use App\Http\Requests\Api\Auth\RegisterRequest;
-use App\Http\Resources\Users\LoginAsSessionResource;
+use App\Http\Requests\Api\Auth\TwoFactorLoginRequest;
+use App\Http\Resources\Users\SupportSessionResource;
 use App\Http\Resources\Users\UserResource;
+use App\Models\User\User;
 use App\Services\Api\Auth\AuthService;
 use App\Services\Api\Auth\EmailVerificationService;
-use App\Services\Api\Auth\LoginAsService;
+use App\Services\Api\Auth\SignInChallenges;
+use App\Services\Shared\SupportSessionService;
+use App\Support\SupportAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Laravel\Sanctum\NewAccessToken;
 
 class AuthController extends Controller
 {
     public function __construct(
         protected AuthService $authService,
-        protected LoginAsService $loginAsService,
+        protected SupportSessionService $supportSessions,
     ) {}
 
     /**
@@ -50,33 +55,66 @@ class AuthController extends Controller
             throw $e;
         }
     }
+    /**
+     * Sign in. With two-factor authentication on (Doc 12 section 22), no
+     * session yet: a challenge that loginWithCode() answers with the app's
+     * code, as the frontend's next screen.
+     */
     public function login(LoginRequest $request): JsonResponse
     {
         try {
-            ['user' => $user, 'token' => $token] = $this->authService->login($request->validated());
+            $signIn = $this->authService->login($request->validated());
 
-            return response()->json([
-                'message'    => 'Signed in successfully.',
-                'token'      => $token->plainTextToken,
-                'token_type' => 'Bearer',
-                'expires_at' => to_display_timezone_iso($token->accessToken->expires_at),
-                'user'       => new UserResource($user),
-            ]);
+            if (isset($signIn['challenge'])) {
+                return response()->json([
+                    'message'            => 'Enter the code from your authenticator app.',
+                    'action'             => 'two_factor_required',
+                    'challenge'          => $signIn['challenge'],
+                    'expires_in_minutes' => SignInChallenges::MINUTES,
+                ]);
+            }
+
+            return $this->signedIn($signIn['user'], $signIn['token']);
 
         } catch (\Throwable $e) {
             report($e);
             throw $e;
         }
     }
+
+    /** The second step of a sign-in with two-factor authentication on: the app's code, or a recovery code. */
+    public function loginWithCode(TwoFactorLoginRequest $request): JsonResponse
+    {
+        try {
+            ['user' => $user, 'token' => $token] = $this->authService->loginWithCode($request->validated());
+
+            return $this->signedIn($user, $token);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    private function signedIn(User $user, NewAccessToken $token): JsonResponse
+    {
+        return response()->json([
+            'message'    => 'Signed in successfully.',
+            'token'      => $token->plainTextToken,
+            'token_type' => 'Bearer',
+            'expires_at' => to_display_timezone_iso($token->accessToken->expires_at),
+            'user'       => new UserResource($user),
+        ]);
+    }
     public function me(Request $request): JsonResponse
     {
         try {
-            $backUrl = $this->loginAsService->backUrl($request->user());
+            $support = $this->supportSessions->describe($request->user());
 
             return response()->json([
-                'user'     => new UserResource($this->authService->currentUser($request->user())),
-                // Set only on a session from the admin panel's "Login as".
-                'login_as' => $backUrl ? new LoginAsSessionResource($backUrl) : null,
+                'user'            => new UserResource($this->authService->currentUser($request->user())),
+                // Set only on a support session from the admin panel (Doc 15 section 15.22).
+                'support_session' => $support ? new SupportSessionResource($support) : null,
             ]);
 
         } catch (\Throwable $e) {
@@ -86,15 +124,14 @@ class AuthController extends Controller
     }
 
     /**
-     * Revoke the token that made this request.
+     * Revoke the token that made this request - or, on a support session,
+     * end the session (Doc 15 section 15.22), every tab of it.
      */
     public function logout(Request $request): JsonResponse
     {
         try {
-            $this->authService->logout($request->user());
-
             return response()->json([
-                'message' => 'Signed out successfully.',
+                'message' => $this->authService->logout($request->user(), SupportAccess::current($request)),
             ]);
 
         } catch (\Throwable $e) {

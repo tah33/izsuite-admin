@@ -1,6 +1,11 @@
 @extends('layouts.admin')
 @section('title', __('Payment Methods'))
 
+@php
+    // Where each is offered, by the business's billing country (Doc 15 Phase F3b).
+    $offeredIn = fn ($method) => empty($method->countries) ? __('Every country') : __('Offered in :countries', ['countries' => implode(', ', array_map(fn ($code) => \App\Support\Countries::name($code) ?? $code, $method->countries))]);
+@endphp
+
 @section('content')
     {{-- Tabs, with the page action at the end of the same row. items-end keeps
          the tabs' underline on the divider while the taller button sits above it. --}}
@@ -36,7 +41,10 @@
                         @forelse($offlineMethods as $method)
                             <tr>
                                 <td class="text-sm text-[var(--text-muted)]">{{ $loop->iteration }}</td>
-                                <td class="font-semibold text-[var(--text-primary)]">{{ $method->name }}</td>
+                                <td>
+                                    <span class="font-semibold text-[var(--text-primary)]">{{ $method->name }}</span>
+                                    <span class="block text-xs text-[var(--text-muted)]">{{ $offeredIn($method) }}</span>
+                                </td>
                                 <td class="text-sm text-[var(--text-muted)]">{{ Str::limit($method->description, 50) }}</td>
                                 <td>
                                     @if($method->is_active)
@@ -63,7 +71,11 @@
                                             :confirm-text="__('Delete')"
                                             confirm-class="btn-danger"
                                             icon="trash-2"
-                                        />
+                                        >
+                                            @if($method->takesRealPayments())
+                                                @include('admin.partials.critical-confirm', ['impact' => __('It takes real payments now.'), 'id' => 'delete_'.$method->id, 'compact' => true])
+                                            @endif
+                                        </x-confirm-modal>
                                     </div>
                                 </td>
                             </tr>
@@ -93,7 +105,7 @@
                             </div>
                             <div>
                                 <h3 class="font-semibold text-[var(--text-primary)]">{{ $gateway->name }}</h3>
-                                <span class="text-xs text-[var(--text-muted)]">{{ $gateway->slug }}</span>
+                                <span class="text-xs text-[var(--text-muted)]">{{ $gateway->slug }} · {{ $offeredIn($gateway) }}</span>
                             </div>
                         </div>
                         @if($gateway->is_active)
@@ -109,9 +121,9 @@
                         </div>
                     @endif
 
-                    @php $creds = $gateway->credentials ?? []; @endphp
+                    {{-- Configured: the mode it is in has its secret key (Doc 13 Phase D2). --}}
                     <div class="text-xs mb-3 text-[var(--text-muted)]">
-                        @if(count($creds) > 0 && collect($creds)->filter()->count() > 0)
+                        @if(filled($gateway->keys()['secret_key'] ?? null))
                             <span class="inline-flex items-center gap-1">
                                 <i data-lucide="key" class="w-3 h-3"></i> {{ __('Keys configured') }}
                             </span>

@@ -1,4 +1,4 @@
-{{-- A user's account: how to reach them, its state, and its defaults. --}}
+{{-- A user's account: how to reach them, its state and sign-in checks (Doc 15 section 15.7), and its defaults. --}}
 <div class="card mb-6">
     <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-sm">
         <div>
@@ -15,21 +15,23 @@
         </div>
         <div>
             <dt class="text-xs text-[var(--text-muted)]">{{ __('Status') }}</dt>
-            <dd>
-                @if($client->status === 'active')
-                    <span class="badge badge-success">{{ __('Active') }}</span>
-                @else
-                    <span class="badge badge-inactive">{{ __('Inactive') }}</span>
-                @endif
-            </dd>
+            <dd>@include('admin.clients._status-badge', ['status' => $client->status])</dd>
         </div>
         <div>
             <dt class="text-xs text-[var(--text-muted)]">{{ __('Email verified') }}</dt>
             <dd class="font-medium">{{ $client->email_verified_at?->format('M d, Y') ?? __('Not yet') }}</dd>
         </div>
         <div>
+            <dt class="text-xs text-[var(--text-muted)]">{{ __('Two-factor sign-in') }}</dt>
+            <dd class="font-medium">{{ $client->two_factor_confirmed_at ? __('On since :date', ['date' => $client->two_factor_confirmed_at->format('M d, Y')]) : __('Off') }}</dd>
+        </div>
+        <div>
             <dt class="text-xs text-[var(--text-muted)]">{{ __('Last Login') }}</dt>
             <dd class="font-medium">{{ $client->last_login_at?->format('M d, Y H:i') ?? __('Never') }}</dd>
+        </div>
+        <div>
+            <dt class="text-xs text-[var(--text-muted)]">{{ __('Open sessions') }}</dt>
+            <dd class="font-medium">{{ number_format($client->sessions_count) }}</dd>
         </div>
         <div>
             <dt class="text-xs text-[var(--text-muted)]">{{ __('Joined') }}</dt>

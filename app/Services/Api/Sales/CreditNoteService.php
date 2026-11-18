@@ -2,6 +2,7 @@
 
 namespace App\Services\Api\Sales;
 
+use App\Services\Shared\EditConflicts;
 use App\Enums\DocumentType;
 use App\Enums\SalesDocumentStatus;
 use App\Models\User\SalesDocument;
@@ -14,7 +15,6 @@ use App\Services\Documents\DocumentNumbers;
 use App\Services\Documents\DocumentTemplates;
 use App\Services\Sales\SalesDocumentRules;
 use App\Services\Shared\ActivityLogService;
-use App\Support\RichText;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -44,6 +44,7 @@ class CreditNoteService
         protected DocumentNumbers $documentNumbers,
         protected DocumentTemplates $documentTemplates,
         protected DocumentLinkRepository $documentLinkRepository,
+        protected SalesOrderInvoicing $salesOrderInvoicing,
     ) {}
 
     /**
@@ -109,6 +110,9 @@ class CreditNoteService
     {
         $note = $this->salesDocumentService->find($workspace, DocumentType::CreditNote, $id);
 
+        // Changed by someone else since it was opened: refused (Doc 14 section 22).
+        EditConflicts::ensureUnchanged($note, 'this credit note');
+
         if (! $this->salesDocumentRules->allows($note, 'edit', $this->salesDocumentService->today($workspace))) {
             $this->refuse('An issued credit note cannot be changed. Void it and make a new one instead.');
         }
@@ -130,9 +134,10 @@ class CreditNoteService
     /**
      * A draft becomes issued: checked once more against what was credited
      * since it was saved, numbered, its customer kept as they are, and set
-     * against its invoice.
+     * against its invoice. $number is one typed as it is issued (Doc 14
+     * section 14.6); without it the note gets the next number.
      */
-    public function issue(Workspace $workspace, int $id, User $user): SalesDocument
+    public function issue(Workspace $workspace, int $id, User $user, ?string $number = null): SalesDocument
     {
         $note = $this->salesDocumentService->find($workspace, DocumentType::CreditNote, $id);
 
@@ -144,9 +149,11 @@ class CreditNoteService
 
         $this->creditNoteLines->check($invoice, $note->lines->map(fn (SalesDocumentLine $line) => $line->only(['source_line_id', 'quantity', 'unit_price', 'amount']))->all(), (string) $note->grand_total);
 
-        DB::transaction(function () use ($workspace, $user, $note, $invoice) {
+        $typed = $this->documentNumbers->typed(DocumentType::CreditNote, $number, fn (string $taken) => $this->salesDocumentRepository->numberTaken($workspace, DocumentType::CreditNote, $taken));
+
+        DB::transaction(function () use ($workspace, $user, $note, $invoice, $typed) {
             $this->salesDocumentRepository->update($note, [
-                'number'            => $this->documentNumbers->next(
+                'number'            => $typed ?? $this->documentNumbers->next(
                     $workspace,
                     DocumentType::CreditNote,
                     CarbonImmutable::parse($note->document_date),
@@ -165,6 +172,7 @@ class CreditNoteService
         });
 
         ActivityLogService::record('updated', "Issued credit note {$note->number} for invoice {$invoice->number}", $note, ['source' => 'api', 'status' => 'issued']);
+        $this->refreshOrder($invoice);
 
         // Read again: the settlement wrote what it applied through its own copy.
         return $this->salesDocumentRepository->loadShown($note->refresh());
@@ -198,8 +206,19 @@ class CreditNoteService
         });
 
         ActivityLogService::record('updated', "Voided credit note {$note->number}", $note, ['source' => 'api', 'status' => 'void']);
+        $this->refreshOrder($invoice);
 
         return $this->salesDocumentRepository->loadShown($note);
+    }
+
+    /** The sales order $invoice was made from, what its credit notes credited counted again (Doc 16 Phase B2). */
+    private function refreshOrder(SalesDocument $invoice): void
+    {
+        $order = $this->salesOrderInvoicing->orderOf($invoice);
+
+        if ($order) {
+            $this->salesOrderInvoicing->refresh($this->salesDocumentRepository->loadLineItems($order));
+        }
     }
 
     /** Its rows and totals, refused if they credit more than is left. */
@@ -222,13 +241,19 @@ class CreditNoteService
         return [
             'contact_id'     => $invoice->contact_id,
             'location_id'    => $invoice->location_id,
+            // Its invoice's salesperson and team, so a credit note counts against them (Doc 16 Phase A).
+            'salesperson_id' => $invoice->salesperson_id,
+            'sales_team_id'  => $invoice->sales_team_id,
             'document_date'  => $data['document_date'],
             'currency'       => $invoice->currency,
             'exchange_rate'  => (string) $invoice->exchange_rate,
+            'exchange_rate_date'   => $invoice->exchange_rate_date,
+            'exchange_rate_source' => $invoice->exchange_rate_source,
             'price_tax_mode' => $invoice->price_tax_mode,
             'tax_rounding'   => $invoice->tax_rounding,
             'reason'         => $data['reason'],
-            'notes'          => RichText::clean($data['notes'] ?? null),
+            'notes'          => $data['notes'] ?? null,
+            'internal_notes' => $data['internal_notes'] ?? null,
             'source_id'      => $invoice->id,
         ];
     }

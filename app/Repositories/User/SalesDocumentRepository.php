@@ -12,9 +12,11 @@ use App\Models\User\SalesDocumentLine;
 use App\Models\User\SalesDocumentRevision;
 use App\Models\User\TaxRate;
 use App\Models\User\Workspace;
+use App\Support\Decimal;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Arr;
 
 /**
  * Sales documents belong to one business and are of one type. Every lookup is
@@ -38,6 +40,11 @@ class SalesDocumentRepository
         'creditNotes:id,source_id,type,number,status,document_date,grand_total,applied_amount,refunded_amount,balance_due,payment_status',
         'payments.account:id,name,currency',
         'activeLink', 'emails.sender:id,first_name,last_name',
+        'sourceApp:id,name', 'creator:id,first_name,last_name',
+        // The CRM opportunity it was made from, and who sees that (Doc 17 Phase F1).
+        'opportunity:id,name,owner_id,sales_team_id,location_id',
+        // What the customer did through its link (Doc 16 Phase G2).
+        'customerResponses',
     ];
 
     public function paginateFor(Workspace $workspace, DocumentType $type, array $filters, int $perPage, string $today): LengthAwarePaginator
@@ -77,6 +84,35 @@ class SalesDocumentRepository
     }
 
     /** Read again after a save, with what its page shows. */
+    /**
+     * The documents of $types (DocumentType values) for the contact, or made
+     * from the CRM opportunity, that $where names - ['contact_id' => 7] or
+     * ['opportunity_id' => 3] - at $locationIds (null: any), the newest
+     * first, each with who made it and who confirmed it (Doc 17 Phases E3
+     * and F1).
+     *
+     * @param  array<string, int>  $where
+     * @param  list<string>  $types
+     * @param  list<int>|null  $locationIds
+     */
+    public function madeFor(Workspace $workspace, array $where, array $types, ?array $locationIds, int $limit): Collection
+    {
+        if ($types === []) {
+            return new Collection;
+        }
+
+        return SalesDocument::query()
+            ->where('workspace_id', $workspace->id)
+            ->where($where)
+            ->whereIn('type', $types)
+            ->atLocations($locationIds)
+            ->with(['creator:id,first_name,last_name', 'confirmer:id,first_name,last_name'])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->get();
+    }
+
     public function loadShown(SalesDocument $document): SalesDocument
     {
         return $document->load(self::SHOWN_WITH);
@@ -92,6 +128,12 @@ class SalesDocumentRepository
     public function loadLineTaxes(SalesDocument $document): SalesDocument
     {
         return $document->load('lines.taxRate');
+    }
+
+    /** Its lines with their items' types and invoice policies - a sales order's, for what is to be delivered and invoiced (SalesOrderProgress, SalesOrderInvoicing). */
+    public function loadLineItems(SalesDocument $document): SalesDocument
+    {
+        return $document->load('lines.item:id,type,invoice_policy');
     }
 
     /** An invoice's issued credit notes, in the order they were issued - the order they settle it in. */
@@ -146,12 +188,157 @@ class SalesDocumentRepository
         return $document;
     }
 
-    /** Its lines become $rows, in their order. */
+    /** Its lines become $rows, in their order - and it counts as changed, for anyone saving over it (Doc 14 section 22). */
     public function replaceLines(SalesDocument $document, array $rows): void
     {
         $document->lines()->delete();
         $document->lines()->createMany($rows);
         $document->unsetRelation('lines');
+        $document->touch();
+    }
+
+    /**
+     * Its lines become $rows, in their order. A row with the `id` of one of its
+     * lines changes that line in place, so what links to it stays linked - a
+     * sales order's lines and the invoices made from them (Doc 16 Phase B);
+     * the other rows are added, and its lines left out deleted.
+     */
+    public function syncLines(SalesDocument $document, array $rows): void
+    {
+        $existing = $document->lines()->get()->keyBy('id');
+        $kept     = [];
+
+        foreach ($rows as $row) {
+            $line = isset($row['id']) && ! in_array((int) $row['id'], $kept, true) ? $existing->get((int) $row['id']) : null;
+            $data = Arr::except($row, 'id');
+
+            $kept[] = $line ? tap($line)->update($data)->id : $document->lines()->create($data)->id;
+        }
+
+        $document->lines()->whereIn('id', $existing->keys()->diff($kept)->all())->delete();
+        $document->unsetRelation('lines');
+        $document->touch();
+    }
+
+    /** Whether any of $lineIds has something delivered, invoiced, returned or credited - or another document's line made from it. */
+    public function linesInUse(array $lineIds): bool
+    {
+        return $lineIds !== [] && (
+            SalesDocumentLine::query()->whereIn('id', $lineIds)->where(fn (Builder $query) => $query
+                ->where('delivered_quantity', '>', 0)->orWhere('invoiced_quantity', '>', 0)
+                ->orWhere('returned_quantity', '>', 0)->orWhere('credited_quantity', '>', 0))->exists()
+            || SalesDocumentLine::query()->whereIn('source_line_id', $lineIds)->exists()
+        );
+    }
+
+    /**
+     * How much of each of $lineIds the $type documents made from them hold -
+     * issued ones, or with $draft the drafts - by line id (Doc 16 Phase B2).
+     *
+     * @return array<int, string>
+     */
+    public function quantitiesFrom(array $lineIds, DocumentType $type, bool $draft = false): array
+    {
+        return $lineIds === [] ? [] : SalesDocumentLine::query()
+            ->whereIn('source_line_id', $lineIds)
+            ->whereHas('document', fn (Builder $query) => $query
+                ->where('type', $type->value)
+                ->where('status', ($draft ? SalesDocumentStatus::Draft : SalesDocumentStatus::Issued)->value))
+            ->groupBy('source_line_id')
+            ->selectRaw('source_line_id, sum(quantity) as total')
+            ->pluck('total', 'source_line_id')
+            ->map(fn ($total) => (string) $total)
+            ->all();
+    }
+
+    /**
+     * A sales order's invoices, deposits included, oldest first - void ones
+     * only when asked (Doc 16 Phase D2): what it has billed.
+     */
+    public function invoicesOfOrder(SalesDocument $order, bool $withVoid = false): Collection
+    {
+        return SalesDocument::query()
+            ->where('type', DocumentType::Invoice->value)
+            ->where('source_id', $order->id)
+            ->when(! $withVoid, fn (Builder $query) => $query->where('status', '!=', SalesDocumentStatus::Void->value))
+            ->orderBy('id')
+            ->get(['id', 'number', 'status', 'is_deposit', 'currency', 'price_tax_mode', 'grand_total', 'tax_total']);
+    }
+
+    /** A document's total as stored, however much of it was loaded. */
+    public function grandTotalOf(SalesDocument $document): string
+    {
+        return (string) (SalesDocument::query()->whereKey($document->id)->value('grand_total') ?? '0');
+    }
+
+    /** A sales order's issued deposit invoices, oldest first, with their lines: what its later invoices deduct. */
+    public function depositsOfOrder(SalesDocument $order): Collection
+    {
+        return SalesDocument::query()
+            ->where('type', DocumentType::Invoice->value)
+            ->where('source_id', $order->id)
+            ->where('is_deposit', true)
+            ->where('status', SalesDocumentStatus::Issued->value)
+            ->with('lines')
+            ->orderBy('document_date')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /** What invoices not void deduct of a deposit invoice - $exceptId's lines aside. */
+    public function deductedOf(SalesDocument $deposit, ?int $exceptId = null): string
+    {
+        $amounts = SalesDocumentLine::query()
+            ->where('deposit_invoice_id', $deposit->id)
+            ->when($exceptId, fn (Builder $query, int $id) => $query->where('sales_document_id', '!=', $id))
+            ->whereHas('document', fn (Builder $query) => $query->where('status', '!=', SalesDocumentStatus::Void->value))
+            ->pluck('amount');
+
+        return Decimal::sum($amounts->map(fn ($amount) => bcsub('0', (string) $amount, 2)));
+    }
+
+    /**
+     * What issued credit notes credited of each of a sales order's $lineIds,
+     * through the issued invoice lines made from them, by order line id.
+     *
+     * @return array<int, string>
+     */
+    public function creditedFrom(array $lineIds): array
+    {
+        return $lineIds === [] ? [] : SalesDocumentLine::query()
+            ->join('sales_document_lines as invoice_lines', 'invoice_lines.id', '=', 'sales_document_lines.source_line_id')
+            ->join('sales_documents as notes', 'notes.id', '=', 'sales_document_lines.sales_document_id')
+            ->join('sales_documents as invoices', 'invoices.id', '=', 'invoice_lines.sales_document_id')
+            ->whereIn('invoice_lines.source_line_id', $lineIds)
+            ->where('notes.type', DocumentType::CreditNote->value)
+            ->where('notes.status', SalesDocumentStatus::Issued->value)
+            ->where('invoices.status', SalesDocumentStatus::Issued->value)
+            ->groupBy('invoice_lines.source_line_id')
+            ->selectRaw('invoice_lines.source_line_id as order_line_id, sum(sales_document_lines.quantity) as total')
+            ->pluck('total', 'order_line_id')
+            ->map(fn ($total) => (string) $total)
+            ->all();
+    }
+
+    /** Whether invoices made from $order are still drafts or issued - not voided. */
+    public function hasOpenInvoicesFrom(SalesDocument $order): bool
+    {
+        return SalesDocument::query()
+            ->where('source_id', $order->id)
+            ->where('type', DocumentType::Invoice->value)
+            ->whereIn('status', [SalesDocumentStatus::Draft->value, SalesDocumentStatus::Issued->value])
+            ->exists();
+    }
+
+    /** Which of $lineIds belong to sales order $orderId - the only lines an invoice made from it may link to. */
+    public function lineIdsOf(int $orderId, array $lineIds): array
+    {
+        return $lineIds === [] ? [] : SalesDocumentLine::query()->where('sales_document_id', $orderId)->whereIn('id', $lineIds)->pluck('id')->all();
+    }
+
+    public function updateLine(SalesDocumentLine $line, array $data): void
+    {
+        $line->update($data);
     }
 
     public function delete(SalesDocument $document): void
@@ -161,14 +348,15 @@ class SalesDocumentRepository
 
     /* ---------------------------------------------------------- revisions */
 
-    public function addRevision(SalesDocument $document, int $revision, array $snapshot, ?int $userId): SalesDocumentRevision
+    /** The version before a change; an amended sales order's keeps why it was changed (Doc 16 Phase B). */
+    public function addRevision(SalesDocument $document, int $revision, array $snapshot, ?int $userId, ?string $reason = null): SalesDocumentRevision
     {
-        return $document->revisions()->create(['revision' => $revision, 'snapshot' => $snapshot, 'created_by' => $userId]);
+        return $document->revisions()->create(['revision' => $revision, 'snapshot' => $snapshot, 'created_by' => $userId, 'reason' => $reason]);
     }
 
     public function revisionsOf(SalesDocument $document): Collection
     {
-        return $document->revisions()->with('creator:id,first_name,last_name')->get(['id', 'sales_document_id', 'revision', 'created_by', 'created_at']);
+        return $document->revisions()->with('creator:id,first_name,last_name')->get(['id', 'sales_document_id', 'revision', 'reason', 'created_by', 'created_at']);
     }
 
     public function findRevision(SalesDocument $document, int $revision): ?SalesDocumentRevision

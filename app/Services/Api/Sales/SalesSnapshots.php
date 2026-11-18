@@ -11,6 +11,7 @@ use App\Models\User\Workspace;
 use App\Repositories\User\BusinessSettingRepository;
 use App\Repositories\User\WorkspaceFileRepository;
 use App\Services\Documents\PaymentDetails;
+use App\Support\AddressFormat;
 use App\Support\Countries;
 use App\Support\RichText;
 
@@ -26,6 +27,8 @@ class SalesSnapshots
     private const COMPARED = [
         'contact_id', 'location_id', 'document_date', 'due_date', 'expiry_date', 'currency', 'exchange_rate', 'customer_reference', 'sales_reference',
         'discount_type', 'discount_value', 'notes', 'terms', 'payment_instructions', 'grand_total', 'lines',
+        // The full Sales app's (Doc 16 Phase A).
+        'salesperson_id', 'sales_team_id', 'billing_address', 'shipping_address', 'expected_delivery_date', 'shipping_method', 'shipping_terms',
     ];
 
     public function __construct(
@@ -50,10 +53,10 @@ class SalesSnapshots
             'name'                => $settings?->business_name ?: $workspace->name,
             'trading_name'        => $settings?->trading_name,
             'registration_number' => $settings?->registration_number,
-            'address'             => array_values(array_filter([
-                $settings?->address_line_1, $settings?->address_line_2, $settings?->city, $settings?->state, $settings?->zip_code,
-                $settings?->country ? Countries::name($settings->country) ?? $settings->country : null,
-            ])),
+            'address'             => $this->address($settings?->country, [
+                'line1' => $settings?->address_line_1, 'line2' => $settings?->address_line_2, 'city' => $settings?->city,
+                'region' => $settings?->state, 'postal' => $settings?->zip_code,
+            ]),
             'phone'               => $settings?->business_contact_number,
             'email'               => $settings?->email,
             'website'             => $settings?->website,
@@ -66,16 +69,44 @@ class SalesSnapshots
             'location'            => $location?->name,
             'location_header'     => $location?->document_header,
             'payment_accounts'    => $currency ? $this->paymentDetails->for($workspace, $currency, $location?->id) : [],
+            // "Powered by izSuite" as the plan has it now, kept with the document (Doc 13 section 18).
+            'powered_by'          => ! $workspace->terms()?->removes_branding,
         ];
+    }
+
+    /**
+     * The customer as $document shows them: with the document's own billing
+     * and shipping address where it names one (Doc 16 Phase A), each written
+     * as its country writes addresses.
+     */
+    public function customerOf(SalesDocument $document): array
+    {
+        $customer = $this->customer($document->contact);
+
+        foreach (['billing_address', 'shipping_address'] as $side) {
+            if ($own = $document->{$side}) {
+                $customer[$side] = $this->addressLines($own);
+            }
+        }
+
+        return $customer;
+    }
+
+    /** A document's own address - a sales document's or a delivery's (Doc 16) - as its country writes it. */
+    public function addressLines(array $own): array
+    {
+        return $this->address($own['country'] ?? null, [
+            'line1' => $own['line1'] ?? null, 'line2' => $own['line2'] ?? null, 'city' => $own['city'] ?? null,
+            'region' => $own['state'] ?? null, 'postal' => $own['postal_code'] ?? null,
+        ]);
     }
 
     public function customer(Contact $contact): array
     {
-        // The country by name, as it is printed: contacts keep its code.
-        $address = fn (string $side) => array_values(array_filter([
-            $contact->{"{$side}_line1"}, $contact->{"{$side}_line2"}, $contact->{"{$side}_city"},
-            $contact->{"{$side}_state"}, $contact->{"{$side}_postal_code"}, Countries::name($contact->{"{$side}_country"}),
-        ]));
+        $address = fn (string $side) => $this->address($contact->{"{$side}_country"}, [
+            'line1' => $contact->{"{$side}_line1"}, 'line2' => $contact->{"{$side}_line2"}, 'city' => $contact->{"{$side}_city"},
+            'region' => $contact->{"{$side}_state"}, 'postal' => $contact->{"{$side}_postal_code"},
+        ]);
 
         return [
             'number'               => $contact->contact_number,
@@ -101,6 +132,7 @@ class SalesSnapshots
                 'number', 'revision', 'status', 'contact_id', 'location_id', 'document_date', 'due_date', 'expiry_date', 'currency', 'exchange_rate',
                 'price_tax_mode', 'customer_reference', 'sales_reference', 'discount_type', 'discount_value', 'subtotal', 'discount_total',
                 'tax_total', 'grand_total', 'notes', 'terms', 'payment_instructions', 'customer_snapshot',
+                ...SalesDocument::FULL_FIELDS,
             ]),
             'status' => $document->status->value,
             'lines'  => $document->lines->map(fn (SalesDocumentLine $line) => $line->only([
@@ -130,5 +162,18 @@ class SalesSnapshots
         }
 
         return $compared;
+    }
+
+    /**
+     * An address's lines as its country writes them (Doc 15 Phase F3a: the
+     * country's address format), the country printed by name - addresses keep
+     * its code. @return list<string>
+     */
+    private function address(?string $country, array $parts): array
+    {
+        return AddressFormat::lines(Countries::addressFormat($country), [
+            ...$parts,
+            'country' => $country ? Countries::name($country) ?? $country : null,
+        ]);
     }
 }

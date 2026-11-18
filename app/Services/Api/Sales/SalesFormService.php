@@ -3,14 +3,20 @@
 namespace App\Services\Api\Sales;
 
 use App\Enums\DocumentType;
+use App\Enums\Edition;
+use App\Models\User\SalesSetting;
 use App\Models\User\TaxRate;
+use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\ContactRepository;
 use App\Repositories\User\SalesSettingRepository;
+use App\Repositories\User\SalesTeamRepository;
 use App\Repositories\User\TaxRateRepository;
 use App\Services\Api\BusinessSetup\ExchangeRateService;
+use App\Services\Crm\OpportunityDocuments;
+use App\Services\Shared\WorkspaceAccess;
 use App\Services\Shared\LocationAccess;
-use App\Support\RichText;
+use App\Services\User\Apps\WorkspaceApps;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Arr;
 
@@ -42,15 +48,26 @@ class SalesFormService
         protected ExchangeRateService $exchangeRateService,
         protected SalesDocumentService $salesDocumentService,
         protected SalesLines $salesLines,
+        protected SalesTeamRepository $salesTeams,
+        protected OpportunityDocuments $opportunityDocuments,
+        protected WorkspaceAccess $access,
     ) {}
 
-    /** $query is validated: an optional customer, date and currency. */
-    public function defaults(Workspace $workspace, DocumentType $type, array $query): array
+    /**
+     * $query is validated: an optional customer, date and currency. On the
+     * full Sales app (Doc 16 Phase H1) a new document also starts with
+     * Settings > Sales's shipping terms, and - when it says so - $user as its
+     * salesperson, while they may be one.
+     */
+    public function defaults(Workspace $workspace, DocumentType $type, array $query, ?User $user = null): array
     {
         $date     = $query['document_date'] ?? $this->salesDocumentService->today($workspace);
         $settings = $this->salesSettingRepository->forWorkspace($workspace);
-        $contact  = isset($query['contact_id']) ? $this->contactRepository->findFor($workspace, (int) $query['contact_id']) : null;
-        $currency = $query['currency'] ?? (in_array($contact?->sales_currency, $workspace->currencyCodes(), true) ? $contact->sales_currency : $workspace->base_currency);
+        $from     = $this->opportunity($workspace, $type, $query, $user);
+        $contact  = isset($query['contact_id']) ? $this->contactRepository->findFor($workspace, (int) $query['contact_id']) : ($from['contact'] ?? null);
+        $currency = $query['currency']
+            ?? (in_array($from['currency'] ?? null, $workspace->currencyCodes(), true) ? $from['currency'] : null)
+            ?? (in_array($contact?->sales_currency, $workspace->currencyCodes(), true) ? $contact->sales_currency : $workspace->base_currency);
         $terms    = $contact?->customer_payment_terms ?? $settings->payment_terms;
         $days     = fn (int $days) => CarbonImmutable::parse($date)->addDays($days)->toDateString();
         $taxes     = $workspace->usesTaxes();
@@ -65,13 +82,15 @@ class SalesFormService
             'currency'           => $currency,
             'exchange_rate'      => $this->exchangeRateService->rateOn($workspace, $currency, $date),
             'location_id'        => $this->locationAccess->defaultFor($workspace),
-            // Settings > Sales keeps plain text; the form's editors take HTML.
-            'notes'              => RichText::html($settings->notes),
-            'terms'             => RichText::html($settings->terms),
+            'notes'              => $settings->notes,
+            'terms'              => $settings->terms,
             'price_tax_mode'     => $workspace->price_tax_mode,
             'tax_rounding'       => $workspace->tax_rounding,
             'taxes_enabled'      => $taxes,
             'line_discounts'     => $settings->line_discounts,
+            // What this user may price and discount (Doc 16 Phase F2): the largest discount - null for no limit - and whether a price is typed by hand.
+            'max_discount'       => app(SalesPricingChecks::class)->limit($workspace),
+            'prices_by_hand'     => ! WorkspaceApps::for($workspace)->has('sales', Edition::Full) || app(\App\Services\Shared\WorkspaceAccess::class)->can(SalesPricingChecks::OVERRIDE),
             'document_discounts' => $settings->document_discounts,
             'default_tax_id'     => $default && $this->inEffect($default, $date) ? $default->id : null,
             'customer_treatment' => $treatment?->value,
@@ -79,6 +98,50 @@ class SalesFormService
             // The customer a sale started from their profile goes to (Doc 03
             // section 10) - while they can still be sold to.
             'customer'           => $contact && $contact->is_active && $contact->isCustomer() ? $contact : null,
+            ...$this->fullDefaults($workspace, $type, $settings, $user),
+            // The CRM opportunity it is made from (Doc 17 Phase F1), with what it starts with.
+            'opportunity'        => $from,
+        ];
+    }
+
+    /**
+     * The opportunity $query asks a new document to be made from, and what
+     * the document starts with - its location only where the user may use
+     * it, and with the full Sales app its owner as the salesperson (while a
+     * member) and its team - or null: none asked, or one the user does not
+     * see or may not make documents from (OpportunityDocuments).
+     */
+    private function opportunity(Workspace $workspace, DocumentType $type, array $query, ?User $user): ?array
+    {
+        $opportunity = isset($query['opportunity_id']) && $user && $type !== DocumentType::CreditNote
+            ? $this->opportunityDocuments->seen($workspace, $user, (int) $query['opportunity_id'])
+            : null;
+
+        if (! $opportunity || $this->opportunityDocuments->refusal($opportunity, null)) {
+            return null;
+        }
+
+        $start = $this->opportunityDocuments->start($opportunity);
+        $full  = WorkspaceApps::for($workspace)->has('sales', Edition::Full);
+
+        return [
+            ...$start,
+            'location_id'    => $start['location_id'] && $this->access->usesLocation($start['location_id']) ? $start['location_id'] : null,
+            'salesperson_id' => $full && $start['owner_id'] && $this->salesTeams->isMember($workspace, $start['owner_id']) ? $start['owner_id'] : null,
+            'sales_team_id'  => $full && $start['sales_team_id'] && $this->salesTeams->find($workspace, $start['sales_team_id']) ? $start['sales_team_id'] : null,
+        ];
+    }
+
+    /** @return array{shipping_terms: ?string, salesperson_id: ?int} */
+    private function fullDefaults(Workspace $workspace, DocumentType $type, SalesSetting $settings, ?User $user): array
+    {
+        if (! WorkspaceApps::for($workspace)->has('sales', Edition::Full) || $type === DocumentType::CreditNote) {
+            return ['shipping_terms' => null, 'salesperson_id' => null];
+        }
+
+        return [
+            'shipping_terms' => $settings->default_shipping_terms,
+            'salesperson_id' => $user && $settings->salesperson_is_creator && $this->salesTeams->isMember($workspace, $user->id) ? $user->id : null,
         ];
     }
 

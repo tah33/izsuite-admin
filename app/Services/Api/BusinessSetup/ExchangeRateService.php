@@ -79,6 +79,29 @@ class ExchangeRateService
         return $this->exchangeRateRepository->rateOn($workspace, $currency, $date)?->rate;
     }
 
+    /**
+     * Where a transaction's $rate for $currency on $date came from (Doc 14
+     * section 14.9), as the columns that keep it:
+     * - the business's own rate in force on $date, when $rate is that one;
+     *   its date is the rate's effective date;
+     * - else entered on the transaction; its date is the transaction's.
+     * Nothing for a transaction in the base currency.
+     *
+     * @return array{exchange_rate_date: string|null, exchange_rate_source: string|null}
+     */
+    public function originOf(Workspace $workspace, string $currency, string $date, string $rate): array
+    {
+        if ($currency === $workspace->base_currency) {
+            return ['exchange_rate_date' => null, 'exchange_rate_source' => null];
+        }
+
+        $business = $this->exchangeRateRepository->rateOn($workspace, $currency, $date);
+
+        return $business && bccomp((string) $business->rate, $rate, 8) === 0
+            ? ['exchange_rate_date' => substr((string) $business->effective_date, 0, 10), 'exchange_rate_source' => ExchangeRate::SOURCE_BUSINESS]
+            : ['exchange_rate_date' => $date, 'exchange_rate_source' => ExchangeRate::SOURCE_TRANSACTION];
+    }
+
     /** "121.50000000" as a person writes it: "121.5". */
     private function plain(string $rate): string
     {

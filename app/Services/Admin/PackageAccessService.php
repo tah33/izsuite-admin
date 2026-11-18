@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin;
 
+use App\Models\User\User;
 use App\Repositories\Admin\AppCategoryRepository;
 use App\Repositories\Admin\AppRepository;
 use App\Repositories\Billing\PackageRepository;
@@ -23,6 +24,7 @@ class PackageAccessService
         protected AppCategoryRepository $appCategoryRepository,
         protected AppRepository $appRepository,
         protected AppCatalogRules $rules,
+        protected CriticalActionService $criticalActions,
     ) {}
 
     /** The matrix: the plans, the apps by category, and which plans include each app. */
@@ -41,9 +43,12 @@ class PackageAccessService
      * app's lowest plan and every plan above it. Returns what is wrong with
      * them instead, when something is: nothing is saved then.
      *
+     * It changes every plan's apps at once, so it is a critical action (Doc
+     * 15 section 15.25): $admin's password again and a reason.
+     *
      * @return list<string>
      */
-    public function save(array $access): array
+    public function save(array $access, User $admin, ?string $password, ?string $reason): array
     {
         $packages = $this->packageRepository->allByRank();
         $ranks    = $packages->pluck('rank', 'id');
@@ -64,6 +69,10 @@ class PackageAccessService
             return $problems;
         }
 
+        $this->criticalActions->confirm($admin, $password, $reason, 'change which apps every plan includes');
+
+        $before = $this->packageRepository->accessByApp();
+
         DB::transaction(function () use ($lowest, $packages) {
             $rows = [];
 
@@ -78,8 +87,25 @@ class PackageAccessService
 
         CatalogVersion::bump();
 
-        ActivityLogService::record('updated', 'Updated package access');
+        ActivityLogService::record('updated', 'Updated package access', null, ['changes' => $this->accessChanges($before, $this->packageRepository->accessByApp())]);
 
         return [];
+    }
+
+    /**
+     * Each app whose plans changed, as the audit log shows it: "app 12",
+     * from its plan ids before to after.
+     *
+     * @return list<array{setting: string, from: string|null, to: string|null}>
+     */
+    private function accessChanges(array|\Illuminate\Support\Collection $before, array|\Illuminate\Support\Collection $after): array
+    {
+        $before = collect($before)->map(fn ($ids) => collect($ids)->sort()->values()->implode(', '));
+        $after  = collect($after)->map(fn ($ids) => collect($ids)->sort()->values()->implode(', '));
+
+        return $before->keys()->merge($after->keys())->unique()->sort()
+            ->filter(fn ($appId) => ($before[$appId] ?? '') !== ($after[$appId] ?? ''))
+            ->map(fn ($appId) => ['setting' => "app {$appId} (plan ids)", 'from' => ($before[$appId] ?? '') ?: null, 'to' => ($after[$appId] ?? '') ?: null])
+            ->values()->all();
     }
 }

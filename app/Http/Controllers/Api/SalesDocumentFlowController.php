@@ -28,9 +28,9 @@ class SalesDocumentFlowController extends Controller
     public function issue(IssueSalesDocumentRequest $request, string $kind, int $id): JsonResponse
     {
         try {
-            $document = $this->salesDocumentFlow->issue($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user(), $request->validated('exchange_rate'));
+            $document = $this->salesDocumentFlow->issue($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user(), $request->validated('exchange_rate'), $request->validated('number'), $request->validated('credit_reason'));
 
-            return $this->answer($request, $document, "{$document->type->label()} {$document->number} issued.");
+            return $this->answer($request, $document, trim("{$document->type->label()} {$document->number} issued. {$this->salesDocumentFlow->creditNotice}"));
 
         } catch (\Throwable $e) {
             report($e);
@@ -96,6 +96,59 @@ class SalesDocumentFlowController extends Controller
             $document = $this->salesDocumentFlow->void($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user(), $request->validated('reason'));
 
             return $this->answer($request, $document, "{$document->type->label()} {$document->number} voided.");
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** A draft sales order confirmed, numbered then - by the next number or one typed (Doc 16 section 16.9). */
+    public function confirm(IssueSalesDocumentRequest $request, string $kind, int $id): JsonResponse
+    {
+        try {
+            $document = $this->salesDocumentFlow->confirm($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user(), $request->validated('number'), $request->validated('credit_reason'));
+
+            return $this->answer($request, $document, trim("Sales order {$document->number} confirmed. {$this->salesDocumentFlow->creditNotice}"));
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    public function hold(SalesStatusRequest $request, string $kind, int $id): JsonResponse
+    {
+        try {
+            $document = $this->salesDocumentFlow->hold($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user(), $request->validated('reason'));
+
+            return $this->answer($request, $document, "Sales order {$document->number} is on hold.");
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    public function resume(Request $request, string $kind, int $id): JsonResponse
+    {
+        try {
+            $document = $this->salesDocumentFlow->resume($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user());
+
+            return $this->answer($request, $document, "Sales order {$document->number} is confirmed again.");
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    public function complete(Request $request, string $kind, int $id): JsonResponse
+    {
+        try {
+            $document = $this->salesDocumentFlow->complete($this->currentWorkspace($request), DocumentType::fromKind($kind), $id, $request->user());
+
+            return $this->answer($request, $document, "Sales order {$document->number} completed.");
 
         } catch (\Throwable $e) {
             report($e);

@@ -35,7 +35,13 @@ class CalculateSalesRequest extends FormRequest
         return [
             'lines'                  => ['present', 'array', 'max:200'],
             'lines.*.quantity'       => ['numeric', 'min:0', 'max:999999999.999'],
-            'lines.*.unit_price'     => ['numeric', 'min:0', 'max:9999999999999.99'],
+            // Negative only on a deposit's deduction (Doc 16 Phase D2), which saving checks against the deposit.
+            'lines.*.unit_price'     => ['numeric', 'min:-9999999999999.99', 'max:9999999999999.99', function (string $attribute, mixed $value, \Closure $fail) {
+                if (is_numeric($value) && $value < 0 && ! $this->input(str_replace('unit_price', 'deposit_invoice_id', $attribute))) {
+                    $fail('A price cannot be negative.');
+                }
+            }],
+            'lines.*.deposit_invoice_id' => ['nullable', 'integer'],
             'lines.*.discount_type'  => ['nullable', Rule::in(['percent', 'amount'])],
             'lines.*.discount_value' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'lines.*.tax_rate_id'    => ['nullable', 'integer', Rule::exists('tax_rates', 'id')->where('workspace_id', $workspace?->id)],

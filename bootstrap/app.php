@@ -3,14 +3,19 @@
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\CheckEmailVerified;
 use App\Http\Middleware\ConvertAdminRedirectsToJson;
+use App\Http\Middleware\EnsureAnyAppActive;
 use App\Http\Middleware\EnsureAppActive;
+use App\Http\Middleware\EnsureCrmUsesLeads;
+use App\Http\Middleware\EnsureIdempotent;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureRole;
+use App\Http\Middleware\EnsureSalesKindEdition;
 use App\Http\Middleware\LogApiWriteActivity;
 use App\Http\Middleware\PermissionCheckMiddleware;
 use App\Http\Middleware\ResolveWorkspace;
 use App\Http\Middleware\SetSessionLocale;
 use App\Http\Middleware\SetUserTimezone;
+use App\Http\Middleware\SupportSessionGuard;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -48,7 +53,15 @@ return Application::configure(basePath: dirname(__DIR__))
             'verified'   => CheckEmailVerified::class,
             'workspace'  => ResolveWorkspace::class,
             'app'        => EnsureAppActive::class,
+            // What more than one app brings: sales teams, the full Sales app's and CRM's (Doc 17 Phase A2).
+            'app.any'    => EnsureAnyAppActive::class,
             'access'     => EnsurePermission::class,
+            // A sales order is the full Sales app's: on Sales Lite it is only read (Doc 16 Phase B).
+            'sales.kind' => EnsureSalesKindEdition::class,
+            // A create sent twice makes one record (Doc 14 Phase A).
+            'idempotent' => EnsureIdempotent::class,
+            // Leads change only while Settings > CRM works with them (Doc 17 Phase B1).
+            'crm.leads'  => EnsureCrmUsesLeads::class,
         ]);
 
         $middleware->web(append: [
@@ -59,6 +72,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->api(append: [
             SetUserTimezone::class,
+            // A support session's requests, held to what it may do (Doc 15 section 15.22).
+            SupportSessionGuard::class,
             LogApiWriteActivity::class,
         ]);
     })

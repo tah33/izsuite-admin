@@ -17,8 +17,8 @@ class RoutePermissionsTest extends TestCase
 {
     /** What {kind} and {to} stand for in the routes that use them. */
     private const FILLS = [
-        '{kind}' => ['quotations', 'proformas', 'invoices', 'credit_notes', 'contacts', 'items'],
-        '{to}'   => ['proformas', 'invoices'],
+        '{kind}' => ['quotations', 'proformas', 'orders', 'invoices', 'credit_notes', 'contacts', 'items'],
+        '{to}'   => ['proformas', 'orders', 'invoices'],
     ];
 
     public function test_every_business_route_names_its_permission(): void

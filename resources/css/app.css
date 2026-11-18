@@ -542,6 +542,11 @@ body {
     color: #991B1B;
 }
 
+.badge-info {
+    background: var(--info-light);
+    color: #093C9A;
+}
+
 .badge-trial {
     background: var(--info-light);
     color: #093C9A;
@@ -967,6 +972,11 @@ input[type="checkbox"]:disabled {
     background: var(--content-bg);
     text-align: start;
     border-bottom: 1px solid var(--card-border);
+}
+
+/* A header over figures or actions lines up with them: the rule above would outrank the utility. */
+.data-table thead th.text-end {
+    text-align: end;
 }
 
 .data-table tbody td {

@@ -5,13 +5,16 @@ namespace App\Services\Admin;
 use App\Enums\Edition;
 use App\Models\Frontend\AppDependency;
 use App\Models\Frontend\Application;
+use App\Models\User\User;
 use App\Repositories\Admin\AppCategoryRepository;
 use App\Repositories\Admin\AppRepository;
+use App\Repositories\User\WorkspaceAppRepository;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Support\ImageService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class AppService
@@ -21,7 +24,46 @@ class AppService
         protected AppCategoryRepository $appCategoryRepository,
         protected ImageService $imageService,
         protected AppCatalogRules $rules,
+        protected WorkspaceAppRepository $workspaceApps,
+        protected CriticalActionService $critical,
     ) {}
+
+    /**
+     * Retires $app (Doc 15 section 15.10 - Phase E2), a critical action: it
+     * leaves the Apps Center and the website, and goes off for every
+     * business that has it on - their records kept, as turning it off keeps
+     * them. How many businesses had it on.
+     */
+    public function retire(Application $app, User $admin, ?string $password, ?string $reason): int
+    {
+        $this->critical->confirm($admin, $password, $reason, "Retire {$app->name}");
+
+        $affected = DB::transaction(function () use ($app) {
+            $affected = $this->workspaceApps->deactivateEverywhere($app);
+            $this->appRepository->update($app, ['status' => Application::RETIRED, 'is_active' => false]);
+
+            return $affected;
+        });
+
+        ActivityLogService::record('updated', "Retired app \"{$app->name}\": off for {$affected} ".Str::plural('business', $affected), $app, ['reason' => $reason], $admin);
+
+        return $affected;
+    }
+
+    /** Lists left empty mean all; an app does not conflict with its own family. */
+    private function catalogueFields(array $data): array
+    {
+        if (array_key_exists('countries', $data)) {
+            $data['countries'] = ! empty($data['countries']) ? array_values($data['countries']) : null;
+        }
+
+        if (array_key_exists('conflicts', $data)) {
+            $conflicts         = array_values(array_diff($data['conflicts'] ?? [], [$data['family_key'] ?? null]));
+            $data['conflicts'] = $conflicts ?: null;
+        }
+
+        return $data;
+    }
 
     /**
      * Get filtered, paginated apps list.
@@ -44,6 +86,7 @@ class AppService
      */
     public function create(array $data): Application
     {
+        $data  = $this->catalogueFields([...$data, 'countries' => $data['countries'] ?? null, 'conflicts' => $data['conflicts'] ?? null]);
         $image = $data['image'] ?? null;
         unset($data['image']);
 
@@ -63,6 +106,7 @@ class AppService
      */
     public function update(Application $app, array $data): Application
     {
+        $data  = $this->catalogueFields([...$data, 'countries' => $data['countries'] ?? null, 'conflicts' => $data['conflicts'] ?? null]);
         $image = $data['image'] ?? null;
         unset($data['image']);
 

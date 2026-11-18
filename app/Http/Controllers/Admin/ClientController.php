@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ListClientsRequest;
 use App\Services\Admin\ClientService;
-use Illuminate\Http\Request;
 
 /**
  * The platform's clients - everyone who signed up on the website - and, on
@@ -20,11 +19,7 @@ class ClientController extends Controller
     public function index(ListClientsRequest $request)
     {
         try {
-            $clients  = $this->clientService->paginate(
-                trim((string) $request->validated('search')),
-                $request->validated('package'),
-            );
-
+            $clients  = $this->clientService->paginate($request->filters());
             $packages = $this->clientService->packages();
 
             return view('admin.clients.index', compact('clients', 'packages'));
@@ -42,29 +37,7 @@ class ClientController extends Controller
             $totals   = $this->clientService->totals($client);
             $packages = $this->clientService->packages();
 
-            return view('admin.clients.show', compact('client', 'totals', 'packages'));
-
-        } catch (\Throwable $e) {
-            report($e);
-            throw $e;
-        }
-    }
-
-    /**
-     * Opens the client's dashboard on the website, signed in as them, in the
-     * tab the button opened. Refused while the client could not sign in
-     * themselves.
-     */
-    public function loginAs(Request $request, int $id)
-    {
-        try {
-            $client = $this->clientService->findOrFail($id);
-
-            if ($problem = $this->clientService->loginAsProblem($client)) {
-                return $this->adminFailure($request, $problem, 422);
-            }
-
-            return redirect()->away($this->clientService->loginAsLink($client, $request->user()));
+            return view('admin.clients.show', [...compact('client', 'totals', 'packages'), ...$this->clientService->security($client)]);
 
         } catch (\Throwable $e) {
             report($e);

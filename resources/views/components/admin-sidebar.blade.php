@@ -33,6 +33,12 @@
             <span>{{ __('Tickets') }}</span>
         </a>
 
+        {{-- izSuite support's sessions in businesses, for review (Doc 15 Phase B4). --}}
+        <a href="{{ route('admin.support-sessions.index') }}" class="sidebar-link {{ request()->routeIs('admin.support-sessions.*') ? 'active' : '' }}">
+            <i data-lucide="life-buoy" class="icon"></i>
+            <span>{{ __('Support Sessions') }}</span>
+        </a>
+
         <div class="sidebar-section-title">{{ __('App System') }}</div>
 
         <a href="{{ route('admin.app-categories.index') }}" class="sidebar-link {{ request()->routeIs('admin.app-categories.*') ? 'active' : '' }}">
@@ -55,9 +61,59 @@
             <span>{{ __('Package Access') }}</span>
         </a>
 
+        <a href="{{ route('admin.subscription-invoices.index') }}" class="sidebar-link {{ request()->routeIs('admin.subscription-invoices.*') ? 'active' : '' }}">
+            <i data-lucide="receipt" class="icon"></i>
+            <span>{{ __('Subscription Invoices') }}</span>
+        </a>
+
+        <a href="{{ route('admin.payments.index') }}" class="sidebar-link {{ request()->routeIs('admin.payments.*') ? 'active' : '' }}">
+            <i data-lucide="banknote" class="icon"></i>
+            <span>{{ __('Payments') }}</span>
+        </a>
+
+        <a href="{{ route('admin.refunds.index') }}" class="sidebar-link {{ request()->routeIs('admin.refunds.*') ? 'active' : '' }}">
+            <i data-lucide="undo-2" class="icon"></i>
+            <span>{{ __('Refunds') }}</span>
+        </a>
+
+        <a href="{{ route('admin.credits.index') }}" class="sidebar-link {{ request()->routeIs('admin.credits.*') ? 'active' : '' }}">
+            <i data-lucide="gift" class="icon"></i>
+            <span>{{ __('Credits') }}</span>
+        </a>
+
+        <a href="{{ route('admin.promotions.index') }}" class="sidebar-link {{ request()->routeIs('admin.promotions.*') ? 'active' : '' }}">
+            <i data-lucide="ticket-percent" class="icon"></i>
+            <span>{{ __('Promotions') }}</span>
+        </a>
+
+        <a href="{{ route('admin.billing-reports.index') }}" class="sidebar-link {{ request()->routeIs('admin.billing-reports.*') ? 'active' : '' }}">
+            <i data-lucide="bar-chart-3" class="icon"></i>
+            <span>{{ __('Billing Reports') }}</span>
+        </a>
+
+        <a href="{{ route('admin.subscription-taxes.index') }}" class="sidebar-link {{ request()->routeIs('admin.subscription-taxes.*') ? 'active' : '' }}">
+            <i data-lucide="percent" class="icon"></i>
+            <span>{{ __('Subscription Taxes') }}</span>
+        </a>
+
         <a href="{{ route('admin.menu-items.index') }}" class="sidebar-link {{ request()->routeIs('admin.menu-items.*') ? 'active' : '' }}">
             <i data-lucide="panel-left" class="icon"></i>
             <span>{{ __('Menu Builder') }}</span>
+        </a>
+
+        <a href="{{ route('admin.feature-flags.index') }}" class="sidebar-link {{ request()->routeIs('admin.feature-flags.*') ? 'active' : '' }}">
+            <i data-lucide="flag" class="icon"></i>
+            <span>{{ __('Feature Flags') }}</span>
+        </a>
+
+        <a href="{{ route('admin.businesses.index') }}" class="sidebar-link {{ request()->routeIs('admin.businesses.*', 'admin.workspaces.*') ? 'active' : '' }}">
+            <i data-lucide="building-2" class="icon"></i>
+            <span>{{ __('Businesses') }}</span>
+        </a>
+
+        <a href="{{ route('admin.usage.index') }}" class="sidebar-link {{ request()->routeIs('admin.usage.*') ? 'active' : '' }}">
+            <i data-lucide="gauge" class="icon"></i>
+            <span>{{ __('Usage') }}</span>
         </a>
 
         <a href="{{ route('admin.clients.index') }}" class="sidebar-link {{ request()->routeIs('admin.clients.*') ? 'active' : '' }}">
@@ -73,14 +129,10 @@
             <span>{{ __('Departments') }}</span>
         </a>
 
-        <a href="{{ route('admin.plans.index') }}" class="sidebar-link {{ request()->routeIs('admin.plans.*') ? 'active' : '' }}">
-            <i data-lucide="tag" class="icon"></i>
-            <span>{{ __('Plans & Pricing') }}</span>
-        </a>
-
+        {{-- Businesses' subscriptions to izSuite's plans (Doc 15 Phase C1); the earlier product's Plans & Pricing and Subscription History are gone. --}}
         <a href="{{ route('admin.subscriptions.index') }}" class="sidebar-link {{ request()->routeIs('admin.subscriptions.*') ? 'active' : '' }}">
-            <i data-lucide="history" class="icon"></i>
-            <span>{{ __('Subscription History') }}</span>
+            <i data-lucide="repeat" class="icon"></i>
+            <span>{{ __('Subscriptions') }}</span>
         </a>
 
         <a href="{{ route('admin.payment-methods.index') }}" class="sidebar-link {{ request()->routeIs('admin.payment-methods.*') ? 'active' : '' }}">
@@ -98,6 +150,11 @@
             <span>{{ __('Contact Messages') }}</span>
         </a>
 
+        <a href="{{ route('admin.announcements.index') }}" class="sidebar-link {{ request()->routeIs('admin.announcements.*') ? 'active' : '' }}">
+            <i data-lucide="megaphone" class="icon"></i>
+            <span>{{ __('Announcements') }}</span>
+        </a>
+
         <div class="sidebar-section-title">{{ __('Frontend CMS') }}</div>
 
         <a href="{{ route('admin.content.index', ['context' => 'header-footer']) }}" class="sidebar-link {{ request()->routeIs('admin.content.*') ? 'active' : '' }}">
@@ -110,21 +167,6 @@
             <span>{{ __('Pages') }}</span>
         </a>
 
-        <div class="sidebar-section-title">{{ __('System') }}</div>
-
-        <a href="{{ route('admin.languages.index') }}" class="sidebar-link {{ request()->routeIs('admin.languages.*') ? 'active' : '' }}">
-            <i data-lucide="globe" class="icon"></i>
-            <span>{{ __('Languages') }}</span>
-        </a>
-
-        <a href="{{ route('admin.currencies.index') }}" class="sidebar-link {{ request()->routeIs('admin.currencies.*') ? 'active' : '' }}">
-            <i data-lucide="coins" class="icon"></i>
-            <span>{{ __('Currencies') }}</span>
-        </a>
-
-        <a href="{{ route('admin.settings.index') }}" class="sidebar-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">
-            <i data-lucide="settings" class="icon"></i>
-            <span>{{ __('Settings') }}</span>
-        </a>
+        @include('admin.partials.sidebar-system')
     </nav>
 </aside>

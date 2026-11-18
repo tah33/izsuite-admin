@@ -4,10 +4,15 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\AdminLoginRequest;
+use App\Http\Requests\Auth\AdminTwoFactorChallengeRequest;
 use App\Services\Admin\AdminLoginService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
+/**
+ * The admin panel's sign-in (Doc 15 section 15.2): the password, then the
+ * authenticator app's code when two-factor is on. An admin without it is
+ * signed in and sent to set it up.
+ */
 class AuthController extends Controller
 {
     public function __construct(
@@ -32,28 +37,53 @@ class AuthController extends Controller
     public function login(AdminLoginRequest $request)
     {
         try {
-            $credentials = $request->validated();
+            $user = $this->adminLoginService->checkPassword($request->validated('email'), $request->validated('password'));
 
-            if (! $this->adminLoginService->credentialsMatchAnAdmin($credentials['email'], $credentials['password'])) {
-                return back()->withErrors([
-                    'email' => 'The provided credentials do not match our records.',
-                ])->onlyInput('email');
+            if ($this->adminLoginService->waitForCode($request->session(), $user)) {
+                return redirect()->route('login.two-factor');
             }
 
-            if (Auth::attempt([
-                'email'    => $credentials['email'],
-                'password' => $credentials['password'],
-            ], $request->boolean('remember'))) {
-                $request->session()->regenerate();
+            $this->adminLoginService->signIn($request, $user);
 
-                $this->adminLoginService->recordLogin($request->user());
+            return redirect()->route('admin.two-factor.setup');
 
-                return redirect()->intended(route('admin.overview'));
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** The code step. Without a sign-in waiting for it - never begun, or over - back to the start, keeping any message. */
+    public function showChallenge(Request $request)
+    {
+        try {
+            if (! $this->adminLoginService->awaitingCode($request->session())) {
+                $request->session()->reflash();
+
+                return redirect()->route('login');
             }
 
-            return back()->withErrors([
-                'email' => 'The provided credentials do not match our records.',
-            ])->onlyInput('email');
+            return view('auth.two-factor-challenge');
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    public function challenge(AdminTwoFactorChallengeRequest $request)
+    {
+        try {
+            $user = $this->adminLoginService->awaitingCode($request->session());
+
+            if (! $user) {
+                return redirect()->route('login')->withErrors(['email' => AdminLoginService::CODE_EXPIRED]);
+            }
+
+            $this->adminLoginService->checkCode($request->session(), $user, $request->validated('code'), $request->validated('recovery_code'));
+            $this->adminLoginService->signIn($request, $user);
+
+            return redirect()->intended(route('admin.overview'));
 
         } catch (\Throwable $e) {
             report($e);
@@ -64,12 +94,7 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         try {
-            $this->adminLoginService->recordLogout();
-
-            Auth::logout();
-
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+            $this->adminLoginService->signOut($request->session());
 
             return redirect()->route('home');
 

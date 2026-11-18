@@ -52,12 +52,12 @@ class PlanLimitsTest extends TestCase
             ->assertForbidden()
             ->assertJsonPath('message', 'Billing Starter includes one location. Upgrade the plan to add another.');
 
-        $this->getJson('/api/v1/business-settings/usage')->assertJsonPath('data.locations', ['used' => 1, 'limit' => 1]);
+        $this->getJson('/api/v1/business-settings/usage')->assertJsonPath('data.locations', ['used' => 1, 'limit' => 1, 'state' => 'full']);
 
         // On a plan without a limit it can grow.
         $this->businessOf($this->user)->package()->associate(Package::where('key', 'standard')->sole())->save();
         $this->postJson('/api/v1/locations', $place('Chattogram Branch', 'CTG'))->assertCreated();
-        $this->getJson('/api/v1/business-settings/usage')->assertJsonPath('data.locations', ['used' => 2, 'limit' => null]);
+        $this->getJson('/api/v1/business-settings/usage')->assertJsonPath('data.locations', ['used' => 2, 'limit' => null, 'state' => 'ok']);
     }
 
     public function test_a_starter_business_has_one_user_its_owner(): void
@@ -68,7 +68,7 @@ class PlanLimitsTest extends TestCase
         app(SetUpNewWorkspace::class)->addRoles($business, $this->user, 'api');
 
         // The owner is the one user.
-        $this->getJson('/api/v1/business-settings/usage')->assertJsonPath('data.users', ['used' => 1, 'limit' => 1]);
+        $this->getJson('/api/v1/business-settings/usage')->assertJsonPath('data.users', ['used' => 1, 'limit' => 1, 'state' => 'full']);
 
         $invite = fn (string $name, string $email) => [
             'name' => $name, 'email' => $email, 'role_id' => $business->roles()->where('template', 'view_only')->value('id'), 'location_access' => 'all',
@@ -82,7 +82,7 @@ class PlanLimitsTest extends TestCase
         Package::where('key', Package::STARTER)->update(['user_limit' => 2]);
         $this->postJson('/api/v1/members', $invite('Rahim Uddin', 'rahim@example.com'))->assertCreated();
         $this->postJson('/api/v1/members', $invite('Karim Ali', 'karim@example.com'))->assertForbidden();
-        $this->getJson('/api/v1/business-settings/usage')->assertJsonPath('data.users', ['used' => 2, 'limit' => 2]);
+        $this->getJson('/api/v1/business-settings/usage')->assertJsonPath('data.users', ['used' => 2, 'limit' => 2, 'state' => 'full']);
     }
 
     public function test_an_account_has_one_free_business_and_more_need_a_paid_plan(): void

@@ -17,6 +17,8 @@
         @csrf
         @method('PUT')
 
+        @include('admin.partials.critical-confirm', ['impact' => __('Saving changes which apps every plan includes, for every business on it.'), 'class' => 'mb-4'])
+
         <div class="card overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="data-table" id="access-matrix">

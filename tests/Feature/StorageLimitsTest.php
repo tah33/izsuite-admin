@@ -66,8 +66,8 @@ class StorageLimitsTest extends TestCase
         $this->assertSame([
             'package'   => ['name' => 'Billing Starter'],
             'storage'   => ['used_bytes' => 0, 'limit_bytes' => 100 * 1024 * 1024, 'percent' => 0, 'state' => 'ok'],
-            'users'     => ['used' => 1, 'limit' => 1],
-            'locations' => ['used' => 0, 'limit' => 1],
+            'users'     => ['used' => 1, 'limit' => 1, 'state' => 'full'],
+            'locations' => ['used' => 0, 'limit' => 1, 'state' => 'ok'],
         ], $this->usage());
     }
 

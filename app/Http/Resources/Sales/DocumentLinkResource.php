@@ -19,6 +19,8 @@ class DocumentLinkResource extends JsonResource
             'url'            => $this->resource['url'],
             'views'          => $link->views,
             'last_viewed_at' => $link->last_viewed_at?->toIso8601String(),
+            // When it stops working - null for never (Doc 16 Phase G2).
+            'expires_at'     => $link->expires_at?->toIso8601String(),
         ];
     }
 }

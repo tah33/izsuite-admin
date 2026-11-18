@@ -1,6 +1,7 @@
-{{-- A ticket's conversation: one message, with its attachments --}}
+{{-- A ticket's conversation: one message, with its attachments. Staff write with the editor, so theirs is markup;
+     anyone else's words come from the app and are shown as text, never as markup (Doc 15 Phase B3). --}}
 @php
-    $isStaff = $message->user_id !== $ticket->user_id;
+    $isStaff = $message->by_staff;
 @endphp
 
 <div class="flex gap-4 {{ $isStaff ? 'flex-row-reverse' : '' }}">
@@ -24,7 +25,11 @@
                 ? 'ticket-msg-staff rounded-tr-none'
                 : 'ticket-msg-user rounded-tl-none'
             }}">
-            <div class="ticket-msg-content">{!! $message->message !!}</div>
+            @if($isStaff)
+                <div class="ticket-msg-content">{!! $message->message !!}</div>
+            @else
+                <div class="ticket-msg-content whitespace-pre-line">{{ $message->message }}</div>
+            @endif
         </div>
 
         {{-- Attachments (below the bubble) --}}

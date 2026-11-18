@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Sales;
 
+use App\Http\Resources\Concerns\HidesValues;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -13,9 +14,14 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class SalesPaymentListResource extends JsonResource
 {
+    use HidesValues;
+
+    /** What a user without Sales Values does not see (Doc 12 section 14). */
+    private const VALUES = ['amount', 'applied_amount', 'withholding_amount'];
+
     public function toArray(Request $request): array
     {
-        return [
+        return $this->hideValues('sales', [
             'id'                 => $this->id,
             'kind'               => $this->kind,
             'number'             => $this->number,
@@ -28,6 +34,6 @@ class SalesPaymentListResource extends JsonResource
             'amount'             => $this->amount,
             'applied_amount'     => $this->applied_amount,
             'withholding_amount' => $this->withholding_amount,
-        ];
+        ], self::VALUES);
     }
 }

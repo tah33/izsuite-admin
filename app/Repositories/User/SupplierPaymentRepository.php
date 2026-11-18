@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Collection;
 class SupplierPaymentRepository
 {
     /** What a voucher's page shows with it. */
-    private const SHOWN_WITH = ['purchase:id,number,currency,grand_total,balance_due', 'contact:id,name', 'account:id,name,currency', 'creator:id,first_name,last_name', 'reverser:id,first_name,last_name'];
+    private const SHOWN_WITH = ['purchase:id,number,currency,grand_total,balance_due', 'contact:id,name', 'account:id,name,currency', 'creator:id,first_name,last_name', 'reverser:id,first_name,last_name', 'sourceApp:id,name'];
 
     /**
      * Payments Made (Doc 09 section 4): newest first, searched by voucher

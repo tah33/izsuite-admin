@@ -20,6 +20,18 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    /** An account that signs in. */
+    public const ACTIVE = 'active';
+
+    /** Switched off: a staff member in Admin > Staff. */
+    public const INACTIVE = 'inactive';
+
+    /** Locked by izSuite support (Doc 15 section 15.7) until it is unlocked. */
+    public const LOCKED = 'locked';
+
+    /** Closed at its holder's request (Doc 15 section 15.24): it signs in no more; its records are kept. */
+    public const CLOSED = 'closed';
+
     /**
      * HasFactory guesses Database\Factories\User\UserFactory from this
      * model's App\Models\User namespace, but the factory lives one level up.
@@ -39,6 +51,7 @@ class User extends Authenticatable
         'bio',
         'email',
         'phone',
+        'language',
         'password',
         'terms_accepted_at',
         'role_id',
@@ -59,6 +72,12 @@ class User extends Authenticatable
         // outside EmailVerificationService has any reason to read it.
         'verification_otp',
         'verification_otp_expires_at',
+
+        // The authenticator app's secret and the recovery codes' hashes (Doc 12
+        // section 22): only TwoFactorService reads them.
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_last_step',
     ];
 
     /**
@@ -89,9 +108,15 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'verification_otp_expires_at' => 'datetime',
             'terms_accepted_at' => 'datetime',
+            'marketing_consent' => 'boolean',
             'password'          => 'hashed',
             'last_login_at'     => 'datetime',
             'preferences'       => 'array',
+            'two_factor_secret'         => 'encrypted',
+            'two_factor_recovery_codes' => 'array',
+            'two_factor_confirmed_at'   => 'datetime',
+            'two_factor_last_step'      => 'integer',
+            'sessions_valid_from'       => 'datetime',
         ];
     }
 
@@ -117,6 +142,12 @@ class User extends Authenticatable
     public function workspaces(): HasMany
     {
         return $this->hasMany(Workspace::class);
+    }
+
+    /** The account's places in businesses, its own among them. */
+    public function memberships(): HasMany
+    {
+        return $this->hasMany(WorkspaceMember::class);
     }
 
     public function userStaff(): HasMany
@@ -148,10 +179,15 @@ class User extends Authenticatable
             });
     }
 
+    /**
+     * Whether the account is izSuite staff: the Super Admin, or any role but a
+     * website account's (Role::FRONTEND_SLUGS). That takes in the roles made
+     * in Admin > Roles, whatever they are called (Doc 15 section 15.3).
+     */
     public function isAdmin(): bool
     {
         return $this->role_id === Role::SUPER_ADMIN_ID
-            || ($this->role && in_array($this->role->slug, ['super-admin', 'admin', 'staff'], true));
+            || ($this->role && ! $this->role->isFrontend());
     }
 
     public function isSuperAdmin(): bool

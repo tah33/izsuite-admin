@@ -12,6 +12,7 @@ use App\Repositories\User\ItemLabelRepository;
 use App\Repositories\User\ItemRepository;
 use App\Repositories\User\TaxRateRepository;
 use App\Services\Api\Items\ItemService;
+use App\Services\Shared\WorkspaceAccess;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\LazyCollection;
@@ -102,6 +103,7 @@ class ItemTransfer implements Transfer
         protected ItemService $itemService,
         protected ItemLabelRepository $itemLabelRepository,
         protected TaxRateRepository $taxRateRepository,
+        protected WorkspaceAccess $access,
     ) {}
 
     public function plural(): string
@@ -179,7 +181,8 @@ class ItemTransfer implements Transfer
             // The taxes only while the business uses taxes, as on its pages.
             ...($workspace->usesTaxes() ? ['Sales Tax' => fn (Item $item) => $item->salesTax?->code] : []),
             'Sales Description'     => fn (Item $item) => $item->sales_description,
-            'Purchase Price'        => fn (Item $item) => $item->purchase_price,
+            // The purchase price only for a user who may see it (Doc 12 section 14).
+            ...($this->access->can('items.costs') ? ['Purchase Price' => fn (Item $item) => $item->purchase_price] : []),
             ...($workspace->usesTaxes() ? ['Purchase Tax' => fn (Item $item) => $item->purchaseTax?->code] : []),
             'Purchase Description'  => fn (Item $item) => $item->purchase_description,
             'Delivery Method'       => fn (Item $item) => self::DELIVERY_LABELS[$item->delivery_method] ?? null,

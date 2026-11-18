@@ -181,6 +181,8 @@ class AppSystemTest extends TestCase
             'id'              => $this->workspace->id,
             'business_id'     => $this->workspace->businessId(),
             'name'            => 'Main Business',
+            // No logo uploaded (Doc 14 Phase C: the header shows it beside the name).
+            'logo_url'        => null,
             'package'         => ['name' => 'Billing Starter'],
             'base_currency'   => 'USD',
             'currencies'      => ['USD'],
@@ -190,6 +192,10 @@ class AppSystemTest extends TestCase
             'warranty_enabled' => true,
             'regional'        => ['date_format' => 'd M Y', 'time_format' => '24h', 'number_format' => 'comma_dot', 'timezone' => app_display_timezone(), 'rate_precision' => 6],
             'setup_completed' => false,
+            // Active, so no status to show (Doc 15 Phase B1: the banner says why one is restricted or shut).
+            'status'          => null,
+            // Sales Lite, so none of the full Sales app's choices (Doc 16 Phase H1).
+            'sales'           => null,
         ], $nav['workspace']);
         $this->assertSame(
             ['name' => 'Sales Lite', 'edition' => 'lite', 'status' => 'active', 'has_history' => true],
@@ -265,9 +271,9 @@ class AppSystemTest extends TestCase
             'from_app_id'  => $this->apps['sales_lite']->id,
         ]);
 
-        // The answer carries the new sidebar: Sales in Sales Lite's place, with its Full-only item.
+        // The answer carries the new sidebar: Sales in Sales Lite's place, with its Full-only item, in Doc 16's order.
         $this->assertSame('Sales', $response->json('data.menu.apps.0.label'));
-        $this->assertSame(['Invoices', 'Sales Orders'], $this->labels($response->json('data.menu.apps.0.children')));
+        $this->assertSame(['Sales Orders', 'Invoices'], $this->labels($response->json('data.menu.apps.0.children')));
     }
 
     public function test_turning_on_an_app_adds_its_family(): void

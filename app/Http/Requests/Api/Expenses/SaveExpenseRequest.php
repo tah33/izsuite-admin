@@ -72,6 +72,7 @@ class SaveExpenseRequest extends FormRequest
             'receipt_number'              => ['nullable', 'string', 'max:100'],
             'reference'                   => ['nullable', 'string', 'max:100'],
             'notes'                       => ['nullable', 'string', 'max:5000'],
+            'internal_notes'              => ['nullable', 'string', 'max:5000'],
             'lines'                       => ['required', 'array', 'min:1', 'max:200'],
             'lines.*.expense_category_id' => ['required', 'integer'],
             'lines.*.description'         => ['nullable', 'string', 'max:1000'],

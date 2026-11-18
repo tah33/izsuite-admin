@@ -10,12 +10,15 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\DocumentLinkRepository;
 use App\Repositories\User\LocationRepository;
+use App\Repositories\User\SalesDeliveryRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Services\Api\BusinessSetup\ExchangeRateService;
+use App\Services\Api\Crm\CrmOpportunityClosing;
 use App\Services\Documents\DocumentNumbers;
 use App\Services\Documents\DocumentTemplates;
 use App\Services\Sales\SalesCalculator;
 use App\Services\Sales\SalesDocumentRules;
+use App\Services\Sales\SalesOrderProgress;
 use App\Services\Shared\ActivityLogService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -58,7 +61,75 @@ class SalesDocumentFlow
         protected ExchangeRateService $exchangeRateService,
         protected SalesCalculator $salesCalculator,
         protected LocationRepository $locationRepository,
+        protected SalesOrderProgress $salesOrderProgress,
+        protected SalesOrderInvoicing $salesOrderInvoicing,
+        protected SalesDeliveryRepository $salesDeliveryRepository,
+        protected SalesOrderDeposits $salesOrderDeposits,
+        protected CustomerCredit $customerCredit,
+        protected CrmOpportunityClosing $opportunityClosing,
     ) {}
+
+    /**
+     * What the last issue or confirmation has to say about its customer's
+     * credit limit (Doc 16 Phase G1): it went over and was let through, or
+     * was overridden. Null when within it.
+     */
+    public ?string $creditNotice = null;
+
+    /**
+     * A draft sales order confirmed (Doc 16 section 16.9): numbered - the next
+     * number, or one typed - with its business and customer kept as they are
+     * now, and its terms locked: from here it changes only by Amend. Its
+     * delivery status starts as Not Delivered, or Not Required when every line
+     * is a service, and nothing is invoiced yet.
+     */
+    public function confirm(Workspace $workspace, DocumentType $type, int $id, User $user, ?string $number = null, ?string $creditReason = null): SalesDocument
+    {
+        $document = $this->allowed($workspace, $type, $id, 'confirm', 'Only a draft sales order can be confirmed.');
+
+        $this->checkReady($workspace, $document);
+
+        $typed = $this->documentNumbers->typed($document->type, $number, fn (string $taken) => $this->salesDocumentRepository->numberTaken($workspace, $document->type, $taken));
+        // Its customer's credit limit, while confirmed orders count toward it (Doc 16 Phase G1).
+        $credit = $this->checkCredit($workspace, $document, $creditReason);
+
+        $this->salesDocumentRepository->loadLineItems($document);
+
+        DB::transaction(fn () => $this->salesDocumentRepository->update($document, [
+            ...$this->numbered($workspace, $document, $typed),
+            ...($credit['overridden'] ?? false ? ['credit_reason' => trim((string) $creditReason)] : []),
+            'status'          => SalesDocumentStatus::Confirmed,
+            'confirmed_at'    => now(),
+            'confirmed_by'    => $user->id,
+            'delivery_status' => $this->salesOrderProgress->deliveryStatus($document),
+            'invoice_status'  => $this->salesOrderProgress->invoiceStatus($document),
+            'updated_by'      => $user->id,
+        ]));
+
+        $document = $this->creditLogged($document, 'Confirmed '.$this->salesDocumentService->describe($document), $credit, $creditReason);
+
+        // The CRM opportunity it was made from, won as it is confirmed (Doc 17 Phase F2).
+        $this->opportunityClosing->winFromOrder($workspace, $user, $document);
+
+        return $document;
+    }
+
+    /** A confirmed sales order put on hold, with an optional reason: nothing more is done on it until it is resumed. */
+    public function hold(Workspace $workspace, DocumentType $type, int $id, User $user, ?string $reason): SalesDocument
+    {
+        return $this->move($workspace, $type, $id, $user, 'hold', SalesDocumentStatus::OnHold, $reason, 'Only a confirmed sales order can be put on hold.', 'Put %s on hold');
+    }
+
+    public function resume(Workspace $workspace, DocumentType $type, int $id, User $user): SalesDocument
+    {
+        return $this->move($workspace, $type, $id, $user, 'resume', SalesDocumentStatus::Confirmed, null, 'Only a sales order on hold can be resumed.', 'Resumed %s');
+    }
+
+    /** A confirmed sales order closed: done with, whatever is left undelivered or uninvoiced. */
+    public function complete(Workspace $workspace, DocumentType $type, int $id, User $user): SalesDocument
+    {
+        return $this->move($workspace, $type, $id, $user, 'complete', SalesDocumentStatus::Completed, null, 'Only a confirmed sales order can be completed.', 'Completed %s');
+    }
 
     /**
      * A credit note is issued against its invoice - see CreditNoteService. An
@@ -66,28 +137,42 @@ class SalesDocumentFlow
      * $rate 'keep' - or at the business's rate for its date - 'current' - its
      * base figures then worked out again (Doc 08 sections 11 and 18).
      */
-    public function issue(Workspace $workspace, DocumentType $type, int $id, User $user, ?string $rate = null): SalesDocument
+    public function issue(Workspace $workspace, DocumentType $type, int $id, User $user, ?string $rate = null, ?string $number = null, ?string $creditReason = null): SalesDocument
     {
+        $this->creditNotice = null;
+
         if ($type === DocumentType::CreditNote) {
-            return $this->creditNoteService->issue($workspace, $id, $user);
+            return $this->creditNoteService->issue($workspace, $id, $user, $number);
         }
 
         $document = $this->allowed($workspace, $type, $id, 'issue', 'Only a draft invoice can be issued.');
 
         $this->checkReady($workspace, $document);
+        // One made from a sales order still fits what the order has left (Doc 16 Phase B2).
+        $this->salesOrderInvoicing->checkIssue($workspace, $document);
 
         $current = $this->rateToIssueAt($workspace, $document, $rate);
+        $typed   = $this->documentNumbers->typed($document->type, $number, fn (string $taken) => $this->salesDocumentRepository->numberTaken($workspace, $document->type, $taken));
+        // Its customer's credit limit, at the rate it is issued at (Doc 16 Phase G1).
+        $credit  = $this->checkCredit($workspace, $document, $creditReason, $current);
 
         DB::transaction(fn () => $this->salesDocumentRepository->update($document, [
-            ...($current ? ['exchange_rate' => $current, ...$this->salesCalculator->baseTotals((string) $document->grand_total, (string) $document->tax_total, $current)] : []),
-            ...$this->numbered($workspace, $document),
+            ...($current ? [
+                'exchange_rate' => $current,
+                ...$this->exchangeRateService->originOf($workspace, $document->currency, $document->document_date, $current),
+                ...$this->salesCalculator->baseTotals((string) $document->grand_total, (string) $document->tax_total, $current),
+            ] : []),
+            ...$this->numbered($workspace, $document, $typed),
+            ...($credit['overridden'] ?? false ? ['credit_reason' => trim((string) $creditReason)] : []),
             'status'         => SalesDocumentStatus::Issued,
             'payment_status' => bccomp((string) $document->grand_total, '0', 2) > 0 ? SalesDocument::PAYMENT_UNPAID : 'paid',
             'balance_due'    => $document->grand_total,
             'updated_by'     => $user->id,
         ]));
 
-        return $this->logged($document, 'Issued '.$this->salesDocumentService->describe($document));
+        $this->refreshOrder($document);
+
+        return $this->creditLogged($document, 'Issued '.$this->salesDocumentService->describe($document), $credit, $creditReason);
     }
 
     public function send(Workspace $workspace, DocumentType $type, int $id, User $user): SalesDocument
@@ -116,8 +201,24 @@ class SalesDocumentFlow
         return $this->move($workspace, $type, $id, $user, 'reject', SalesDocumentStatus::Rejected, $reason, 'Only a sent quotation that has not expired can be rejected.', 'Marked %s as rejected');
     }
 
+    /**
+     * A sales order with invoices still drafted or issued is not cancelled:
+     * "Cancelling an order does not silently cancel an existing delivery,
+     * invoice or payment" (Doc 16 section 16.9) - they are voided or deleted first.
+     */
     public function cancel(Workspace $workspace, DocumentType $type, int $id, User $user, ?string $reason): SalesDocument
     {
+        $order = $type === DocumentType::SalesOrder ? $this->salesDocumentService->find($workspace, $type, $id) : null;
+
+        if ($order && $this->salesDocumentRepository->hasOpenInvoicesFrom($order)) {
+            $this->refuse('Cancelling the order leaves its invoices as they are. Void or delete them first.');
+        }
+
+        // Its deliveries too (Phase C): a delivered one is returned, not cancelled, so the order is completed instead.
+        if ($order && $this->salesDeliveryRepository->hasActiveFor($order)) {
+            $this->refuse('Cancelling the order leaves its deliveries as they are. Cancel or delete them first - once one was delivered, complete the order instead.');
+        }
+
         return $this->move($workspace, $type, $id, $user, 'cancel', SalesDocumentStatus::Cancelled, $reason, 'This cannot be cancelled. A draft is deleted instead.', 'Cancelled %s');
     }
 
@@ -137,6 +238,11 @@ class SalesDocumentFlow
             ? 'Payments or credit notes have settled some of this invoice. Reverse its payments and void its credit notes first.'
             : 'Only an issued invoice can be voided. A draft is deleted instead.');
 
+        // A deposit its order's later invoices deduct stands while they do (Doc 16 Phase D2).
+        if ($document->is_deposit && $this->salesOrderDeposits->isDeducted($document)) {
+            $this->refuse('Later invoices of the order deduct this deposit. Void them, or take the deduction off a draft, first.');
+        }
+
         DB::transaction(function () use ($document, $user, $reason) {
             $this->salesDocumentRepository->update($document, [
                 'status'         => SalesDocumentStatus::Void,
@@ -150,7 +256,19 @@ class SalesDocumentFlow
             $this->documentLinkRepository->revokeFor($document);
         });
 
+        $this->refreshOrder($document);
+
         return $this->logged($document, 'Voided '.$this->salesDocumentService->describe($document));
+    }
+
+    /** The sales order an invoice was made from, its invoiced quantities counted again (Doc 16 Phase B2). */
+    private function refreshOrder(SalesDocument $document): void
+    {
+        $order = $this->salesOrderInvoicing->orderOf($document);
+
+        if ($order) {
+            $this->salesOrderInvoicing->refresh($this->salesDocumentRepository->loadLineItems($order));
+        }
     }
 
     /** A status change with nothing more to it than the status and an optional reason. */
@@ -182,14 +300,15 @@ class SalesDocumentFlow
     }
 
     /**
-     * Its number - the one it has, or the next - and the business and customer
-     * as they are now. Called inside the transaction that saves it, so a
-     * failed save gives the number back.
+     * Its number - the one it has, one typed as it is issued ($typed, checked
+     * already: Doc 14 section 14.6), or the next - and the business and
+     * customer as they are now. Called inside the transaction that saves it,
+     * so a failed save gives the number back.
      */
-    private function numbered(Workspace $workspace, SalesDocument $document): array
+    private function numbered(Workspace $workspace, SalesDocument $document, ?string $typed = null): array
     {
         return [
-            'number'            => $document->number ?? $this->documentNumbers->next(
+            'number'            => $document->number ?? $typed ?? $this->documentNumbers->next(
                 $workspace,
                 $document->type,
                 CarbonImmutable::parse($document->document_date),
@@ -198,7 +317,7 @@ class SalesDocumentFlow
             ),
             'issued_at'         => $document->issued_at ?? now(),
             'business_snapshot' => $this->salesSnapshots->business($workspace, $document->location, $document->type->isPaidFrom() ? $document->currency : null),
-            'customer_snapshot' => $this->salesSnapshots->customer($document->contact),
+            'customer_snapshot' => $this->salesSnapshots->customerOf($document),
             'template_snapshot' => $this->documentTemplates->snapshot($workspace, $document->type),
         ];
     }
@@ -275,6 +394,30 @@ class SalesDocumentFlow
 
         return $rate && $rate->is_active && $rate->effective_from <= $document->document_date
             && (! $rate->effective_to || $rate->effective_to >= $document->document_date);
+    }
+
+    /** @return ?array{message: string, overridden: bool} see CustomerCredit::check */
+    private function checkCredit(Workspace $workspace, SalesDocument $document, ?string $reason, ?string $rate = null): ?array
+    {
+        $this->creditNotice = null;
+
+        return $this->customerCredit->check($workspace, $document, $reason, $rate);
+    }
+
+    /** logged(), with the credit limit's word for the user, and an override in the Activity Log with why. */
+    private function creditLogged(SalesDocument $document, string $description, ?array $credit, ?string $reason): SalesDocument
+    {
+        $shown = $this->logged($document, $description);
+
+        if ($credit) {
+            $this->creditNotice = $credit['message'];
+
+            if ($credit['overridden']) {
+                $this->customerCredit->logOverride($document, $description, (string) $reason);
+            }
+        }
+
+        return $shown;
     }
 
     private function logged(SalesDocument $document, string $description): SalesDocument

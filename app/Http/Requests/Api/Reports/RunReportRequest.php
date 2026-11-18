@@ -3,10 +3,17 @@
 namespace App\Http\Requests\Api\Reports;
 
 use App\Enums\TaxTreatment;
+use App\Services\Reports\Crm\ActivityReport;
+use App\Services\Reports\Crm\LeadReport;
+use App\Services\Reports\Crm\OpportunityReport;
 use App\Services\Reports\Expenses\ExpensesByCategoryReport;
 use App\Services\Reports\Purchases\PurchaseSummaryReport;
 use App\Services\Reports\ReportPeriod;
+use App\Services\Reports\Sales\DeliveryPerformanceReport;
+use App\Services\Reports\Sales\OrderBacklogReport;
 use App\Services\Reports\Sales\OutstandingInvoicesReport;
+use App\Services\Reports\Sales\QuotationReport;
+use App\Services\Reports\Sales\ReturnsReport;
 use App\Services\Reports\Sales\SalesSummaryReport;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -24,7 +31,9 @@ class RunReportRequest extends FormRequest
      * day, a grouping, a location, contact, currency, item, item category,
      * expense category, payment status, payment account and tax treatment -
      * the one rate a Tax Summary row opens Tax Details for, and the side a
-     * Contact Statement shows: customer or supplier.
+     * Contact Statement shows: customer or supplier - and (Doc 17 Phase H)
+     * for CRM's reports a sales team, an owner, a lead source, a pipeline and
+     * a stage.
      */
     public function rules(): array
     {
@@ -33,7 +42,7 @@ class RunReportRequest extends FormRequest
             'date_from'           => ['nullable', 'required_with:date_to', 'date_format:Y-m-d'],
             'date_to'             => ['nullable', 'required_with:date_from', 'date_format:Y-m-d', 'after_or_equal:date_from'],
             'as_of'               => ['nullable', 'date_format:Y-m-d'],
-            'group_by'            => ['nullable', Rule::in(array_keys([...SalesSummaryReport::GROUPS, ...PurchaseSummaryReport::GROUPS, ...ExpensesByCategoryReport::GROUPS]))],
+            'group_by'            => ['nullable', Rule::in(array_keys([...SalesSummaryReport::GROUPS, ...PurchaseSummaryReport::GROUPS, ...ExpensesByCategoryReport::GROUPS, ...QuotationReport::GROUPS, ...OrderBacklogReport::GROUPS, ...DeliveryPerformanceReport::GROUPS, ...ReturnsReport::GROUPS, ...LeadReport::GROUPS, ...OpportunityReport::GROUPS, ...ActivityReport::GROUPS]))],
             'location_id'         => ['nullable', 'integer'],
             'contact_id'          => ['nullable', 'integer'],
             'currency'            => ['nullable', 'string', 'size:3'],
@@ -45,6 +54,11 @@ class RunReportRequest extends FormRequest
             'tax_treatment'       => ['nullable', Rule::enum(TaxTreatment::class)],
             'tax'                 => ['nullable', 'string', 'max:150'],
             'side'                => ['nullable', Rule::in(['customer', 'supplier'])],
+            'sales_team_id'       => ['nullable', 'integer'],
+            'owner_id'            => ['nullable', 'integer'],
+            'lead_source_id'      => ['nullable', 'integer'],
+            'pipeline_id'         => ['nullable', 'integer'],
+            'stage_id'            => ['nullable', 'integer'],
         ];
     }
 

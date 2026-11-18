@@ -99,7 +99,8 @@ class RoleScreensTest extends TestCase
         $sales = $this->getJson('/api/v1/dashboard', $pick)->assertOk()->json('data');
         $this->assertSame('335.50', $sales['sales']['outstanding']);
         $this->assertNull($sales['purchases']);
-        $this->assertNotNull($sales['accounts']);
+        // The accounts it records payments into, but not their balances: those are the Finance User's (Doc 12 section 14).
+        $this->assertNull($sales['accounts']);
         $this->assertSame(['Invoice', 'Quotation'], $this->kindsIn($sales));
 
         // The newest transactions are only of the kinds the role may open -
@@ -153,12 +154,13 @@ class RoleScreensTest extends TestCase
         $owner = array_column($this->getJson('/api/v1/reports')->assertOk()->json('data'), 'key');
         $this->assertContains('account-transactions', $owner);
 
-        $pick = $this->member('Sales Analyst', ['reports.view', 'sales.invoices.view']);
+        $pick = $this->member('Sales Analyst', ['reports.view', 'sales.invoices.view', 'sales.values.view']);
         $keys = array_column($this->getJson('/api/v1/reports', $pick)->assertOk()->json('data'), 'key');
 
-        // No Contact Statement without Contacts' View, and no accounts or payables.
+        // No Contact Statement without Contacts' View, no accounts or payables,
+        // and no tax reports: they draw on purchases too, unseen here.
         $this->assertSame(
-            ['sales-summary', 'sales-trend', 'top-items', 'top-customers', 'outstanding-invoices', 'payments-received', 'credit-notes', 'tax-summary', 'tax-details'],
+            ['sales-summary', 'sales-trend', 'top-items', 'top-customers', 'outstanding-invoices', 'payments-received', 'credit-notes'],
             $keys,
         );
         $this->getJson('/api/v1/reports/account-transactions', $pick)->assertNotFound();

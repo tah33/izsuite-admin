@@ -24,6 +24,8 @@ class RegisterFromInvitationRequest extends FormRequest
             'last_name'    => ['nullable', 'string', 'max:255'],
             'password'     => ['required', 'string', 'confirmed', Password::defaults()],
             'accept_terms' => ['required', 'accepted'],
+            // Product news by e-mail (Doc 15 Phase G3): optional, off unless ticked.
+            'marketing'    => ['sometimes', 'boolean'],
         ];
     }
 

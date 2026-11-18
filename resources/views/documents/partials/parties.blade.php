@@ -21,6 +21,13 @@
                 <div class="muted">{{ __('Tax Exemption No.', [], $lang) }}: {{ $customer['tax_exemption_number'] }}</div>
             @endif
         @endif
+        @if (! empty($shipTo))
+            {{-- Where it goes (Doc 16 Phase A), once the document says how or when. --}}
+            <div class="label ship-to">{{ __('Ship To', [], $lang) }}</div>
+            @foreach ($shipTo as $line)
+                <div class="muted">{{ $line }}</div>
+            @endforeach
+        @endif
     </div>
     <table class="facts">
         @foreach ($facts as [$name, $value])

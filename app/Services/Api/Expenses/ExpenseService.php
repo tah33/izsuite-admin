@@ -2,6 +2,8 @@
 
 namespace App\Services\Api\Expenses;
 
+use App\Services\Api\BusinessSetup\ExchangeRateService;
+use App\Services\Shared\EditConflicts;
 use App\Enums\ExpenseStatus;
 use App\Models\User\Expense;
 use App\Models\User\ExpenseLine;
@@ -52,6 +54,7 @@ class ExpenseService
         protected ExpenseRules $expenseRules,
         protected BusinessCalendar $businessCalendar,
         protected WorkspaceAccess $access,
+        protected ExchangeRateService $exchangeRateService,
     ) {}
 
     /** The business's today, which overdue is measured by: "2026-10-28". */
@@ -103,6 +106,9 @@ class ExpenseService
     public function update(Workspace $workspace, int $id, User $user, array $data): Expense
     {
         $expense = $this->find($workspace, $id);
+
+        // Changed by someone else since it was opened: refused (Doc 14 section 22).
+        EditConflicts::ensureUnchanged($expense, 'this expense');
 
         if (! $this->expenseRules->allows($expense, 'edit')) {
             $this->refuse('A recorded expense cannot be changed. Void it and record it again if it is wrong.');
@@ -212,6 +218,7 @@ class ExpenseService
     {
         $terms   = $this->paymentTerms($workspace, $data);
         $contact = $data['contact_id'] ?? null;
+        $rate     = $data['currency'] === $workspace->base_currency ? '1' : (string) $data['exchange_rate'];
 
         return [
             'contact_id'     => $contact,
@@ -221,10 +228,12 @@ class ExpenseService
             'due_date'       => $data['due_date'] ?? CarbonImmutable::parse($data['document_date'])->addDays($terms)->toDateString(),
             'payment_terms'  => $terms,
             'currency'       => $data['currency'],
-            'exchange_rate'  => $data['currency'] === $workspace->base_currency ? '1' : (string) $data['exchange_rate'],
+            'exchange_rate'  => $rate,
+            ...$this->exchangeRateService->originOf($workspace, $data['currency'], $data['document_date'], $rate),
             'receipt_number' => $data['receipt_number'] ?? null,
             'reference'      => $data['reference'] ?? null,
             'notes'          => $data['notes'] ?? null,
+            'internal_notes' => $data['internal_notes'] ?? null,
         ];
     }
 

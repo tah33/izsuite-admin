@@ -21,17 +21,33 @@ use App\Support\Decimal;
  * A customer's or an item's row opens their profile, with its related
  * documents or transactions (Doc 04 section 20); a period's, location's or
  * currency's opens the documents behind it.
+ *
+ * The full Sales app adds groupings (Doc 16 section 16.26 - Phase H2a): by
+ * item category and brand - each line's item as it is now - salesperson,
+ * sales team and source, the app that made each document. Its "Sales by"
+ * reports are this one grouped one way, under their own names
+ * (ReportCatalog::GROUPED).
  */
 class SalesSummaryReport extends Report
 {
-    public const GROUPS = ['day' => 'Day', 'week' => 'Week', 'month' => 'Month', 'customer' => 'Customer', 'item' => 'Item', 'location' => 'Location', 'currency' => 'Currency'];
+    public const GROUPS = [
+        'day' => 'Day', 'week' => 'Week', 'month' => 'Month', 'customer' => 'Customer', 'item' => 'Item', 'location' => 'Location', 'currency' => 'Currency',
+        'category' => 'Item Category', 'brand' => 'Brand', 'salesperson' => 'Salesperson', 'team' => 'Sales Team', 'source' => 'Source',
+    ];
+
+    /** The full Sales app's groupings: Sales Summary takes them only while it is on (ReportService). */
+    public const FULL_GROUPS = ['category', 'brand', 'salesperson', 'team', 'source'];
 
     private const PERIODS = ['day', 'week', 'month'];
 
+    /** The groupings that take each line apart: what an item is, not its document. */
+    private const LINE_GROUPS = ['item', 'category', 'brand'];
+
     public function build(Workspace $workspace, array $filters): ReportTable
     {
-        $group  = $filters['group_by'] ?? 'month';
-        $lines  = $group === 'item' || ($filters['item'] ?? null) || ($filters['category'] ?? null);
+        // Another report's grouping - a supplier, a payee - is by month, as Purchase Summary's is.
+        $group  = array_key_exists($filters['group_by'] ?? '', self::GROUPS) ? $filters['group_by'] : 'month';
+        $lines  = in_array($group, self::LINE_GROUPS, true) || ($filters['item'] ?? null) || ($filters['category'] ?? null);
         $rows   = $lines ? $this->byLine($workspace, $filters, $group) : $this->byDocument($workspace, $filters, $group);
         $rows   = in_array($group, self::PERIODS, true) ? $rows : $this->ranked($rows);
         $base   = $workspace->base_currency;
@@ -40,7 +56,7 @@ class SalesSummaryReport extends Report
         $narrow = $filters['item']->name ?? (isset($filters['category']) ? "{$filters['category']->name} items" : null);
 
         return new ReportTable(
-            title: 'Sales Summary',
+            title: $filters['report_name'] ?? 'Sales Summary',
             period: $this->between($filters).($narrow ? " · {$narrow}" : ''),
             columns: array_values(array_filter([
                 $this->column('group', self::GROUPS[$group]),
@@ -127,29 +143,45 @@ class SalesSummaryReport extends Report
         return $rows;
     }
 
-    /** Where a document falls: its day, customer, location and currency. */
+    /** Where a document falls: its day, customer, location and currency - and who sold it and the app that made it. */
     private function documentFacts(SalesDocument $document): array
     {
         return [
-            'date'        => $document->document_date,
-            'contact_id'  => $document->contact_id,
-            'customer'    => $this->figures->customerName($document),
-            'location_id' => $document->location_id,
-            'location'    => $document->location?->name,
-            'currency'    => $document->currency,
+            'date'           => $document->document_date,
+            'contact_id'     => $document->contact_id,
+            'customer'       => $this->figures->customerName($document),
+            'location_id'    => $document->location_id,
+            'location'       => $document->location?->name,
+            'currency'       => $document->currency,
+            'salesperson_id' => $document->salesperson_id,
+            'salesperson'    => $document->salesperson?->name,
+            'team_id'        => $document->sales_team_id,
+            'team'           => $document->salesTeam?->name,
+            'source_id'      => $document->source_app_id,
+            'source'         => $document->sourceApp?->name,
         ];
     }
 
-    /** Where a line's document falls - from issuedLines()'s columns. */
+    /** Where a line's document falls - from issuedLines()'s columns - and its item's category and brand. */
     private function lineFacts(SalesDocumentLine $line): array
     {
         return [
-            'date'        => $line->document_date,
-            'contact_id'  => $line->contact_id,
-            'customer'    => json_decode((string) $line->customer_snapshot, true)['name'] ?? $line->contact_name ?? 'Unknown customer',
-            'location_id' => $line->location_id,
-            'location'    => $line->location_name,
-            'currency'    => $line->currency,
+            'date'           => $line->document_date,
+            'contact_id'     => $line->contact_id,
+            'customer'       => json_decode((string) $line->customer_snapshot, true)['name'] ?? $line->contact_name ?? 'Unknown customer',
+            'location_id'    => $line->location_id,
+            'location'       => $line->location_name,
+            'currency'       => $line->currency,
+            'category_id'    => $line->category_id,
+            'category'       => $line->category_name,
+            'brand_id'       => $line->brand_id,
+            'brand'          => $line->brand_name,
+            'salesperson_id' => $line->salesperson_id,
+            'salesperson'    => $line->salesperson_id ? trim($line->salesperson_first_name.' '.$line->salesperson_last_name) : null,
+            'team_id'        => $line->sales_team_id,
+            'team'           => $line->team_name,
+            'source_id'      => $line->source_app_id,
+            'source'         => $line->source_name,
         ];
     }
 
@@ -163,13 +195,19 @@ class SalesSummaryReport extends Report
         }
 
         return match ($group) {
-            'customer' => ["contact:{$facts['contact_id']}", $facts['customer'], $facts['contact_id'] ? "/contacts/{$facts['contact_id']}" : null],
-            'location' => [
+            'customer'    => ["contact:{$facts['contact_id']}", $facts['customer'], $facts['contact_id'] ? "/contacts/{$facts['contact_id']}" : null],
+            'location'    => [
                 "location:{$facts['location_id']}",
                 $facts['location'] ?? 'No location',
                 $facts['location_id'] ? $this->documentsLink($filters['from'], $filters['to'], $filters, ['location_id' => $facts['location_id']]) : null,
             ],
-            default    => [$facts['currency'], $facts['currency'], $this->documentsLink($filters['from'], $filters['to'], $filters, ['currency' => $facts['currency']])],
+            // The full Sales app's (Doc 16 Phase H2a): each without one in a row of its own.
+            'category'    => ["category:{$facts['category_id']}", $facts['category'] ?? 'No category', null],
+            'brand'       => ["brand:{$facts['brand_id']}", $facts['brand'] ?? 'No brand', null],
+            'salesperson' => ["salesperson:{$facts['salesperson_id']}", $facts['salesperson'] ?? 'No salesperson', null],
+            'team'        => ["team:{$facts['team_id']}", $facts['team'] ?? 'No team', null],
+            'source'      => ["source:{$facts['source_id']}", $facts['source'] ?? 'Not recorded', null],
+            default       => [$facts['currency'], $facts['currency'], $this->documentsLink($filters['from'], $filters['to'], $filters, ['currency' => $facts['currency']])],
         };
     }
 

@@ -103,6 +103,10 @@ class ActivityLogApiTest extends TestCase
             SettingChanges::between(['swift_code' => 'AAAA5678'], ['swift_code' => 'BBBB5678']),
         );
         $this->assertSame([], SettingChanges::between(['notes' => null, 'updated_at' => '2026-10-01'], ['notes' => '', 'updated_at' => '2026-10-28']));
+
+        // No list, saved as an empty one, is no change; emptying one is.
+        $this->assertSame([], SettingChanges::between(['tags' => null], ['tags' => []]));
+        $this->assertSame([['setting' => 'tags', 'from' => 'shop, trade', 'to' => null]], SettingChanges::between(['tags' => ['shop', 'trade']], ['tags' => []]));
     }
 
     public function test_an_entry_about_a_record_at_a_location_names_the_location(): void

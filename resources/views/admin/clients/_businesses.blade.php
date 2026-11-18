@@ -23,8 +23,8 @@
                                 · {{ trans_choice(':count contact|:count contacts', $workspace->contacts_count) }}
                                 · {{ trans_choice(':count item|:count items', $workspace->items_count) }}
                                 · {{ \App\Support\Bytes::format((int) $workspace->storage_bytes) }}
-                                @if($workspace->package?->storage_limit_mb !== null)
-                                    {{ __('of') }} {{ \App\Support\Bytes::format($workspace->package->storage_limit_mb * 1024 * 1024) }}
+                                @if($workspace->terms()?->storage_limit_mb !== null)
+                                    {{ __('of') }} {{ \App\Support\Bytes::format($workspace->terms()->storage_limit_mb * 1024 * 1024) }}
                                 @endif
                             </span>
                         </td>
@@ -38,9 +38,8 @@
                             </div>
                         </td>
                         <td>
-                            <form action="{{ route('admin.workspaces.package', $workspace->id) }}" method="POST" class="flex items-center gap-2">
-                                @csrf
-                                @method('PATCH')
+                            {{-- Moving shows what changes first (admin.workspaces.package.review). --}}
+                            <form action="{{ route('admin.workspaces.package.review', $workspace->id) }}" method="GET" class="flex items-center gap-2">
                                 <div class="w-40">
                                     <select name="package_id" class="form-select" aria-label="{{ __('Plan for') }} {{ $workspace->name }}">
                                         @foreach($packages as $package)
@@ -48,7 +47,7 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <button type="submit" class="btn btn-xs btn-secondary" data-loading-label="{{ __('Moving...') }}">{{ __('Move') }}</button>
+                                <button type="submit" class="btn btn-xs btn-secondary">{{ __('Move') }}</button>
                             </form>
                         </td>
                     </tr>

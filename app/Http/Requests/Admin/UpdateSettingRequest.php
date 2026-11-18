@@ -2,6 +2,9 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Enums\FileCollection;
+use App\Services\Files\FileLimits;
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateSettingRequest extends FormRequest
@@ -36,6 +39,26 @@ class UpdateSettingRequest extends FormRequest
             'settings.site_favicon'           => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,svg,ico', 'max:1024'],
             'settings.primary_color'          => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/'],
             'settings.footer_text'            => ['nullable', 'string', 'max:1000'],
+            // izSuite's details on its subscription invoices (Doc 13 Phase C)
+            'settings.billing_company_name'     => ['required', 'string', 'max:150'],
+            'settings.billing_company_address'  => ['nullable', 'string', 'max:500'],
+            'settings.billing_company_email'    => ['nullable', 'email', 'max:255'],
+            'settings.billing_company_tax_id'   => ['nullable', 'string', 'max:50'],
+            'settings.billing_invoice_due_days' => ['required', 'integer', 'min:1', 'max:90'],
+            // Grace days a declined saved card is charged again on: "1,3" (Doc 13 Phase D3).
+            'settings.billing_retry_days'       => ['nullable', 'string', 'max:50', 'regex:/^\s*\d{1,2}(\s*,\s*\d{1,2})*\s*$/'],
+            // What a business may attach (Doc 14 Phase E2): only types izSuite takes, and up to 50 MB a file.
+            'settings.files_attachment_types'   => ['required', 'string', 'max:500', function (string $attribute, mixed $value, Closure $fail) {
+                $chosen  = FileLimits::listed((string) $value);
+                $unknown = array_diff($chosen, FileCollection::Attachments->extensions());
+
+                if (! $chosen) {
+                    $fail('Choose at least one file type.');
+                } elseif ($unknown) {
+                    $fail('izSuite does not take '.implode(', ', $unknown).' files. Choose from '.implode(', ', FileCollection::Attachments->extensions()).'.');
+                }
+            }],
+            'settings.files_attachment_max_mb'  => ['required', 'integer', 'min:1', 'max:'.FileLimits::MAX_ATTACHMENT_MB],
         ];
 
         return array_filter($rules, function ($key) {
@@ -87,6 +110,11 @@ class UpdateSettingRequest extends FormRequest
             'settings.smtp_password'     => 'SMTP password',
             'settings.smtp_from_address' => 'from address',
             'settings.smtp_from_name'    => 'from name',
+            'settings.billing_company_name'     => 'company name',
+            'settings.billing_company_email'    => 'billing e-mail',
+            'settings.billing_invoice_due_days' => 'days to pay',
+            'settings.files_attachment_types'   => 'attachment types',
+            'settings.files_attachment_max_mb'  => 'largest attachment',
         ];
     }
 }

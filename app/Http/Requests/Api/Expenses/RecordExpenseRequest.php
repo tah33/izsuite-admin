@@ -22,6 +22,16 @@ class RecordExpenseRequest extends FormRequest
         return [
             'confirmed' => ['nullable', 'boolean'],
             'reason'    => ['nullable', 'string', 'max:500'],
+            // A number typed rather than the next one (Doc 14 section 14.6) - DocumentNumbers::typed checks the role and that it is free
+            'number'    => ['nullable', 'string', 'max:40', 'regex:#^[A-Za-z0-9][A-Za-z0-9 ._/-]*$#'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'number.regex' => 'A number may have letters, digits, spaces and . _ / - only, starting with a letter or digit.',
+            'number.max'   => 'A number can be at most 40 characters.',
         ];
     }
 }

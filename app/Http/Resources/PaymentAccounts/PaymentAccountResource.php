@@ -2,12 +2,21 @@
 
 namespace App\Http\Resources\PaymentAccounts;
 
-use App\Support\RichText;
+use App\Services\Shared\EditConflicts;
+use App\Http\Resources\Concerns\HidesValues;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class PaymentAccountResource extends JsonResource
 {
+    use HidesValues;
+
+    /** What a user without Payment Accounts' View Balances does not see (Doc 12 section 14). */
+    private const BALANCES = ['opening_balance', 'balance'];
+
+    /** What a user without View Full Account Details sees masked: "•••• 6819". */
+    private const DETAILS = ['account_number', 'swift_code', 'merchant_number'];
+
     /**
      * Every field, flat, as the table holds it (Doc 05 sections 5 to 9), with
      * its location by name. Balances go out as strings with two decimals
@@ -18,8 +27,10 @@ class PaymentAccountResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return [
+        return $this->maskWithout('payment_accounts.details', $this->hideWithout('payment_accounts.balances', [
             'id'                      => $this->id,
+            // When it was last changed: sent back as If-Match when it is saved (Doc 14 section 22).
+            'version' => EditConflicts::version($this->resource),
             'type'                    => $this->type,
             'name'                    => $this->name,
             'currency'                => $this->currency,
@@ -38,8 +49,7 @@ class PaymentAccountResource extends JsonResource
             'opening_balance_date'    => $this->opening_balance_date,
             'balance'                 => $this->balance,
             'has_transactions'        => (bool) $this->has_transactions,
-            // HTML, safe to print: instructions saved before the editor come as paragraphs.
-            'payment_instructions'    => RichText::html($this->payment_instructions),
+            'payment_instructions'    => $this->payment_instructions,
             'show_on_documents'       => $this->show_on_documents,
             'allow_customer_payments' => $this->allow_customer_payments,
             'allow_supplier_payments' => $this->allow_supplier_payments,
@@ -47,6 +57,14 @@ class PaymentAccountResource extends JsonResource
             'default_payment'         => $this->default_payment,
             'notes'                   => $this->notes,
             'is_active'               => $this->is_active,
-        ];
+
+            // Who added it and who last changed it (Doc 14 section 14.5), where it was read with them
+            'authors' => $this->whenLoaded('creator', fn () => [
+                'added_by'   => $this->creator?->name,
+                'added_at'   => $this->created_at?->toIso8601String(),
+                'changed_by' => $this->updater?->name,
+                'changed_at' => $this->updated_at?->toIso8601String(),
+            ]),
+        ], self::BALANCES), self::DETAILS);
     }
 }

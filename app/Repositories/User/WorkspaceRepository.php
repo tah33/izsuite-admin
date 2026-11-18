@@ -3,12 +3,15 @@
 namespace App\Repositories\User;
 
 use App\Models\Billing\Package;
+use App\Models\Billing\PackageVersion;
 use App\Models\User\User;
 use App\Models\User\Workspace;
+use App\Models\User\WorkspaceApp;
 use App\Models\User\WorkspaceMember;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\LazyCollection;
 
 class WorkspaceRepository
 {
@@ -47,6 +50,12 @@ class WorkspaceRepository
         }
 
         $workspace->user_id = $owner->id;
+    }
+
+    /** Any business, by its id - for a payment provider's notification, which names the business it is for. */
+    public function find(int $id): ?Workspace
+    {
+        return Workspace::find($id);
     }
 
     /**
@@ -143,20 +152,55 @@ class WorkspaceRepository
         return Workspace::with('package')->findOrFail($id);
     }
 
+    /** Any business, with its plan and its owner's account - for the admin's review of a plan move. */
+    public function findWithOwnerOrFail(int $id): Workspace
+    {
+        return Workspace::with(['package', 'user'])->findOrFail($id);
+    }
+
+    /** Every business with its plan - its whole row: its limits are read from it - a hundred at a time, for a check run over them all. */
+    public function lazyWithPackage(): LazyCollection
+    {
+        return Workspace::with('package')->lazyById(100);
+    }
+
     /** The business's plan, read afresh rather than from the loaded relation. */
     public function packageOf(Workspace $workspace): ?Package
     {
         return $workspace->package()->first();
     }
 
+    /** On another plan, that plan's terms as they stand; on the same one, the version it is held to stays (Doc 15 Phase E3b). */
     public function setPackage(Workspace $workspace, Package $package): void
     {
+        if ($workspace->package_id !== $package->id) {
+            $workspace->packageVersion()->dissociate();
+        }
+
         $workspace->package()->associate($package)->save();
+    }
+
+    /** The plan terms $workspace is held to, read afresh (Workspace::terms()). */
+    public function termsOf(Workspace $workspace): Package|PackageVersion|null
+    {
+        return Workspace::query()->with(['package', 'packageVersion'])->find($workspace->id)?->terms();
     }
 
     /** Its sidebar changed: a new version, so the cached one is not used again. */
     public function bumpNavVersion(Workspace $workspace): void
     {
         $workspace->increment('nav_version');
+    }
+
+    /** Its country, from its profile (a code): which apps it is offered (Doc 15 Phase E2). */
+    public function countryOf(Workspace $workspace): ?string
+    {
+        return $workspace->businessSetting()->value('country');
+    }
+
+    /** Every business with $appId on: a new nav version each, as their sidebars change (Doc 15 Phase E2). */
+    public function bumpNavVersionsOfApp(int $appId): void
+    {
+        Workspace::whereIn('id', WorkspaceApp::query()->select('workspace_id')->where('app_id', $appId))->increment('nav_version');
     }
 }

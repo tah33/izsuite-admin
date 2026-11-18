@@ -58,9 +58,9 @@
         placeholder="{{ $isEdit ? __('Leave blank to keep current') : '' }}"
         {{ $isEdit ? '' : 'required' }}>
     @if($isEdit)
-        <p class="text-xs mt-1 text-[var(--text-muted)]">{{ __('Only fill this if you want to change the password.') }}</p>
+        <p class="text-xs mt-1 text-[var(--text-muted)]">{{ __('Only fill this if you want to change the password. A new password, or a new role, signs them out.') }}</p>
     @endif
-    <p class="text-xs mt-1 text-[var(--text-muted)]">{{ __('At least 8 characters, with upper and lower case, a number and a symbol.') }}</p>
+    <p class="text-xs mt-1 text-[var(--text-muted)]">{{ __('At least :min characters, with upper and lower case, a number and a symbol.', ['min' => \App\Support\AdminPassword::MIN]) }}</p>
     @error('password')
         <p class="text-xs mt-1 text-[var(--danger)]">{{ $message }}</p>
     @enderror

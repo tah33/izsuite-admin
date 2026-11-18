@@ -129,7 +129,7 @@ class ItemController extends Controller
         $item = $this->itemService->setActive($this->currentWorkspace($request), $id, $active);
 
         return response()->json([
-            'message' => $active ? 'Item activated.' : 'Item deactivated.',
+            'message' => $active ? 'Item restored.' : 'Item archived.',
             'data'    => new ItemResource($item),
         ]);
     }

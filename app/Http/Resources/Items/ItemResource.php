@@ -2,14 +2,23 @@
 
 namespace App\Http\Resources\Items;
 
+use App\Services\Shared\EditConflicts;
+use App\Enums\Edition;
+use App\Http\Resources\Concerns\HidesValues;
 use App\Models\User\ItemComponent;
 use App\Models\User\TaxRate;
 use App\Services\Files\FileStorage;
+use App\Services\User\Apps\WorkspaceApps;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class ItemResource extends JsonResource
 {
+    use HidesValues;
+
+    /** What a user without Items' View Purchase Prices or Costs does not see (Doc 12 section 14). */
+    private const COSTS = ['purchase_price'];
+
     /**
      * Every field, flat, as the table holds it, with its category and brand by
      * name. Prices go out as strings with two decimals ("12.50") - never as
@@ -29,8 +38,10 @@ class ItemResource extends JsonResource
     {
         $storage = app(FileStorage::class);
 
-        return [
+        return $this->hideWithout('items.costs', [
             'id'                    => $this->id,
+            // When it was last changed: sent back as If-Match when it is saved (Doc 14 section 22).
+            'version' => EditConflicts::version($this->resource),
             'item_number'           => $this->item_number,
             'type'                  => $this->type,
             'usage'                 => $this->usage,
@@ -52,6 +63,8 @@ class ItemResource extends JsonResource
             'sales_tax_id'          => $this->sales_tax_id,
             'sales_tax'             => $this->taxShown($this->salesTax),
             'sales_description'     => $this->sales_description,
+            // The full Sales app's (Doc 16 Phase B2): what its sales orders' invoices bill.
+            'invoice_policy'        => $this->when(WorkspaceApps::requestHas('sales', Edition::Full), fn () => $this->invoice_policy),
             'purchase_price'        => $this->purchase_price,
             'purchase_tax_id'       => $this->purchase_tax_id,
             'purchase_tax'          => $this->taxShown($this->purchaseTax),
@@ -78,10 +91,18 @@ class ItemResource extends JsonResource
                 : [],
             'component_total'       => $this->componentTotal(),
             'is_active'             => $this->is_active,
+
+            // Who added it and who last changed it (Doc 14 section 14.5), where it was read with them
+            'authors' => $this->whenLoaded('creator', fn () => [
+                'added_by'   => $this->creator?->name,
+                'added_at'   => $this->created_at?->toIso8601String(),
+                'changed_by' => $this->updater?->name,
+                'changed_at' => $this->updated_at?->toIso8601String(),
+            ]),
             'in_use'                => (bool) ($this->in_sales ?? false) || (bool) ($this->in_purchases ?? false),
             'in_sales'              => (bool) ($this->in_sales ?? false),
             'in_purchases'          => (bool) ($this->in_purchases ?? false),
-        ];
+        ], self::COSTS);
     }
 
     /** A default tax as the profile names it: "VAT (15%)", "Exports (Zero-Rated)". */

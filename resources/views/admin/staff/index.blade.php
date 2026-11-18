@@ -61,6 +61,8 @@
                                 @else
                                     <span class="badge badge-inactive">{{ __('Inactive') }}</span>
                                 @endif
+                                {{-- Doc 15 section 15.2: every admin signs in with two-factor. --}}
+                                <span class="block text-xs text-[var(--text-muted)] mt-1">{{ $member->two_factor_confirmed_at ? __('Two-factor on') : __('Two-factor not set up') }}</span>
                             </td>
                             <td class="text-sm text-[var(--text-muted)]">
                                 {{ $member->created_at->format('M d, Y') }}

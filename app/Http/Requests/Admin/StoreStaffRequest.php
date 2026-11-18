@@ -3,9 +3,9 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\Admin\Role;
+use App\Support\AdminPassword;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
 
 class StoreStaffRequest extends FormRequest
 {
@@ -20,7 +20,7 @@ class StoreStaffRequest extends FormRequest
             'first_name' => ['required', 'string', 'max:255'],
             'last_name'  => ['nullable', 'string', 'max:255'],
             'email'      => ['required', 'email', 'unique:users,email'],
-            'password'   => ['required', 'string', 'confirmed', Password::defaults()],
+            'password'   => ['required', 'string', 'confirmed', AdminPassword::rule()],
             // A staff role only: never a client's, or another non-staff account's.
             'role_id'    => ['required', Rule::exists('roles', 'id')->whereNotIn('slug', Role::FRONTEND_SLUGS)],
         ];

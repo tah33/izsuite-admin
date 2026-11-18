@@ -58,6 +58,8 @@ class SaveItemRequest extends FormRequest
             'sale_price'            => [Rule::requiredIf($combo && $this->input('combo_pricing') === 'fixed'), ...$price],
             'sales_tax_id'          => ['nullable', 'integer', $taxFor(TaxRate::SALES)],
             'sales_description'     => $text,
+            // The full Sales app's (Doc 16 Phase B): sent only from its form, null for the business's.
+            'invoice_policy'        => ['sometimes', 'nullable', Rule::in(['ordered', 'delivered'])],
             'purchase_price'        => $price,
             'purchase_tax_id'       => ['nullable', 'integer', $taxFor(TaxRate::PURCHASES)],
             'purchase_description'  => $text,

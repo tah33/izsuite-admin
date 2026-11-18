@@ -40,25 +40,39 @@ class SalesFigures
      */
     public function lineNet(SalesDocumentLine|PurchaseLine $line): string
     {
-        $amount   = Decimal::of($line->amount);
-        $subtotal = Decimal::of($line->subtotal);
-        $kept     = Decimal::isZero($subtotal) ? '0' : bcdiv(bcmul($amount, bcsub($subtotal, Decimal::of($line->discount_total), self::SCALE), self::SCALE), $subtotal, self::SCALE);
-        $net      = $line->price_tax_mode === 'inclusive' ? bcsub($kept, Decimal::of($line->tax_amount), self::SCALE) : $kept;
+        return $this->net($line, $line);
+    }
 
-        return $this->base($net, $line->exchange_rate);
+    /** The same for a line of $document loaded with it, rather than with issuedLines()'s columns (Doc 16 Phase H3b). */
+    public function lineNetOf(SalesDocument $document, SalesDocumentLine $line): string
+    {
+        return $this->net($line, $document);
+    }
+
+    /** $line's net, with its document's subtotal, discount, price mode and rate read from $document. */
+    private function net(SalesDocumentLine|PurchaseLine $line, SalesDocument|SalesDocumentLine|PurchaseLine $document): string
+    {
+        $amount   = Decimal::of($line->amount);
+        $subtotal = Decimal::of($document->subtotal);
+        $kept     = Decimal::isZero($subtotal) ? '0' : bcdiv(bcmul($amount, bcsub($subtotal, Decimal::of($document->discount_total), self::SCALE), self::SCALE), $subtotal, self::SCALE);
+        $net      = $document->price_tax_mode === 'inclusive' ? bcsub($kept, Decimal::of($line->tax_amount), self::SCALE) : $kept;
+
+        return $this->base($net, $document->exchange_rate);
     }
 
     /**
      * What an invoice from invoicesAsOf() still owed that day: its total less
-     * payments and tax withheld, less its credit notes' credit not refunded -
-     * never below zero (see InvoiceSettlement).
+     * payments and tax withheld, less the advances and other credit notes
+     * applied to it, less its credit notes' credit not refunded or applied
+     * elsewhere - never below zero (see InvoiceSettlement).
      */
     public function owedAsOf(SalesDocument $invoice): string
     {
         $settled = Decimal::sum([
             Decimal::of($invoice->paid_by),
             Decimal::of($invoice->withheld_by),
-            bcsub(Decimal::of($invoice->credited_by), Decimal::of($invoice->refunded_by), 2),
+            Decimal::of($invoice->allocated_by),
+            bcsub(bcsub(Decimal::of($invoice->credited_by), Decimal::of($invoice->refunded_by), 2), Decimal::of($invoice->given_by), 2),
         ]);
         $owed = bcsub((string) $invoice->grand_total, $settled, 2);
 

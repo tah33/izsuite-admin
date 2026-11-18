@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\Files;
 
 use App\Enums\FileCollection;
+use App\Services\Files\FileLimits;
 use App\Support\Bytes;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -32,11 +33,13 @@ abstract class UploadFilesRequest extends FormRequest
 
     public function rules(): array
     {
+        // An attachment's types and size are the admin's (Doc 14 section 14.12, FileLimits).
         $collection = $this->collection();
-        $file       = ['required', 'file', 'max:'.$collection->maxKilobytes()];
+        $limits     = app(FileLimits::class);
+        $file       = ['required', 'file', 'max:'.$limits->maxKilobytes($collection)];
 
-        if ($collection->extensions()) {
-            $file[] = 'mimes:'.implode(',', $collection->extensions());
+        if ($extensions = $limits->extensions($collection)) {
+            $file[] = 'mimes:'.implode(',', $extensions);
         }
 
         if ($collection->isSingle()) {
@@ -60,8 +63,10 @@ abstract class UploadFilesRequest extends FormRequest
     public function messages(): array
     {
         $collection = $this->collection();
-        $largest    = Bytes::format($collection->maxKilobytes() * 1024);
+        $limits     = app(FileLimits::class);
+        $largest    = Bytes::format($limits->maxKilobytes($collection) * 1024);
         $key        = $collection->isSingle() ? $this->field() : 'files.*';
+        $narrowed   = $limits->narrowed($collection);
 
         return [
             'files.required' => 'Choose a file to upload.',
@@ -70,7 +75,8 @@ abstract class UploadFilesRequest extends FormRequest
             "{$key}.file"     => 'The upload did not arrive whole. Please try again.',
             "{$key}.uploaded" => "The file could not be uploaded. Files can be up to {$largest}.",
             "{$key}.max"      => "Files can be up to {$largest}.",
-            "{$key}.mimes"    => $this->typesMessage(),
+            // The admin's narrower choice is named type by type.
+            "{$key}.mimes"    => $narrowed ? 'Attach '.FileLimits::named($narrowed).' files.' : $this->typesMessage(),
         ];
     }
 

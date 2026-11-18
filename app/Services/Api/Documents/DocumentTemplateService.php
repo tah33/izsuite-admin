@@ -39,13 +39,13 @@ class DocumentTemplateService
     {
         $saved = $this->documentTemplateRepository->getFor($workspace);
 
-        return array_map(fn (DocumentType $type) => $this->row($saved->get($type->value) ?? DocumentTemplate::defaultsFor($type, $workspace)), $this->documentTypes->for($workspace));
+        return array_map(fn (DocumentType $type) => $this->row($saved->get($type->value) ?? DocumentTemplate::defaultsFor($type, $workspace)), $this->documentTypes->for($workspace, templated: true));
     }
 
     /** The document type named in the address - 404 for one that is not, whose app is off, or that has no template yet. */
     public function type(Workspace $workspace, string $value): DocumentType
     {
-        return $this->documentTypes->named($workspace, $value);
+        return $this->documentTypes->named($workspace, $value, templated: true);
     }
 
     /** $data is validated (see SaveDocumentTemplateRequest). */

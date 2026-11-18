@@ -4,6 +4,7 @@ namespace App\Models\User;
 
 use App\Enums\TaxTreatment;
 use App\Models\Concerns\HasFiles;
+use App\Models\Concerns\RecordsAuthors;
 use App\Services\User\Workspaces\WorkspaceSequence;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -21,10 +22,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * as billing" is the billing one, and its own fields stay empty. Its tax
  * treatment is one of Doc 11's (see TaxTreatment), or none. Its attachments
  * are files in the "attachments" collection.
+ *
+ * One merged into another (Doc 17 Phase C3, see ContactMergeService) is kept,
+ * archived, with its financial records: merged_into_id names the one it was
+ * merged into, and it no longer changes.
  */
 class Contact extends Model
 {
     use HasFiles;
+    use RecordsAuthors;
 
     public const TYPE_BUSINESS = 'business';
 
@@ -45,6 +51,12 @@ class Contact extends Model
 
     /** The workspace_sequences counter its numbers come from. */
     public const NUMBER_SEQUENCE = 'contact';
+
+    /** Going over the credit limit lets the sale through, saying so (Doc 16 section 16.21). */
+    public const CREDIT_WARN = 'warn';
+
+    /** Going over the credit limit refuses the sale, unless someone who may override it gives a reason. */
+    public const CREDIT_BLOCK = 'block';
 
     public const SHIPPING_FIELDS = [
         'shipping_line1', 'shipping_line2', 'shipping_city', 'shipping_state', 'shipping_postal_code', 'shipping_country',
@@ -75,6 +87,11 @@ class Contact extends Model
         ...self::SHIPPING_FIELDS,
         'sales_currency',
         'customer_payment_terms',
+        // Credit control, the full Sales app's (Doc 16 Phase G1): see CustomerCredit.
+        'credit_limit',
+        'credit_sales',
+        'credit_action',
+        'credit_warning',
         'purchase_currency',
         'supplier_payment_terms',
         'tax_number',
@@ -90,16 +107,20 @@ class Contact extends Model
         'contact_type'             => self::TYPE_BUSINESS,
         'role'                     => self::ROLE_CUSTOMER,
         'shipping_same_as_billing' => true,
+        'credit_sales'             => true,
+        'credit_action'            => self::CREDIT_WARN,
         'is_active'                => true,
     ];
 
     protected $casts = [
         'tags'                     => 'array',
         'shipping_same_as_billing' => 'boolean',
+        'credit_sales'             => 'boolean',
         'customer_payment_terms'   => 'integer',
         'supplier_payment_terms'   => 'integer',
         'tax_treatment'            => TaxTreatment::class,
         'is_active'                => 'boolean',
+        'merged_at'                => 'datetime',
     ];
 
     public static function formatNumber(int $number): string
@@ -122,6 +143,12 @@ class Contact extends Model
     public function isSupplier(): bool
     {
         return $this->role !== self::ROLE_CUSTOMER;
+    }
+
+    /** Merged into another contact (Doc 17 Phase C3): kept for its records, no longer changed. */
+    public function isMerged(): bool
+    {
+        return $this->merged_into_id !== null;
     }
 
     /**
@@ -172,5 +199,23 @@ class Contact extends Model
     public function expenses(): HasMany
     {
         return $this->hasMany(Expense::class);
+    }
+
+    /** The contact it was merged into, if it was. */
+    public function mergedInto(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'merged_into_id');
+    }
+
+    /** Who merged it. */
+    public function merger(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'merged_by');
+    }
+
+    /** The contacts merged into it, the latest first. */
+    public function mergedContacts(): HasMany
+    {
+        return $this->hasMany(self::class, 'merged_into_id')->latest('merged_at')->latest('id');
     }
 }

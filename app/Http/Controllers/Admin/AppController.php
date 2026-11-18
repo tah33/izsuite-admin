@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\Edition;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\RetireAppRequest;
 use App\Http\Requests\Admin\StoreAppDependencyRequest;
 use App\Http\Requests\Admin\StoreAppRequest;
 use App\Services\Admin\AppService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class AppController extends Controller
 {
@@ -47,7 +49,7 @@ class AppController extends Controller
         try {
             $app = $this->appService->newApp($request->integer('full_of') ?: null);
 
-            return view('admin.apps.create', ['app' => $app, 'categories' => $this->appService->categoryNames()]);
+            return view('admin.apps.create', ['app' => $app, 'categories' => $this->appService->categoryNames(), 'families' => $this->appService->catalogFamilyNames()]);
 
         } catch (\Throwable $e) {
             report($e);
@@ -103,6 +105,21 @@ class AppController extends Controller
     /**
      * Update an app.
      */
+    /** Retires the app (Doc 15 Phase E2): off for every business, its records kept - a critical action. */
+    public function retire(RetireAppRequest $request, int $id)
+    {
+        try {
+            $app      = $this->appService->find($id) ?? abort(404);
+            $affected = $this->appService->retire($app, $request->user(), $request->validated('confirm_password'), $request->validated('reason'));
+
+            return $this->adminSuccess($request, "{$app->name} is retired: it is off for the {$affected} ".Str::plural('business', $affected).' that had it on, their records kept.', route('admin.apps.index'));
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
     public function update(StoreAppRequest $request, int $id)
     {
         try {

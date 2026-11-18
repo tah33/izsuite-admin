@@ -5,9 +5,14 @@ namespace App\Support;
 /**
  * The regional settings a country's businesses usually keep (Doc 11 section
  * 5): how they write dates, times and numbers, the day their week starts,
- * their paper and the month their fiscal year starts. A recommendation the
- * owner may change - not a legal rule; Country Localization brings those.
- * A country not listed here keeps the base.
+ * their paper and the month their fiscal year starts - and the currency they
+ * pay in. A recommendation the owner may change - not a legal rule; Country
+ * Localization brings those.
+ *
+ * Since Doc 15 Phase F3a each country keeps its own in the countries table
+ * (Admin > Countries), as its current version has them. The rules below are
+ * what that table started from (migration 000145). A country not on the list
+ * keeps the base.
  */
 final class RegionalDefaults
 {
@@ -52,8 +57,22 @@ final class RegionalDefaults
 
     private const SPACE_COMMA = ['FR', 'SE', 'NO', 'FI', 'PL', 'CZ', 'SK', 'HU', 'RU', 'UA'];
 
-    /** What a business in $country - a code - is recommended to keep. */
+    /** What a business in $country - a code - is recommended to keep: its country's, as its current version has them. */
     public static function for(?string $country): array
+    {
+        $kept = Countries::find($country);
+
+        return $kept ? array_merge(self::BASE, array_intersect_key($kept, self::BASE)) : self::BASE;
+    }
+
+    /** The currency $country - a code - pays in, as its current version has it. Null for none. */
+    public static function currency(?string $country): ?string
+    {
+        return Countries::find($country)['currency'] ?? null;
+    }
+
+    /** The settings $country - a code - started with (migration 000145): the rules above. */
+    public static function builtIn(?string $country): array
     {
         $country = strtoupper((string) $country);
 
@@ -66,10 +85,10 @@ final class RegionalDefaults
     }
 
     /**
-     * The currency $country - a code - pays in, as ICU knows it: BDT for BD,
-     * EUR for DE. Null for a country it has none for.
+     * The currency $country - a code - started with: the one ICU knows it
+     * pays in, BDT for BD, EUR for DE. Null for a country it has none for.
      */
-    public static function currency(?string $country): ?string
+    public static function builtInCurrency(?string $country): ?string
     {
         if (! preg_match('/^[A-Z]{2}$/', strtoupper((string) $country))) {
             return null;

@@ -5,7 +5,9 @@ namespace App\Models\User;
 use App\Enums\DocumentType;
 use App\Enums\SalesDocumentStatus;
 use App\Models\Concerns\AtLocation;
+use App\Models\Concerns\HasAuthors;
 use App\Models\Concerns\HasFiles;
+use App\Models\Concerns\MadeByApp;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -34,8 +36,22 @@ use Illuminate\Database\Eloquent\Relations\MorphOne;
  */
 class SalesDocument extends Model
 {
+    /**
+     * The fields only the full Sales app keeps on a document (Doc 16 Phase A):
+     * Sales Lite's form leaves them as they are.
+     */
+    public const FULL_FIELDS = ['salesperson_id', 'sales_team_id', 'billing_address', 'shipping_address', 'expected_delivery_date', 'shipping_method', 'shipping_terms'];
+
+    /** The parts of an address a document keeps. */
+    public const ADDRESS_PARTS = ['line1', 'line2', 'city', 'state', 'postal_code', 'country'];
+
     use AtLocation;
+    use HasAuthors;
     use HasFiles;
+    use MadeByApp;
+
+    /** The family whose app makes them (MadeByApp). */
+    protected const APP_FAMILY = 'sales';
 
     public const PAYMENT_NOT_APPLICABLE = 'not_applicable';
 
@@ -48,6 +64,9 @@ class SalesDocument extends Model
         'revision',
         'status',
         'payment_status',
+        // A sales order's, beside its status (Doc 16 Phase B): see SalesOrderProgress.
+        'delivery_status',
+        'invoice_status',
         'contact_id',
         'location_id',
         'document_date',
@@ -56,10 +75,20 @@ class SalesDocument extends Model
         'payment_terms',
         'currency',
         'exchange_rate',
+        'exchange_rate_date',
+        'exchange_rate_source',
         'price_tax_mode',
         'tax_rounding',
         'customer_reference',
         'sales_reference',
+        // The full Sales app's (Doc 16 Phase A).
+        'salesperson_id',
+        'sales_team_id',
+        'billing_address',
+        'shipping_address',
+        'expected_delivery_date',
+        'shipping_method',
+        'shipping_terms',
         'discount_type',
         'discount_value',
         'subtotal',
@@ -76,17 +105,31 @@ class SalesDocument extends Model
         'credited_amount',
         'applied_amount',
         'refunded_amount',
+        'allocated_amount',
         'balance_due',
         'notes',
+        'internal_notes',
         'terms',
         'payment_instructions',
         'business_snapshot',
         'customer_snapshot',
         'template_snapshot',
         'source_id',
+        // The CRM opportunity it was made from (Doc 17 Phase F1), carried to what is converted from it.
+        'opportunity_id',
         'status_reason',
+        // An invoice billing beyond what its sales order had left: why (Doc 16 Phase B2).
+        'over_invoice_reason',
+        // A sales order's deposit invoice (Doc 16 Phase D2).
+        'is_deposit',
+        // Why its discount goes past the user's role's (Doc 16 Phase F2).
+        'discount_reason',
+        // Why it was issued or confirmed over its customer's credit limit (Doc 16 Phase G1).
+        'credit_reason',
         'reason',
         'issued_at',
+        'confirmed_at',
+        'confirmed_by',
         'created_by',
         'updated_by',
     ];
@@ -118,14 +161,21 @@ class SalesDocument extends Model
         'amount_paid'        => 'decimal:2',
         'withholding_amount' => 'decimal:2',
         'credited_amount'    => 'decimal:2',
+        'is_deposit'         => 'boolean',
         'applied_amount'     => 'decimal:2',
         'refunded_amount'    => 'decimal:2',
+        'allocated_amount'   => 'decimal:2',
         'balance_due'        => 'decimal:2',
         'business_snapshot' => 'array',
         'customer_snapshot' => 'array',
+        'billing_address'   => 'array',
+        'shipping_address'  => 'array',
         'template_snapshot' => 'array',
         'source_id'         => 'integer',
+        'opportunity_id'    => 'integer',
         'issued_at'         => 'datetime',
+        'confirmed_at'      => 'datetime',
+        'confirmed_by'      => 'integer',
     ];
 
     public function isDraft(): bool
@@ -141,6 +191,23 @@ class SalesDocument extends Model
     }
 
     /** The customer. */
+    /** Who sold it: a member of the business (Doc 16 Phase A). */
+    public function salesperson(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'salesperson_id');
+    }
+
+    public function salesTeam(): BelongsTo
+    {
+        return $this->belongsTo(SalesTeam::class);
+    }
+
+    /** Who confirmed it - a sales order (Doc 16 section 16.9). */
+    public function confirmer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'confirmed_by');
+    }
+
     public function contact(): BelongsTo
     {
         return $this->belongsTo(Contact::class);
@@ -163,6 +230,12 @@ class SalesDocument extends Model
         return $this->hasMany(SalesDocumentRevision::class)->orderBy('revision');
     }
 
+    /** The CRM opportunity it was made from, or the document it was converted from was (Doc 17 Phase F1). */
+    public function opportunity(): BelongsTo
+    {
+        return $this->belongsTo(CrmOpportunity::class, 'opportunity_id');
+    }
+
     /** The quotation or proforma it was converted from - or, for a credit note, the invoice it credits. */
     public function source(): BelongsTo
     {
@@ -173,6 +246,24 @@ class SalesDocument extends Model
     public function conversions(): HasMany
     {
         return $this->hasMany(self::class, 'source_id')->where('type', '!=', DocumentType::CreditNote->value)->orderBy('id');
+    }
+
+    /** A sales order's delivery notes (Doc 16 Phase C), oldest first. */
+    public function deliveries(): HasMany
+    {
+        return $this->hasMany(SalesDelivery::class)->orderBy('id');
+    }
+
+    /** An invoice's advances and other credit notes applied to it (Doc 16 Phase D1), the removed ones too, oldest first. */
+    public function allocationsIn(): HasMany
+    {
+        return $this->hasMany(SalesAllocation::class, 'invoice_id')->orderBy('id');
+    }
+
+    /** A credit note's credit applied to other invoices (Doc 16 Phase D1), the removed ones too, oldest first. */
+    public function allocationsOut(): HasMany
+    {
+        return $this->hasMany(SalesAllocation::class, 'credit_note_id')->orderBy('id');
     }
 
     /** An invoice's credit notes, in the order they were made. */
@@ -199,9 +290,18 @@ class SalesDocument extends Model
         return $this->morphMany(DocumentLink::class, 'linkable');
     }
 
-    /** The secure link that still works, if it has one. */
+    /** The secure link that still works, if it has one: not revoked, nor expired (Doc 16 Phase G2). */
     public function activeLink(): MorphOne
     {
-        return $this->morphOne(DocumentLink::class, 'linkable')->whereNull('revoked_at')->latest('id');
+        return $this->morphOne(DocumentLink::class, 'linkable')
+            ->whereNull('revoked_at')
+            ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->latest('id');
+    }
+
+    /** What the customer did through its link - answered or commented - oldest first (Doc 16 Phase G2). */
+    public function customerResponses(): MorphMany
+    {
+        return $this->morphMany(CustomerResponse::class, 'linkable')->oldest('id');
     }
 }

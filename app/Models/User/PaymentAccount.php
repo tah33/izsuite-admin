@@ -2,6 +2,7 @@
 
 namespace App\Models\User;
 
+use App\Models\Concerns\RecordsAuthors;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -30,6 +31,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class PaymentAccount extends Model
 {
+    use RecordsAuthors;
+
     public const TYPES = ['cash', 'bank', 'mobile_money', 'payment_gateway', 'other'];
 
     /** What each kind of default is for, and the flag an account needs to be it. */

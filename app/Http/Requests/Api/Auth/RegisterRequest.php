@@ -67,6 +67,8 @@ class RegisterRequest extends FormRequest
             'email'        => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
             'password'     => ['required', 'string', 'confirmed', Password::defaults()],
             'accept_terms' => ['required', 'accepted'],
+            // Product news by e-mail (Doc 15 Phase G3): optional, off unless ticked.
+            'marketing'    => ['sometimes', 'boolean'],
         ];
     }
 

@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\AdminPassword;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rules\Password;
 
 class UpdateAdminProfilePasswordRequest extends FormRequest
 {
@@ -16,7 +16,7 @@ class UpdateAdminProfilePasswordRequest extends FormRequest
     {
         return [
             'current_password' => ['required', 'current_password'],
-            'password'         => ['required', 'confirmed', Password::defaults()],
+            'password'         => ['required', 'confirmed', AdminPassword::rule()],
         ];
     }
 }

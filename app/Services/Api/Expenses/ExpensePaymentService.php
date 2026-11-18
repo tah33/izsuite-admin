@@ -9,6 +9,7 @@ use App\Models\User\PaymentAccount;
 use App\Models\User\User;
 use App\Models\User\WithholdingTax;
 use App\Models\User\Workspace;
+use App\Repositories\Shared\RowLockRepository;
 use App\Repositories\User\ExpensePaymentRepository;
 use App\Repositories\User\PaymentAccountRepository;
 use App\Repositories\User\WithholdingTaxRepository;
@@ -53,6 +54,7 @@ class ExpensePaymentService
         protected DocumentNumbers $documentNumbers,
         protected DocumentTemplates $documentTemplates,
         protected WorkspaceAccess $access,
+        protected RowLockRepository $rows,
     ) {}
 
     public function list(Workspace $workspace, array $filters, int $perPage): LengthAwarePaginator
@@ -88,13 +90,16 @@ class ExpensePaymentService
         $applied     = $this->applied($account, $expense, $amount, $data);
         $withholding = $this->withholding($workspace, $data);
 
-        if (bccomp(bcadd($applied, $withholding['withholding_amount'], 2), (string) $expense->balance_due, 2) > 0) {
-            throw ValidationException::withMessages([
-                $account->currency === $expense->currency ? 'amount' : 'applied_amount' => "That comes to more than the {$expense->currency} {$expense->balance_due} still owed. Expenses Lite takes no advances.",
-            ]);
-        }
-
         $payment = DB::transaction(function () use ($workspace, $user, $data, $expense, $account, $amount, $applied, $withholding) {
+            // What is still owed, read again with the expense locked: a payment made meanwhile counts (Doc 14 section 22).
+            $expense = $this->rows->lock($expense);
+
+            if (bccomp(bcadd($applied, $withholding['withholding_amount'], 2), (string) $expense->balance_due, 2) > 0) {
+                throw ValidationException::withMessages([
+                    $account->currency === $expense->currency ? 'amount' : 'applied_amount' => "That comes to more than the {$expense->currency} {$expense->balance_due} still owed. Expenses Lite takes no advances.",
+                ]);
+            }
+
             $payment = $this->expensePaymentRepository->create($workspace, [
                 'number'             => $this->documentNumbers->next(
                     $workspace,
@@ -146,6 +151,11 @@ class ExpensePaymentService
         $expense = $this->expenseService->find($workspace, $payment->expense_id);
 
         DB::transaction(function () use ($payment, $user, $reason, $expense) {
+            // Reversed once, however often it is asked at the same moment.
+            if (! $this->rows->lock($payment)->isCompleted()) {
+                $this->refuse('This payment was reversed already.');
+            }
+
             $this->expensePaymentRepository->update($payment, [
                 'status'          => ExpensePayment::REVERSED,
                 'reversed_at'     => now(),

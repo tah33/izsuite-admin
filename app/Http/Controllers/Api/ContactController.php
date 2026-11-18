@@ -25,7 +25,7 @@ class ContactController extends Controller
         try {
             $contacts = $this->contactService->list(
                 $this->currentWorkspace($request),
-                $request->only(['search', 'role', 'type', 'status', 'tax_treatment', 'for_sale', 'for_purchase']),
+                $request->only(['search', 'role', 'type', 'status', 'tax_treatment', 'for_sale', 'for_purchase', 'unmerged']),
                 requested_per_page(),
             );
 
@@ -129,7 +129,7 @@ class ContactController extends Controller
         $contact = $this->contactService->setActive($this->currentWorkspace($request), $id, $active);
 
         return response()->json([
-            'message' => $active ? 'Contact activated.' : 'Contact deactivated.',
+            'message' => $active ? 'Contact restored.' : 'Contact archived.',
             'data'    => new ContactResource($contact),
         ]);
     }
