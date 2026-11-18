@@ -146,6 +146,16 @@ class CrmLeadRepository
     }
 
     /**
+     * Its first contact (Phase G3a) at $at, when it has none yet - its
+     * version kept (EditConflicts): nothing on its form changed, so someone
+     * editing it saves as before.
+     */
+    public function answered(int $leadId, CarbonInterface $at): void
+    {
+        CrmLead::query()->whereKey($leadId)->whereNull('first_contacted_at')->toBase()->update(['first_contacted_at' => $at]);
+    }
+
+    /**
      * Its interested items as $rows say, in their order - each [item_id,
      * name, quantity] - the ones it had replaced. Nothing points at them.
      */

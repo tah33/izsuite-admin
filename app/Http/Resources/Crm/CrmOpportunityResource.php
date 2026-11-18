@@ -3,9 +3,12 @@
 namespace App\Http\Resources\Crm;
 
 use App\Models\User\CrmStage;
+use App\Models\User\Workspace;
 use App\Services\Crm\CrmOpportunityRules;
+use App\Services\Crm\RecordFollowUp;
 use App\Services\Shared\AllowedActions;
 use App\Services\Shared\EditConflicts;
+use App\Services\Shared\WorkspaceAccess;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -14,12 +17,14 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * owner, team, location and source by name, its value and weighted value -
  * in its currency and the base one - the pipeline's stages and each stage it
  * has been at, and what the signed-in user may do with it now (edit, stage).
+ * Phase G3a adds its follow-up (RecordFollowUp).
  */
 class CrmOpportunityResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $named = fn ($record) => $record ? ['id' => $record->id, 'name' => $record->name] : null;
+        $named     = fn ($record) => $record ? ['id' => $record->id, 'name' => $record->name] : null;
+        $workspace = $request->attributes->get('workspace');
 
         return [
             'id'                  => $this->id,
@@ -84,6 +89,8 @@ class CrmOpportunityResource extends JsonResource
             ])->values(),
             'added_by'            => $this->creator?->name,
             'created_at'          => $this->created_at?->toIso8601String(),
+            // Phase G3a: its last contact, next activity and days without activity.
+            'follow_up'           => $workspace instanceof Workspace ? app(RecordFollowUp::class)->opportunity($workspace, $this->resource, app(WorkspaceAccess::class)->can('crm.activities.view')) : null,
         ];
     }
 }

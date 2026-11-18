@@ -95,6 +95,9 @@ class CrmLead extends Model
         ...self::QUALIFICATION_FIELDS,
         'assigned_at',
         'contacted_at',
+        // When it was first given an owner and first answered (Phase G3a).
+        'first_assigned_at',
+        'first_contacted_at',
         // Its conversion (Phase C1).
         'contact_id',
         'opportunity_id',
@@ -118,6 +121,8 @@ class CrmLead extends Model
         'tags'                   => 'array',
         'assigned_at'            => 'datetime',
         'contacted_at'           => 'datetime',
+        'first_assigned_at'      => 'datetime',
+        'first_contacted_at'     => 'datetime',
         'contact_id'             => 'integer',
         'opportunity_id'         => 'integer',
         'converted_at'           => 'datetime',

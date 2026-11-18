@@ -6,15 +6,18 @@ use App\Models\User\CrmLead;
 use App\Models\User\Workspace;
 use App\Services\Crm\CrmLeadRules;
 use App\Services\Crm\LeadQualification;
+use App\Services\Crm\RecordFollowUp;
 use App\Services\Shared\AllowedActions;
 use App\Services\Shared\EditConflicts;
+use App\Services\Shared\WorkspaceAccess;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * A lead's page and form (Doc 17 Phase B1): every field, its source, owner,
  * team and location by name, and what the signed-in user may do with it now
- * (edit, assign, contact, qualify, unqualify, archive, reopen).
+ * (edit, assign, contact, qualify, unqualify, archive, reopen). Phase G3a
+ * adds its response and follow-up (RecordFollowUp).
  */
 class CrmLeadResource extends JsonResource
 {
@@ -55,10 +58,12 @@ class CrmLeadResource extends JsonResource
                 'name'     => $item->name,
                 'quantity' => $item->quantity,
             ])->values(),
+            // Its latest owner's moment; when it was contacted is in its follow-up (Phase G3a).
             'assigned_at'            => $this->assigned_at?->toIso8601String(),
-            'contacted_at'           => $this->contacted_at?->toIso8601String(),
             'added_by'               => $this->creator?->name,
             'created_at'             => $this->created_at?->toIso8601String(),
+            // Its response and follow-up (Phase G3a): first assigned and contacted, last contact, next activity, days without activity.
+            'follow_up'              => $workspace instanceof Workspace ? app(RecordFollowUp::class)->lead($workspace, $this->resource, app(WorkspaceAccess::class)->can('crm.activities.view')) : null,
             // What it was converted to (Phase C1).
             'conversion'             => $this->converted_at ? [
                 'at'          => $this->converted_at->toIso8601String(),

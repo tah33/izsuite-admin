@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-18
-- **Code:** Doc 17 Phase G2 (the Forecast page) is committed: frontend `481bb34` on `nuxt`, and on `main` the admin commit right after `42ff146`.
-- **Tests:** 996 backend tests pass (last full run 2026-11-18, on the first PC, on this code).
-- **Next step:** Doc 17 Phase G3: response tracking and the follow-up warnings (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase G3a (response tracking on a lead's and an opportunity's page) is committed: frontend `978548f` on `nuxt`, and on `main` the admin commit right after `32064b6`.
+- **Tests:** 1000 backend tests pass (last full run 2026-11-18, on the first PC, on this code).
+- **Next step:** Doc 17 Phase G3b: the follow-up warnings on the Overview, and their periods in Settings → CRM (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase G2 the latest is 000180. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase G3a the latest is 000181. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase G3.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase G3b.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check, Phases A to F, G1 and G2 done (G2 built 2026-11-18), Phase G3 next** |
+| **17** | **CRM** | **In progress: gap check, Phases A to F, G1, G2 and G3a done (G3a built 2026-11-18), Phase G3b next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase G3)
+### 5. Doc 17: CRM (next: Phase G3b)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -2087,12 +2087,42 @@ The first PC's parts were taken out: both repos are D3b to F4 as the second PC b
   - The Overview's open opportunities, pipeline value, weighted forecast and won value matched the total.
   - The opportunities, the app's state, the sign-in and the activity were then put back.
 
-**Phase G3: response tracking and the follow-up warnings** (section 17.23), suggested defaults:
+**Phase G3: response tracking and the follow-up warnings** (section 17.23) is split in two: G3a tracks it on each record's page, G3b warns on the Overview.
 
-- **A lead's page:** when it was added, first assigned and first contacted (its response time), its last contact - the latest activity done or e-mail sent - its next planned activity, and its days without activity.
-- **An opportunity's page:** its last contact, next activity, days without activity and time at its stage.
-- **Warnings on the Overview:** unassigned leads; leads not contacted within a period after being added (2 days to start); overdue activities; open opportunities without a planned activity; opportunities past their stage's stale period (Phase D3a); and those closing soon without an activity in a period (14 days to start). Each shows how many, and opens its list where one exists.
+**Phase G3a: response tracking on a lead's and an opportunity's page** is built, with these defaults:
+
+- **A lead's page gains a Response and Follow-up card,** after its details:
+  - when it was added, and by whom;
+  - when it was first given an owner - and, once given to someone else, to whom and when;
+  - when it was first contacted, with its response time from when it was added;
+  - its last contact, its next activity, and its days without activity.
+  - Added, Assigned and Contacted left the card before it, now called Source and Owner.
+- **First contacted** is the first time anyone answered the lead: marked it contacted, completed an activity for it, or sent it an e-mail from izSuite. Marking it contacted again, or a later activity or e-mail, does not move it.
+- **The last contact** is the latest of the activities done, the e-mails sent - from the moment each was sent, whatever the mail server did with it - and, for a lead, its latest marking as contacted. The card says which it was.
+- **The next activity** is the soonest planned one, overdue ones first, with an Overdue pill. Its type and subject show to whoever may view activities; to anyone else, only when it is due.
+- **Days without activity** are full days since the last contact, or since the record was added. Only while it is open: not for a converted, unqualified or archived lead, nor a won, lost or archived opportunity.
+- **An opportunity's page gains a Follow-up card,** after its stages: its last contact, next activity and days without activity. Its time at its stage stays on its Stages card (Phase D3a).
+- The card reads the record again when an activity is planned, changed, completed or cancelled on the page, or an e-mail is sent from its timeline. Nothing on the record's form changes, so someone editing it still saves.
+- Leads that exist get their first assignment and first contact from what they kept: the Activity Log's assignments and markings, their activities done and their e-mails.
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with CRM switched on by hand:
+  - A lead added to the queue showed Added with its time and adder, "Not yet: the lead is in the queue", First Contacted "Not yet" and Next Activity "None planned" (amber), Last Contact "None yet", and under a day since it was added.
+  - Planning a call from its Activities card put the call and its time under Next Activity without reloading the page.
+  - Completing it with an outcome gave First Contacted with "Response time: 2 minutes", Last Contact "An activity done", and Next Activity "None planned".
+  - Assigning it filled First Assigned. An e-mail from its timeline moved Last Contact to "An e-mail sent", and First Contacted stayed.
+  - An opportunity with a call due that morning showed the call with an Overdue pill, Last Contact "None yet", and under a day since it was added.
+  - The lead, the opportunity, the activities, the e-mail, the app's state, the sign-in and the activity were then put back.
+
+**Phase G3b: the follow-up warnings on the Overview**, suggested defaults:
+
+- **Warnings on the Overview,** each with how many, opening its list where one exists:
+  - unassigned leads;
+  - leads not contacted within a period after being added (2 days to start): never answered, as Phase G3a counts it;
+  - overdue activities;
+  - open opportunities without a planned activity;
+  - opportunities past their stage's stale period (Phase D3a);
+  - opportunities closing soon without an activity in a period (14 days to start), counting their last contact as Phase G3a does.
 - **Settings → CRM:** both periods, beside the closing-soon one.
+- The Leads and Opportunities pages take each warning's filter, so its count opens the same list.
 
 **Phase G4: the Dashboard's CRM figures** (section 17.28), suggested defaults:
 
@@ -2131,6 +2161,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase F4 | none |
 | Doc 17: Phase G1 | 000179 |
 | Doc 17: Phase G2 | 000180 |
+| Doc 17: Phase G3a | 000181 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -2471,6 +2502,21 @@ Use a test business. Some tests need a second person with a limited role: in Set
 - [ ] The filters narrow it as they narrow the Overview; its total matches the Overview's open opportunities, pipeline value and weighted forecast.
 - [ ] As the member: only their own. A role without View Opportunities has no Forecast.
 
+**Phase G3a: response tracking on a lead's and an opportunity's page**
+
+**Before you start:** CRM on, a lead added to the queue (no owner), an open opportunity, and a member whose role views opportunities and sees all CRM records, but not activities.
+
+- [ ] The lead's page has a Response and Follow-up card after its details: Added with when and by whom, First Assigned "Not yet: the lead is in the queue", First Contacted "Not yet", Last Contact "None yet", Next Activity "None planned" and Days Without Activity "under a day", since it was added. The card before it is called Source and Owner.
+- [ ] Plan a call for the lead on its Activities card: Next Activity shows the call and when, without reloading the page. Once its time has passed, it has an Overdue pill.
+- [ ] Complete the call: First Contacted is that moment, with its response time from when the lead was added; Last Contact says "An activity done"; Next Activity is "None planned" again.
+- [ ] Assign the lead: First Assigned is that moment. Assign it to someone else: First Assigned stays, and "Given to … " shows the new owner and when.
+- [ ] Mark it contacted, or send it an e-mail from its timeline: Last Contact moves ("Marked contacted", "An e-mail sent"), First Contacted stays.
+- [ ] A lead e-mailed before anything else: First Contacted is when the e-mail was sent.
+- [ ] Archive the lead: Days Without Activity no longer shows.
+- [ ] The opportunity's page has a Follow-up card after its stages: Last Contact, Next Activity (overdue or not) and Days Without Activity. Its time at its stage stays on its Stages card.
+- [ ] As the member: the opportunity's Next Activity shows when it is due, not what it is.
+- [ ] Mark the opportunity won: Days Without Activity no longer shows.
+
 ## How we work
 
 Each document goes the same way:
@@ -2727,7 +2773,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Merge with the first PC's unfinished D3b1 (broken: see the fix below) | `8e07e8f` | `e72c322` | a second 000172, removed by the fix |
 | Fix: the merge of 2026-11-18, D3b to F4 as the second PC built them | `84c441a` | `b691903` | none |
 | Doc 17: Phase G1, the CRM Overview | `42ff146` | `e6140c6` | 000179 |
-| Doc 17: Phase G2, the Forecast page | the commit after `42ff146` | `481bb34` | 000180 |
+| Doc 17: Phase G2, the Forecast page | `32064b6` | `481bb34` | 000180 |
+| Doc 17: Phase G3a, response tracking on a lead's and an opportunity's page | the commit after `32064b6` | `978548f` | 000181 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
 
@@ -3152,6 +3199,7 @@ These are easy to undo by mistake.
   - `CrmEmailService::draft()` returns them as `templates`, filled for the record and sender by `placeholders()` and `fill()`.
   - Frontend: SettingsCrmEmailTemplates with CrmEmailTemplateModal (its placeholder chips), `useCrmSettings().saveTemplate()` and `deleteTemplate()`, and CrmEmailModal's Template list.
 - A contact's CRM part (Doc 17 Phase F4, no migration): `CrmContactSummaryService` behind `GET /crm/contacts/{id}/summary` (`CrmContactSummaryController`, `CrmContactSummaryResource`, `contacts.view`). It reads `CrmOpportunityRepository::forContactProfile()` and `CrmLeadRepository::convertedInto()` within the user's scopes, and totals with `OpportunityForecast::total()`.
+  - Frontend: CrmContactSummary on the contact's page (`useCrmContactSummary()`), and CrmOpportunityForm's `?contact=&contact_name=`.
 - The CRM Overview (Doc 17 Phase G1, migration 000179): `CrmOverviewService` behind `GET /crm/overview` (`CrmOverviewController`, `CrmOverviewRequest`, `CrmOverviewResource`; `crm.opportunities.view`).
   - It reads `CrmLeadRepository::overview()`, `CrmOpportunityRepository::forOverview()` and `CrmActivityRepository::overdueCount()` within each one's visibility scope, and totals with `OpportunityForecast::total()` - or sums in the currency chosen.
   - The period's days are the business's: `ReportPeriod::range()`, and for leads' `created_at` its bounds in the business's time zone. `crm_settings.closing_soon_days` (`CrmSetting::MAX_CLOSING_SOON_DAYS`) sets closing soon.
@@ -3160,7 +3208,10 @@ These are easy to undo by mistake.
   - It reads `CrmOpportunityRepository::forForecast()` (open ones and those won this month, with owner, team and stage), which shares `narrowed()` - the filters - with `forOverview()`.
   - Groups: `month` (Overdue, 12 months from this one, Later), `owner`, `team`, `stage`; totals with `OpportunityForecast::total()`, or sums in the currency chosen.
   - Frontend: `pages/crm/forecast.vue`, `CrmForecastTable` and `useCrmForecast`. `CrmOverviewFilters` takes no `pick` there, and its slot holds the grouping.
-  - Frontend: CrmContactSummary on the contact's page (`useCrmContactSummary()`), and CrmOpportunityForm's `?contact=&contact_name=`.
+- Response tracking (Doc 17 Phase G3a, migration 000181): `crm_leads.first_assigned_at` and `first_contacted_at` - `assigned_at` and `contacted_at` stay the latest. The migration fills them for leads that exist from the Activity Log (an assignment's `owner_id` and `previous_owner_id`, a marking's `status`), activities done and e-mails.
+  - `first_assigned_at` is set by `CrmLeadService::create()` (with an owner) and `CrmLeadFlow::assign()`; `first_contacted_at` by `CrmLeadFlow::contact()`, `CrmActivityService::complete()` and `CrmEmailService::send()` - the last two through `CrmLeadRepository::answered()`, which leaves `updated_at` (the edit version) alone.
+  - `App\Services\Crm\RecordFollowUp` gives `follow_up` on `CrmLeadResource` and `CrmOpportunityResource`: `CrmActivityRepository::lastDoneAt()` and `nextPlanned()`, `CrmEmailRepository::lastSentAt()` (from `created_at`, whatever the mail server did). The next activity's `label` only with `crm.activities.view`. `CrmLeadResource` no longer sends `contacted_at`; `assigned_at` stays, for "Given to".
+  - Frontend: CrmFollowUpCard on both pages (`utils/crmFollowUp.ts` words the response time and the way of contact). `useCrmFollowUp()`'s `touch()` - from CrmActivitiesCard and CrmTimeline's e-mail - makes the page call its record composable's `refresh()`, a quiet read.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -3292,4 +3343,5 @@ Each of these is yours to settle.
 - Doc 17 Phase F4: no migration. Deploy the frontend with it (a contact's page gains its Opportunities card, and Add Opportunity there starts with them).
 - Doc 17 Phase G1: migration 000179 adds the closing-soon period to CRM settings (30 days) and puts Overview first in CRM's menu, for whoever may view opportunities. Deploy the frontend with it.
 - Doc 17 Phase G2: migration 000180 puts Forecast after Activities in CRM's menu, for whoever may view opportunities. Deploy the frontend with it.
+- Doc 17 Phase G3a: migration 000181 adds when each lead was first assigned and first contacted, and fills both for the leads that exist. Then `queue:restart`, and deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

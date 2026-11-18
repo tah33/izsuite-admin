@@ -17,6 +17,7 @@ use App\Models\User\WorkspaceFile;
 use App\Repositories\User\ContactRepository;
 use App\Repositories\User\CrmEmailRepository;
 use App\Repositories\User\CrmEmailTemplateRepository;
+use App\Repositories\User\CrmLeadRepository;
 use App\Repositories\User\EmailSettingRepository;
 use App\Repositories\User\WorkspaceFileRepository;
 use App\Services\Api\Documents\EmailSettingService;
@@ -59,6 +60,7 @@ class CrmEmailService
         protected EmailSettingService $emailSettingService,
         protected WorkspaceAccess $access,
         protected CrmEmailTemplateRepository $templates,
+        protected CrmLeadRepository $leadRepository,
     ) {}
 
     /**
@@ -121,6 +123,11 @@ class CrmEmailService
 
         // Its timeline shows the e-mail itself: this entry names it, so it is not shown twice.
         ActivityLogService::record('created', "E-mailed {$data['to']} from ".$this->describe($kind, $record).': "'.Str::limit($data['subject'], 100).'"', $record, ['source' => 'api', 'email_id' => $email->id]);
+
+        // Phase G3a: a lead e-mailed is answered, from the moment it was sent.
+        if ($record instanceof CrmLead) {
+            $this->leadRepository->answered($record->id, $email->created_at);
+        }
 
         SendCrmEmail::dispatch($email->id);
 

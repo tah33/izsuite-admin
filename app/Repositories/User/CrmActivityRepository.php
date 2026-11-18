@@ -170,6 +170,35 @@ class CrmActivityRepository
             ->count();
     }
 
+    /**
+     * When the latest of a record's activities - those whose $column
+     * ("lead_id" or "opportunity_id") is $id - was done (Phase G3a).
+     */
+    public function lastDoneAt(Workspace $workspace, string $column, int $id): ?CarbonInterface
+    {
+        return CrmActivity::query()
+            ->where('workspace_id', $workspace->id)
+            ->where($column, $id)
+            ->where('status', CrmActivity::COMPLETED)
+            ->orderByDesc('completed_at')
+            ->orderByDesc('id')
+            ->first(['id', 'completed_at'])
+            ?->completed_at;
+    }
+
+    /** A record's soonest planned activity (Phase G3a) - overdue ones first - with what names it. */
+    public function nextPlanned(Workspace $workspace, string $column, int $id): ?CrmActivity
+    {
+        return CrmActivity::query()
+            ->where('workspace_id', $workspace->id)
+            ->where($column, $id)
+            ->where('status', CrmActivity::PLANNED)
+            ->with('type:id,name')
+            ->orderBy('due_at')
+            ->orderBy('id')
+            ->first(['id', 'type_id', 'subject', 'due_at']);
+    }
+
     /** $workspace's activities that $scope sees (ActivityVisibility::scopeFor): a contact's, with no location, at any. */
     private function visible(Workspace $workspace, array $scope): Builder
     {

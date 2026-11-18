@@ -123,13 +123,16 @@ class CrmLeadService
         }
 
         $items = $this->interests->rows($workspace, $data['interested_items'] ?? []);
+        // Given an owner as it is added: its first assignment too (Phase G3a).
+        $assignedAt = $ownerId === null ? null : now();
 
-        $lead = DB::transaction(function () use ($workspace, $fields, $ownerId, $items) {
+        $lead = DB::transaction(function () use ($workspace, $fields, $ownerId, $items, $assignedAt) {
             $lead = $this->leads->create($workspace, [
                 ...$fields,
-                'owner_id'    => $ownerId,
-                'status'      => $ownerId === null ? CrmLead::NEW : CrmLead::ASSIGNED,
-                'assigned_at' => $ownerId === null ? null : now(),
+                'owner_id'          => $ownerId,
+                'status'            => $ownerId === null ? CrmLead::NEW : CrmLead::ASSIGNED,
+                'assigned_at'       => $assignedAt,
+                'first_assigned_at' => $assignedAt,
             ]);
 
             $this->leads->replaceItems($lead, $items);

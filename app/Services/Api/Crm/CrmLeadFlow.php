@@ -48,10 +48,14 @@ class CrmLeadFlow
 
         $this->assignments->ensureOwner($workspace, $ownerId, $lead->location_id);
 
+        $now = now();
+
         $this->leads->update($lead, [
-            'owner_id'    => $ownerId,
-            'status'      => $lead->status === CrmLead::NEW ? CrmLead::ASSIGNED : $lead->status,
-            'assigned_at' => now(),
+            'owner_id'          => $ownerId,
+            'status'            => $lead->status === CrmLead::NEW ? CrmLead::ASSIGNED : $lead->status,
+            'assigned_at'       => $now,
+            // Phase G3a: the first owner's moment stays.
+            'first_assigned_at' => $lead->first_assigned_at ?? $now,
         ]);
         $lead = $this->leads->loadShown($lead);
 
@@ -69,8 +73,10 @@ class CrmLeadFlow
     public function contact(Workspace $workspace, User $user, int $id): CrmLead
     {
         $lead = $this->allowed($workspace, $user, $id, 'contact', 'An assigned lead is the one marked contacted.');
+        $now  = now();
 
-        return $this->move($lead, ['status' => CrmLead::CONTACTED, 'contacted_at' => now()], 'Marked '.$this->service->describe($lead).' contacted');
+        // Phase G3a: its first contact stays, however often it is marked again.
+        return $this->move($lead, ['status' => CrmLead::CONTACTED, 'contacted_at' => $now, 'first_contacted_at' => $lead->first_contacted_at ?? $now], 'Marked '.$this->service->describe($lead).' contacted');
     }
 
     /** Once what Settings > CRM requires (Phase B2a) is filled in. Nothing is sold by it (section 17.10). */

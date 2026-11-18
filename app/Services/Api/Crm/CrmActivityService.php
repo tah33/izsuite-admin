@@ -9,6 +9,7 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\ContactRepository;
 use App\Repositories\User\CrmActivityRepository;
+use App\Repositories\User\CrmLeadRepository;
 use App\Repositories\User\CrmOptionRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Crm\ActivityAssignments;
@@ -43,6 +44,7 @@ class CrmActivityService
         protected CrmActivityRepository $activities,
         protected CrmOptionRepository $options,
         protected ContactRepository $contacts,
+        protected CrmLeadRepository $leadRepository,
         protected CrmLeadService $leads,
         protected CrmOpportunityService $opportunities,
         protected CrmSettingService $settings,
@@ -209,6 +211,11 @@ class CrmActivityService
 
             $this->activities->update($activity, ['status' => CrmActivity::COMPLETED, 'outcome' => $outcome, 'completed_at' => now(), 'completed_by' => $user->id]);
             ActivityLogService::record('updated', 'Completed '.$this->describe($activity), $activity->regarding(), ['source' => 'api', 'activity_id' => $activity->id, 'outcome' => $outcome, 'changes' => []]);
+
+            // Phase G3a: a lead's activity done answers it, if nothing did before.
+            if ($activity->lead_id) {
+                $this->leadRepository->answered($activity->lead_id, $activity->completed_at);
+            }
 
             if (empty($data['follow_up'])) {
                 return null;

@@ -7,6 +7,7 @@ use App\Models\User\CrmEmail;
 use App\Models\User\SalesDocument;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceFile;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection;
 
 /** E-mails sent from a lead, an opportunity or a contact (Doc 17 Phase F3a). */
@@ -58,6 +59,21 @@ class CrmEmailRepository
     public function files(CrmEmail $email, array $ids): Collection
     {
         return WorkspaceFile::query()->where('workspace_id', $email->workspace_id)->whereIn('id', $ids)->get();
+    }
+
+    /**
+     * When the latest e-mail from a record - one whose $column ("lead_id" or
+     * "opportunity_id") is $id - was sent from izSuite (Phase G3a).
+     */
+    public function lastSentAt(Workspace $workspace, string $column, int $id): ?CarbonInterface
+    {
+        return CrmEmail::query()
+            ->where('workspace_id', $workspace->id)
+            ->where($column, $id)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first(['id', 'created_at'])
+            ?->created_at;
     }
 
     /** Whether any was sent from $contact: it is then deactivated, not deleted. */
