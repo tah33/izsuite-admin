@@ -56,6 +56,7 @@ class BusinessDataExport
         'crm-custom-fields'    => 'crm_custom_fields',
         // Point of Sale's (Doc 18): its payment methods, which its payments name.
         'pos-payment-methods'  => 'pos_payment_methods',
+        'pos-registers'        => 'pos_registers',
         'purchases'            => 'purchases',
         'supplier-payments'    => 'supplier_payments',
         'expense-categories'   => 'expense_categories',
@@ -91,6 +92,9 @@ class BusinessDataExport
         'price-list-customers' => ['price_list_contacts', 'price_list_id', 'price_lists', ['price_list_id', 'contact_id']],
         'price-list-locations' => ['price_list_locations', 'price_list_id', 'price_lists', ['price_list_id', 'location_id']],
         'sales-team-members'   => ['sales_team_members', 'sales_team_id', 'sales_teams', ['sales_team_id', 'user_id']],
+        // Doc 18 Phase A2: what each register takes, and who sells at it.
+        'pos-register-payment-methods' => ['pos_register_payment_methods', 'pos_register_id', 'pos_registers', ['pos_register_id', 'pos_payment_method_id']],
+        'pos-register-cashiers'        => ['pos_register_cashiers', 'pos_register_id', 'pos_registers', ['pos_register_id', 'user_id']],
         'crm-pipeline-stages'  => ['crm_stages', 'crm_pipeline_id', 'crm_pipelines'],
         // Doc 17 Phase D1: what an opportunity is for, and each stage it was at.
         'opportunity-items'    => ['crm_opportunity_items', 'crm_opportunity_id', 'crm_opportunities'],

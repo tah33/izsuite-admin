@@ -8,7 +8,9 @@ use App\Models\User\PosSetting;
 use App\Models\User\Workspace;
 use App\Repositories\User\ContactRepository;
 use App\Repositories\User\PaymentAccountRepository;
+use App\Repositories\User\PosRegisterRepository;
 use App\Repositories\User\PosSettingRepository;
+use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Shared\ActivityLogService;
 use App\Support\SettingChanges;
 use Illuminate\Support\Arr;
@@ -25,6 +27,8 @@ use Illuminate\Validation\ValidationException;
  */
 class PosSettingService
 {
+    use RefusesConflicts;
+
     /** What the settings form saves. */
     private const SAVED = ['walk_in_contact_id', 'return_policy', 'receipt_footer'];
 
@@ -32,6 +36,7 @@ class PosSettingService
         protected PosSettingRepository $settings,
         protected PaymentAccountRepository $accounts,
         protected ContactRepository $contacts,
+        protected PosRegisterRepository $registers,
     ) {}
 
     /**
@@ -114,6 +119,12 @@ class PosSettingService
     public function deleteMethod(Workspace $workspace, int $id): void
     {
         $method = $this->findMethod($workspace, $id);
+        // Phase A2: registers take it.
+        $registers = $this->registers->takingMethod($method);
+
+        if ($registers->isNotEmpty()) {
+            $this->refuse('Registers take this method ('.$registers->pluck('name')->implode(', ').'). Take it off them, or switch it off instead.');
+        }
         $this->settings->deleteMethod($method);
 
         ActivityLogService::record('deleted', "Deleted the POS payment method \"{$method->name}\"", $method, ['source' => 'api']);

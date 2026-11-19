@@ -32,6 +32,16 @@ class PriceListRepository
             ->paginate($perPage);
     }
 
+    /**
+     * Its active price lists by name, each with its currency and - when not
+     * for every location - its locations: what a POS register may sell with
+     * (Doc 18 Phase A2).
+     */
+    public function activeFor(Workspace $workspace): \Illuminate\Database\Eloquent\Collection
+    {
+        return PriceList::query()->where('workspace_id', $workspace->id)->where('is_active', true)->with('locations:id')->orderBy('name')->get(['id', 'name', 'currency', 'all_locations']);
+    }
+
     public function findFor(Workspace $workspace, int $id): ?PriceList
     {
         return PriceList::query()->where('workspace_id', $workspace->id)->with(self::SHOWN_WITH)->find($id);

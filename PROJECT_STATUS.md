@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-19
-- **Code:** Doc 18 Phase A1 (POS comes on, with Settings → Point of Sale) is committed with Doc 18's gap check: frontend `6c0cd28` on `nuxt`, and on `main` the admin commit right after `e5cd080`. Doc 17 is done and pushed: Phase I4, the last, is frontend `e20fa70` and admin `e5cd080`. Before I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
-- **Tests:** 1039 backend tests, last full run 2026-11-19 on the first PC: 1038 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Docs 17 or 18 (see [Small things left](#small-things-left)).
-- **Next step:** Doc 18 (Point of Sale) Phase A2: registers (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 18 Phase A2 (registers) is committed: frontend `9b9917b` on `nuxt`, and on `main` the admin commit right after `1c88f96`. Doc 18's gap check and Phase A1 (POS comes on, with Settings → Point of Sale) are pushed: frontend `6c0cd28` and admin `1c88f96`. Doc 17 is done and pushed: Phase I4, the last, is frontend `e20fa70` and admin `e5cd080`. Before I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
+- **Tests:** 1042 backend tests, last full run 2026-11-19 on the first PC: 1041 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Docs 17 or 18 (see [Small things left](#small-things-left)).
+- **Next step:** Doc 18 (Point of Sale) Phase B: sessions (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 18 Phase A1 the latest is 000187. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 18 Phase A2 the latest is 000188. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 18 Phase A2.
+   > Read PROJECT_STATUS.md, then start Doc 18 Phase B.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -60,7 +60,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
 | **17** | **CRM** | **Done (2026-11-19): gap check and Phases A to I; Campaign-to-Opportunity Results waits for Doc 21** |
-| **18** | **Point of Sale** | **In progress: gap check done 2026-11-19, Phase A split (A1 built 2026-11-19), Phase A2 next** |
+| **18** | **Point of Sale** | **In progress: gap check done 2026-11-19, Phase A built 2026-11-19 (A1, A2), Phase B next** |
 | 19 to 21 | eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -2369,7 +2369,7 @@ The first PC's parts were taken out: both repos are D3b to F4 as the second PC b
 
 **With Phase I4, Doc 17 is done** (2026-11-19). Campaign-to-Opportunity Results waits for Doc 21, and AI scoring for the AI application.
 
-### 6. Doc 18: Point of Sale (next: Phase A2)
+### 6. Doc 18: Point of Sale (next: Phase B)
 
 The gap check was done on 2026-11-19. Doc 18 is Point of Sale: fast selling over the counter, from a register, in a cashier's session, with receipts, cash and closing counts. It sells through the shared Sales records, Contacts, Items, Taxes and Payment Accounts: a completed POS order counts as a sale once.
 
@@ -2419,13 +2419,31 @@ The gap check was done on 2026-11-19. Doc 18 is Point of Sale: fast selling over
       - Rahman Traders as the walk-in customer, a return policy and a footer: "POS settings saved."
       - Cash on Petty Cash (giving change), and Card on City Bank Current - its form ticking the reference and hiding change - were added: "Payment method added."; Card was then deleted through its confirmation.
       - The Activity Log named each change. The settings, the methods, POS's state, the sign-in and the activity were then put back.
-  - **Phase A2: registers**, suggested defaults:
-    - Registers: name, code, location, currency (the base one to start), price list (with full Sales), cash payment account, the payment methods it takes, its cashiers, receipt number prefix, and Active, Inactive or Maintenance. One belongs to one location; an inactive one opens no sessions; its history stays.
-    - A Registers page in the POS sidebar, under its own permission, Manage Registers; the POS permissions of 18.37 keep coming with their phases, following locations and registers.
+  - **Phase A2 is built:**
+    - A Registers page in the Point of Sale sidebar, under a new permission, Registers: View, and Manage Registers (with View). The POS permissions of 18.37 keep coming with their phases. A register is seen by those who may use its location; to anyone else it is not found.
+    - A register has:
+      - a name and a code, each its own in the business (the code in capitals: letters, digits and dashes);
+      - its location, an active one the user may use, and its currency, one of the business's (the base one to start);
+      - a price list, with full Sales: active, in its currency, for its location;
+      - the account its cash goes into: taking customer payments, in its currency, of its location or the whole business. Without one, each cash method's own account;
+      - the payment methods it takes: switched on, their money in its currency (a cash method's goes into the register's cash account, when it has one);
+      - its cashiers: active members and the owner who may use its location;
+      - a receipt number prefix (its code and a dash, unless given), and Active, Inactive or Maintenance.
+    - A new register starts at the location picked in the top bar, in the base currency, taking the methods in it. Changing the location, the currency or the cash account takes off what no longer fits. A register's own choice that can no longer be used shows, saying so, and is refused until it is changed.
+    - The register form starts the POS settings, with their Cash method, when Settings → Point of Sale has not been opened yet.
+    - A payment method a register takes is not deleted, nor a location with registers. Each register added, changed or deleted is logged. Until Phase B brings sessions, a register is deleted outright.
+    - **Checked in the browser** on the first PC, as `user@izsuite.io` with POS on by hand and Cash (Petty Cash) and Card (City Bank Current) added by hand:
+      - The sidebar showed Point of Sale → Registers, and the page "No registers yet." The dev business has Sales Lite, so the form had no Price List field.
+      - New Register started at Main Location, in USD, taking Cash and Card, and showed the prefix "R1-" as the code r1 was typed. Front Counter with izSuite User as its cashier: "Register added.", code R1, prefix R1-, Active.
+      - Edited to take its cash into Petty Cash, with prefix FC/ and Maintenance: "Register saved." The row said "Cash into Petty Cash".
+      - A second register with code R1: "Another register has this code." under the code.
+      - Deleting Card in Settings → Point of Sale was refused in its dialog: "Registers take this method (Front Counter). Take it off them, or switch it off instead."
+      - The register was deleted through its confirmation: "Register deleted." The Activity Log named the addition, the change and the deletion. The registers, the methods, POS's state, the sign-in and the activity were then put back.
 - **Phase B: sessions.**
   - Open a session on a register you are a cashier of, with the opening cash float: one open session per register.
   - The Sessions page and a session's page. Closing asks the counted cash and works out the expected cash and the variance, which needs a reason. A Z report is kept, never changed.
   - A supervisor closes an abandoned session with a reason; reopening a closed one needs its permission and a reason.
+  - A register with sessions is not deleted: it is switched off instead (until then, Phase A2 deletes one outright).
   - The totals grow as later phases add sales, payments, returns and cash movements.
 - **Phase C: selling.**
   - The selling screen: search by name, SKU, barcode (a scanner types like a keyboard), brand or category; category tiles; the most-sold items; the cart with quantities, units and line notes; the customer, walk-in to start.
@@ -2499,6 +2517,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase I3 | 000185 |
 | Doc 17: Phase I4 | 000186 |
 | Doc 18: Phase A1 | 000187 |
+| Doc 18: Phase A2 | 000188 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -3034,6 +3053,22 @@ On a fresh business, set the days in Settings → CRM to fit what you have, rath
 - [ ] As the member without Manage POS Settings: no Point of Sale tab.
 - [ ] Turn POS off: the settings can be read, not changed, and come back as they were when it is on again.
 
+**Phase A2: registers**
+
+**Before you start:** POS on, with a Cash and a Card method in Settings → Point of Sale; two locations; a member who may use one of them only; and, for the price list, the full Sales app with an active price list for one location.
+
+- [ ] Point of Sale → Registers opens: "No registers yet."
+- [ ] New Register starts at the location picked in the top bar, in the base currency, taking the methods in it. Typing the code shows the prefix it will get: the code and a dash.
+- [ ] Add one with a cashier: "Register added." The row shows its code, location, currency, methods, cashiers, prefix and Active.
+- [ ] A second register with the same name, or the same code in any case, is refused under that field.
+- [ ] Change the currency: methods in another currency come off. Change the location: cashiers who may not use it come off; the member with one location is offered only at theirs.
+- [ ] Choose an account for the cash: a cash method in another currency can then be taken. An account of another location is not offered.
+- [ ] With full Sales: a price list for another location, or in another currency, is not offered. Without full Sales there is no Price List field.
+- [ ] Edit it: another prefix, then Inactive or Maintenance: "Register saved."
+- [ ] In Settings → Point of Sale, deleting a method the register takes is refused, naming it. A location with a register cannot be deleted.
+- [ ] As the member with one location: only its registers show. Without Manage Registers: no New Register, Edit or Delete. Without Registers' View: no Registers in the sidebar.
+- [ ] Delete a register through its confirmation: "Register deleted." The Activity Log names each change.
+
 ## How we work
 
 Each document goes the same way:
@@ -3300,7 +3335,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase I2, lead scoring | `ced554d` | `8306872` | 000184 |
 | Doc 17: Phase I3, marketing consent | `7404395` | `1119f22` | 000185 |
 | Doc 17: Phase I4, custom fields | `e5cd080` | `e20fa70` | 000186 |
-| Doc 18: the gap check, and Phase A1, POS on with its settings | the commit after `e5cd080` | `6c0cd28` | 000187 |
+| Doc 18: the gap check, and Phase A1, POS on with its settings | `1c88f96` | `6c0cd28` | 000187 |
+| Doc 18: Phase A2, registers | the commit after `1c88f96` | `9b9917b` | 000188 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`). Between I1 and I2, shuvo added rich text for payment instructions and the Sales settings' notes and terms (`a5e46cb` and `9bf4525`, with no frontend commit yet).
 
@@ -3860,6 +3896,13 @@ These are easy to undo by mistake.
   - `PosSettingController`, `SavePosSettingsRequest`, `SavePosPaymentMethodRequest`, `PosSettingsResource` (with the accounts a method may use), `PosPaymentMethodResource` (an account's `usable`). The routes are under `/business-settings/pos` with `app:pos`, under `pos.settings.manage`.
   - `Permissions`: the group `pos.settings` (Manage POS Settings), requiring `settings.view` and `contacts.view`. The business's data export has a pos-payment-methods file.
   - Frontend: the settings page's Point of Sale tab (`has('pos')`, `pos.settings.manage`): SettingsPos (CustomerPicker for the walk-in customer), SettingsPosPaymentMethods and PosPaymentMethodModal, on `usePosSettings()` (`pos:settings`, `POS_PAYMENT_TYPES`).
+- POS registers (Doc 18 Phase A2, migration 000188):
+  - `pos_registers`: `name` and `code` unique in the business, `location_id`, `currency`, `price_list_id` and `cash_account_id` (nulled if they go), `receipt_prefix`, `status` (`active`, `inactive` or `maintenance`), `created_by` and `updated_by`. Its payment methods and cashiers are `pos_register_payment_methods` and `pos_register_cashiers`, with composite keys. The migration adds the Registers menu row (`/pos/registers`, `pos.registers.view`), as `AppCatalogSeeder` does for new installs.
+  - `PosRegister` (`STATUSES`, `paymentMethods`, `cashiers`) and `PosRegisterRepository`: `getFor()` and `findFor()` at the user's locations, `taken()`, `create()` and `update()` syncing both link tables, `usesLocation()`, `takingMethod()`. `PriceListRepository::activeFor()` is new; `takingCustomerPayments()` now selects `location_id` too.
+  - `App\Services\Api\Pos\PosRegisterService`: `index()`, `options()` (which calls `PosSettingService::start()`), `create()`, `update()` and `delete()`, with `checked()`; its comments give the rules. `people()` is the active members and the owner, with `WorkspaceAccess::locationsOf()`.
+  - `PosRegisterController`, `SavePosRegisterRequest`, `PosRegisterResource` and `PosRegisterOptionsResource`. The routes are under `/pos/registers` with `app:pos` and `access`: the list under `pos.registers.view`, the options and the changes under `pos.registers.manage`.
+  - `PosSettingService::deleteMethod()` and `LocationService::delete()` refuse with a 409 while a register uses them. The business's data export has pos-registers and its two link files.
+  - Frontend: `pages/pos/registers/index.vue` (`family: 'pos'`), and PosRegisterModal with PosRegisterFormSelling (location, currency, price list, cash account, methods and cashiers: what fits, and the register's own that no longer does), on `usePosRegisters()` (`pos:registers`, `pos:registers:options`, `POS_REGISTER_STATUSES`).
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -4002,4 +4045,5 @@ Each of these is yours to settle.
 - Doc 17 Phase I3: migration 000185 adds `marketing_consents`, and the five starting consent purposes to each business whose CRM lists started already. No permission is new: consent follows the lead's and the contact's. Deploy the frontend with it.
 - Doc 17 Phase I4: migration 000186 adds `crm_custom_fields`, and `custom_fields` to leads and opportunities. Businesses start with none, so the forms are as before until fields are added. It uses Manage CRM Settings. Deploy the frontend with it.
 - Doc 18 Phase A1: migration 000187 adds `pos_settings` and `pos_payment_methods`, and offers Point of Sale in the Apps Center (from Standard, needing Sales Lite) where it was still coming soon. Then run `php artisan db:seed --class=AppCatalogSeeder` for its Apps Center page's words. A new permission, Point of Sale → POS Settings: Manage POS Settings, brings Settings' View and Contacts' View with it; give it to custom roles in Settings → Users & Roles. Deploy the frontend with it.
+- Doc 18 Phase A2: migration 000188 adds `pos_registers` with its payment methods and cashiers, and the Registers row in Point of Sale's menu (`AppCatalogSeeder` has it for new installs). A new permission, Point of Sale → Registers (View, and Manage Registers), is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

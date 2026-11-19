@@ -33,7 +33,7 @@ class PaymentAccountRepository
      */
     public function takingCustomerPayments(Workspace $workspace): Collection
     {
-        return $workspace->paymentAccounts()->where('is_active', true)->where('allow_customer_payments', true)->orderBy('name')->orderBy('id')->get(['id', 'name', 'currency', 'type']);
+        return $workspace->paymentAccounts()->where('is_active', true)->where('allow_customer_payments', true)->orderBy('name')->orderBy('id')->get(['id', 'name', 'currency', 'type', 'location_id']);
     }
 
     /**

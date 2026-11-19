@@ -9,6 +9,7 @@ use App\Repositories\User\CrmLeadRepository;
 use App\Repositories\User\CrmOpportunityRepository;
 use App\Repositories\User\LocationRepository;
 use App\Repositories\User\PaymentAccountRepository;
+use App\Repositories\User\PosRegisterRepository;
 use App\Repositories\User\ExpenseRepository;
 use App\Repositories\User\PurchaseRepository;
 use App\Repositories\User\SalesDocumentRepository;
@@ -41,6 +42,7 @@ class LocationService
         protected PurchaseRepository $purchaseRepository,
         protected ExpenseRepository $expenseRepository,
         protected PaymentAccountRepository $paymentAccountRepository,
+        protected PosRegisterRepository $posRegisterRepository,
         protected PlanLimits $planLimits,
         protected WorkspaceAccess $access,
         protected CrmLeadRepository $crmLeadRepository,
@@ -165,6 +167,11 @@ class LocationService
 
         if ($this->crmOpportunityRepository->usesLocation($location)) {
             $this->refuse('Opportunities are at this location, so it cannot be deleted. Deactivate it instead.');
+        }
+
+        // Doc 18 Phase A2: a register belongs to one location.
+        if ($this->posRegisterRepository->usesLocation($location)) {
+            $this->refuse('POS registers belong to this location, so it cannot be deleted. Deactivate it instead.');
         }
 
         // An account of the location would quietly become the whole business's.

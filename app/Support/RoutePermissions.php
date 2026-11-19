@@ -415,6 +415,12 @@ final class RoutePermissions
             'api.crm.contacts.consents.index'    => 'contacts.view',
             'api.crm.contacts.consents.store'    => 'contacts.edit',
             'api.crm.contacts.consents.withdraw' => 'contacts.edit',
+            // Doc 18 Phase A2: POS registers.
+            'api.pos.registers.index'   => 'pos.registers.view',
+            'api.pos.registers.options' => 'pos.registers.manage',
+            'api.pos.registers.store'   => 'pos.registers.manage',
+            'api.pos.registers.update'  => 'pos.registers.manage',
+            'api.pos.registers.destroy' => 'pos.registers.manage',
             // Phase F3a: e-mail from a lead, an opportunity or a contact - the record's own view permission checked too (CrmEmailService).
             'api.crm.emails.draft' => 'crm.emails.send',
             'api.crm.emails.store' => 'crm.emails.send',

@@ -84,6 +84,7 @@ use App\Http\Controllers\Api\NavigationController;
 use App\Http\Controllers\Api\NotificationSettingController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PaymentAccountController;
+use App\Http\Controllers\Api\PosRegisterController;
 use App\Http\Controllers\Api\PosSettingController;
 use App\Http\Controllers\Api\PaymentAccountTransactionController;
 use App\Http\Controllers\Api\PaymentTermController;
@@ -910,6 +911,19 @@ Route::prefix('v1')->group(function () {
      | CRM (Doc 17): the Overview's figures (Phase G1) and the Forecast
      | (Phase G2), counting only what the user sees.
      | -------------------------------------------------------- */
+    /* --------------------------------------------------------
+     | Point of Sale (Doc 18): its registers (Phase A2) - the Registers page,
+     | what a register's form chooses from, adding, changing and deleting
+     | one. Each is seen at the locations the user may use.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:pos', 'access'])->prefix('pos/registers')->group(function () {
+        Route::get('/', [PosRegisterController::class, 'index'])->name('api.pos.registers.index');
+        Route::get('/options', [PosRegisterController::class, 'options'])->name('api.pos.registers.options');
+        Route::post('/', [PosRegisterController::class, 'store'])->middleware('idempotent')->name('api.pos.registers.store');
+        Route::put('/{id}', [PosRegisterController::class, 'update'])->whereNumber('id')->name('api.pos.registers.update');
+        Route::delete('/{id}', [PosRegisterController::class, 'destroy'])->whereNumber('id')->name('api.pos.registers.destroy');
+    });
+
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm')->group(function () {
         Route::get('/overview', [CrmOverviewController::class, 'show'])->name('api.crm.overview');
         Route::get('/forecast', [CrmForecastController::class, 'show'])->name('api.crm.forecast');
