@@ -1,0 +1,29 @@
+<?php
+
+namespace App\Http\Resources\Pos;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+/**
+ * Settings → Point of Sale (Doc 18 Phase A1), as PosSettingService::show()
+ * gives it: the walk-in customer, the receipt's return policy and footer,
+ * the payment methods in their order, and the accounts a method may take
+ * money into.
+ */
+class PosSettingsResource extends JsonResource
+{
+    public function toArray(Request $request): array
+    {
+        $settings = $this->resource['settings'];
+        $customer = $settings->walkInContact;
+
+        return [
+            'walk_in_customer' => $customer ? ['id' => $customer->id, 'name' => $customer->name] : null,
+            'return_policy'    => $settings->return_policy,
+            'receipt_footer'   => $settings->receipt_footer,
+            'payment_methods'  => PosPaymentMethodResource::collection($this->resource['methods']),
+            'accounts'         => $this->resource['accounts']->map(fn ($account) => ['id' => $account->id, 'name' => $account->name, 'currency' => $account->currency, 'type' => $account->type])->values(),
+        ];
+    }
+}

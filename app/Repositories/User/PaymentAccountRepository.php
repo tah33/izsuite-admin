@@ -27,6 +27,32 @@ class PaymentAccountRepository
         return $workspace->paymentAccounts()->usableAt($locationIds)->with('location:id,name')->orderBy('name')->orderBy('id')->get();
     }
 
+    /**
+     * Its active accounts that take customer payments, alphabetical: those a
+     * POS payment method may take money into (Doc 18 Phase A1).
+     */
+    public function takingCustomerPayments(Workspace $workspace): Collection
+    {
+        return $workspace->paymentAccounts()->where('is_active', true)->where('allow_customer_payments', true)->orderBy('name')->orderBy('id')->get(['id', 'name', 'currency', 'type']);
+    }
+
+    /**
+     * The cash account a business's POS Cash method starts on (Doc 18 Phase
+     * A1): an active one taking customer payments, in the base currency and
+     * the receiving default first.
+     */
+    public function startingCash(Workspace $workspace): ?PaymentAccount
+    {
+        return $workspace->paymentAccounts()
+            ->where('type', 'cash')
+            ->where('is_active', true)
+            ->where('allow_customer_payments', true)
+            ->orderByRaw('case when currency = ? then 0 else 1 end', [$workspace->base_currency])
+            ->orderByDesc('default_receiving')
+            ->orderBy('id')
+            ->first();
+    }
+
     /** @param  list<int>|null  $locationIds  as for getFor() */
     public function findFor(Workspace $workspace, int $id, ?array $locationIds = null): ?PaymentAccount
     {

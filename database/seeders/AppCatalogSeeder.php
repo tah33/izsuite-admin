@@ -34,7 +34,7 @@ class AppCatalogSeeder extends Seeder
         'Sales & Commerce' => ['icon' => 'shopping-bag', 'apps' => [
             'sales'            => ['Sales', 'receipt', 'Sales Lite', 'available', true, 'Quotations, proforma invoices, invoices and sales orders.'],
             'crm'              => ['CRM', 'contact', null, 'available', true, 'Leads, deals and the pipeline that turns them into customers.'],
-            'pos'              => ['Point of Sale', 'scan-barcode', null, 'coming_soon', true, 'Sell over the counter, with receipts and cash sessions.'],
+            'pos'              => ['Point of Sale', 'scan-barcode', null, 'available', true, 'Sell over the counter, with receipts and cash sessions.'],
             'ecommerce'        => ['eCommerce', 'shopping-cart', null, 'coming_soon', false, 'An online store that shares your items and stock.'],
             'subscriptions'    => ['Subscriptions', 'repeat', null, 'coming_soon', false, 'Recurring plans and automatic invoicing.'],
             'marketing'        => ['Marketing', 'megaphone', null, 'coming_soon', false, 'Campaigns and audiences built from your contacts.'],
@@ -106,6 +106,17 @@ class AppCatalogSeeder extends Seeder
      * features]. Filled in where empty, so an admin's own words are kept.
      */
     private const DETAILS = [
+        'pos' => [
+            'Fast selling over the counter for shops and service desks: registers, cashier sessions, receipts and cash counts, on the same customers, items, taxes and payment accounts as the rest of izSuite. A completed sale counts once, in Sales and the reports.',
+            [
+                'Payment methods mapped to your payment accounts',
+                'A walk-in customer, and your receipt\'s return policy',
+                'Registers with their cashiers and receipt numbers',
+                'Cashier sessions with opening cash and closing counts',
+                'A quick selling screen with barcode search',
+                'Receipts printed, as PDFs or by e-mail',
+            ],
+        ],
         'sales_lite' => [
             'Everything a small business needs to quote, invoice and get paid: documents numbered your way, in your template and currency, shared as PDFs, by e-mail or by secure link.',
             [

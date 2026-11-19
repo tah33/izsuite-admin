@@ -385,6 +385,18 @@ class Workspace extends Model
         return $this->hasMany(CrmCustomField::class);
     }
 
+    /** Settings → Point of Sale (Doc 18 Phase A1). */
+    public function posSetting(): HasOne
+    {
+        return $this->hasOne(PosSetting::class);
+    }
+
+    /** Its POS payment methods (Doc 18 Phase A1). */
+    public function posPaymentMethods(): HasMany
+    {
+        return $this->hasMany(PosPaymentMethod::class);
+    }
+
     /** How each kind of document is numbered - a row only where a default was changed. */
     public function documentNumbering(): HasMany
     {

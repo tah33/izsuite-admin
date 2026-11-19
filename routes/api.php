@@ -84,6 +84,7 @@ use App\Http\Controllers\Api\NavigationController;
 use App\Http\Controllers\Api\NotificationSettingController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PaymentAccountController;
+use App\Http\Controllers\Api\PosSettingController;
 use App\Http\Controllers\Api\PaymentAccountTransactionController;
 use App\Http\Controllers\Api\PaymentTermController;
 use App\Http\Controllers\Api\PlanController;
@@ -300,6 +301,16 @@ Route::prefix('v1')->group(function () {
         Route::middleware('app:sales')->group(function () {
             Route::get('/sales', [SalesSettingController::class, 'show'])->name('api.business-settings.sales.show');
             Route::put('/sales', [SalesSettingController::class, 'update'])->name('api.business-settings.sales.update');
+        });
+
+        // Settings → Point of Sale (Doc 18 Phase A1): the walk-in customer, the
+        // receipt's words and the payment methods - there while POS is on.
+        Route::middleware('app:pos')->prefix('pos')->group(function () {
+            Route::get('/', [PosSettingController::class, 'show'])->name('api.business-settings.pos.show');
+            Route::put('/', [PosSettingController::class, 'update'])->name('api.business-settings.pos.update');
+            Route::post('/payment-methods', [PosSettingController::class, 'storeMethod'])->middleware('idempotent')->name('api.business-settings.pos.payment-methods.store');
+            Route::put('/payment-methods/{id}', [PosSettingController::class, 'updateMethod'])->whereNumber('id')->name('api.business-settings.pos.payment-methods.update');
+            Route::delete('/payment-methods/{id}', [PosSettingController::class, 'destroyMethod'])->whereNumber('id')->name('api.business-settings.pos.payment-methods.destroy');
         });
 
         // Settings > CRM (Doc 17 Phase A1): the mode, and the lead sources,

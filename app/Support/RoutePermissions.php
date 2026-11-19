@@ -183,6 +183,12 @@ final class RoutePermissions
             'api.business-settings.purchases.show'             => 'settings.view',
             'api.business-settings.purchases.update'           => 'purchases.settings.manage',
             // Settings > CRM (Doc 17 Phase A1).
+            // Doc 18 Phase A1: Settings → Point of Sale.
+            'api.business-settings.pos.show'                   => 'pos.settings.manage',
+            'api.business-settings.pos.update'                 => 'pos.settings.manage',
+            'api.business-settings.pos.payment-methods.store'  => 'pos.settings.manage',
+            'api.business-settings.pos.payment-methods.update' => 'pos.settings.manage',
+            'api.business-settings.pos.payment-methods.destroy' => 'pos.settings.manage',
             'api.business-settings.crm.show'                   => 'settings.view',
             'api.business-settings.crm.update'                 => 'crm.settings.manage',
             'api.business-settings.crm.options.store'          => 'crm.settings.manage',

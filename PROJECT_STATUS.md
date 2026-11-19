@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-19
-- **Code:** Doc 17 Phase I4 (custom fields) is committed: frontend `e20fa70` on `nuxt`, and on `main` the admin commit right after `7404395`. With it Doc 17 is done. Before I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
-- **Tests:** 1035 backend tests, last full run 2026-11-19 on the first PC: 1034 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Doc 17's phases (see [Small things left](#small-things-left)).
-- **Next step:** Doc 18 (Point of Sale): its gap check (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 18 Phase A1 (POS comes on, with Settings → Point of Sale) is committed with Doc 18's gap check: frontend `6c0cd28` on `nuxt`, and on `main` the admin commit right after `e5cd080`. Doc 17 is done and pushed: Phase I4, the last, is frontend `e20fa70` and admin `e5cd080`. Before I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
+- **Tests:** 1039 backend tests, last full run 2026-11-19 on the first PC: 1038 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Docs 17 or 18 (see [Small things left](#small-things-left)).
+- **Next step:** Doc 18 (Point of Sale) Phase A2: registers (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase I4 the latest is 000186. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 18 Phase A1 the latest is 000187. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 18.
+   > Read PROJECT_STATUS.md, then start Doc 18 Phase A2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -60,7 +60,8 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
 | **17** | **CRM** | **Done (2026-11-19): gap check and Phases A to I; Campaign-to-Opportunity Results waits for Doc 21** |
-| 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
+| **18** | **Point of Sale** | **In progress: gap check done 2026-11-19, Phase A split (A1 built 2026-11-19), Phase A2 next** |
+| 19 to 21 | eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
 Stock, full Sales, OCR and full Accounting features are left out of the Lite apps on purpose. They wait for their own docs.
@@ -2368,7 +2369,95 @@ The first PC's parts were taken out: both repos are D3b to F4 as the second PC b
 
 **With Phase I4, Doc 17 is done** (2026-11-19). Campaign-to-Opportunity Results waits for Doc 21, and AI scoring for the AI application.
 
-After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
+### 6. Doc 18: Point of Sale (next: Phase A2)
+
+The gap check was done on 2026-11-19. Doc 18 is Point of Sale: fast selling over the counter, from a register, in a cashier's session, with receipts, cash and closing counts. It sells through the shared Sales records, Contacts, Items, Taxes and Payment Accounts: a completed POS order counts as a sale once.
+
+**Already built, which POS uses:**
+
+- The Apps Center lists Point of Sale as coming soon, from Standard, needing Sales Lite.
+- Sales documents (Sales Lite): invoices with lines, item components, line and document discounts, taxes by rate, prices with or without tax, tax rounding, the business and customer snapshots, and numbering per type, optionally with the location's code.
+- Customer payments into payment accounts, by method (cash, bank transfer, card, mobile money, cheque, other), each with its receipt number, and reversed rather than deleted. Credit notes and their refunds.
+- The full Sales app's price lists (with quantity breaks and customers of their own), customer credit limits and holds, customer advances, and returns.
+- Items: products (physical and digital), services and combos, with SKU, barcode, category, brand, unit, sales price and tax default. The business's own units of measure.
+- Payment accounts (cash, bank, mobile wallet…), their transactions and transfers between them. Expenses, for cash spent from a drawer.
+- Documents as PDFs (Gotenberg), sent by e-mail; the Documents page; Reports; the Dashboard; notifications; idempotent saving; locations and location access; roles and permissions.
+
+**Missing (what Doc 18 adds):**
+
+- 18.1 to 18.5: the POS menu (Overview, Open POS, Registers, Sessions, Orders, Returns and Refunds, Cash Movements), Settings → Point of Sale, and registers: name, code, location, currency, price list, receipt sequence, cashiers, payment methods, cash account, receipt template, status.
+- 18.6, 18.27 and 18.28: sessions - opening with a float, one open session per register, closing with counted cash and its variance, X and Z reports, a supervisor's forced close, reopening with permission.
+- 18.7 to 18.14: the selling screen - search by name, SKU, barcode, brand or category, category tiles, frequent items, the cart, the customer (a walk-in one by default), pricing and its source, discounts within limits, price overrides with a reason, taxes and cash rounding.
+- 18.15 to 18.18: POS payment methods mapped to payment accounts; split payments, tendered and change, pending electronic payments confirmed by hand; credit sales; the completed sale as one sales record, and a formal invoice from it.
+- 18.19, 18.20 and 18.22: receipts (print, PDF, e-mail, reprint marked as such), receipt numbering per register, and holding and resuming orders.
+- 18.23 to 18.26: returns from the original receipt, refunds, exchanges, and cash movements (cash in and out, safe drop, bank deposit).
+- 18.31: cashier PINs, locking after inactivity, manager approvals and re-authentication.
+- 18.32 to 18.38: POS settings, the Documents page's POS documents, the Dashboard's POS figures, 21 reports, 20 permissions and the data rules.
+
+**Waiting for other apps or services**, as Doc 18 itself says:
+
+- Inventory (18.8 and 18.21): stock reduced and returned, warehouses, serial and batch numbers, negative-stock rules and return conditions that move stock. Until then POS sells without stock, as 18.21 allows.
+- Accounting (postings), Loyalty and Marketing (points, coupons, promotions), eCommerce (a shared catalogue), and Tax and Compliance (fiscal devices, electronic receipts, country reporting).
+- Integrations: payment gateways and card terminals (until then a card or mobile payment is confirmed by hand), messaging apps for receipts, customer displays, weighing scales, cash drawers and fiscal printers.
+- Offline mode (18.29) needs the app to work without the server: a later phase of its own, once the rest stands.
+
+**Phases, with suggested defaults.** Saying "Start Phase A" accepts them.
+
+- **Phase A: POS comes on, with its settings and registers** - split on starting it (2026-11-19): A1, POS on with Settings → Point of Sale; A2, registers.
+  - **Phase A1 is built:**
+    - The Apps Center offers Point of Sale from Standard, needing Sales Lite, with its own page's words. Until A2 adds Registers, the sidebar shows its name alone.
+    - Settings → Point of Sale, under a new permission, POS Settings: Manage POS Settings (with Settings' View and Contacts' View):
+      - the walk-in customer: one of the business's active customers, or none;
+      - the receipt's return policy and footer;
+      - payment methods, in their order: name, type (cash, card, mobile money, bank transfer, other), the payment account it takes money into - an active one of the business taking customer payments - whether the cashier enters a reference, whether it gives change (cash only), and on or off.
+    - The first time the settings open, they start with a Cash method on the business's cash account that takes customer payments, the base currency's and the receiving default first - none, without a cash account.
+    - A method whose account is switched off, or takes no customer payments, says it cannot be used. The method form starts a card, mobile money or bank transfer one needing a reference.
+    - Turned off, POS's settings can be read but not changed, and its records stay.
+    - **Checked in the browser** on the first PC, as `user@izsuite.io` with POS switched on by hand (its plan, Billing Starter, has POS only from Standard):
+      - The Apps Center showed Point of Sale on, with Sales Lite "Needed by Point of Sale"; the sidebar showed its name.
+      - Settings → Point of Sale showed its card. The dev business's three accounts are all banks, so no Cash method was started: "None yet: add how the counter takes money - cash to start."
+      - Rahman Traders as the walk-in customer, a return policy and a footer: "POS settings saved."
+      - Cash on Petty Cash (giving change), and Card on City Bank Current - its form ticking the reference and hiding change - were added: "Payment method added."; Card was then deleted through its confirmation.
+      - The Activity Log named each change. The settings, the methods, POS's state, the sign-in and the activity were then put back.
+  - **Phase A2: registers**, suggested defaults:
+    - Registers: name, code, location, currency (the base one to start), price list (with full Sales), cash payment account, the payment methods it takes, its cashiers, receipt number prefix, and Active, Inactive or Maintenance. One belongs to one location; an inactive one opens no sessions; its history stays.
+    - A Registers page in the POS sidebar, under its own permission, Manage Registers; the POS permissions of 18.37 keep coming with their phases, following locations and registers.
+- **Phase B: sessions.**
+  - Open a session on a register you are a cashier of, with the opening cash float: one open session per register.
+  - The Sessions page and a session's page. Closing asks the counted cash and works out the expected cash and the variance, which needs a reason. A Z report is kept, never changed.
+  - A supervisor closes an abandoned session with a reason; reopening a closed one needs its permission and a reason.
+  - The totals grow as later phases add sales, payments, returns and cash movements.
+- **Phase C: selling.**
+  - The selling screen: search by name, SKU, barcode (a scanner types like a keyboard), brand or category; category tiles; the most-sold items; the cart with quantities, units and line notes; the customer, walk-in to start.
+  - Prices from the item, the register's price list or the customer's, with their source kept. A price override needs its permission and a reason. Line and order discounts, by percentage or amount, up to a limit in Settings; beyond it, a manager's approval.
+  - Taxes as Settings → Taxes says, with or without tax in the price. Cash rounding to a step set in Settings, kept apart from discounts.
+  - Payment: cash with the amount tendered and the change, and other methods with their reference, split across several. When it is paid in full, the order completes.
+  - **A completed order is one invoice with Source: POS,** numbered by its register's receipt sequence, with its payments in their accounts. Sales Lite and Sales list it with that source, and it counts once.
+  - The receipt: printed on a receipt printer through the browser, as a PDF, or by e-mail, with the business's details, the cashier and register, the payments, tendered and change, and the return policy. A reprint says so.
+- **Phase D: holding, pending payments and credit.**
+  - Hold an order and resume it, re-checking prices; held orders expire as Settings says.
+  - A card or mobile payment can wait as Pending until someone with the permission confirms it.
+  - With full Sales: customer credit as a payment, and credit sales - a customer, payment terms and the credit limit, or an override with a reason - leaving a balance due on the invoice.
+  - A formal invoice from a POS sale: the same record given an invoice number, linked to its receipt, never a second sale.
+- **Phase E: returns, refunds and exchanges.**
+  - A return from the original receipt: the items and quantities still returnable, a reason and the item's condition, at the sale's prices, discounts and taxes. A return without a receipt needs its permission.
+  - Refunds to the original method, cash or customer credit - another method with its permission and a reason - each with a refund receipt, and linked to the sale.
+  - An exchange: a linked return and a new sale, with the difference paid or refunded.
+  - Returns use the Sales app's credit notes and refunds underneath, so they count once.
+- **Phase F: cash movements and the X report.**
+  - Cash in, cash out, safe drop, bank deposit and float adjustment, each with a reason, in the open session. A safe drop or bank deposit is a transfer between payment accounts; a cash expense goes to Expenses. Above a limit in Settings, a manager approves.
+  - The X report: the open session's totals, without closing it. The session's closing then counts every movement.
+- **Phase G: the POS pages, Documents and the Dashboard.**
+  - The POS Overview with today's figures; the Orders, Returns and Refunds, and Cash Movements pages, by register, session, cashier and status.
+  - The Documents page gains POS Sales Receipts, POS Invoices and Refund Receipts.
+  - The Dashboard's POS card: today's sales, orders, average order value, open sessions, payments by method, returns and refunds, cash variances and the top items.
+- **Phase H: POS reports.** The 21 reports of 18.36 on the Reports page, under View POS Reports. The estimated margin is shown only where items have a cost.
+- **Phase I: cashier security and devices.**
+  - A cashier PIN for switching cashiers at a register, which locks after a period without use.
+  - Manager approval and re-authentication, each naming the approving user.
+  - Registered devices (receipt printers, scanners), with their register, connection, last use and a test.
+
+After Doc 18 come Docs 19 to 21 (eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## Testing checklist
 
@@ -2409,6 +2498,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase I2 | 000184 |
 | Doc 17: Phase I3 | 000185 |
 | Doc 17: Phase I4 | 000186 |
+| Doc 18: Phase A1 | 000187 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -2928,6 +3018,22 @@ On a fresh business, set the days in Settings → CRM to fit what you have, rath
 - [ ] A field with values cannot be deleted, nor its type changed. One without values is deleted.
 - [ ] As the member without Manage CRM Settings: the CRM tab has no Custom Fields card.
 
+### Doc 18: Point of Sale
+
+**Phase A1: POS comes on, with Settings → Point of Sale**
+
+**Before you start:** a test business on Standard or above, with a cash payment account that takes customer payments, and a member whose role has Settings' View but not Manage POS Settings.
+
+- [ ] The Apps Center shows Point of Sale, needing Sales Lite. Turn it on: the sidebar shows Point of Sale.
+- [ ] Settings → Point of Sale opens with a Cash method on your cash account, giving change. Opened again, nothing is added twice.
+- [ ] Choose a walk-in customer, a return policy and a footer: "POS settings saved." A supplier or an archived customer is refused; None clears it.
+- [ ] Add a card method on a bank account: the form ticks "enters a reference" and offers no change. Saved, the row shows its account and currency.
+- [ ] An account that takes no customer payments is not offered, and refused. Two methods cannot share a name.
+- [ ] Switch a method's account off: the method says it cannot be used. Switch a method off: it shows Off.
+- [ ] Delete a method through its confirmation. The Activity Log names each change.
+- [ ] As the member without Manage POS Settings: no Point of Sale tab.
+- [ ] Turn POS off: the settings can be read, not changed, and come back as they were when it is on again.
+
 ## How we work
 
 Each document goes the same way:
@@ -3193,7 +3299,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase I1, the lead assignment rules | `9f37087` | `ce8c86b` | 000183 |
 | Doc 17: Phase I2, lead scoring | `ced554d` | `8306872` | 000184 |
 | Doc 17: Phase I3, marketing consent | `7404395` | `1119f22` | 000185 |
-| Doc 17: Phase I4, custom fields | the commit after `7404395` | `e20fa70` | 000186 |
+| Doc 17: Phase I4, custom fields | `e5cd080` | `e20fa70` | 000186 |
+| Doc 18: the gap check, and Phase A1, POS on with its settings | the commit after `e5cd080` | `6c0cd28` | 000187 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`). Between I1 and I2, shuvo added rich text for payment instructions and the Sales settings' notes and terms (`a5e46cb` and `9bf4525`, with no frontend commit yet).
 
@@ -3745,6 +3852,14 @@ These are easy to undo by mistake.
   - Frontend:
     - SettingsCrmCustomFields with CrmCustomFieldModal, on `useCrmCustomFields()` (`crm:custom-fields`);
     - CrmCustomFieldInputs on both forms (`toCustomFieldForm()`, `customFieldValues()`), and CrmCustomFieldsCard on both pages (`customFieldText()`), in `utils/crmCustomFields.ts`.
+- Point of Sale on, with its settings (Doc 18 Phase A1, migration 000187):
+  - The migration makes the `apps` row `pos` available where it was still coming soon, and bumps `CatalogVersion`. `AppCatalogSeeder` has it available, with its own page's words (`DETAILS['pos']`), for new installs.
+  - `pos_settings` (one per business: `walk_in_contact_id`, `return_policy`, `receipt_footer`) and `pos_payment_methods` (`name`, `type`, `payment_account_id` - nulled if the account goes - `needs_reference`, `gives_change`, `is_active`, `position`).
+  - `PosSetting`, `PosPaymentMethod` (`TYPES`), `PosSettingRepository` (`started()` tells the first opening). `PaymentAccountRepository` gains `takingCustomerPayments()` and `startingCash()`.
+  - `App\Services\Api\Pos\PosSettingService`: `show()` and `start()`, `save()` (an active customer only), and the methods' `addMethod()`, `updateMethod()`, `deleteMethod()` with their `checked()`.
+  - `PosSettingController`, `SavePosSettingsRequest`, `SavePosPaymentMethodRequest`, `PosSettingsResource` (with the accounts a method may use), `PosPaymentMethodResource` (an account's `usable`). The routes are under `/business-settings/pos` with `app:pos`, under `pos.settings.manage`.
+  - `Permissions`: the group `pos.settings` (Manage POS Settings), requiring `settings.view` and `contacts.view`. The business's data export has a pos-payment-methods file.
+  - Frontend: the settings page's Point of Sale tab (`has('pos')`, `pos.settings.manage`): SettingsPos (CustomerPicker for the walk-in customer), SettingsPosPaymentMethods and PosPaymentMethodModal, on `usePosSettings()` (`pos:settings`, `POS_PAYMENT_TYPES`).
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -3886,4 +4001,5 @@ Each of these is yours to settle.
 - Doc 17 Phase I2: migration 000184 adds `crm_scoring_rules`, and the leads' `score` and `score_factors`. Businesses start with no rules, so no lead is scored until rules are set up. The scheduler runs `crm:score-leads` hourly, and the queue worker scores the leads again when the rules change. It uses Phase I1's permission. Deploy the frontend with it.
 - Doc 17 Phase I3: migration 000185 adds `marketing_consents`, and the five starting consent purposes to each business whose CRM lists started already. No permission is new: consent follows the lead's and the contact's. Deploy the frontend with it.
 - Doc 17 Phase I4: migration 000186 adds `crm_custom_fields`, and `custom_fields` to leads and opportunities. Businesses start with none, so the forms are as before until fields are added. It uses Manage CRM Settings. Deploy the frontend with it.
+- Doc 18 Phase A1: migration 000187 adds `pos_settings` and `pos_payment_methods`, and offers Point of Sale in the Apps Center (from Standard, needing Sales Lite) where it was still coming soon. Then run `php artisan db:seed --class=AppCatalogSeeder` for its Apps Center page's words. A new permission, Point of Sale → POS Settings: Manage POS Settings, brings Settings' View and Contacts' View with it; give it to custom roles in Settings → Users & Roles. Deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

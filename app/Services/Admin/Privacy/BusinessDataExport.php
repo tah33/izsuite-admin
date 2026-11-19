@@ -54,6 +54,8 @@ class BusinessDataExport
         'marketing-consents'   => 'marketing_consents',
         // Phase I4: the custom fields leads' and opportunities' custom_fields name by id.
         'crm-custom-fields'    => 'crm_custom_fields',
+        // Point of Sale's (Doc 18): its payment methods, which its payments name.
+        'pos-payment-methods'  => 'pos_payment_methods',
         'purchases'            => 'purchases',
         'supplier-payments'    => 'supplier_payments',
         'expense-categories'   => 'expense_categories',

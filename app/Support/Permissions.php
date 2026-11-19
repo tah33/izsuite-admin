@@ -125,6 +125,9 @@ final class Permissions
         // Phase I1: the lead assignment rules in Settings → CRM - and I2's scoring rules.
         'crm.rules'    => ['Assignment and Scoring Rules', 'crm', ['manage' => 'Manage Assignment and Scoring Rules']],
         'crm.settings' => ['CRM Settings', 'crm', self::APP_SETTINGS],
+
+        // Point of Sale (Doc 18 section 18.37): each phase adds its own - Phase A1 its settings.
+        'pos.settings' => ['POS Settings', 'pos', ['manage' => 'Manage POS Settings']],
     ];
 
     /** The groups whose records carry their app's values: anything but viewing one needs them. */
@@ -183,6 +186,8 @@ final class Permissions
         'crm.reports.view'           => ['reports.view'],
         // Its rules are in Settings → CRM (Phase I1).
         'crm.rules.manage'           => ['settings.view'],
+        // Doc 18 Phase A1: the walk-in customer is chosen among the contacts.
+        'pos.settings.manage'        => ['settings.view', 'contacts.view'],
         'purchases.purchases.create' => ['contacts.view', 'items.view'],
         'purchases.payments.record'  => ['purchases.purchases.view', 'payment_accounts.view'],
         'purchases.payments.reverse' => ['payment_accounts.view'],
