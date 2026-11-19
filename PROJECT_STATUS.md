@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-19
-- **Code:** Doc 17 Phase I3 (marketing consent) is committed: frontend `1119f22` on `nuxt`, and on `main` the admin commit right after `ced554d`. Before I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
-- **Tests:** 1032 backend tests, last full run 2026-11-19 on the first PC: 1031 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Phase I2 or I3 (see [Small things left](#small-things-left)).
-- **Next step:** Doc 17 Phase I4: custom fields (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase I4 (custom fields) is committed: frontend `e20fa70` on `nuxt`, and on `main` the admin commit right after `7404395`. With it Doc 17 is done. Before I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
+- **Tests:** 1035 backend tests, last full run 2026-11-19 on the first PC: 1034 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Doc 17's phases (see [Small things left](#small-things-left)).
+- **Next step:** Doc 18 (Point of Sale): its gap check (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase I3 the latest is 000185. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase I4 the latest is 000186. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase I4.
+   > Read PROJECT_STATUS.md, then start Doc 18.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check and Phases A to H done (Campaign-to-Opportunity Results waits for Doc 21), Phase I split (I1 built 2026-11-18, I2 and I3 2026-11-19), Phase I4 next** |
+| **17** | **CRM** | **Done (2026-11-19): gap check and Phases A to I; Campaign-to-Opportunity Results waits for Doc 21** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase I4)
+### 5. Doc 17: CRM (done 2026-11-19)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -2340,10 +2340,33 @@ The first PC's parts were taken out: both repos are D3b to F4 as the second PC b
   - The dialog's date and time first overflowed it: it is wider now. A withdrawn answer showed its old expiry: it shows none now.
   - The lead, its opportunity and contact, the CRM settings and lists, the app's state, the sign-in and the activity were then put back.
 
-**Phase I4: custom fields** for leads and opportunities, suggested defaults, set up in Settings → CRM:
+**Phase I4: custom fields** (sections 17.6, 17.12 and 17.26) is built, for leads and opportunities, set up in Settings → CRM:
 
-- text, number, date, a choice or yes/no, each optional or required;
-- shown on the form and the record's page.
+- **Settings → CRM gains a Custom Fields card** after E-mail Templates, for whoever may manage CRM settings: the leads' fields, then the opportunities', each in their order.
+  - Each field can be moved up or down among its own, edited, switched off and deleted, with a confirmation.
+  - A field is for leads or for opportunities, chosen when it is added.
+  - Its type is Text, Number, Date, Choice (its options, one to a line) or Yes or No. It can be required on the form.
+- **The lead and opportunity forms** ask their fields switched on in a More Details card, after Qualification on a lead's and after Interested Items on an opportunity's.
+  - Each is checked to be of its type, and a required one must be filled: "Fill in Industry.", or for yes or no, "Answer …".
+  - A yes or no field takes Not answered, Yes or No.
+  - A choice whose option was taken away later keeps a record's own value, marked "no longer offered"; another record cannot pick it.
+- **Their pages** show the fields switched on in a More Details card: a date in the business's format, yes or no in words, a dash for none.
+- A field switched off leaves the forms and pages, and its values stay, to come back when it is switched on again.
+- A field that records have values for keeps its type and is not deleted: "Leads have values for it, so it stays. Switch it off instead."
+- Changing a record without its custom fields leaves them as they were. Given, they hold every field: one left out is emptied.
+- Converting a lead does not carry its values to the opportunity: their fields are each record's own.
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with CRM switched on by hand:
+  - Settings → CRM showed Custom Fields after E-mail Templates: "None yet: the forms ask only izSuite's own fields."
+  - Industry (Leads, Text, required) and Company Size (Leads, Choice of three sizes) were added through the dialog: "Field added."
+  - Met At (Date), Has a Budget (Yes or No), Seats (Opportunities, Number, required) and Signed NDA (Opportunities, Yes or No) were added through the API. The card listed all six with what each is for, its type and options, and whether it is required.
+  - Industry's down arrow put Company Size first: "Order saved."
+  - Add Lead showed More Details after Qualification, with Company Size, Industry*, Met At and Has a Budget. Saved without Industry, it said "Fill in Industry." under it.
+  - Filled in, the lead's page showed Medium (10 to 50), Retail, 12/11/2026 and Yes. Its edit form had them filled in; Has a Budget changed to No was saved and shown.
+  - Add Opportunity showed only Seats* and Signed NDA. An opportunity added without Seats was refused; with 12 seats and the NDA signed, its page showed 12 and Yes.
+  - Deleting Industry, which a lead had a value for, was refused in its dialog: "Leads have values for it, so it stays. Switch it off instead."
+  - The fields, the lead and opportunity, the CRM settings and lists, the app's state, the sign-in and the activity were then put back.
+
+**With Phase I4, Doc 17 is done** (2026-11-19). Campaign-to-Opportunity Results waits for Doc 21, and AI scoring for the AI application.
 
 After Doc 17 come Docs 18 to 21 (POS, eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
@@ -2385,6 +2408,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase I1 | 000183 |
 | Doc 17: Phase I2 | 000184 |
 | Doc 17: Phase I3 | 000185 |
+| Doc 17: Phase I4 | 000186 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -2887,6 +2911,23 @@ On a fresh business, set the days in Settings → CRM to fit what you have, rath
 - [ ] Deleting a contact with consent records is refused: deactivate it. A consent purpose answered about cannot be deleted: switch it off, and it is no longer offered.
 - [ ] As the member who cannot edit: both cards show, without Record Consent or Withdraw.
 
+**Phase I4: custom fields**
+
+**Before you start:** CRM on and using leads, with a member whose role has Settings' View and Manage Assignment and Scoring Rules, but not Manage CRM Settings.
+
+- [ ] Settings → CRM has Custom Fields after E-mail Templates: "None yet: the forms ask only izSuite's own fields."
+- [ ] Add a required text field for leads: "Field added." Add a choice for leads, with options one to a line; blank lines are dropped.
+- [ ] A choice without options, an option twice, or a name the record's fields have already is refused.
+- [ ] Add a number, a date and a yes or no field for opportunities. Move a field up or down: "Order saved.", among its own only.
+- [ ] Add Lead shows More Details after Qualification, in that order. Save it without the required field: it says to fill it in.
+- [ ] Type letters in a number field, or leave a required yes or no Not answered: each is refused under its field.
+- [ ] Saved, the lead's page shows each value, a date in the business's format and yes or no in words. Edit it: the values are filled in, and changes are kept.
+- [ ] Add Opportunity asks only the opportunity fields, and its page shows them.
+- [ ] Take an option away from the choice: the lead keeps its own, marked "no longer offered" on its form. Another lead cannot pick it.
+- [ ] Switch a field off: it leaves the forms and pages. Switch it on: the values come back.
+- [ ] A field with values cannot be deleted, nor its type changed. One without values is deleted.
+- [ ] As the member without Manage CRM Settings: the CRM tab has no Custom Fields card.
+
 ## How we work
 
 Each document goes the same way:
@@ -3151,7 +3192,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phases H2 and H3, the CRM opportunity, people and activity reports | `4b75b5c` | `26f0f0e` | none |
 | Doc 17: Phase I1, the lead assignment rules | `9f37087` | `ce8c86b` | 000183 |
 | Doc 17: Phase I2, lead scoring | `ced554d` | `8306872` | 000184 |
-| Doc 17: Phase I3, marketing consent | the commit after `ced554d` | `1119f22` | 000185 |
+| Doc 17: Phase I3, marketing consent | `7404395` | `1119f22` | 000185 |
+| Doc 17: Phase I4, custom fields | the commit after `7404395` | `e20fa70` | 000186 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`). Between I1 and I2, shuvo added rich text for payment instructions and the Sales settings' notes and terms (`a5e46cb` and `9bf4525`, with no frontend commit yet).
 
@@ -3689,6 +3731,20 @@ These are easy to undo by mistake.
     - CrmConsentCard with CrmConsentHistory, CrmConsentModal and CrmConsentWithdrawModal, on `useCrmConsents()`, and `utils/crmConsents.ts` (channels, sources, statuses);
     - the lead's page and the contact's page show it;
     - `CRM_LISTS` has Consent Purposes, and `MERGE_MOVING` the consent records.
+- Custom fields (Doc 17 Phase I4, migration 000186):
+  - `crm_custom_fields`: `record` (lead or opportunity), `name` (unique per record), `type` (text, number, date, choice, yes_no), `options` (a choice's), `is_required`, `is_active` and `position`.
+  - `crm_leads` and `crm_opportunities` gain `custom_fields` (JSON, by field id): text, numbers and choices as strings, dates as Y-m-d, yes or no as booleans.
+  - `CrmCustomField` and `CrmCustomFieldRepository`: `activeFor()`, `reorder()`, and `hasValues()`, which reads the JSON by path (`custom_fields->{id}`), as MySQL and SQLite both do.
+  - `App\Services\Crm\CustomFieldValues`:
+    - `forForm()` gives a record's active fields;
+    - `checked()` takes each active field's value from the input, of its type, a required one filled, and keeps inactive fields' values. Errors go under `custom_fields.{id}`;
+    - `shown()` gives the active fields with the record's values.
+  - `CrmLeadService` and `CrmOpportunityService` check them in their `checked()`: always on adding, on a change only when `custom_fields` is given. The options give the fields (`custom_fields`), and `CrmLeadResource` and `CrmOpportunityResource` the shown ones.
+  - Settings: `CrmCustomFieldService` (a name per record, a type kept while it has values, a field with values switched off rather than deleted), `CrmCustomFieldController`, `SaveCrmCustomFieldRequest`, `ReorderCrmCustomFieldsRequest` and `CrmCustomFieldResource`. The routes are under `/business-settings/crm/custom-fields`, with `crm.settings.manage`.
+  - The business's data export has a crm-custom-fields file, to read the values by.
+  - Frontend:
+    - SettingsCrmCustomFields with CrmCustomFieldModal, on `useCrmCustomFields()` (`crm:custom-fields`);
+    - CrmCustomFieldInputs on both forms (`toCustomFieldForm()`, `customFieldValues()`), and CrmCustomFieldsCard on both pages (`customFieldText()`), in `utils/crmCustomFields.ts`.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -3829,4 +3885,5 @@ Each of these is yours to settle.
 - Doc 17 Phase I1: migration 000183 adds `crm_assignment_rules`; businesses start with none, so every lead added without an owner still waits in the queue until rules are set up. A new permission, CRM → Assignment and Scoring Rules: Manage Assignment and Scoring Rules, brings Settings' View with it. Roles made from the Manager template from now on have it; give it to custom roles in Settings → Users & Roles. Deploy the frontend with it.
 - Doc 17 Phase I2: migration 000184 adds `crm_scoring_rules`, and the leads' `score` and `score_factors`. Businesses start with no rules, so no lead is scored until rules are set up. The scheduler runs `crm:score-leads` hourly, and the queue worker scores the leads again when the rules change. It uses Phase I1's permission. Deploy the frontend with it.
 - Doc 17 Phase I3: migration 000185 adds `marketing_consents`, and the five starting consent purposes to each business whose CRM lists started already. No permission is new: consent follows the lead's and the contact's. Deploy the frontend with it.
+- Doc 17 Phase I4: migration 000186 adds `crm_custom_fields`, and `custom_fields` to leads and opportunities. Businesses start with none, so the forms are as before until fields are added. It uses Manage CRM Settings. Deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

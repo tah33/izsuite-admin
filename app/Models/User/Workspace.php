@@ -379,6 +379,12 @@ class Workspace extends Model
         return $this->hasMany(MarketingConsent::class);
     }
 
+    /** Its own fields for leads and opportunities (Doc 17 Phase I4). */
+    public function crmCustomFields(): HasMany
+    {
+        return $this->hasMany(CrmCustomField::class);
+    }
+
     /** How each kind of document is numbered - a row only where a default was changed. */
     public function documentNumbering(): HasMany
     {

@@ -79,6 +79,9 @@ class SaveCrmLeadRequest extends FormRequest
             'tags'                   => ['nullable', 'array', 'max:20'],
             'tags.*'                 => ['string', 'max:50'],
             'notes'                  => ['nullable', 'string', 'max:5000'],
+            // Phase I4: its custom fields' values by field id, checked by CustomFieldValues. Left out of a change, they stay.
+            'custom_fields'          => ['sometimes', 'nullable', 'array', 'max:200'],
+            'custom_fields.*'        => ['nullable'],
             // Its qualification (Phase B2a): the budget in the lead's currency.
             'customer_need'          => ['nullable', 'string', 'max:2000'],
             'budget'                 => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99', 'decimal:0,2'],

@@ -206,6 +206,12 @@ final class RoutePermissions
             'api.business-settings.crm.scoring-rules.store'      => 'crm.rules.manage',
             'api.business-settings.crm.scoring-rules.update'     => 'crm.rules.manage',
             'api.business-settings.crm.scoring-rules.destroy'    => 'crm.rules.manage',
+            // Phase I4: the custom fields, as Settings → CRM's lists.
+            'api.business-settings.crm.custom-fields.index'      => 'crm.settings.manage',
+            'api.business-settings.crm.custom-fields.store'      => 'crm.settings.manage',
+            'api.business-settings.crm.custom-fields.order'      => 'crm.settings.manage',
+            'api.business-settings.crm.custom-fields.update'     => 'crm.settings.manage',
+            'api.business-settings.crm.custom-fields.destroy'    => 'crm.settings.manage',
             'api.business-settings.expenses.show'              => 'settings.view',
             'api.business-settings.expenses.update'            => 'expenses.settings.manage',
 

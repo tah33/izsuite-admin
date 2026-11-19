@@ -109,6 +109,8 @@ class CrmLead extends Model
         'opportunity_id',
         'converted_at',
         'converted_by',
+        // Its custom fields' values, by field id (Phase I4).
+        'custom_fields',
     ];
 
     /** The column default, so a lead just made reads the same as one fetched. */
@@ -136,6 +138,7 @@ class CrmLead extends Model
         // Its score and the scoring rules that gave it (Phase I2), kept by LeadScoring only.
         'score'                  => 'integer',
         'score_factors'          => 'array',
+        'custom_fields'          => 'array',
     ];
 
     public function workspace(): BelongsTo

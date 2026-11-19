@@ -30,6 +30,8 @@ class CrmLeadOptionsResource extends JsonResource
             'lead_response_days'     => $this->resource['lead_response_days'],
             // Phase I2: whether the business scores its leads.
             'scoring'                => $this->resource['scoring'],
+            // Phase I4: the custom fields its form asks, in their order.
+            'custom_fields'          => $this->resource['custom_fields']->map(fn ($field) => ['id' => $field->id, 'name' => $field->name, 'type' => $field->type, 'options' => $field->options ?? [], 'is_required' => $field->is_required])->values(),
         ];
     }
 }

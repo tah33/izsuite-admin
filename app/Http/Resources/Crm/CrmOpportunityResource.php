@@ -2,9 +2,11 @@
 
 namespace App\Http\Resources\Crm;
 
+use App\Models\User\CrmCustomField;
 use App\Models\User\CrmStage;
 use App\Models\User\Workspace;
 use App\Services\Crm\CrmOpportunityRules;
+use App\Services\Crm\CustomFieldValues;
 use App\Services\Crm\RecordFollowUp;
 use App\Services\Shared\AllowedActions;
 use App\Services\Shared\EditConflicts;
@@ -74,6 +76,8 @@ class CrmOpportunityResource extends JsonResource
             'competitors'         => $this->competitors ?? [],
             'tags'                => $this->tags ?? [],
             'notes'               => $this->notes,
+            // Its custom fields switched on, each with its value (Phase I4).
+            'custom_fields'       => $workspace instanceof Workspace ? app(CustomFieldValues::class)->shown($workspace, CrmCustomField::OPPORTUNITY, $this->custom_fields) : [],
             'interested_items'    => $this->interestedItems->map(fn ($item) => [
                 'item_id'  => $item->item_id,
                 'name'     => $item->name,

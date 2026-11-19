@@ -78,6 +78,8 @@ class CrmOpportunity extends Model
         'follow_up_on',
         'archived_at',
         'archived_by',
+        // Its custom fields' values, by field id (Phase I4).
+        'custom_fields',
     ];
 
     /** What reopening clears: how it ended. */
@@ -109,6 +111,7 @@ class CrmOpportunity extends Model
         'follow_up_on'        => 'date:Y-m-d',
         'archived_at'         => 'datetime',
         'archived_by'         => 'integer',
+        'custom_fields'       => 'array',
     ];
 
     public function isArchived(): bool

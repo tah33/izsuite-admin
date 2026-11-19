@@ -34,6 +34,8 @@ class CrmOpportunityOptionsResource extends JsonResource
             // What the "closing_soon" (Phase G4) and "quiet" (Phase G3b) filters are named with.
             'closing_soon_days'    => $this->resource['closing_soon_days'],
             'recent_activity_days' => $this->resource['recent_activity_days'],
+            // Phase I4: the custom fields its form asks, in their order.
+            'custom_fields'        => $this->resource['custom_fields']->map(fn ($field) => ['id' => $field->id, 'name' => $field->name, 'type' => $field->type, 'options' => $field->options ?? [], 'is_required' => $field->is_required])->values(),
         ];
     }
 }

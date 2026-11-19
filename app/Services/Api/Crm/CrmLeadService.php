@@ -11,7 +11,9 @@ use App\Repositories\User\CrmScoringRuleRepository;
 use App\Repositories\User\LocationRepository;
 use App\Repositories\User\SalesTeamRepository;
 use App\Services\Api\Sales\RefusesConflicts;
+use App\Models\User\CrmCustomField;
 use App\Services\Crm\CrmLeadRules;
+use App\Services\Crm\CustomFieldValues;
 use App\Services\Crm\FollowUpCutoffs;
 use App\Services\Crm\LeadAssignments;
 use App\Services\Crm\LeadDuplicates;
@@ -70,6 +72,7 @@ class CrmLeadService
         protected LeadRouting $routing,
         protected LeadScoring $scoring,
         protected CrmScoringRuleRepository $scoringRules,
+        protected CustomFieldValues $customValues,
     ) {}
 
     /**
@@ -109,8 +112,8 @@ class CrmLeadService
      * to, where a new lead starts and who owns it - $user, unless they choose
      * someone else - what qualifying needs filled in (Phase B2a), and (Phase
      * G3b) the days its "uncontacted" filter is named with, and (Phase I2)
-     * whether the business scores its leads. The lists start here if
-     * Settings > CRM was never opened.
+     * whether the business scores its leads, and (Phase I4) its custom
+     * fields. The lists start here if Settings > CRM was never opened.
      */
     public function options(Workspace $workspace, User $user): array
     {
@@ -125,6 +128,8 @@ class CrmLeadService
             'qualification_required' => $this->settings->qualificationRequired($workspace),
             'lead_response_days'     => $this->settings->periods($workspace)['lead_response_days'],
             'scoring'                => $this->scoringRules->anyActive($workspace),
+            // Phase I4: its custom fields switched on.
+            'custom_fields'          => $this->customValues->forForm($workspace, CrmCustomField::LEAD),
         ];
     }
 
@@ -268,6 +273,11 @@ class CrmLeadService
         // A value or a budget is in the lead's currency: the base one unless chosen.
         if ((isset($fields['estimated_value']) || isset($fields['budget'])) && empty($fields['currency'])) {
             $fields['currency'] = $lead?->currency ?? $workspace->base_currency;
+        }
+
+        // Phase I4: its custom fields, each of its type and a required one filled. Left out of a change, they stay.
+        if ($lead === null || array_key_exists('custom_fields', $data)) {
+            $fields['custom_fields'] = $this->customValues->checked($workspace, CrmCustomField::LEAD, $data['custom_fields'] ?? [], $lead?->custom_fields ?? []);
         }
 
         return $fields;

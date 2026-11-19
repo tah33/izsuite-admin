@@ -20,6 +20,8 @@ use App\Services\Crm\LeadInterests;
 use App\Services\Crm\OpportunityAssignments;
 use App\Services\Crm\OpportunityForecast;
 use App\Services\Crm\OpportunityVisibility;
+use App\Models\User\CrmCustomField;
+use App\Services\Crm\CustomFieldValues;
 use App\Services\Crm\PipelineChoice;
 use App\Services\Crm\StageRequirements;
 use App\Services\Shared\ActivityLogService;
@@ -73,6 +75,7 @@ class CrmOpportunityService
         protected StageRequirements $requirements,
         protected PipelineChoice $pipelineChoice,
         protected FollowUpCutoffs $cutoffs,
+        protected CustomFieldValues $customValues,
     ) {}
 
     /**
@@ -199,6 +202,8 @@ class CrmOpportunityService
             'owner_id'     => $user->id,
             'closing_soon_days'    => $periods['closing_soon_days'],
             'recent_activity_days' => $periods['recent_activity_days'],
+            // Phase I4: its custom fields switched on.
+            'custom_fields'        => $this->customValues->forForm($workspace, CrmCustomField::OPPORTUNITY),
         ];
     }
 
@@ -370,6 +375,11 @@ class CrmOpportunityService
         }
 
         $fields['location_id'] = $this->location($workspace, isset($fields['location_id']) ? (int) $fields['location_id'] : null, $opportunity);
+
+        // Phase I4: its custom fields, each of its type and a required one filled. Left out of a change, they stay.
+        if ($opportunity === null || array_key_exists('custom_fields', $data)) {
+            $fields['custom_fields'] = $this->customValues->checked($workspace, CrmCustomField::OPPORTUNITY, $data['custom_fields'] ?? [], $opportunity?->custom_fields ?? []);
+        }
 
         return $fields;
     }

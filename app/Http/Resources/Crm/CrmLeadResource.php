@@ -4,7 +4,9 @@ namespace App\Http\Resources\Crm;
 
 use App\Models\User\CrmLead;
 use App\Models\User\Workspace;
+use App\Models\User\CrmCustomField;
 use App\Services\Crm\CrmLeadRules;
+use App\Services\Crm\CustomFieldValues;
 use App\Services\Crm\LeadQualification;
 use App\Services\Crm\RecordFollowUp;
 use App\Services\Shared\AllowedActions;
@@ -68,6 +70,8 @@ class CrmLeadResource extends JsonResource
             'created_at'             => $this->created_at?->toIso8601String(),
             // Its response and follow-up (Phase G3a): first assigned and contacted, last contact, next activity, days without activity.
             'follow_up'              => $workspace instanceof Workspace ? app(RecordFollowUp::class)->lead($workspace, $this->resource, app(WorkspaceAccess::class)->can('crm.activities.view')) : null,
+            // Its custom fields switched on, each with its value (Phase I4).
+            'custom_fields'          => $workspace instanceof Workspace ? app(CustomFieldValues::class)->shown($workspace, CrmCustomField::LEAD, $this->custom_fields) : [],
             // What it was converted to (Phase C1).
             'conversion'             => $this->converted_at ? [
                 'at'          => $this->converted_at->toIso8601String(),

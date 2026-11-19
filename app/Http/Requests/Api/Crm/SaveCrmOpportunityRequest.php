@@ -78,6 +78,9 @@ class SaveCrmOpportunityRequest extends FormRequest
             'tags'                => ['nullable', 'array', 'max:20'],
             'tags.*'              => ['string', 'max:50'],
             'notes'               => ['nullable', 'string', 'max:5000'],
+            // Phase I4: its custom fields' values by field id, checked by CustomFieldValues. Left out of a change, they stay.
+            'custom_fields'       => ['sometimes', 'nullable', 'array', 'max:200'],
+            'custom_fields.*'     => ['nullable'],
             // What it is for: one of the business's items (LeadInterests checks it), or a name typed in. Left out, they stay as they are.
             'interested_items'            => ['sometimes', 'array', 'max:50'],
             'interested_items.*.item_id'  => ['nullable', 'integer'],

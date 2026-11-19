@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\CrmOverviewController;
 use App\Http\Controllers\Api\CrmActivityController;
 use App\Http\Controllers\Api\CrmConsentController;
 use App\Http\Controllers\Api\CrmContactSummaryController;
+use App\Http\Controllers\Api\CrmCustomFieldController;
 use App\Http\Controllers\Api\CrmEmailController;
 use App\Http\Controllers\Api\CrmAssignmentRuleController;
 use App\Http\Controllers\Api\CrmEmailTemplateController;
@@ -329,6 +330,12 @@ Route::prefix('v1')->group(function () {
             Route::post('/scoring-rules', [CrmScoringRuleController::class, 'store'])->middleware('idempotent')->name('api.business-settings.crm.scoring-rules.store');
             Route::put('/scoring-rules/{id}', [CrmScoringRuleController::class, 'update'])->whereNumber('id')->name('api.business-settings.crm.scoring-rules.update');
             Route::delete('/scoring-rules/{id}', [CrmScoringRuleController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.scoring-rules.destroy');
+            // Phase I4: the custom fields for leads and opportunities.
+            Route::get('/custom-fields', [CrmCustomFieldController::class, 'index'])->name('api.business-settings.crm.custom-fields.index');
+            Route::post('/custom-fields', [CrmCustomFieldController::class, 'store'])->middleware('idempotent')->name('api.business-settings.crm.custom-fields.store');
+            Route::put('/custom-fields/order', [CrmCustomFieldController::class, 'reorder'])->name('api.business-settings.crm.custom-fields.order');
+            Route::put('/custom-fields/{id}', [CrmCustomFieldController::class, 'update'])->whereNumber('id')->name('api.business-settings.crm.custom-fields.update');
+            Route::delete('/custom-fields/{id}', [CrmCustomFieldController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.custom-fields.destroy');
         });
 
         // Sales teams (Doc 16 Phase A): the full Sales app's - and, since Doc
