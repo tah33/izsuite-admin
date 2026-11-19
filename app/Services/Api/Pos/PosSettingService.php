@@ -30,7 +30,7 @@ class PosSettingService
     use RefusesConflicts;
 
     /** What the settings form saves. */
-    private const SAVED = ['walk_in_contact_id', 'return_policy', 'receipt_footer'];
+    private const SAVED = ['walk_in_contact_id', 'return_policy', 'receipt_footer', 'variance_limit'];
 
     public function __construct(
         protected PosSettingRepository $settings,
@@ -85,6 +85,11 @@ class PosSettingService
             if (! $contact || ! $contact->is_active || $contact->isMerged() || ! in_array($contact->role, [Contact::ROLE_CUSTOMER, Contact::ROLE_BOTH], true)) {
                 throw ValidationException::withMessages(['walk_in_contact_id' => 'Choose one of your active customers.']);
             }
+        }
+
+        // Phase B2a: the variance limit, to the cent - or none.
+        if (array_key_exists('variance_limit', $fields)) {
+            $fields['variance_limit'] = $fields['variance_limit'] === null ? null : bcadd((string) $fields['variance_limit'], '0', 2);
         }
 
         $settings = $this->settings->save($workspace, [...$fields, 'walk_in_contact_id' => ($fields['walk_in_contact_id'] ?? null) ?: null]);

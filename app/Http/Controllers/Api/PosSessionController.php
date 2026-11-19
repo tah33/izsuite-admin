@@ -6,14 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Pos\ClosePosSessionRequest;
 use App\Http\Requests\Api\Pos\ListPosSessionsRequest;
 use App\Http\Requests\Api\Pos\OpenPosSessionRequest;
+use App\Http\Requests\Api\Pos\ReopenPosSessionRequest;
 use App\Http\Resources\Pos\PosSessionListResource;
 use App\Http\Resources\Pos\PosSessionOptionsResource;
 use App\Http\Resources\Pos\PosSessionResource;
+use App\Models\User\PosSession;
 use App\Services\Api\Pos\PosSessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-/** POS sessions (Doc 18 Phase B1): the Sessions page and its choices, opening one, a session's page, and closing it. */
+/**
+ * POS sessions (Doc 18 Phases B1 and B2a): the Sessions page and its choices,
+ * opening one, a session's page, closing it, approving its variance and
+ * reopening it.
+ */
 class PosSessionController extends Controller
 {
     public function __construct(
@@ -76,7 +82,35 @@ class PosSessionController extends Controller
         try {
             $page = $this->sessionService->close($this->currentWorkspace($request), $id, $request->validated());
 
-            return response()->json(['message' => "Session {$page['session']->number} closed.", 'data' => new PosSessionResource($page)]);
+            $waits = $page['session']->status === PosSession::CLOSING ? ' Its variance waits for approval.' : '';
+
+            return response()->json(['message' => "Session {$page['session']->number} closed.{$waits}", 'data' => new PosSessionResource($page)]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    public function approve(Request $request, int $id): JsonResponse
+    {
+        try {
+            $page = $this->sessionService->approve($this->currentWorkspace($request), $id);
+
+            return response()->json(['message' => "Variance approved: session {$page['session']->number} is closed.", 'data' => new PosSessionResource($page)]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    public function reopen(ReopenPosSessionRequest $request, int $id): JsonResponse
+    {
+        try {
+            $page = $this->sessionService->reopen($this->currentWorkspace($request), $id, $request->validated());
+
+            return response()->json(['message' => "Session {$page['session']->number} reopened.", 'data' => new PosSessionResource($page)]);
 
         } catch (\Throwable $e) {
             report($e);

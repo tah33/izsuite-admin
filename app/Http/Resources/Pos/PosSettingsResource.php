@@ -8,8 +8,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /**
  * Settings → Point of Sale (Doc 18 Phase A1), as PosSettingService::show()
  * gives it: the walk-in customer, the receipt's return policy and footer,
- * the payment methods in their order, and the accounts a method may take
- * money into.
+ * the variance limit (Phase B2a), the payment methods in their order, and
+ * the accounts a method may take money into.
  */
 class PosSettingsResource extends JsonResource
 {
@@ -22,6 +22,7 @@ class PosSettingsResource extends JsonResource
             'walk_in_customer' => $customer ? ['id' => $customer->id, 'name' => $customer->name] : null,
             'return_policy'    => $settings->return_policy,
             'receipt_footer'   => $settings->receipt_footer,
+            'variance_limit'   => $settings->variance_limit === null ? null : (string) $settings->variance_limit,
             'payment_methods'  => PosPaymentMethodResource::collection($this->resource['methods']),
             'accounts'         => $this->resource['accounts']->map(fn ($account) => ['id' => $account->id, 'name' => $account->name, 'currency' => $account->currency, 'type' => $account->type])->values(),
         ];

@@ -138,6 +138,7 @@ class PosSessionsTest extends TestCase
             ->assertJsonPath('data.totals.sales_count', 0)
             ->assertJsonPath('data.z_report', null)
             ->assertJsonPath('data.closes', true)
+            ->assertJsonPath('data.own', true)
             ->json('data');
         $this->assertTrue(ActivityLog::query()->where('description', 'Opened the POS session S-00001 at the register "Front Counter" (R1)')->exists());
 
@@ -150,7 +151,7 @@ class PosSessionsTest extends TestCase
         Sanctum::actingAs($this->ana);
         $this->open('R1')->assertUnprocessable()->assertJsonValidationErrors(['pos_register_id' => 'This register has a session open.']);
         $this->getJson(self::SESSIONS."/{$session['id']}")->assertOk()->assertJsonPath('data.closes', false);
-        $this->postJson(self::SESSIONS."/{$session['id']}/close", ['counted_cash' => '100.50'])->assertStatus(409)->assertJsonPath('message', 'Only its cashier closes a session.');
+        $this->postJson(self::SESSIONS."/{$session['id']}/close", ['counted_cash' => '100.50'])->assertStatus(409)->assertJsonPath('message', 'Only its cashier, or someone who approves variances, closes a session.');
         Sanctum::actingAs($this->user);
 
         $this->postJson(self::SESSIONS."/{$session['id']}/close", ['counted_cash' => '100.5', 'notes' => 'All square'])->assertOk()

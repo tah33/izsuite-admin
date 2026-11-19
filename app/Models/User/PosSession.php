@@ -13,8 +13,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * register, from the opening cash float - a float, not income - to the
  * closing count. Numbered S-00001 in the business, in the register's
  * currency as it opened. Open, then Closed with its Z report (a
- * PosSessionClosing). Closing - waiting for a variance's approval - and
- * Suspended come with the phases that use them. A session is never deleted.
+ * PosSessionClosing) - or, when its variance went beyond the limit, Closing
+ * until someone who approves variances approves it (Phase B2a). Reopened,
+ * it is Open again and its next closing makes a new Z report. Suspended
+ * waits for Phase I. A session is never deleted.
  */
 class PosSession extends Model
 {
@@ -28,8 +30,15 @@ class PosSession extends Model
 
     public const STATUSES = [self::OPEN, self::CLOSING, self::CLOSED, self::SUSPENDED];
 
-    /** Not closed: the register and the cashier are taken. */
-    public const LIVE = [self::OPEN, self::CLOSING, self::SUSPENDED];
+    /**
+     * Still selling, or able to: its register and its cashier are taken. A
+     * session Closing has been counted, and waits for its variance's
+     * approval only, so the next one may open.
+     */
+    public const LIVE = [self::OPEN, self::SUSPENDED];
+
+    /** Counted: a Z report says what it took. */
+    public const COUNTED = [self::CLOSING, self::CLOSED];
 
     public const NUMBER_SEQUENCE = 'pos_session';
 

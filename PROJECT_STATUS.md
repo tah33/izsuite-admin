@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-19
-- **Code:** Doc 18 Phase B1 (opening and closing sessions) is committed: frontend `19499c7` on `nuxt`, and on `main` the admin commit right after `0f35a06`. Doc 18's gap check and Phase A are pushed: Phase A2 (registers), the last, is frontend `9b9917b` and admin `0f35a06`. Doc 17 is done and pushed: Phase I4, the last, is frontend `e20fa70` and admin `e5cd080`. Before I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
-- **Tests:** 1046 backend tests, last full run 2026-11-19 on the first PC: 1045 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Docs 17 or 18 (see [Small things left](#small-things-left)).
-- **Next step:** Doc 18 (Point of Sale) Phase B2: the supervisor's side of sessions (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 18 Phase B2a (the supervisor's side of sessions) is committed: frontend `0e3b89c` on `nuxt`, and on `main` the admin commit right after `620aebe`. Doc 18's gap check, Phase A and Phase B1 are pushed: B1 (opening and closing sessions), the last, is frontend `19499c7` and admin `620aebe`. Doc 17 is done and pushed: Phase I4, the last, is frontend `e20fa70` and admin `e5cd080`. Before I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
+- **Tests:** 1049 backend tests, last full run 2026-11-19 on the first PC: 1048 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Docs 17 or 18 (see [Small things left](#small-things-left)).
+- **Next step:** Doc 18 (Point of Sale) Phase B2b: counting cash by notes and coins (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 18 Phase B1 the latest is 000189. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 18 Phase B2a the latest is 000190. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 18 Phase B2.
+   > Read PROJECT_STATUS.md, then start Doc 18 Phase B2b.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -60,7 +60,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
 | **17** | **CRM** | **Done (2026-11-19): gap check and Phases A to I; Campaign-to-Opportunity Results waits for Doc 21** |
-| **18** | **Point of Sale** | **In progress: gap check done 2026-11-19, Phase A built 2026-11-19 (A1, A2), Phase B split (B1 built 2026-11-19), Phase B2 next** |
+| **18** | **Point of Sale** | **In progress: gap check done 2026-11-19, Phase A built 2026-11-19 (A1, A2), Phase B split (B1 and B2a built 2026-11-19), Phase B2b next** |
 | 19 to 21 | eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -2369,7 +2369,7 @@ The first PC's parts were taken out: both repos are D3b to F4 as the second PC b
 
 **With Phase I4, Doc 17 is done** (2026-11-19). Campaign-to-Opportunity Results waits for Doc 21, and AI scoring for the AI application.
 
-### 6. Doc 18: Point of Sale (next: Phase B2)
+### 6. Doc 18: Point of Sale (next: Phase B2b)
 
 The gap check was done on 2026-11-19. Doc 18 is Point of Sale: fast selling over the counter, from a register, in a cashier's session, with receipts, cash and closing counts. It sells through the shared Sales records, Contacts, Items, Taxes and Payment Accounts: a completed POS order counts as a sale once.
 
@@ -2439,7 +2439,7 @@ The gap check was done on 2026-11-19. Doc 18 is Point of Sale: fast selling over
       - A second register with code R1: "Another register has this code." under the code.
       - Deleting Card in Settings → Point of Sale was refused in its dialog: "Registers take this method (Front Counter). Take it off them, or switch it off instead."
       - The register was deleted through its confirmation: "Register deleted." The Activity Log named the addition, the change and the deletion. The registers, the methods, POS's state, the sign-in and the activity were then put back.
-- **Phase B: sessions** - split on starting it (2026-11-19): B1, opening and closing your own session, with its Z report; B2, the supervisor's side.
+- **Phase B: sessions** - split on starting it (2026-11-19): B1, opening and closing your own session, with its Z report; B2, the supervisor's side, itself split on starting it into B2a (closing someone else's session, the variance limit, reopening) and B2b (counting by notes and coins).
   - **Phase B1 is built:**
     - A Sessions page in the Point of Sale sidebar, under a new permission, Sessions: View, and Open and Close Sessions (with View). A session is seen by those who may use its register's location; to anyone else it is not found. The list goes by status and register, the latest opened first.
     - Opening a session takes one of the user's registers (active, with the user as one of its cashiers, at a location they may use), the opening cash (a float, not income) and notes:
@@ -2458,12 +2458,30 @@ The gap check was done on 2026-11-19. Doc 18 is Point of Sale: fast selling over
       - Close Session with $145 counted said "$5.00 short of the cash expected." and asked why; closing without a reason was refused under it. With one: "Session S-00001 closed." The Z report showed $150.00 expected, $145.00 counted, $5.00 short, the reason and the notes.
       - The list showed S-00001 with $145.00 counted and the variance in red, and offered Open Session again. The Registers page offered Front Counter no Delete.
       - The Activity Log named the opening and the closing with its variance. The session, its Z report, its number counter, the register, the methods, POS's state, the sign-in and the activity were then put back.
-  - **Phase B2: the supervisor's side**, suggested defaults:
-    - Approve Cash Variances: a supervisor closes someone else's open session (an abandoned one), counting its cash and giving a reason, which its Z report keeps.
-    - A variance limit in Settings → Point of Sale: a variance beyond it leaves the session Closing until someone who approves variances approves it.
-    - Reopen Closed Sessions, with a reason, only while its register and cashier have no other session open. Its last Z report stays as it was, marked reopened; its next closing makes a new one.
-    - Counting by denomination, when switched on in Settings → Point of Sale: the notes and coins of the register's currency, their total being the cash counted, kept in the Z report.
+  - **Phase B2a is built:**
+    - Sessions gains two permissions, each with View: Approve Variances and Close Others' Sessions, and Reopen Closed Sessions.
+    - A supervisor (one who approves variances) closes someone else's open session, an abandoned one: they count its cash and say why. Its Z report keeps the reason.
+    - Settings → Point of Sale gains Variance Needing Approval: an amount, in each session's currency, or empty for none.
+      - A closing whose variance goes beyond it leaves the session Closing, with a warning on its page, until someone who approves variances approves it.
+      - One who may approve variances closes beyond it at once, the Z report naming them.
+      - A session that is Closing holds neither its register nor its cashier: the next session may open.
+    - Reopen Closed Sessions opens a counted session again, with a reason:
+      - only while its register is active, and neither the register nor its cashier has another session open;
+      - its Z report is kept as it was, marked reopened, under Earlier Closings, and its next closing makes a new one.
+    - A Z report's figures never change: it is only marked approved, and marked reopened, once each.
     - Suspended waits for Phase I's cashier switching.
+    - **Checked in the browser** on the first PC, as `user@izsuite.io` (the owner, who may approve and reopen), with POS on, and Cash, Card and Front Counter (R1) added by hand:
+      - Settings → Point of Sale saved a Variance Needing Approval of 5.00: "POS settings saved."
+      - S-00001 opened with $100 and closed at $90. The owner may approve, so it closed at once, its Z report reading "Approved by izSuite User".
+      - Reopen Session without a reason was refused under its field: "Say why the session opens again." With one: "Session S-00001 reopened.", open with $100.00 expected, and the earlier closing under Earlier Closings with its reason. Closed again at $100, it had a new Z report and kept the earlier one.
+      - The dev business has the owner alone, so two sessions were put in by hand: a cashier's count $12 short, beyond the limit (S-00002), and another person's open session (S-00003).
+      - S-00002 showed Closing, the warning, Approve Variance and "Waiting for someone who approves variances". Approved: "Variance approved: session S-00002 is closed."
+      - Closing S-00003 asked "Why You Close It", naming its cashier. Closed, its Z report showed "Closed Because" and the reason.
+      - The Activity Log named the settings and each opening, closing, approval and reopening. The sessions, the settings, the register, the methods, POS's state, the sign-in and the activity were then put back.
+  - **Phase B2b: counting by notes and coins**, suggested defaults:
+    - Count Cash by Denomination, switched on in Settings → Point of Sale: the close form lists the notes and coins of the session's currency, and their total is the cash counted.
+    - Each of the business's currencies starts with its usual notes and coins where izSuite knows them, and the business edits its list in Settings → Point of Sale.
+    - The count by denomination is kept in the Z report and shown with it.
 - **Phase C: selling.**
   - The selling screen: search by name, SKU, barcode (a scanner types like a keyboard), brand or category; category tiles; the most-sold items; the cart with quantities, units and line notes; the customer, walk-in to start.
   - Prices from the item, the register's price list or the customer's, with their source kept. A price override needs its permission and a reason. Line and order discounts, by percentage or amount, up to a limit in Settings; beyond it, a manager's approval.
@@ -2538,6 +2556,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 18: Phase A1 | 000187 |
 | Doc 18: Phase A2 | 000188 |
 | Doc 18: Phase B1 | 000189 |
+| Doc 18: Phase B2a | 000190 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -3104,6 +3123,19 @@ On a fresh business, set the days in Settings → CRM to fit what you have, rath
 - [ ] As the member with View alone: the sessions show, with no Open Session. As the member at the other location: only its sessions show, and another's session page is not found.
 - [ ] The Activity Log names each opening and each closing, with its variance.
 
+**Phase B2a: the supervisor's side of sessions**
+
+**Before you start:** POS on with a register and two of its cashiers; a member who approves variances and is not a cashier; and a member with Reopen Closed Sessions.
+
+- [ ] Settings → Point of Sale: set Variance Needing Approval to 5: "POS settings saved."
+- [ ] As a cashier, close a session $10 short with a reason: "Session … closed. Its variance waits for approval." It shows Closing, with the warning, and the register can open its next session meanwhile.
+- [ ] As the approver: the session offers Approve Variance. Approved: "Variance approved: session … is closed.", its Z report naming you.
+- [ ] As the approver, close a cashier's open session: the form asks why you close it, naming its cashier, and the Z report shows the reason. The other cashier sees no Close Session on it.
+- [ ] As the approver, close your own session beyond the limit: it closes at once, approved by you. Empty the limit: no closing waits.
+- [ ] As the member who reopens: Reopen Session asks why. While the register or its cashier has another session open, or the register is not active, it is refused, saying which.
+- [ ] Reopened, the session is open again, and its Z report shows under Earlier Closings with the reason. Closed again, it has a new Z report.
+- [ ] The Activity Log names each approval, each supervisor's closing with its reason, and each reopening.
+
 ## How we work
 
 Each document goes the same way:
@@ -3372,7 +3404,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase I4, custom fields | `e5cd080` | `e20fa70` | 000186 |
 | Doc 18: the gap check, and Phase A1, POS on with its settings | `1c88f96` | `6c0cd28` | 000187 |
 | Doc 18: Phase A2, registers | `0f35a06` | `9b9917b` | 000188 |
-| Doc 18: Phase B1, opening and closing sessions | the commit after `0f35a06` | `19499c7` | 000189 |
+| Doc 18: Phase B1, opening and closing sessions | `620aebe` | `19499c7` | 000189 |
+| Doc 18: Phase B2a, the supervisor's side of sessions | the commit after `620aebe` | `0e3b89c` | 000190 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`). Between I1 and I2, shuvo added rich text for payment instructions and the Sales settings' notes and terms (`a5e46cb` and `9bf4525`, with no frontend commit yet).
 
@@ -3947,7 +3980,7 @@ These are easy to undo by mistake.
     - `status`: `open`, `closing`, `closed` or `suspended` (B1 uses open and closed);
     - `opened_at`, `opening_float`, `opening_notes`, `closed_at` and `closed_by`.
   - `pos_session_closings` holds each closing's Z report: `opening_float`, `expected_cash`, `counted_cash`, `variance` (counted less expected), `variance_reason`, `notes`, `totals` (JSON, as `PosSessionTotals` gave it), `closed_by` and `closed_at`. The migration adds the Sessions menu row (`/pos/sessions`, `pos.sessions.view`).
-  - `PosSession` (`LIVE` is every status but closed; never deleted) and `PosSessionClosing` (throws on update and delete, like the admin audit log). `PosSessionRepository` has:
+  - `PosSession` (`LIVE` was every status but closed; since Phase B2a it is open and suspended only; never deleted) and `PosSessionClosing` (throws on update and delete, like the admin audit log). `PosSessionRepository` has:
     - `paginateFor()` and `findFor()`, at the user's locations through the register;
     - `lock()`, `liveAt()`, `liveOf()`, `liveRegisterIds()` and `heldAt()`;
     - `open()` and `close()`.
@@ -3957,6 +3990,24 @@ These are easy to undo by mistake.
   - `PosRegisterService` refuses a status, location or currency change while a session is open, and deleting a register with sessions (409). `PosRegisterResource` has `has_sessions`.
   - `PosSessionController`, `ListPosSessionsRequest`, `OpenPosSessionRequest`, `ClosePosSessionRequest`, `PosSessionListResource`, `PosSessionResource` (`totals` while open, `z_report` once closed, `closes`) and `PosSessionOptionsResource`. The routes are under `/pos/sessions` with `app:pos` and `access`: reading under `pos.sessions.view`, opening and closing under `pos.sessions.open`. The data export has pos-sessions and pos-session-closings.
   - Frontend: `pages/pos/sessions/index.vue` and `pages/pos/sessions/[id].vue`, with PosSessionOpenModal, PosSessionCloseModal, PosSessionTotalsList and PosSessionZReport, on `usePosSessions()` (`POS_SESSION_STATUSES`, `posSessionStatus()`, `cents()`).
+- The supervisor's side of POS sessions (Doc 18 Phase B2a, migration 000190):
+  - `pos_settings.variance_limit` (null for none), saved by `PosSettingService::save()` and sent by `PosSettingsResource`.
+  - `pos_session_closings` gains `closer_reason`, `needs_approval`, `approved_by` and `approved_at`, and `reopened_by`, `reopened_at` and `reopen_reason`. `PosSessionClosing` lets only its `MARKS` be written after it is made, each once; any other change throws.
+  - `PosSession::LIVE` is now open and suspended only: a session Closing (with closed, `COUNTED`) holds neither its register nor its cashier.
+  - `PosSessionService`:
+    - `close()` lets someone who approves variances close anyone's open session, with `closer_reason`, and leaves a variance beyond the limit Closing unless the closer approves variances;
+    - `approve()`;
+    - `reopen()`, with the register locked: it must be active, and neither it nor the cashier may have another session open;
+    - `show()` adds `own`, `approves` and `reopens`.
+  - `PosSessionRepository::approve()` and `reopen()` write the marks on the last closing.
+  - Permissions: `pos.sessions.approve` (Approve Variances and Close Others' Sessions) and `pos.sessions.reopen` (Reopen Closed Sessions), each requiring `pos.sessions.view`. The close route takes `pos.sessions.open` or `pos.sessions.approve`. Approving and reopening are `POST /pos/sessions/{id}/approve` and `/reopen` (`ReopenPosSessionRequest`).
+  - `PosSessionResource`: `z_report` is the last closing unless it was reopened, with `closer_reason`, `needs_approval` and the approval; `earlier` lists the reopened closings; `own` says whether it is the user's.
+  - Frontend:
+    - the session page's Approve Variance and Reopen Session, through `usePosSessionSteps()` and PosSessionActionModal;
+    - PosSessionEarlierClosings;
+    - the close form's "Why You Close It", when the session is not `own`;
+    - the Z report's approval and the supervisor's reason;
+    - Settings → Point of Sale's Variance Needing Approval.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -4101,4 +4152,5 @@ Each of these is yours to settle.
 - Doc 18 Phase A1: migration 000187 adds `pos_settings` and `pos_payment_methods`, and offers Point of Sale in the Apps Center (from Standard, needing Sales Lite) where it was still coming soon. Then run `php artisan db:seed --class=AppCatalogSeeder` for its Apps Center page's words. A new permission, Point of Sale → POS Settings: Manage POS Settings, brings Settings' View and Contacts' View with it; give it to custom roles in Settings → Users & Roles. Deploy the frontend with it.
 - Doc 18 Phase A2: migration 000188 adds `pos_registers` with its payment methods and cashiers, and the Registers row in Point of Sale's menu (`AppCatalogSeeder` has it for new installs). A new permission, Point of Sale → Registers (View, and Manage Registers), is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it.
 - Doc 18 Phase B1: migration 000189 adds `pos_sessions` and `pos_session_closings`, and the Sessions row in Point of Sale's menu (`AppCatalogSeeder` has it for new installs). A new permission, Point of Sale → Sessions (View, and Open and Close Sessions), is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it.
+- Doc 18 Phase B2a: migration 000190 adds the variance limit to `pos_settings`, and the supervisor's marks to `pos_session_closings`. Two new permissions, Point of Sale → Sessions: Approve Variances and Close Others' Sessions, and Reopen Closed Sessions, are not given to custom roles: give them in Settings → Users & Roles. Deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

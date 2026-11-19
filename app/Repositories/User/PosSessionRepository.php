@@ -9,14 +9,17 @@ use App\Models\User\Workspace;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 
-/** A business's POS sessions (Doc 18 Phase B1), each seen only where its register's location may be used. */
+/** A business's POS sessions (Doc 18 Phases B1 and B2a), each seen only where its register's location may be used. */
 class PosSessionRepository
 {
     /** What a session's row shows. */
     private const LISTED_WITH = ['register:id,name,code,location_id', 'cashier:id,first_name,last_name', 'closing'];
 
-    /** What a session's page shows besides. */
-    private const SHOWN_WITH = ['register.location:id,name', 'closer:id,first_name,last_name', 'closing.closer:id,first_name,last_name'];
+    /** What a session's page shows besides: each of its closings, with who closed, approved and reopened it. */
+    private const SHOWN_WITH = [
+        'register.location:id,name', 'closer:id,first_name,last_name',
+        'closings.closer:id,first_name,last_name', 'closings.approver:id,first_name,last_name', 'closings.reopener:id,first_name,last_name',
+    ];
 
     /** A page of its sessions at $locationIds - every one, for null - the latest opened first, by status and register. */
     public function paginateFor(Workspace $workspace, ?array $locationIds, array $filters, int $perPage): LengthAwarePaginator
@@ -41,20 +44,20 @@ class PosSessionRepository
         return PosSession::query()->lockForUpdate()->findOrFail($session->id);
     }
 
-    /** The register's session not yet closed, if any. */
+    /** The register's open session, if any, with its register. */
     public function liveAt(PosRegister $register): ?PosSession
     {
-        return PosSession::query()->where('pos_register_id', $register->id)->whereIn('status', PosSession::LIVE)->first();
+        return PosSession::query()->where('pos_register_id', $register->id)->whereIn('status', PosSession::LIVE)->with('register:id,name,code')->first();
     }
 
-    /** The cashier's session not yet closed in the business, if any, with its register. */
+    /** The cashier's open session in the business, if any, with its register. */
     public function liveOf(Workspace $workspace, int $userId): ?PosSession
     {
         return PosSession::query()->where('workspace_id', $workspace->id)->where('cashier_id', $userId)
             ->whereIn('status', PosSession::LIVE)->with('register:id,name,code')->first();
     }
 
-    /** The ids of its registers with a session not yet closed. */
+    /** The ids of its registers with a session open. */
     public function liveRegisterIds(Workspace $workspace): array
     {
         return PosSession::query()->where('workspace_id', $workspace->id)->whereIn('status', PosSession::LIVE)
@@ -84,6 +87,20 @@ class PosSessionRepository
         $session->forceFill($changes)->save();
 
         return $record;
+    }
+
+    /** Its Z report's variance approved by $userId, and the session closed. */
+    public function approve(PosSession $session, int $userId, \DateTimeInterface $at): void
+    {
+        $session->closing()->firstOrFail()->forceFill(['approved_by' => $userId, 'approved_at' => $at])->save();
+        $session->forceFill(['status' => PosSession::CLOSED])->save();
+    }
+
+    /** Its Z report marked reopened by $userId for $reason, and the session open again. */
+    public function reopen(PosSession $session, int $userId, \DateTimeInterface $at, string $reason): void
+    {
+        $session->closing()->firstOrFail()->forceFill(['reopened_by' => $userId, 'reopened_at' => $at, 'reopen_reason' => $reason])->save();
+        $session->forceFill(['status' => PosSession::OPEN, 'closed_at' => null, 'closed_by' => null])->save();
     }
 
     private function at(Workspace $workspace, ?array $locationIds): Builder

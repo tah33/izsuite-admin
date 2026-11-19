@@ -937,6 +937,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/', [PosSessionController::class, 'store'])->middleware('idempotent')->name('api.pos.sessions.store');
         Route::get('/{id}', [PosSessionController::class, 'show'])->whereNumber('id')->name('api.pos.sessions.show');
         Route::post('/{id}/close', [PosSessionController::class, 'close'])->whereNumber('id')->middleware('idempotent')->name('api.pos.sessions.close');
+        // Phase B2a: a supervisor approves a variance beyond the limit, and reopens a counted session.
+        Route::post('/{id}/approve', [PosSessionController::class, 'approve'])->whereNumber('id')->middleware('idempotent')->name('api.pos.sessions.approve');
+        Route::post('/{id}/reopen', [PosSessionController::class, 'reopen'])->whereNumber('id')->middleware('idempotent')->name('api.pos.sessions.reopen');
     });
 
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm')->group(function () {

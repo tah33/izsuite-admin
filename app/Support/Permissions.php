@@ -130,8 +130,10 @@ final class Permissions
         'pos.settings' => ['POS Settings', 'pos', ['manage' => 'Manage POS Settings']],
         // Phase A2: registers.
         'pos.registers' => ['Registers', 'pos', ['view' => self::VIEW, 'manage' => 'Manage Registers']],
-        // Phase B1: sessions.
-        'pos.sessions' => ['Sessions', 'pos', ['view' => self::VIEW, 'open' => 'Open and Close Sessions']],
+        // Phase B1: sessions; B2a, the supervisor's side.
+        'pos.sessions' => ['Sessions', 'pos', [
+            'view' => self::VIEW, 'open' => 'Open and Close Sessions', 'approve' => 'Approve Variances and Close Others\' Sessions', 'reopen' => 'Reopen Closed Sessions',
+        ]],
     ];
 
     /** The groups whose records carry their app's values: anything but viewing one needs them. */
@@ -194,6 +196,8 @@ final class Permissions
         'pos.settings.manage'        => ['settings.view', 'contacts.view'],
         'pos.registers.manage'       => ['pos.registers.view'],
         'pos.sessions.open'          => ['pos.sessions.view'],
+        'pos.sessions.approve'       => ['pos.sessions.view'],
+        'pos.sessions.reopen'        => ['pos.sessions.view'],
         'purchases.purchases.create' => ['contacts.view', 'items.view'],
         'purchases.payments.record'  => ['purchases.purchases.view', 'payment_accounts.view'],
         'purchases.payments.reverse' => ['payment_accounts.view'],

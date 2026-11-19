@@ -2,19 +2,21 @@
 
 namespace App\Http\Resources\Pos;
 
+use App\Models\User\PosSession;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * A POS session as the Sessions page lists it (Doc 18 Phase B1): its number,
  * register, cashier, status, when it opened and closed, its opening float
- * and - once closed - the cash expected and counted and the variance.
+ * and - once counted - the cash expected and counted and the variance.
  */
 class PosSessionListResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $closing = $this->closing;
+        // Reopened, its last closing is no longer its count.
+        $closing = in_array($this->status, PosSession::COUNTED, true) ? $this->closing : null;
 
         return [
             'id'            => $this->id,
