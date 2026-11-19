@@ -310,6 +310,8 @@ Route::prefix('v1')->group(function () {
         Route::middleware('app:pos')->prefix('pos')->group(function () {
             Route::get('/', [PosSettingController::class, 'show'])->name('api.business-settings.pos.show');
             Route::put('/', [PosSettingController::class, 'update'])->name('api.business-settings.pos.update');
+            // Phase B2b: closing sessions - the variance limit, and counting cash by notes and coins.
+            Route::put('/cash-count', [PosSettingController::class, 'saveCashCount'])->name('api.business-settings.pos.cash-count.update');
             Route::post('/payment-methods', [PosSettingController::class, 'storeMethod'])->middleware('idempotent')->name('api.business-settings.pos.payment-methods.store');
             Route::put('/payment-methods/{id}', [PosSettingController::class, 'updateMethod'])->whereNumber('id')->name('api.business-settings.pos.payment-methods.update');
             Route::delete('/payment-methods/{id}', [PosSettingController::class, 'destroyMethod'])->whereNumber('id')->name('api.business-settings.pos.payment-methods.destroy');

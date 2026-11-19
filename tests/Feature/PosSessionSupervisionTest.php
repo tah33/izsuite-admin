@@ -116,7 +116,7 @@ class PosSessionSupervisionTest extends TestCase
 
     public function test_a_variance_beyond_the_limit_waits_for_its_approval(): void
     {
-        $this->putJson('/api/v1/business-settings/pos', ['variance_limit' => '5'])->assertOk()->assertJsonPath('data.variance_limit', '5.00');
+        $this->putJson('/api/v1/business-settings/pos/cash-count', ['variance_limit' => '5', 'counts_denominations' => false])->assertOk()->assertJsonPath('data.variance_limit', '5.00');
 
         $first = $this->opened($this->ana, 'R1');
         $this->close($first, '90')->assertOk()
@@ -149,7 +149,7 @@ class PosSessionSupervisionTest extends TestCase
         $this->close($own, '80')->assertOk()->assertJsonPath('data.status', 'closed')->assertJsonPath('data.z_report.approved_by.name', $this->user->name);
 
         // No limit: none waits.
-        $this->putJson('/api/v1/business-settings/pos', ['variance_limit' => null])->assertOk()->assertJsonPath('data.variance_limit', null);
+        $this->putJson('/api/v1/business-settings/pos/cash-count', ['variance_limit' => null, 'counts_denominations' => false])->assertOk()->assertJsonPath('data.variance_limit', null);
         $this->close($this->opened($this->ana, 'R1'), '1')->assertOk()->assertJsonPath('data.status', 'closed');
     }
 

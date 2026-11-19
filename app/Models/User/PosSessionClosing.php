@@ -10,8 +10,9 @@ use LogicException;
  * A POS session's closing (Doc 18 sections 18.27 and 18.28): its Z report.
  * What the session took (`totals`, as PosSessionTotals gave it), the opening
  * float, the cash expected and the cash counted, the variance - counted less
- * expected - with its reason, the closing notes, who closed it when, and
- * (Phase B2a) why a supervisor closed someone else's session.
+ * expected - with its reason, the closing notes, who closed it when,
+ * (Phase B2a) why a supervisor closed someone else's session, and (Phase
+ * B2b) the count by notes and coins: [{value, count, amount}], or null.
  *
  * Its figures are kept as they were made: never changed, never deleted. It
  * is only marked, once each (MARKS): approved, when its variance went beyond
@@ -27,6 +28,7 @@ class PosSessionClosing extends Model
         'opening_float',
         'expected_cash',
         'counted_cash',
+        'denominations',
         'variance',
         'variance_reason',
         'notes',
@@ -43,6 +45,7 @@ class PosSessionClosing extends Model
         'opening_float'  => 'decimal:2',
         'expected_cash'  => 'decimal:2',
         'counted_cash'   => 'decimal:2',
+        'denominations'  => 'array',
         'variance'       => 'decimal:2',
         'needs_approval' => 'boolean',
         'totals'         => 'array',

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Pos\SavePosCashCountRequest;
 use App\Http\Requests\Api\Pos\SavePosPaymentMethodRequest;
 use App\Http\Requests\Api\Pos\SavePosSettingsRequest;
 use App\Http\Resources\Pos\PosPaymentMethodResource;
@@ -35,6 +36,19 @@ class PosSettingController extends Controller
             $settings = $this->posSettingService->save($this->currentWorkspace($request), $request->validated());
 
             return response()->json(['message' => 'POS settings saved.', 'data' => new PosSettingsResource($settings)]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    public function saveCashCount(SavePosCashCountRequest $request): JsonResponse
+    {
+        try {
+            $settings = $this->posSettingService->saveCashCount($this->currentWorkspace($request), $request->validated());
+
+            return response()->json(['message' => 'Closing settings saved.', 'data' => new PosSettingsResource($settings)]);
 
         } catch (\Throwable $e) {
             report($e);

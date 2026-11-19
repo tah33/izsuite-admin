@@ -11,7 +11,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * receipt ends with: the return policy and a footer (section 18.19). And
  * (Phase B2a) the variance limit: a session's closing whose variance goes
  * beyond it, in the session's currency, waits for someone who approves
- * variances - null for none to.
+ * variances - null for none to. Phase B2b: whether its cash is counted by
+ * notes and coins, and each currency's as the business set them.
  */
 class PosSetting extends Model
 {
@@ -20,11 +21,15 @@ class PosSetting extends Model
         'return_policy',
         'receipt_footer',
         'variance_limit',
+        'counts_denominations',
+        'denominations',
     ];
 
     protected $casts = [
-        'walk_in_contact_id' => 'integer',
-        'variance_limit'     => 'decimal:2',
+        'walk_in_contact_id'   => 'integer',
+        'variance_limit'       => 'decimal:2',
+        'counts_denominations' => 'boolean',
+        'denominations'        => 'array',
     ];
 
     public function workspace(): BelongsTo

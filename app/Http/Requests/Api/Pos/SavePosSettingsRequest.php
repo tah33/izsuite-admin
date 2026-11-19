@@ -7,8 +7,8 @@ use Illuminate\Foundation\Http\FormRequest;
 /**
  * Settings → Point of Sale (Doc 18 Phase A1): the walk-in customer - checked
  * to be one of the business's active customers by PosSettingService - or
- * none, and the receipt's return policy and footer. Phase B2a: the variance
- * limit, beyond which a session's closing waits for approval - or none.
+ * none, and the receipt's return policy and footer. Closing sessions'
+ * settings are saved apart (SavePosCashCountRequest).
  */
 class SavePosSettingsRequest extends FormRequest
 {
@@ -23,7 +23,6 @@ class SavePosSettingsRequest extends FormRequest
             'walk_in_contact_id' => ['nullable', 'integer'],
             'return_policy'      => ['nullable', 'string', 'max:2000'],
             'receipt_footer'     => ['nullable', 'string', 'max:255'],
-            'variance_limit'     => ['nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999999.99'],
         ];
     }
 }

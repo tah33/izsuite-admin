@@ -186,6 +186,7 @@ final class RoutePermissions
             // Doc 18 Phase A1: Settings → Point of Sale.
             'api.business-settings.pos.show'                   => 'pos.settings.manage',
             'api.business-settings.pos.update'                 => 'pos.settings.manage',
+            'api.business-settings.pos.cash-count.update'      => 'pos.settings.manage',
             'api.business-settings.pos.payment-methods.store'  => 'pos.settings.manage',
             'api.business-settings.pos.payment-methods.update' => 'pos.settings.manage',
             'api.business-settings.pos.payment-methods.destroy' => 'pos.settings.manage',

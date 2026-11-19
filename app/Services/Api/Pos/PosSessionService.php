@@ -32,6 +32,9 @@ use Illuminate\Validation\ValidationException;
  * Sale's limit leaves the session Closing until someone who approves
  * variances approves it; one who may approve them closes it at once.
  * Counted, the register and the cashier are free for the next session.
+ * When the business counts by notes and coins (Phase B2b), the cash counted
+ * is the total of how many of each of the session currency's notes and
+ * coins, and the Z report keeps the count.
  *
  * Reopen Closed Sessions opens a counted one again, with a reason, while its
  * register is active and neither the register nor its cashier has another
@@ -51,6 +54,7 @@ class PosSessionService
         protected PosSettingRepository $settings,
         protected PosSessionTotals $totals,
         protected WorkspaceAccess $access,
+        protected PosSettingService $posSettings,
     ) {}
 
     public function list(Workspace $workspace, array $filters, int $perPage): LengthAwarePaginator
@@ -124,7 +128,10 @@ class PosSessionService
      * report says it once counted), whether it is the user's own, and what
      * the user may do with it.
      *
-     * @return array{session: PosSession, totals: ?array, own: bool, closes: bool, approves: bool, reopens: bool}
+     * While it is open, the notes and coins it is counted by - null when it
+     * is counted as one amount.
+     *
+     * @return array{session: PosSession, totals: ?array, own: bool, closes: bool, approves: bool, reopens: bool, denominations: ?list<string>}
      */
     public function show(Workspace $workspace, int $id): array
     {
@@ -138,13 +145,15 @@ class PosSessionService
             'closes'   => $this->closes($session),
             'approves' => $session->status === PosSession::CLOSING && $this->access->can('pos.sessions.approve'),
             'reopens'  => $counted && $this->access->can('pos.sessions.reopen'),
+            'denominations' => $session->status === PosSession::OPEN ? $this->posSettings->countingFor($workspace, $session->currency) : null,
         ];
     }
 
     /**
      * $data is validated (see ClosePosSessionRequest): the cash counted, the
      * variance's reason, the notes - and a supervisor's reason for closing
-     * someone else's session. The session's page, as show() gives it.
+     * someone else's session. Counted by notes and coins, how many of each
+     * instead. The session's page, as show() gives it.
      */
     public function close(Workspace $workspace, int $id, array $data): array
     {
@@ -161,6 +170,7 @@ class PosSessionService
         }
 
         $limit   = $this->settings->forWorkspace($workspace)->variance_limit;
+        $data    = $this->byDenomination($data, $this->posSettings->countingFor($workspace, $session->currency), $session->currency);
         $closing = DB::transaction(function () use ($session, $data, $own, $why, $limit): PosSessionClosing {
             $locked = $this->sessions->lock($session);
 
@@ -280,12 +290,55 @@ class PosSessionService
             'opening_float'   => (string) $session->opening_float,
             'expected_cash'   => $totals['expected_cash'],
             'counted_cash'    => $counted,
+            'denominations'   => $data['denominations'] ?? null,
             'variance'        => $variance,
             'variance_reason' => $differs ? $reason : null,
             'notes'           => trim((string) ($data['notes'] ?? '')) ?: null,
             'needs_approval'  => $beyond,
             'totals'          => Arr::except($totals, ['expected_cash']),
         ], ! $beyond || $this->access->can('pos.sessions.approve')];
+    }
+
+    /**
+     * $data with the cash counted from how many of each of $values - the
+     * notes and coins the session is counted by - and that count, as the Z
+     * report keeps it: each one counted, the largest first. Counted as one
+     * amount ($values null), $data as it is.
+     */
+    private function byDenomination(array $data, ?array $values, string $currency): array
+    {
+        if ($values === null) {
+            return [...$data, 'denominations' => null];
+        }
+
+        if (! is_array($data['denominations'] ?? null)) {
+            throw ValidationException::withMessages(['denominations' => 'Count the notes and coins: how many of each.']);
+        }
+
+        $counts = [];
+
+        foreach ($data['denominations'] as $row) {
+            $value = bcadd((string) $row['value'], '0', 2);
+
+            if (! in_array($value, $values, true)) {
+                throw ValidationException::withMessages(['denominations' => "{$currency} {$value} is not one of the notes and coins Settings → Point of Sale counts by."]);
+            }
+
+            $counts[$value] = ($counts[$value] ?? 0) + (int) $row['count'];
+        }
+
+        $rows  = [];
+        $total = '0.00';
+
+        foreach ($values as $value) {
+            if (($counts[$value] ?? 0) > 0) {
+                $amount = bcmul($value, (string) $counts[$value], 2);
+                $rows[] = ['value' => $value, 'count' => $counts[$value], 'amount' => $amount];
+                $total  = bcadd($total, $amount, 2);
+            }
+        }
+
+        return [...$data, 'counted_cash' => $total, 'denominations' => $rows];
     }
 
     /** Whether the user closes it: open, and theirs with Open and Close Sessions - or anyone's, approving variances. */

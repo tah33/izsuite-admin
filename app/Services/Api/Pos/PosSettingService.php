@@ -12,6 +12,7 @@ use App\Repositories\User\PosRegisterRepository;
 use App\Repositories\User\PosSettingRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Shared\ActivityLogService;
+use App\Support\CashDenominations;
 use App\Support\SettingChanges;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
@@ -22,15 +23,19 @@ use Illuminate\Validation\ValidationException;
  * and the payment methods. The first time it is opened it starts with a
  * Cash method, on the business's cash account that takes customer payments.
  * A payment method takes money into an active account of the business that
- * takes customer payments, and gives change only when it is cash. Each
- * change is logged.
+ * takes customer payments, and gives change only when it is cash.
+ *
+ * Closing sessions (Phases B2a and B2b), saved apart: the variance limit,
+ * whether cash is counted by notes and coins, and each of the business's
+ * currencies' notes and coins - one it has not set starts with izSuite's
+ * usual ones (CashDenominations). Each change is logged.
  */
 class PosSettingService
 {
     use RefusesConflicts;
 
     /** What the settings form saves. */
-    private const SAVED = ['walk_in_contact_id', 'return_policy', 'receipt_footer', 'variance_limit'];
+    private const SAVED = ['walk_in_contact_id', 'return_policy', 'receipt_footer'];
 
     public function __construct(
         protected PosSettingRepository $settings,
@@ -40,20 +45,66 @@ class PosSettingService
     ) {}
 
     /**
-     * The settings, the payment methods in their order, and the accounts a
-     * method may take money into.
+     * The settings, each of the business's currencies' notes and coins, the
+     * payment methods in their order, and the accounts a method may take
+     * money into.
      *
-     * @return array{settings: PosSetting, methods: \Illuminate\Database\Eloquent\Collection, accounts: \Illuminate\Database\Eloquent\Collection}
+     * @return array{settings: PosSetting, denominations: list<array{currency: string, values: list<string>}>, methods: \Illuminate\Database\Eloquent\Collection, accounts: \Illuminate\Database\Eloquent\Collection}
      */
     public function show(Workspace $workspace): array
     {
         $this->start($workspace);
 
+        $settings = $this->settings->forWorkspace($workspace);
+
         return [
-            'settings' => $this->settings->forWorkspace($workspace),
-            'methods'  => $this->settings->methods($workspace),
-            'accounts' => $this->accounts->takingCustomerPayments($workspace),
+            'settings'      => $settings,
+            'denominations' => array_map(fn (string $currency) => ['currency' => $currency, 'values' => $this->denominationsOf($settings, $currency)], $workspace->currencyCodes()),
+            'methods'       => $this->settings->methods($workspace),
+            'accounts'      => $this->accounts->takingCustomerPayments($workspace),
         ];
+    }
+
+    /**
+     * $data is validated (see SavePosCashCountRequest): closing sessions -
+     * the variance limit, whether cash is counted by notes and coins, and the
+     * notes and coins of the currencies given, each the business's.
+     */
+    public function saveCashCount(Workspace $workspace, array $data): array
+    {
+        $this->start($workspace);
+
+        $lists = $this->settings->forWorkspace($workspace)->denominations ?? [];
+
+        foreach (array_values($data['denominations'] ?? []) as $index => $row) {
+            if (! in_array($row['currency'], $workspace->currencyCodes(), true)) {
+                throw ValidationException::withMessages(["denominations.{$index}.currency" => "Choose one of the business's currencies."]);
+            }
+
+            $lists[$row['currency']] = CashDenominations::sorted($row['values']);
+        }
+
+        $settings = $this->settings->save($workspace, [
+            'variance_limit'       => ($data['variance_limit'] ?? null) === null ? null : bcadd((string) $data['variance_limit'], '0', 2),
+            'counts_denominations' => (bool) $data['counts_denominations'],
+            'denominations'        => $lists === [] ? null : $lists,
+        ]);
+
+        ActivityLogService::record('updated', 'Updated the POS cash count settings', $workspace, ['source' => 'api', 'changes' => SettingChanges::of($settings)]);
+
+        return $this->show($workspace);
+    }
+
+    /**
+     * The notes and coins a session in $currency is counted by - null when the
+     * business counts its cash as one amount, or the currency has none.
+     */
+    public function countingFor(Workspace $workspace, string $currency): ?array
+    {
+        $settings = $this->settings->forWorkspace($workspace);
+        $values   = $settings->counts_denominations ? $this->denominationsOf($settings, $currency) : [];
+
+        return $values === [] ? null : $values;
     }
 
     /** The first time: the settings made, and a Cash method on the business's cash account, if it has one. */
@@ -85,11 +136,6 @@ class PosSettingService
             if (! $contact || ! $contact->is_active || $contact->isMerged() || ! in_array($contact->role, [Contact::ROLE_CUSTOMER, Contact::ROLE_BOTH], true)) {
                 throw ValidationException::withMessages(['walk_in_contact_id' => 'Choose one of your active customers.']);
             }
-        }
-
-        // Phase B2a: the variance limit, to the cent - or none.
-        if (array_key_exists('variance_limit', $fields)) {
-            $fields['variance_limit'] = $fields['variance_limit'] === null ? null : bcadd((string) $fields['variance_limit'], '0', 2);
         }
 
         $settings = $this->settings->save($workspace, [...$fields, 'walk_in_contact_id' => ($fields['walk_in_contact_id'] ?? null) ?: null]);
@@ -133,6 +179,14 @@ class PosSettingService
         $this->settings->deleteMethod($method);
 
         ActivityLogService::record('deleted', "Deleted the POS payment method \"{$method->name}\"", $method, ['source' => 'api']);
+    }
+
+    /** The currency's notes and coins as the business set them, else izSuite's usual ones. */
+    private function denominationsOf(PosSetting $settings, string $currency): array
+    {
+        $lists = $settings->denominations ?? [];
+
+        return array_key_exists($currency, $lists) ? $lists[$currency] : CashDenominations::usual($currency);
     }
 
     private function findMethod(Workspace $workspace, int $id): PosPaymentMethod

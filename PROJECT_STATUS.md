@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-19
-- **Code:** Doc 18 Phase B2a (the supervisor's side of sessions) is committed: frontend `0e3b89c` on `nuxt`, and on `main` the admin commit right after `620aebe`. Doc 18's gap check, Phase A and Phase B1 are pushed: B1 (opening and closing sessions), the last, is frontend `19499c7` and admin `620aebe`. Doc 17 is done and pushed: Phase I4, the last, is frontend `e20fa70` and admin `e5cd080`. Before I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
-- **Tests:** 1049 backend tests, last full run 2026-11-19 on the first PC: 1048 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Docs 17 or 18 (see [Small things left](#small-things-left)).
-- **Next step:** Doc 18 (Point of Sale) Phase B2b: counting cash by notes and coins (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 18 Phase B2b (counting cash by notes and coins) is committed: frontend `7166223` on `nuxt`, and on `main` the admin commit right after `4a0bd4d`. Doc 18's gap check, Phase A and Phases B1 and B2a are pushed: B2a (the supervisor's side of sessions), the last, is frontend `0e3b89c` and admin `4a0bd4d`. Doc 17 is done and pushed: Phase I4, the last, is frontend `e20fa70` and admin `e5cd080`. Before I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
+- **Tests:** 1052 backend tests, last full run 2026-11-19 on the first PC: 1051 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Docs 17 or 18 (see [Small things left](#small-things-left)).
+- **Next step:** Doc 18 (Point of Sale) Phase C: selling (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 18 Phase B2a the latest is 000190. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 18 Phase B2b the latest is 000191. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 18 Phase B2b.
+   > Read PROJECT_STATUS.md, then start Doc 18 Phase C.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -60,7 +60,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
 | **17** | **CRM** | **Done (2026-11-19): gap check and Phases A to I; Campaign-to-Opportunity Results waits for Doc 21** |
-| **18** | **Point of Sale** | **In progress: gap check done 2026-11-19, Phase A built 2026-11-19 (A1, A2), Phase B split (B1 and B2a built 2026-11-19), Phase B2b next** |
+| **18** | **Point of Sale** | **In progress: gap check done 2026-11-19, Phases A (A1, A2) and B (B1, B2a, B2b) built 2026-11-19, Phase C next** |
 | 19 to 21 | eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -2369,7 +2369,7 @@ The first PC's parts were taken out: both repos are D3b to F4 as the second PC b
 
 **With Phase I4, Doc 17 is done** (2026-11-19). Campaign-to-Opportunity Results waits for Doc 21, and AI scoring for the AI application.
 
-### 6. Doc 18: Point of Sale (next: Phase B2b)
+### 6. Doc 18: Point of Sale (next: Phase C)
 
 The gap check was done on 2026-11-19. Doc 18 is Point of Sale: fast selling over the counter, from a register, in a cashier's session, with receipts, cash and closing counts. It sells through the shared Sales records, Contacts, Items, Taxes and Payment Accounts: a completed POS order counts as a sale once.
 
@@ -2478,10 +2478,16 @@ The gap check was done on 2026-11-19. Doc 18 is Point of Sale: fast selling over
       - S-00002 showed Closing, the warning, Approve Variance and "Waiting for someone who approves variances". Approved: "Variance approved: session S-00002 is closed."
       - Closing S-00003 asked "Why You Close It", naming its cashier. Closed, its Z report showed "Closed Because" and the reason.
       - The Activity Log named the settings and each opening, closing, approval and reopening. The sessions, the settings, the register, the methods, POS's state, the sign-in and the activity were then put back.
-  - **Phase B2b: counting by notes and coins**, suggested defaults:
-    - Count Cash by Denomination, switched on in Settings → Point of Sale: the close form lists the notes and coins of the session's currency, and their total is the cash counted.
-    - Each of the business's currencies starts with its usual notes and coins where izSuite knows them, and the business edits its list in Settings → Point of Sale.
-    - The count by denomination is kept in the Z report and shown with it.
+  - **Phase B2b is built:**
+    - Settings → Point of Sale has a Closing Sessions card, saved apart. It holds the Variance Needing Approval (moved there from the main card), whether cash is counted by notes and coins, and each of the business's currencies' notes and coins, typed as a list with commas.
+    - Each currency starts with its usual notes and coins where izSuite knows them (AED, AUD, BDT, CAD, EUR, GBP, INR, JPY, MYR, PKR, SAR, SGD and USD); any other starts with none. A list is kept to the cent, once each, the largest first. A currency left empty is counted as one amount.
+    - Counting that way, the close form lists the session currency's notes and coins: how many of each, each line's amount, and their total as the cash counted, set against the cash expected as it is typed. The API adds the count up again, and refuses a note or coin not on the list.
+    - The Z report keeps the count, how many of each, and shows it under Notes and Coins.
+    - **Checked in the browser** on the first PC, as `user@izsuite.io`, with POS on, and Cash, Card and Front Counter (R1) added by hand:
+      - Settings → Point of Sale showed the Closing Sessions card with the variance field. Ticking the count showed USD's usual notes and coins. Trimmed to 100, 50, 20, 10, 5, 1, 0.25: "Closing settings saved."
+      - S-00001 opened with $150. Close Session listed the seven with How Many. 1 × $100, 2 × $20 and 2 × $5 showed their amounts, $150.00 counted and "It matches the cash expected."
+      - Closed: "Session S-00001 closed." The Z report's Notes and Coins read 1 × $100.00, 2 × $20.00 and 2 × $5.00.
+      - The Activity Log named the settings, the opening and the closing. The session, the settings, the register, the methods, POS's state, the sign-in and the activity were then put back.
 - **Phase C: selling.**
   - The selling screen: search by name, SKU, barcode (a scanner types like a keyboard), brand or category; category tiles; the most-sold items; the cart with quantities, units and line notes; the customer, walk-in to start.
   - Prices from the item, the register's price list or the customer's, with their source kept. A price override needs its permission and a reason. Line and order discounts, by percentage or amount, up to a limit in Settings; beyond it, a manager's approval.
@@ -2557,6 +2563,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 18: Phase A2 | 000188 |
 | Doc 18: Phase B1 | 000189 |
 | Doc 18: Phase B2a | 000190 |
+| Doc 18: Phase B2b | 000191 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -3136,6 +3143,16 @@ On a fresh business, set the days in Settings → CRM to fit what you have, rath
 - [ ] Reopened, the session is open again, and its Z report shows under Earlier Closings with the reason. Closed again, it has a new Z report.
 - [ ] The Activity Log names each approval, each supervisor's closing with its reason, and each reopening.
 
+**Phase B2b: counting by notes and coins**
+
+**Before you start:** POS on with a register in the base currency, and a second currency in the business if it has one.
+
+- [ ] Settings → Point of Sale → Closing Sessions shows Variance Needing Approval, moved there. Tick counting by notes and coins: each currency shows its usual notes and coins, or none for one izSuite does not know.
+- [ ] Change a list, out of order and with one twice: saved, it reads to the cent, once each, the largest first. A note of 0 is refused under its currency.
+- [ ] Close a session: the form lists the notes and coins, with each line's amount and their total as the cash counted, over, short or matching as you type.
+- [ ] Closed, the Z report shows Notes and Coins: how many of each, with their amounts.
+- [ ] Empty a currency's list, or switch counting off: the close form asks for one amount again.
+
 ## How we work
 
 Each document goes the same way:
@@ -3405,7 +3422,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 18: the gap check, and Phase A1, POS on with its settings | `1c88f96` | `6c0cd28` | 000187 |
 | Doc 18: Phase A2, registers | `0f35a06` | `9b9917b` | 000188 |
 | Doc 18: Phase B1, opening and closing sessions | `620aebe` | `19499c7` | 000189 |
-| Doc 18: Phase B2a, the supervisor's side of sessions | the commit after `620aebe` | `0e3b89c` | 000190 |
+| Doc 18: Phase B2a, the supervisor's side of sessions | `4a0bd4d` | `0e3b89c` | 000190 |
+| Doc 18: Phase B2b, counting cash by notes and coins | the commit after `4a0bd4d` | `7166223` | 000191 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`). Between I1 and I2, shuvo added rich text for payment instructions and the Sales settings' notes and terms (`a5e46cb` and `9bf4525`, with no frontend commit yet).
 
@@ -4004,10 +4022,20 @@ These are easy to undo by mistake.
   - `PosSessionResource`: `z_report` is the last closing unless it was reopened, with `closer_reason`, `needs_approval` and the approval; `earlier` lists the reopened closings; `own` says whether it is the user's.
   - Frontend:
     - the session page's Approve Variance and Reopen Session, through `usePosSessionSteps()` and PosSessionActionModal;
+    - (since B2b, the variance limit is saved with the other closing settings: see below);
     - PosSessionEarlierClosings;
     - the close form's "Why You Close It", when the session is not `own`;
     - the Z report's approval and the supervisor's reason;
     - Settings → Point of Sale's Variance Needing Approval.
+- Counting by notes and coins (Doc 18 Phase B2b, migration 000191):
+  - `pos_settings.counts_denominations` and `denominations` (JSON: each currency's values, the largest first), and `pos_session_closings.denominations` (JSON: `[{value, count, amount}]`).
+  - `App\Support\CashDenominations`: `usual()` for the 13 currencies it knows, and `sorted()`.
+  - `PosSettingService`:
+    - `saveCashCount()` (PUT `/business-settings/pos/cash-count`, `SavePosCashCountRequest`, under `pos.settings.manage`) saves the variance limit, the switch and the lists. The main settings save no longer takes the variance limit;
+    - `show()` returns each of the business's currencies' lists (`denominationsOf()`: the business's own, else the usual);
+    - `countingFor()` gives a session currency's list, or null.
+  - `PosSessionService::close()` works the cash counted out from `denominations` (`byDenomination()`) when the business counts that way, refusing a value not on the list, or no count at all. `show()` gives `denominations` while the session is open.
+  - Frontend: SettingsPosClosing (`saveCashCount()`), PosSessionCountGrid in PosSessionCloseModal (`countTotal()`, `wholeCount()`), and the Z report's Notes and Coins.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -4153,4 +4181,5 @@ Each of these is yours to settle.
 - Doc 18 Phase A2: migration 000188 adds `pos_registers` with its payment methods and cashiers, and the Registers row in Point of Sale's menu (`AppCatalogSeeder` has it for new installs). A new permission, Point of Sale → Registers (View, and Manage Registers), is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it.
 - Doc 18 Phase B1: migration 000189 adds `pos_sessions` and `pos_session_closings`, and the Sessions row in Point of Sale's menu (`AppCatalogSeeder` has it for new installs). A new permission, Point of Sale → Sessions (View, and Open and Close Sessions), is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it.
 - Doc 18 Phase B2a: migration 000190 adds the variance limit to `pos_settings`, and the supervisor's marks to `pos_session_closings`. Two new permissions, Point of Sale → Sessions: Approve Variances and Close Others' Sessions, and Reopen Closed Sessions, are not given to custom roles: give them in Settings → Users & Roles. Deploy the frontend with it.
+- Doc 18 Phase B2b: migration 000191 adds counting by notes and coins to `pos_settings` and `pos_session_closings`. No permission is new. Deploy the frontend with it: Variance Needing Approval moves to the Closing Sessions card in Settings → Point of Sale.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

@@ -12,8 +12,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * location, cashier, status, opening and closing - what it has taken so far
  * while it is open, its Z report once counted (with why a supervisor closed
  * it, and whether its variance waits for approval or was approved), its
- * earlier closings that were reopened, whether it is the user's own, and
- * what the user may do with it.
+ * earlier closings that were reopened, whether it is the user's own, what
+ * the user may do with it, and (Phase B2b) the notes and coins it is counted
+ * by while it is open.
  */
 class PosSessionResource extends JsonResource
 {
@@ -52,6 +53,7 @@ class PosSessionResource extends JsonResource
             'z_report'      => $latest && ! $latest->isReopened() ? [
                 ...$counted($latest),
                 'opening_float'   => (string) $latest->opening_float,
+                'denominations'   => $latest->denominations,
                 'variance_reason' => $latest->variance_reason,
                 'notes'           => $latest->notes,
                 'closer_reason'   => $latest->closer_reason,
@@ -70,6 +72,7 @@ class PosSessionResource extends JsonResource
             'closes'        => $this->resource['closes'],
             'approves'      => $this->resource['approves'],
             'reopens'       => $this->resource['reopens'],
+            'denominations' => $this->resource['denominations'],
         ];
     }
 }
