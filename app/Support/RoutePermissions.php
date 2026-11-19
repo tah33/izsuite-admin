@@ -371,6 +371,10 @@ final class RoutePermissions
             'api.crm.leads.attachments.index'   => 'crm.leads.view',
             'api.crm.leads.attachments.store'   => 'crm.leads.manage',
             'api.crm.leads.attachments.destroy' => 'crm.leads.manage',
+            // Phase I3: its marketing consent, with the lead.
+            'api.crm.leads.consents.index'      => 'crm.leads.view',
+            'api.crm.leads.consents.store'      => 'crm.leads.manage',
+            'api.crm.leads.consents.withdraw'   => 'crm.leads.manage',
             'api.crm.leads.activity'            => 'crm.leads.view',
             'api.crm.leads.comments.index'      => 'crm.leads.view',
             'api.crm.leads.comments.people'     => 'crm.leads.view',
@@ -395,6 +399,10 @@ final class RoutePermissions
             'api.crm.activities.cancel'    => 'crm.activities.manage',
             // Phase F4: a contact's CRM part, for whoever sees contacts - its leads and opportunities as they may see them (CrmContactSummaryService).
             'api.crm.contacts.summary' => 'contacts.view',
+            // Phase I3: a contact's marketing consent, with the contact.
+            'api.crm.contacts.consents.index'    => 'contacts.view',
+            'api.crm.contacts.consents.store'    => 'contacts.edit',
+            'api.crm.contacts.consents.withdraw' => 'contacts.edit',
             // Phase F3a: e-mail from a lead, an opportunity or a contact - the record's own view permission checked too (CrmEmailService).
             'api.crm.emails.draft' => 'crm.emails.send',
             'api.crm.emails.store' => 'crm.emails.send',

@@ -48,6 +48,7 @@ class CrmSettingService
         protected CrmOpportunityRepository $opportunities,
         protected \App\Repositories\User\CrmActivityRepository $activities,
         protected \App\Repositories\User\CrmEmailTemplateRepository $emailTemplates,
+        protected \App\Repositories\User\MarketingConsentRepository $consents,
     ) {}
 
     /**
@@ -195,6 +196,11 @@ class CrmSettingService
         // An activity keeps its type (Phase E1).
         if ($option->kind === 'activity_type' && $this->activities->usesType($option)) {
             $this->refuse('Activities are of this type, so it stays. Switch it off instead.');
+        }
+
+        // A consent answer keeps what it was about (Phase I3).
+        if ($option->kind === 'consent_purpose' && $this->consents->usesPurpose($option)) {
+            $this->refuse('Consent was recorded for this purpose, so it stays. Switch it off instead.');
         }
 
         $this->options->delete($option);

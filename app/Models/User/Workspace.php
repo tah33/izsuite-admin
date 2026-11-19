@@ -373,6 +373,12 @@ class Workspace extends Model
         return $this->hasMany(CrmScoringRule::class);
     }
 
+    /** Its contacts' and leads' marketing consent answers (Doc 17 Phase I3). */
+    public function marketingConsents(): HasMany
+    {
+        return $this->hasMany(MarketingConsent::class);
+    }
+
     /** How each kind of document is numbered - a row only where a default was changed. */
     public function documentNumbering(): HasMany
     {

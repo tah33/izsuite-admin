@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\CrmOpportunityClosingController;
 use App\Http\Controllers\Api\CrmForecastController;
 use App\Http\Controllers\Api\CrmOverviewController;
 use App\Http\Controllers\Api\CrmActivityController;
+use App\Http\Controllers\Api\CrmConsentController;
 use App\Http\Controllers\Api\CrmContactSummaryController;
 use App\Http\Controllers\Api\CrmEmailController;
 use App\Http\Controllers\Api\CrmAssignmentRuleController;
@@ -936,6 +937,11 @@ Route::prefix('v1')->group(function () {
         Route::get('/{id}/comments/people', [RecordCommentController::class, 'people'])->whereNumber('id')->defaults('family', 'crm')->name('api.crm.leads.comments.people');
         Route::post('/{id}/comments', [RecordCommentController::class, 'store'])->whereNumber('id')->defaults('family', 'crm')->middleware('idempotent')->name('api.crm.leads.comments.store');
         Route::delete('/{id}/comments/{commentId}', [RecordCommentController::class, 'destroy'])->whereNumber(['id', 'commentId'])->defaults('family', 'crm')->name('api.crm.leads.comments.destroy');
+
+        // Its marketing consent, apart from sales follow-up (Phase I3).
+        Route::get('/{id}/consents', [CrmConsentController::class, 'index'])->whereNumber('id')->defaults('kind', 'lead')->name('api.crm.leads.consents.index');
+        Route::post('/{id}/consents', [CrmConsentController::class, 'store'])->whereNumber('id')->defaults('kind', 'lead')->middleware('idempotent')->name('api.crm.leads.consents.store');
+        Route::post('/{id}/consents/{consentId}/withdraw', [CrmConsentController::class, 'withdraw'])->whereNumber(['id', 'consentId'])->defaults('kind', 'lead')->name('api.crm.leads.consents.withdraw');
     });
 
     /* ----------------------------------------------------------
@@ -998,6 +1004,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/crm/timeline/{kind}/{id}', CrmTimelineController::class)->where('kind', 'lead|opportunity|contact')->whereNumber('id')->name('api.crm.timeline');
         // Phase F4: the CRM part of a contact's profile - where they came from, and their opportunities.
         Route::get('/crm/contacts/{id}/summary', CrmContactSummaryController::class)->whereNumber('id')->name('api.crm.contacts.summary');
+        // Phase I3: a contact's marketing consent, apart from sales follow-up.
+        Route::get('/crm/contacts/{id}/consents', [CrmConsentController::class, 'index'])->whereNumber('id')->defaults('kind', 'contact')->name('api.crm.contacts.consents.index');
+        Route::post('/crm/contacts/{id}/consents', [CrmConsentController::class, 'store'])->whereNumber('id')->defaults('kind', 'contact')->middleware('idempotent')->name('api.crm.contacts.consents.store');
+        Route::post('/crm/contacts/{id}/consents/{consentId}/withdraw', [CrmConsentController::class, 'withdraw'])->whereNumber(['id', 'consentId'])->defaults('kind', 'contact')->name('api.crm.contacts.consents.withdraw');
     });
 
     /*

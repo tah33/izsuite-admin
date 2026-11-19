@@ -50,6 +50,8 @@ class BusinessDataExport
         'crm-pipelines'        => 'crm_pipelines',
         'opportunities'        => 'crm_opportunities',
         'lead-duplicate-reviews' => 'crm_duplicate_reviews',
+        // Phase I3: contacts' and leads' marketing consent.
+        'marketing-consents'   => 'marketing_consents',
         'purchases'            => 'purchases',
         'supplier-payments'    => 'supplier_payments',
         'expense-categories'   => 'expense_categories',

@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-19
-- **Code:** Doc 17 Phase I2 (lead scoring) is committed: frontend `8306872` on `nuxt`, and on `main` the admin commit right after shuvo's `9bf4525`. Before it, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
-- **Tests:** 1029 backend tests, last full run 2026-11-19 on the first PC: 1028 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Phase I2 (see [Small things left](#small-things-left)).
-- **Next step:** Doc 17 Phase I3: marketing consent (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 17 Phase I3 (marketing consent) is committed: frontend `1119f22` on `nuxt`, and on `main` the admin commit right after `ced554d`. Before I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
+- **Tests:** 1032 backend tests, last full run 2026-11-19 on the first PC: 1031 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Phase I2 or I3 (see [Small things left](#small-things-left)).
+- **Next step:** Doc 17 Phase I4: custom fields (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase I2 the latest is 000184. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase I3 the latest is 000185. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase I3.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase I4.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check and Phases A to H done (Campaign-to-Opportunity Results waits for Doc 21), Phase I split (I1 built 2026-11-18, I2 2026-11-19), Phase I3 next** |
+| **17** | **CRM** | **In progress: gap check and Phases A to H done (Campaign-to-Opportunity Results waits for Doc 21), Phase I split (I1 built 2026-11-18, I2 and I3 2026-11-19), Phase I4 next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase I3)
+### 5. Doc 17: CRM (next: Phase I4)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -2310,11 +2310,35 @@ The first PC's parts were taken out: both repos are D3b to F4 as the second PC b
   - The hourly `crm:score-leads` changed nothing. Each rule change was in the Activity Log.
   - The rules, the leads, the CRM settings and lists, the app's state, the sign-in and the activity were then put back.
 
-**Phase I3: marketing consent** (section 17.25), suggested defaults, on contacts and leads, apart from sales follow-up:
+**Phase I3: marketing consent** (section 17.25) is built, on leads and contacts, apart from sales follow-up:
 
-- its status (given, refused, withdrawn), purpose, source, when, who recorded it, expiry and evidence;
-- carried over when a lead is converted;
-- withdrawing it keeps its history.
+- **A Marketing Consent card** on a lead's page, and on a contact's while CRM is on. For each purpose and channel, it shows the answer that stands - the latest: given, refused, withdrawn, or expired once a consent given passed its day - since when, its expiry and its source. Under it, the History lists every answer.
+- **Record Consent** takes:
+  - its purpose, from Settings → CRM's new Consent Purposes list (Promotions and Offers, Newsletters, Product Updates, Events and Invitations, Feedback and Surveys to start);
+  - its channel: E-mail, SMS, Messaging Apps or Phone Calls. The channel goes beyond the suggested defaults, to match Doc 21's consent by purpose and channel;
+  - consent given or refused, where it came from (Website Form, In Person, Phone Call, E-mail, Paper Form, Event, Import, Other), and when (left empty, now);
+  - a consent given's expiry date (it holds through that day), and evidence or a reference.
+- **Withdraw**, on a consent given that stands, takes when and how. The answer stays, with its withdrawal: nothing is deleted, so the history is whole.
+- A later answer replaces the one standing for the same purpose and channel. An earlier day can be recorded, as from a paper form; then it goes into the history.
+- **A converted lead's answers go to its contact** (section 17.8, step 5). The lead's card keeps showing them, read-only: changes are made on the contact.
+- **A merged contact's go to the one kept.** The merge preview counts them.
+- An unqualified or archived lead, or an archived contact, still takes an answer: a refusal or a withdrawal holds at once.
+- A contact with consent records is deactivated rather than deleted, as its history stays. A consent purpose answered about is switched off rather than deleted.
+- Each answer and withdrawal is logged on the lead or contact, so its timeline shows it.
+- **Permissions:** a lead's consent follows the lead (View Leads, then Create and Edit); a contact's follows the contact (View, then Edit Contacts).
+- **It does not stop sales follow-up.** Activities and CRM e-mails go on whatever it says. Sending to the opted-out is Doc 21's to refuse, as there is no promotional sending yet.
+- The business's data export has a marketing-consents file.
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with CRM switched on by hand:
+  - Settings → CRM showed Consent Purposes after Activity Types, with its five purposes.
+  - A lead's page showed Marketing Consent after Qualification: "None recorded: they have not been asked yet."
+  - Record Consent recorded Newsletters by e-mail, given on the Website Form on 15 November at 10:30, expiring 15 November 2027, with "Web form entry #A12": "Consent recorded."
+  - A refusal of Promotions and Offers by SMS, from a phone call, hid the expiry field and showed Refused.
+  - Withdraw on the newsletter consent, with "Replied STOP to the newsletter": "Consent withdrawn." The History listed both answers, with when, the source, who recorded it, the expiry, the reference and the withdrawal.
+  - The lead, qualified and converted, gave its new contact both answers. The contact's timeline showed the lead's consent entries.
+  - On the contact, a new newsletter consent stood in place of the withdrawn one, and the History counted 3 answers.
+  - The converted lead's card read "Its consent went with it to its contact: record any change there.", with no Record or Withdraw.
+  - The dialog's date and time first overflowed it: it is wider now. A withdrawn answer showed its old expiry: it shows none now.
+  - The lead, its opportunity and contact, the CRM settings and lists, the app's state, the sign-in and the activity were then put back.
 
 **Phase I4: custom fields** for leads and opportunities, suggested defaults, set up in Settings → CRM:
 
@@ -2360,6 +2384,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phases H2, H3 | none, none |
 | Doc 17: Phase I1 | 000183 |
 | Doc 17: Phase I2 | 000184 |
+| Doc 17: Phase I3 | 000185 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -2844,6 +2869,24 @@ On a fresh business, set the days in Settings → CRM to fit what you have, rath
 - [ ] A score never qualifies or rejects a lead by itself.
 - [ ] As the member with only Manage Assignment and Scoring Rules: the CRM tab shows the two rules cards alone.
 
+**Phase I3: marketing consent**
+
+**Before you start:** CRM on and using leads, with a member whose role views leads and contacts but cannot edit either.
+
+- [ ] Settings → CRM has Consent Purposes after Activity Types, with Promotions and Offers, Newsletters, Product Updates, Events and Invitations, and Feedback and Surveys.
+- [ ] A lead's page has Marketing Consent: "None recorded: they have not been asked yet."
+- [ ] Record Consent: Newsletters, E-mail, Consent given, Website Form, an earlier day and time, an expiry, a reference. "Consent recorded.", and its row shows them.
+- [ ] Record a refusal for another purpose by SMS: the expiry field goes, and the row reads Refused.
+- [ ] A day or time still to come, or an expiry not after the day, is refused.
+- [ ] Withdraw the consent given, with how: "Consent withdrawn." It reads Withdrawn, and History keeps both answers, with the withdrawal.
+- [ ] Record the same purpose and channel again: the new answer stands, and History marks the old one replaced.
+- [ ] Record a consent given that expired yesterday, or wait out an expiry: it reads Expired.
+- [ ] Archive the lead: it still takes a refusal. Its timeline shows each answer.
+- [ ] Qualify and convert it: its contact's page shows the same answers. The lead's card says they went to its contact, with no Record Consent.
+- [ ] On the contact, record and withdraw as on the lead. Merge another contact with answers into it: the preview counts the consent records, and they move.
+- [ ] Deleting a contact with consent records is refused: deactivate it. A consent purpose answered about cannot be deleted: switch it off, and it is no longer offered.
+- [ ] As the member who cannot edit: both cards show, without Record Consent or Withdraw.
+
 ## How we work
 
 Each document goes the same way:
@@ -3107,7 +3150,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase H1, the CRM lead reports | `ff2f536` | `6171111` | none |
 | Doc 17: Phases H2 and H3, the CRM opportunity, people and activity reports | `4b75b5c` | `26f0f0e` | none |
 | Doc 17: Phase I1, the lead assignment rules | `9f37087` | `ce8c86b` | 000183 |
-| Doc 17: Phase I2, lead scoring | the commit after `9bf4525` | `8306872` | 000184 |
+| Doc 17: Phase I2, lead scoring | `ced554d` | `8306872` | 000184 |
+| Doc 17: Phase I3, marketing consent | the commit after `ced554d` | `1119f22` | 000185 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`). Between I1 and I2, shuvo added rich text for payment instructions and the Sales settings' notes and terms (`a5e46cb` and `9bf4525`, with no frontend commit yet).
 
@@ -3630,6 +3674,21 @@ These are easy to undo by mistake.
     - SettingsCrmScoringRules, with CrmScoringRuleModal and CrmScoringRuleAsk (what the factor needs), on `useCrmScoringRules()`, whose shared state is `crm:scoring-rules`;
     - `utils/crmScoring.ts`: the factors, details, responses and bands, and `describeScoringRule()`;
     - CrmLeadScoreCard and CrmLeadScorePill on the lead's page and the Leads list, and CrmLeadsToolbar's Score filter.
+- Marketing consent (Doc 17 Phase I3, migration 000185):
+  - `marketing_consents`: whose (`contact_id`, `lead_id`, or both once the lead is converted), `purpose_id` (a `crm_options` row of the new kind `consent_purpose`), `channel`, `status` (given, refused, withdrawn), `source`, `recorded_at`, `recorded_by`, `expires_on`, `evidence`, and `withdrawn_at`, `withdrawn_by` and `withdrawal_note`. Rows are never deleted.
+  - The migration adds the starting consent purposes to businesses whose CRM lists started already; `CrmOption::STARTER` has them for new ones.
+  - `MarketingConsent` and `MarketingConsentRepository`: `standing()` locks the latest answer for a purpose and channel; `carryToContact()` is called by `CrmLeadConversion`; `usesPurpose()` and `usesContact()` guard deletes.
+  - `CrmConsentService`:
+    - `index()` marks each answer's `shown_status` (expired past `expires_on`) and `standing`, and gives the purposes switched on;
+    - `record()` and `withdraw()` answer with `index()` again;
+    - converted leads and merged contacts are refused (409);
+    - moments are the business's day and time (`recorded_on` and `recorded_time`, `withdrawn_on` and `withdrawn_time`), now when left out, never later than now.
+  - `CrmConsentController` serves both kinds by the route's `kind` default: `/crm/leads/{id}/consents` (`crm.leads.view`, `crm.leads.manage`) and `/crm/contacts/{id}/consents` (`contacts.view`, `contacts.edit`), each with `/{consentId}/withdraw`. `RecordMarketingConsentRequest`, `WithdrawMarketingConsentRequest`, `MarketingConsent(s)Resource`.
+  - Also changed: `ContactMergeRepository` (moving, move), `ContactService::delete()`, `CrmSettingService::deleteOption()` and `BusinessDataExport` (the `marketing-consents` file).
+  - Frontend:
+    - CrmConsentCard with CrmConsentHistory, CrmConsentModal and CrmConsentWithdrawModal, on `useCrmConsents()`, and `utils/crmConsents.ts` (channels, sources, statuses);
+    - the lead's page and the contact's page show it;
+    - `CRM_LISTS` has Consent Purposes, and `MERGE_MOVING` the consent records.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -3769,4 +3828,5 @@ Each of these is yours to settle.
 - Doc 17 Phases H2 and H3: no migration. Deploy the frontend with them (the Reports page's CRM group gains thirteen reports, and the Pipeline and Stage filters).
 - Doc 17 Phase I1: migration 000183 adds `crm_assignment_rules`; businesses start with none, so every lead added without an owner still waits in the queue until rules are set up. A new permission, CRM → Assignment and Scoring Rules: Manage Assignment and Scoring Rules, brings Settings' View with it. Roles made from the Manager template from now on have it; give it to custom roles in Settings → Users & Roles. Deploy the frontend with it.
 - Doc 17 Phase I2: migration 000184 adds `crm_scoring_rules`, and the leads' `score` and `score_factors`. Businesses start with no rules, so no lead is scored until rules are set up. The scheduler runs `crm:score-leads` hourly, and the queue worker scores the leads again when the rules change. It uses Phase I1's permission. Deploy the frontend with it.
+- Doc 17 Phase I3: migration 000185 adds `marketing_consents`, and the five starting consent purposes to each business whose CRM lists started already. No permission is new: consent follows the lead's and the contact's. Deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

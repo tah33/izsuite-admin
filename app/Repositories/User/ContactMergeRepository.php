@@ -56,6 +56,8 @@ class ContactMergeRepository
             'activities'          => DB::table('crm_activities')->where('contact_id', $from->id)->count(),
             // Phase F3a.
             'emails'              => DB::table('crm_emails')->where('contact_id', $from->id)->count(),
+            // Phase I3.
+            'consents'            => DB::table('marketing_consents')->where('contact_id', $from->id)->count(),
             'attachments'         => $this->files($from)->count(),
             'price_lists'         => $this->priceLists($from, $to)->count(),
             'duplicate_decisions' => $this->decisions($from, $to)->count(),
@@ -73,6 +75,7 @@ class ContactMergeRepository
         DB::table('crm_opportunities')->where('contact_id', $from->id)->update(['contact_id' => $to->id]);
         DB::table('crm_activities')->where('contact_id', $from->id)->update(['contact_id' => $to->id]);
         DB::table('crm_emails')->where('contact_id', $from->id)->update(['contact_id' => $to->id]);
+        DB::table('marketing_consents')->where('contact_id', $from->id)->update(['contact_id' => $to->id]);
         $this->files($from)->update(['attachable_id' => $to->id]);
 
         $this->priceLists($from, $to)->update(['contact_id' => $to->id]);

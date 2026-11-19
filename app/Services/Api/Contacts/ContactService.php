@@ -31,6 +31,7 @@ class ContactService
         protected CrmOpportunityRepository $crmOpportunityRepository,
         protected \App\Repositories\User\CrmActivityRepository $crmActivityRepository,
         protected \App\Repositories\User\CrmEmailRepository $crmEmailRepository,
+        protected \App\Repositories\User\MarketingConsentRepository $marketingConsentRepository,
     ) {}
 
     /** The tax ID is searched only while the business uses taxes (Doc 03 section 3). */
@@ -190,6 +191,13 @@ class ContactService
         if ($this->crmEmailRepository->usesContact($contact)) {
             throw new HttpResponseException(response()->json([
                 'message' => 'This contact has CRM e-mails, so it cannot be deleted. Deactivate it instead.',
+            ], 409));
+        }
+
+        // Doc 17 Phase I3: its marketing consent history stays.
+        if ($this->marketingConsentRepository->usesContact($contact)) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'This contact has marketing consent records, so it cannot be deleted. Deactivate it instead.',
             ], 409));
         }
 

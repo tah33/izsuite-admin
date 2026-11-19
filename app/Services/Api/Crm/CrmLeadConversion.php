@@ -64,6 +64,7 @@ class CrmLeadConversion
         protected CrmDuplicateReviewRepository $reviews,
         protected \App\Services\Crm\PipelineChoice $pipelineChoice,
         protected \App\Repositories\User\CrmActivityRepository $activities,
+        protected \App\Repositories\User\MarketingConsentRepository $consents,
     ) {}
 
     /**
@@ -141,6 +142,8 @@ class CrmLeadConversion
             $this->opportunities->enterStage($opportunity, $stage->id, $user->id);
             // Phase E1: its activities, planned and done, are the opportunity's now as well.
             $this->activities->carryToOpportunity($lead, $opportunity);
+            // Phase I3: its marketing consent is its contact's now as well.
+            $this->consents->carryToContact($lead, $contact->id);
 
             $this->leads->update($lead, [
                 'status'         => CrmLead::CONVERTED,

@@ -77,14 +77,15 @@ class CrmSettingsTest extends TestCase
         $settings = $this->getJson('/api/v1/business-settings/crm')->assertOk()->json('data');
 
         $this->assertSame('leads', $settings['mode']);
-        $this->assertSame([12, 9, 8], [count($settings['lists']['lead_source']), count($settings['lists']['lost_reason']), count($settings['lists']['activity_type'])]);
+        // Phase I3: and the consent purposes.
+        $this->assertSame([12, 9, 8, 5], [count($settings['lists']['lead_source']), count($settings['lists']['lost_reason']), count($settings['lists']['activity_type']), count($settings['lists']['consent_purpose'])]);
         $this->assertSame(['name' => 'Website', 'is_active' => true, 'starter' => true], array_diff_key($settings['lists']['lead_source'][0], ['id' => true]));
         $this->assertSame(['Price', 'No Budget', 'Chose Competitor'], array_slice(array_column($settings['lists']['lost_reason'], 'name'), 0, 3));
         $this->assertSame('Site Visit', $settings['lists']['activity_type'][6]['name']);
 
         // Read again, nothing is added twice.
         $this->getJson('/api/v1/business-settings/crm')->assertOk();
-        $this->assertSame(29, CrmOption::query()->where('workspace_id', $this->business->id)->count());
+        $this->assertSame(34, CrmOption::query()->where('workspace_id', $this->business->id)->count());
     }
 
     public function test_the_mode_hides_leads_and_is_logged(): void
