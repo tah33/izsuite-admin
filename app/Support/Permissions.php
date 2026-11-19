@@ -134,6 +134,8 @@ final class Permissions
         'pos.sessions' => ['Sessions', 'pos', [
             'view' => self::VIEW, 'open' => 'Open and Close Sessions', 'approve' => 'Approve Variances and Close Others\' Sessions', 'reopen' => 'Reopen Closed Sessions',
         ]],
+        // Phase C1: the selling screen.
+        'pos.selling' => ['Selling', 'pos', ['open' => 'Open POS']],
     ];
 
     /** The groups whose records carry their app's values: anything but viewing one needs them. */
@@ -198,6 +200,8 @@ final class Permissions
         'pos.sessions.open'          => ['pos.sessions.view'],
         'pos.sessions.approve'       => ['pos.sessions.view'],
         'pos.sessions.reopen'        => ['pos.sessions.view'],
+        // Phase C1: one sells in one's own open session, to a customer chosen among the contacts.
+        'pos.selling.open'           => ['pos.sessions.open', 'contacts.view'],
         'purchases.purchases.create' => ['contacts.view', 'items.view'],
         'purchases.payments.record'  => ['purchases.purchases.view', 'payment_accounts.view'],
         'purchases.payments.reverse' => ['payment_accounts.view'],

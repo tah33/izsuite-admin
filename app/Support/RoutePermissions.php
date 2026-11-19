@@ -430,6 +430,10 @@ final class RoutePermissions
             'api.pos.sessions.close'   => ['pos.sessions.open', 'pos.sessions.approve'],
             'api.pos.sessions.approve' => 'pos.sessions.approve',
             'api.pos.sessions.reopen'  => 'pos.sessions.reopen',
+            // Doc 18 Phase C1: the selling screen, in the user's own open session (PosSellingService).
+            'api.pos.sell.show'  => 'pos.selling.open',
+            'api.pos.sell.items' => 'pos.selling.open',
+            'api.pos.sell.quote' => 'pos.selling.open',
             // Phase F3a: e-mail from a lead, an opportunity or a contact - the record's own view permission checked too (CrmEmailService).
             'api.crm.emails.draft' => 'crm.emails.send',
             'api.crm.emails.store' => 'crm.emails.send',

@@ -85,6 +85,7 @@ use App\Http\Controllers\Api\NotificationSettingController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PaymentAccountController;
 use App\Http\Controllers\Api\PosRegisterController;
+use App\Http\Controllers\Api\PosSellController;
 use App\Http\Controllers\Api\PosSessionController;
 use App\Http\Controllers\Api\PosSettingController;
 use App\Http\Controllers\Api\PaymentAccountTransactionController;
@@ -942,6 +943,18 @@ Route::prefix('v1')->group(function () {
         // Phase B2a: a supervisor approves a variance beyond the limit, and reopens a counted session.
         Route::post('/{id}/approve', [PosSessionController::class, 'approve'])->whereNumber('id')->middleware('idempotent')->name('api.pos.sessions.approve');
         Route::post('/{id}/reopen', [PosSessionController::class, 'reopen'])->whereNumber('id')->middleware('idempotent')->name('api.pos.sessions.reopen');
+    });
+
+    /* --------------------------------------------------------
+     | Point of Sale (Doc 18): the selling screen (Phase C1), in the user's
+     | own open session - its register, customer, categories and most-sold
+     | items, the items found or scanned, and the cart priced and totalled.
+     | The cart's quote only reads, so it is a GET: nothing is logged for it.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:pos', 'access'])->prefix('pos/sell')->group(function () {
+        Route::get('/', [PosSellController::class, 'show'])->name('api.pos.sell.show');
+        Route::get('/items', [PosSellController::class, 'items'])->name('api.pos.sell.items');
+        Route::get('/quote', [PosSellController::class, 'quote'])->name('api.pos.sell.quote');
     });
 
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm')->group(function () {

@@ -9,6 +9,7 @@ use App\Models\User\Workspace;
 use App\Repositories\User\PriceListRepository;
 use App\Repositories\User\SalesSettingRepository;
 use App\Support\Decimal;
+use Illuminate\Support\Collection;
 
 /**
  * Pricing sales lines from price lists (Doc 16 section 16.19). For each line
@@ -44,6 +45,20 @@ class PriceListPricing
         // Settings > Sales's default list, for any customer and location, after the others (Doc 16 Phase H1).
         $last  = $this->priceLists->fallback($workspace, $this->salesSettings->forWorkspace($workspace)->default_price_list_id, $context['currency'], $context['date']);
         $lists = $last && ! $lists->contains('id', $last->id) ? $lists->push($last) : $lists;
+
+        return $this->quoteFrom($workspace, $lists, $context, $lines);
+    }
+
+    /**
+     * $lines priced as quote() prices them, by the first of $lists - in
+     * their order, each with its rules - that has a rule for each: Point of
+     * Sale names its own lists, the customer's and the register's (Doc 18
+     * Phase C1). $context: currency, date, exchange_rate.
+     *
+     * @return array<string|int, array{unit_price: string, price_list_id: int, price_list_rule_id: int, price_list: string}>
+     */
+    public function quoteFrom(Workspace $workspace, Collection $lists, array $context, array $lines): array
+    {
         $items = $this->priceLists->itemsFor($workspace, array_values(array_filter(array_column($lines, 'item_id'))))->keyBy('id');
         $rate  = Decimal::isZero((string) ($context['exchange_rate'] ?? '1')) ? '1' : (string) ($context['exchange_rate'] ?? '1');
         $out   = [];

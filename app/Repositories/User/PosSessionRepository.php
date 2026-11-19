@@ -57,6 +57,17 @@ class PosSessionRepository
             ->whereIn('status', PosSession::LIVE)->with('register:id,name,code')->first();
     }
 
+    /**
+     * The cashier's open session in the business - not suspended - with its
+     * register, the register's location and price list: where they sell
+     * (Phase C1).
+     */
+    public function sellingOf(Workspace $workspace, int $userId): ?PosSession
+    {
+        return PosSession::query()->where('workspace_id', $workspace->id)->where('cashier_id', $userId)->where('status', PosSession::OPEN)
+            ->with(['register.location:id,name', 'register.priceList:id,name'])->first();
+    }
+
     /** The ids of its registers with a session open. */
     public function liveRegisterIds(Workspace $workspace): array
     {

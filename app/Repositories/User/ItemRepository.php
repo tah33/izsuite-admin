@@ -2,8 +2,12 @@
 
 namespace App\Repositories\User;
 
+use App\Enums\DocumentType;
+use App\Enums\SalesDocumentStatus;
 use App\Models\User\Item;
+use App\Models\User\ItemCategory;
 use App\Models\User\ItemComponent;
+use App\Models\User\SalesDocumentLine;
 use App\Models\User\Workspace;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -27,6 +31,9 @@ class ItemRepository
         'components.component',
         'image',
     ];
+
+    /** What the POS selling screen shows of an item besides its own columns: its category, a combo's components with their items (its price) and its image. */
+    private const SELLING_WITH = ['category:id,name', 'components.component', 'image'];
 
     /** Whether a sales or a purchase line holds it - what ItemResource's `in_use`, `in_sales` and `in_purchases` are made of. */
     private const USED_ON = ['salesLines as in_sales', 'purchaseLines as in_purchases'];
@@ -213,6 +220,87 @@ class ItemRepository
     public function delete(Item $item): void
     {
         $item->delete();
+    }
+
+    /**
+     * The items the POS selling screen finds (Doc 18 Phase C1): active and
+     * sold, matching $search as the list's search does - or in category
+     * $categoryId - alphabetical, the first $limit.
+     */
+    public function forSelling(Workspace $workspace, ?string $search, ?int $categoryId, bool $withBrands, int $limit): Collection
+    {
+        return $this->sold($workspace)
+            ->with(self::SELLING_WITH)
+            ->when($search, fn (Builder $query, string $search) => $query->where(fn (Builder $query) => $this->search($query, $search, $withBrands)))
+            ->when($categoryId, fn (Builder $query, int $id) => $query->where('category_id', $id))
+            ->orderBy('name')
+            ->orderBy('id')
+            ->limit($limit)
+            ->get();
+    }
+
+    /** The active, sold item whose barcode is $code - else whose SKU is, in any case: the one a scanner typed (Phase C1). */
+    public function byCode(Workspace $workspace, string $code): ?Item
+    {
+        return $this->sold($workspace)->with(self::SELLING_WITH)->where('barcode', $code)->first()
+            ?? $this->sold($workspace)->with(self::SELLING_WITH)->whereRaw('LOWER(sku) = ?', [mb_strtolower($code)])->first();
+    }
+
+    /** $ids' items in whatever state they are, keyed by id: a POS cart's, checked and priced (Phase C1). */
+    public function forCart(Workspace $workspace, array $ids): Collection
+    {
+        return Item::where('workspace_id', $workspace->id)->with(self::SELLING_WITH)->whereKey($ids)->get()->keyBy('id');
+    }
+
+    /**
+     * The active, sold items on the most issued invoices at $locationId
+     * since $since - then the most sold of them - the first $limit: the POS
+     * selling screen's most-sold items (Phase C1).
+     */
+    public function mostSoldAt(Workspace $workspace, int $locationId, string $since, int $limit): Collection
+    {
+        $ranked = SalesDocumentLine::query()
+            ->join('sales_documents', 'sales_documents.id', '=', 'sales_document_lines.sales_document_id')
+            ->where('sales_documents.workspace_id', $workspace->id)
+            ->where('sales_documents.type', DocumentType::Invoice->value)
+            ->where('sales_documents.status', SalesDocumentStatus::Issued->value)
+            ->where('sales_documents.location_id', $locationId)
+            ->where('sales_documents.document_date', '>=', $since)
+            ->whereNotNull('sales_document_lines.item_id')
+            ->groupBy('sales_document_lines.item_id')
+            ->orderByRaw('COUNT(DISTINCT sales_document_lines.sales_document_id) DESC')
+            ->orderByRaw('SUM(sales_document_lines.quantity) DESC')
+            ->orderBy('sales_document_lines.item_id')
+            // More than asked: some may be switched off or no longer sold.
+            ->limit($limit * 3)
+            ->pluck('sales_document_lines.item_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($ranked === []) {
+            return new Collection;
+        }
+
+        $items = $this->sold($workspace)->with(self::SELLING_WITH)->whereKey($ranked)->get()->keyBy('id');
+
+        return new Collection(collect($ranked)->map(fn (int $id) => $items->get($id))->filter()->take($limit)->values()->all());
+    }
+
+    /** Its categories that hold an active, sold item, alphabetical: the POS selling screen's tiles (Phase C1). */
+    public function categoriesSold(Workspace $workspace): Collection
+    {
+        return ItemCategory::query()
+            ->where('workspace_id', $workspace->id)
+            ->whereHas('items', fn (Builder $query) => $query->where('is_active', true)->where('usage', '!=', Item::USAGE_PURCHASE))
+            ->orderBy('name')
+            ->orderBy('id')
+            ->get(['id', 'name']);
+    }
+
+    /** Its items a sale can take: active, and not for purchases only. */
+    private function sold(Workspace $workspace): Builder
+    {
+        return Item::where('workspace_id', $workspace->id)->where('is_active', true)->where('usage', '!=', Item::USAGE_PURCHASE);
     }
 
     private function search(Builder $query, string $search, bool $withBrands): void

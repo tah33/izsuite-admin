@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-19
-- **Code:** Doc 18 Phase B2b (counting cash by notes and coins) is committed: frontend `7166223` on `nuxt`, and on `main` the admin commit right after `4a0bd4d`. Doc 18's gap check, Phase A and Phases B1 and B2a are pushed: B2a (the supervisor's side of sessions), the last, is frontend `0e3b89c` and admin `4a0bd4d`. Doc 17 is done and pushed: Phase I4, the last, is frontend `e20fa70` and admin `e5cd080`. Before I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
-- **Tests:** 1052 backend tests, last full run 2026-11-19 on the first PC: 1051 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Docs 17 or 18 (see [Small things left](#small-things-left)).
-- **Next step:** Doc 18 (Point of Sale) Phase C: selling (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 18 Phase C1 (the selling screen) is committed: frontend `27ce76c` on `nuxt`, and on `main` the admin commit right after `3936732`. Doc 18's gap check and Phases A and B are pushed: B2b (counting cash by notes and coins), the last, is frontend `7166223` and admin `3936732`. Doc 17 is done and pushed: Phase I4, the last, is frontend `e20fa70` and admin `e5cd080`. Before I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
+- **Tests:** 1059 backend tests, last full run 2026-11-19 on the second PC: 1058 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Docs 17 or 18 (see [Small things left](#small-things-left)).
+- **Next step:** Doc 18 (Point of Sale) Phase C2: payment and the completed sale (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 18 Phase B2b the latest is 000191. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 18 Phase C1 the latest is 000192. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 18 Phase C.
+   > Read PROJECT_STATUS.md, then start Doc 18 Phase C2.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -60,7 +60,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
 | **17** | **CRM** | **Done (2026-11-19): gap check and Phases A to I; Campaign-to-Opportunity Results waits for Doc 21** |
-| **18** | **Point of Sale** | **In progress: gap check done 2026-11-19, Phases A (A1, A2) and B (B1, B2a, B2b) built 2026-11-19, Phase C next** |
+| **18** | **Point of Sale** | **In progress: gap check done 2026-11-19, Phases A (A1, A2), B (B1, B2a, B2b) and C1 built 2026-11-19, Phase C2 next** |
 | 19 to 21 | eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -2369,7 +2369,7 @@ The first PC's parts were taken out: both repos are D3b to F4 as the second PC b
 
 **With Phase I4, Doc 17 is done** (2026-11-19). Campaign-to-Opportunity Results waits for Doc 21, and AI scoring for the AI application.
 
-### 6. Doc 18: Point of Sale (next: Phase C)
+### 6. Doc 18: Point of Sale (next: Phase C2)
 
 The gap check was done on 2026-11-19. Doc 18 is Point of Sale: fast selling over the counter, from a register, in a cashier's session, with receipts, cash and closing counts. It sells through the shared Sales records, Contacts, Items, Taxes and Payment Accounts: a completed POS order counts as a sale once.
 
@@ -2488,13 +2488,34 @@ The gap check was done on 2026-11-19. Doc 18 is Point of Sale: fast selling over
       - S-00001 opened with $150. Close Session listed the seven with How Many. 1 × $100, 2 × $20 and 2 × $5 showed their amounts, $150.00 counted and "It matches the cash expected."
       - Closed: "Session S-00001 closed." The Z report's Notes and Coins read 1 × $100.00, 2 × $20.00 and 2 × $5.00.
       - The Activity Log named the settings, the opening and the closing. The session, the settings, the register, the methods, POS's state, the sign-in and the activity were then put back.
-- **Phase C: selling.**
-  - The selling screen: search by name, SKU, barcode (a scanner types like a keyboard), brand or category; category tiles; the most-sold items; the cart with quantities, units and line notes; the customer, walk-in to start.
-  - Prices from the item, the register's price list or the customer's, with their source kept. A price override needs its permission and a reason. Line and order discounts, by percentage or amount, up to a limit in Settings; beyond it, a manager's approval.
-  - Taxes as Settings → Taxes says, with or without tax in the price. Cash rounding to a step set in Settings, kept apart from discounts.
-  - Payment: cash with the amount tendered and the change, and other methods with their reference, split across several. When it is paid in full, the order completes.
-  - **A completed order is one invoice with Source: POS,** numbered by its register's receipt sequence, with its payments in their accounts. Sales Lite and Sales list it with that source, and it counts once.
-  - The receipt: printed on a receipt printer through the browser, as a PDF, or by e-mail, with the business's details, the cashier and register, the payments, tendered and change, and the return policy. A reprint says so.
+- **Phase C: selling** - split on starting it (2026-11-19): C1, the selling screen; C2, payment and the completed sale; C3, discounts, price overrides and cash rounding; C4, the receipt.
+  - **Phase C1 is built:**
+    - Open POS, first in Point of Sale's sidebar, under a new permission, Selling: Open POS (with Open and Close Sessions - and so Sessions' View - and Contacts' View). It sells in the user's own open session; without one it says so, and Open Session opens one there.
+    - It shows the register - its location, currency and price list - and the session. The items to sell are active and not for purchases only:
+      - found by name, Item Number, SKU, barcode, category and, while brands are on, brand - within the category tile chosen - alphabetical, up to 24;
+      - a barcode or SKU typed exactly, as a scanner types it, with Enter, goes into the cart at once - the SKU in any case;
+      - before any search, the most-sold items: those on the most issued invoices at the register's location in the last 30 days, up to 12;
+      - each with its picture, SKU and price at the register.
+    - The cart: one line per item - added again, one more of it - with its quantity, stepped or typed to 3 decimals, in the item's unit, and a note; an order note; and the customer, the walk-in one of Settings → Point of Sale to start, or any active customer.
+    - Prices, in the register's currency: the customer's own price list (an active one naming them, for the register's currency and location, by priority), else the register's price list, else the item's sales price (a combo priced as its parts, theirs) divided by today's rate when the register's currency is not the base one. Each line says where its price came from. Price lists are the full Sales app's.
+    - Taxes as Settings → Taxes says - the customer's treatment's rate, else the item's own, else the default - with or without tax in the price. The API works out the subtotal, each tax and the total as a sales document's.
+    - Without today's rate for the register's currency, it says so and prices nothing.
+    - The cart is kept in this browser for the session until Cancel Order, which asks first, empties it. Nothing of it is on the server: the order comes with C2.
+    - **Found while checking:** the page loaded twice - again as the navigation arrived after it - so the cart was priced twice and its totals came late. It reloads only when another business is picked now.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS and full Sales switched on by hand, taxes on with VAT at 15%, a till with a Cash method, Front Counter (R1) priced by Shop Prices (Black Tea at 3.00), Rahman Traders' own list (2.80, 2.50 from 10), five items in Drinks and Snacks, and two issued invoices at Main Location:
+      - Without a session Open POS said so; Open Session opened S-00001 there: "Session S-00001 opened." It showed the tiles Drinks and Snacks, and Most Sold: Black Tea at $3.00 and Butter Biscuits at $1.20.
+      - The tea's barcode with Enter put it in the cart at "$3.00 / Piece · Price list: Shop Prices", VAT 15% $0.45, total $3.45; scanned again, 2 of it. The biscuits' tile, and "mug-1" with Enter, added theirs: $15.20, VAT $2.28, total $17.48.
+      - Rahman Traders as the customer: the tea at $2.80, "Their price list: Rahman Prices", and 10 of it at $2.50. A quantity of 0 said "Type a quantity above 0, to 3 decimals."
+      - Reloaded, the cart came back - its customer, lines and notes - priced again. The Tea Gift Set showed $11.50, its parts'. Cancel Order asked first, then emptied the cart, back to the walk-in customer.
+      - As a throwaway cashier whose role holds Open POS alone: Open POS and Sessions in the sidebar, not Registers. Open Session offered Back Counter (R2), saying "Front Counter: You are not one of this register's cashiers."; there the tea sold at its own $3.50, and at $2.80 to Rahman Traders. With Open POS taken off the role, the sidebar lost it and the page said "Your role does not allow this."
+      - The items, lists, invoices, registers, sessions, settings, member, the apps' and taxes' state, the sign-in and the activity were then put back.
+  - **Phase C2: payment and the completed sale.**
+    - Payment: cash with the amount tendered and the change, and other methods with their reference, split across several. When it is paid in full, the order completes.
+    - **A completed order is one invoice with Source: POS,** numbered by its register's receipt sequence, with its payments in their accounts. Sales Lite and Sales list it with that source, and it counts once.
+  - **Phase C3: discounts, price overrides and cash rounding.**
+    - A price override needs its permission and a reason. Line and order discounts, by percentage or amount, up to a limit in Settings; beyond it, a manager's approval.
+    - Cash rounding to a step set in Settings, kept apart from discounts.
+  - **Phase C4: the receipt.** Printed on a receipt printer through the browser, as a PDF, or by e-mail, with the business's details, the cashier and register, the payments, tendered and change, and the return policy. A reprint says so.
 - **Phase D: holding, pending payments and credit.**
   - Hold an order and resume it, re-checking prices; held orders expire as Settings says.
   - A card or mobile payment can wait as Pending until someone with the permission confirms it.
@@ -2564,6 +2585,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 18: Phase B1 | 000189 |
 | Doc 18: Phase B2a | 000190 |
 | Doc 18: Phase B2b | 000191 |
+| Doc 18: Phase C1 | 000192 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -3153,6 +3175,18 @@ On a fresh business, set the days in Settings → CRM to fit what you have, rath
 - [ ] Closed, the Z report shows Notes and Coins: how many of each, with their amounts.
 - [ ] Empty a currency's list, or switch counting off: the close form asks for one amount again.
 
+**Phase C1: the selling screen**
+
+**Before you start:** POS on with a register you are a cashier of, a walk-in customer in Settings → Point of Sale, items in a category or two (one with a barcode and a SKU), and - with full Sales - a price list for the register and a customer's own.
+
+- [ ] Point of Sale's sidebar has Open POS first. Without a session it says so; Open Session opens one and stays there.
+- [ ] Before any search: the most-sold items at the register's location, and the category tiles. A tile shows its items.
+- [ ] Type a name, SKU or category: the items to sell, priced at the register. Scan or type a barcode or SKU with Enter: it goes into the cart, and again adds one more.
+- [ ] Each line says where its price comes from: the register's price list, else the item. Choose a customer with a list of their own: theirs, by quantity too.
+- [ ] Quantities step and type to 3 decimals; 0 is refused under its line. A line note and the order note stay.
+- [ ] With taxes on, the totals show each tax; with prices including tax, the total is the shelf price.
+- [ ] Reload: the cart comes back, priced. Cancel Order asks first, then empties it.
+- [ ] As a member without Open POS: no Open POS in the sidebar, and the page says their role does not allow it.
 ## How we work
 
 Each document goes the same way:
@@ -3219,6 +3253,7 @@ Each document goes the same way:
 - In a PHP edit script, a JavaScript template literal (`` `${x}` ``) inside a double-quoted PHP string is read by PHP as interpolation and stops the script part-way, after the edits before it were written. Put such text in single-quoted strings.
 - In the Claude browser pane, `left_click_drag` does not start an HTML5 drag, so a dragged card never drops. Check a drop from a script instead: dispatch `dragstart` on the card, then `dragover` and `drop` on the column, with one `DataTransfer` (Doc 17 Phase D4's board).
 - `ActivityLogService::record()` puts an entry down to whoever is signed in, even in a test that acts as someone across requests. Something no one in the business did (a customer through a link) goes through `recordCustomer()`.
+- A page that loads on mount and again when another business is picked (`watch(() => navigation.value?.workspace?.id, …)`) also reloads when the navigation first arrives, a moment after the page. Skip a change from nothing: Doc 18 Phase C1's Open POS loaded, and priced its cart, twice.
 
 ### Checking the app as a limited member
 
@@ -3423,7 +3458,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 18: Phase A2, registers | `0f35a06` | `9b9917b` | 000188 |
 | Doc 18: Phase B1, opening and closing sessions | `620aebe` | `19499c7` | 000189 |
 | Doc 18: Phase B2a, the supervisor's side of sessions | `4a0bd4d` | `0e3b89c` | 000190 |
-| Doc 18: Phase B2b, counting cash by notes and coins | the commit after `4a0bd4d` | `7166223` | 000191 |
+| Doc 18: Phase B2b, counting cash by notes and coins | `3936732` | `7166223` | 000191 |
+| Doc 18: Phase C1, the selling screen | the commit after `3936732` | `27ce76c` | 000192 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`). Between I1 and I2, shuvo added rich text for payment instructions and the Sales settings' notes and terms (`a5e46cb` and `9bf4525`, with no frontend commit yet).
 
@@ -4036,11 +4072,19 @@ These are easy to undo by mistake.
     - `countingFor()` gives a session currency's list, or null.
   - `PosSessionService::close()` works the cash counted out from `denominations` (`byDenomination()`) when the business counts that way, refusing a value not on the list, or no count at all. `show()` gives `denominations` while the session is open.
   - Frontend: SettingsPosClosing (`saveCashCount()`), PosSessionCountGrid in PosSessionCloseModal (`countTotal()`, `wholeCount()`), and the Z report's Notes and Coins.
+- The selling screen (Doc 18 Phase C1, migration 000192 for its menu row): `PosSellingService` behind `GET /pos/sell`, `/pos/sell/items` and `/pos/sell/quote` (`PosSellController`, `SearchPosItemsRequest`, `QuotePosCartRequest`; `PosSellScreenResource`, `PosSellItemsResource`, `PosSellItemResource`, `PosCartQuoteResource`), under `pos.selling.open`, in the user's own open session (`PosSessionRepository::sellingOf()`).
+  - Items: `ItemRepository::forSelling()`, `byCode()` (the barcode, else the SKU in any case), `forCart()`, `mostSoldAt()` (issued invoices at a location since a day) and `categoriesSold()`.
+  - `PosPricing`: `rate()`, `standard()` (an item's price at the register) and `quote()`. The customer's own lists (`PriceListRepository::eligible()`, those naming them), then the register's (`fallback()`), through `PriceListPricing::quoteFrom()` - else the item's price divided by the rate. Taxes as a sales form picks them, totals by `SalesDocumentService::totals()`.
+  - The quote is a GET, its lines in the address (`lines[0][item_id]=…`), so `LogApiWriteActivity` logs nothing for it.
+  - Frontend: `pages/pos/sell.vue` with PosSellCatalog, PosSellCart, PosSellCartLine and PosSellCustomer; `usePosSelling()`; `usePosCart()` and `usePosCartSync()` (the cart in `useState`, kept in `localStorage` per session, priced 250 ms after a change, the latest answer only); `.pos-item` in `main.css`; PosSessionOpenModal's `stay`.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
 
 - `SalesSettingsApiTest` fails since shuvo's `a5e46cb` (pulled 2026-11-19). The Sales settings' notes and terms are now kept as rich text, so plain text comes back wrapped in `<p>`, and the test still sends and expects plain text. Until a frontend editor for them is on `nuxt`, the settings form would show those tags too. Check it with shuvo.
+- A POS cart is kept in the browser that made it, for its session, until it is sold or cancelled: another browser or device does not see it, and nothing of it is on the server before Phase C2. Holding orders comes with Phase D (Doc 18 Phase C1).
+- An item has one unit, so the selling screen sells in it: choosing another waits for items with more than one. Every item takes quantities to 3 decimals, as sales lines do (Doc 18 Phase C1).
+- A register sells by the customer's own price list or its own - never by the business's other lists for every customer, nor Settings → Sales's default one (Doc 18 Phase C1).
 - **Doc 05:** the optional Responsible User on a payment account, and the Transfer Fee on a transfer, were never built.
 - A disabled Settings section also disables its "Try again" button. Reloading the page works.
 - Purchase and expense duplicate warnings can name document numbers from other locations, because that check covers the whole business.
@@ -4182,4 +4226,5 @@ Each of these is yours to settle.
 - Doc 18 Phase B1: migration 000189 adds `pos_sessions` and `pos_session_closings`, and the Sessions row in Point of Sale's menu (`AppCatalogSeeder` has it for new installs). A new permission, Point of Sale → Sessions (View, and Open and Close Sessions), is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it.
 - Doc 18 Phase B2a: migration 000190 adds the variance limit to `pos_settings`, and the supervisor's marks to `pos_session_closings`. Two new permissions, Point of Sale → Sessions: Approve Variances and Close Others' Sessions, and Reopen Closed Sessions, are not given to custom roles: give them in Settings → Users & Roles. Deploy the frontend with it.
 - Doc 18 Phase B2b: migration 000191 adds counting by notes and coins to `pos_settings` and `pos_session_closings`. No permission is new. Deploy the frontend with it: Variance Needing Approval moves to the Closing Sessions card in Settings → Point of Sale.
+- Doc 18 Phase C1: migration 000192 adds Open POS, first in Point of Sale's menu (`AppCatalogSeeder` has it for new installs). A new permission, Point of Sale → Selling: Open POS (with Open and Close Sessions and Contacts' View), is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.
