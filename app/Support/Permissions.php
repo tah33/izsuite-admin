@@ -130,6 +130,8 @@ final class Permissions
         'pos.settings' => ['POS Settings', 'pos', ['manage' => 'Manage POS Settings']],
         // Phase A2: registers.
         'pos.registers' => ['Registers', 'pos', ['view' => self::VIEW, 'manage' => 'Manage Registers']],
+        // Phase B1: sessions.
+        'pos.sessions' => ['Sessions', 'pos', ['view' => self::VIEW, 'open' => 'Open and Close Sessions']],
     ];
 
     /** The groups whose records carry their app's values: anything but viewing one needs them. */
@@ -191,6 +193,7 @@ final class Permissions
         // Doc 18 Phase A1: the walk-in customer is chosen among the contacts.
         'pos.settings.manage'        => ['settings.view', 'contacts.view'],
         'pos.registers.manage'       => ['pos.registers.view'],
+        'pos.sessions.open'          => ['pos.sessions.view'],
         'purchases.purchases.create' => ['contacts.view', 'items.view'],
         'purchases.payments.record'  => ['purchases.purchases.view', 'payment_accounts.view'],
         'purchases.payments.reverse' => ['payment_accounts.view'],

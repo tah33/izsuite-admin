@@ -21,12 +21,18 @@ class PosRegisterRepository
     /** Its registers at $locationIds - every one, for null - by name. */
     public function getFor(Workspace $workspace, ?array $locationIds): Collection
     {
-        return $this->at($workspace, $locationIds)->with(self::SHOWN_WITH)->orderBy('name')->orderBy('id')->get();
+        return $this->at($workspace, $locationIds)->with(self::SHOWN_WITH)->withExists('sessions')->orderBy('name')->orderBy('id')->get();
     }
 
     public function findFor(Workspace $workspace, int $id, ?array $locationIds): ?PosRegister
     {
-        return $this->at($workspace, $locationIds)->with(self::SHOWN_WITH)->find($id);
+        return $this->at($workspace, $locationIds)->with(self::SHOWN_WITH)->withExists('sessions')->find($id);
+    }
+
+    /** The register with its cashiers, locked while a session opens on it: inside a transaction. */
+    public function lockFor(Workspace $workspace, int $id): ?PosRegister
+    {
+        return PosRegister::query()->where('workspace_id', $workspace->id)->lockForUpdate()->with('cashiers:users.id')->find($id);
     }
 
     /** Whether another of its registers - $exceptId aside - has $value as its $column (name or code). */
@@ -48,7 +54,7 @@ class PosRegisterRepository
         $register->paymentMethods()->sync($methodIds);
         $register->cashiers()->sync($cashierIds);
 
-        return $register->load(self::SHOWN_WITH);
+        return $register->load(self::SHOWN_WITH)->loadExists('sessions');
     }
 
     /** Its fields, methods and cashiers; whether any of them changed. */

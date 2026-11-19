@@ -8,7 +8,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /**
  * A POS register (Doc 18 Phase A2) as the Registers page shows and edits it:
  * its code, location, currency, price list, cash account, receipt number
- * prefix, the payment methods it takes, its cashiers and its status.
+ * prefix, the payment methods it takes, its cashiers and its status - and
+ * whether sessions were held at it (Phase B1), which keep it from deletion.
  */
 class PosRegisterResource extends JsonResource
 {
@@ -28,6 +29,7 @@ class PosRegisterResource extends JsonResource
             'status'          => $this->status,
             'payment_methods' => $this->paymentMethods->map($named)->values(),
             'cashiers'        => $this->cashiers->map($named)->values(),
+            'has_sessions'    => (bool) $this->sessions_exists,
         ];
     }
 }

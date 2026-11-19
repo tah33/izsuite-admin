@@ -85,6 +85,7 @@ use App\Http\Controllers\Api\NotificationSettingController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PaymentAccountController;
 use App\Http\Controllers\Api\PosRegisterController;
+use App\Http\Controllers\Api\PosSessionController;
 use App\Http\Controllers\Api\PosSettingController;
 use App\Http\Controllers\Api\PaymentAccountTransactionController;
 use App\Http\Controllers\Api\PaymentTermController;
@@ -922,6 +923,20 @@ Route::prefix('v1')->group(function () {
         Route::post('/', [PosRegisterController::class, 'store'])->middleware('idempotent')->name('api.pos.registers.store');
         Route::put('/{id}', [PosRegisterController::class, 'update'])->whereNumber('id')->name('api.pos.registers.update');
         Route::delete('/{id}', [PosRegisterController::class, 'destroy'])->whereNumber('id')->name('api.pos.registers.destroy');
+    });
+
+    /* --------------------------------------------------------
+     | Point of Sale (Doc 18): its sessions (Phase B1) - the Sessions page
+     | and its choices, opening one on a register, a session's page and
+     | closing it with the cash counted. Each is seen where its register's
+     | location may be used.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:pos', 'access'])->prefix('pos/sessions')->group(function () {
+        Route::get('/', [PosSessionController::class, 'index'])->name('api.pos.sessions.index');
+        Route::get('/options', [PosSessionController::class, 'options'])->name('api.pos.sessions.options');
+        Route::post('/', [PosSessionController::class, 'store'])->middleware('idempotent')->name('api.pos.sessions.store');
+        Route::get('/{id}', [PosSessionController::class, 'show'])->whereNumber('id')->name('api.pos.sessions.show');
+        Route::post('/{id}/close', [PosSessionController::class, 'close'])->whereNumber('id')->middleware('idempotent')->name('api.pos.sessions.close');
     });
 
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm')->group(function () {

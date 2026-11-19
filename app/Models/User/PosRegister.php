@@ -6,6 +6,7 @@ use App\Models\Concerns\RecordsAuthors;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A POS register (Doc 18 section 18.5 - Phase A2): a till at one location,
@@ -79,5 +80,11 @@ class PosRegister extends Model
     public function cashiers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'pos_register_cashiers');
+    }
+
+    /** The sessions held at it (Phase B1). */
+    public function sessions(): HasMany
+    {
+        return $this->hasMany(PosSession::class, 'pos_register_id');
     }
 }

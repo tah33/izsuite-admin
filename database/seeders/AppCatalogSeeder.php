@@ -203,6 +203,7 @@ class AppCatalogSeeder extends Seeder
         ['apps', 'crm', 'Customers', 'users', '/contacts?role=customer', 'lite', null],
         // Point of Sale (Doc 18), in 18.3's order as each phase adds its own.
         ['apps', 'pos', 'Registers', 'monitor', '/pos/registers', 'lite', null],
+        ['apps', 'pos', 'Sessions', 'clock', '/pos/sessions', 'lite', null],
         ['apps', 'inventory', 'Stock', 'boxes', '/inventory/stock', 'lite', null],
         ['apps', 'inventory', 'Adjustments', 'sliders-horizontal', '/inventory/adjustments', 'lite', null],
 
@@ -237,6 +238,7 @@ class AppCatalogSeeder extends Seeder
         '/crm/activities'     => 'crm.activities.view',
         '/crm/forecast'       => 'crm.opportunities.view',
         '/pos/registers'      => 'pos.registers.view',
+        '/pos/sessions'       => 'pos.sessions.view',
         '/purchases'          => 'purchases.purchases.view',
         '/purchases/payments' => 'purchases.payments.view',
         '/expenses'           => 'expenses.expenses.view',

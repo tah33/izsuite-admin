@@ -421,6 +421,12 @@ final class RoutePermissions
             'api.pos.registers.store'   => 'pos.registers.manage',
             'api.pos.registers.update'  => 'pos.registers.manage',
             'api.pos.registers.destroy' => 'pos.registers.manage',
+            // Doc 18 Phase B1: POS sessions.
+            'api.pos.sessions.index'   => 'pos.sessions.view',
+            'api.pos.sessions.options' => 'pos.sessions.view',
+            'api.pos.sessions.show'    => 'pos.sessions.view',
+            'api.pos.sessions.store'   => 'pos.sessions.open',
+            'api.pos.sessions.close'   => 'pos.sessions.open',
             // Phase F3a: e-mail from a lead, an opportunity or a contact - the record's own view permission checked too (CrmEmailService).
             'api.crm.emails.draft' => 'crm.emails.send',
             'api.crm.emails.store' => 'crm.emails.send',

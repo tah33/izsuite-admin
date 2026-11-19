@@ -10,9 +10,11 @@ use App\Models\User\WorkspaceMember;
 use App\Repositories\User\LocationRepository;
 use App\Repositories\User\PaymentAccountRepository;
 use App\Repositories\User\PosRegisterRepository;
+use App\Repositories\User\PosSessionRepository;
 use App\Repositories\User\PosSettingRepository;
 use App\Repositories\User\PriceListRepository;
 use App\Repositories\User\WorkspaceMemberRepository;
+use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\WorkspaceAccess;
 use App\Services\User\Apps\WorkspaceApps;
@@ -38,6 +40,8 @@ use Illuminate\Validation\ValidationException;
  */
 class PosRegisterService
 {
+    use RefusesConflicts;
+
     public function __construct(
         protected PosRegisterRepository $registers,
         protected PosSettingRepository $settings,
@@ -47,6 +51,7 @@ class PosRegisterService
         protected WorkspaceMemberRepository $members,
         protected WorkspaceAccess $access,
         protected PosSettingService $posSettings,
+        protected PosSessionRepository $sessions,
     ) {}
 
     /** The registers at the locations the user may use, by name. */
@@ -89,6 +94,7 @@ class PosRegisterService
     public function update(Workspace $workspace, int $id, array $data): PosRegister
     {
         $register = $this->find($workspace, $id);
+        $this->keepsItsSession($register, $data);
         [$fields, $methodIds, $cashierIds] = $this->checked($workspace, $data, $register);
 
         DB::transaction(fn () => $this->registers->update($register, $fields, $methodIds, $cashierIds));
@@ -101,9 +107,35 @@ class PosRegisterService
     public function delete(Workspace $workspace, int $id): void
     {
         $register = $this->find($workspace, $id);
+
+        // Phase B1: its sessions keep it.
+        if ($this->sessions->heldAt($register)) {
+            $this->refuse('Sessions were held at this register, so it is kept for them. Switch it off instead.');
+        }
+
         $this->registers->delete($register);
 
         ActivityLogService::record('deleted', 'Deleted the POS register '.$this->quoted($register), $register, ['source' => 'api']);
+    }
+
+    /** Phase B1: while a session is open on it, the register stays active, at its location, in its currency. */
+    private function keepsItsSession(PosRegister $register, array $data): void
+    {
+        $session = $this->sessions->liveAt($register);
+
+        if (! $session) {
+            return;
+        }
+
+        $changed = array_filter([
+            'status'      => ($data['status'] ?? PosRegister::ACTIVE) !== PosRegister::ACTIVE,
+            'location_id' => (int) $data['location_id'] !== $register->location_id,
+            'currency'    => $data['currency'] !== $register->currency,
+        ]);
+
+        if ($changed !== []) {
+            throw ValidationException::withMessages(array_map(fn () => "Session {$session->number} is open on this register: it is closed first.", $changed));
+        }
     }
 
     private function find(Workspace $workspace, int $id): PosRegister
