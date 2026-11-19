@@ -74,6 +74,9 @@ class CrmLead extends Model
 
     public const PURCHASE_PERIODS = ['this_month', 'within_3_months', 'within_6_months', 'within_12_months', 'later'];
 
+    /** Its score's bands (Phase I2), each from - to: hot from 70, warm from 40, cold below. */
+    public const SCORE_BANDS = ['hot' => [70, 100], 'warm' => [40, 69], 'cold' => [0, 39]];
+
     protected $fillable = [
         'name',
         'business_name',
@@ -130,6 +133,9 @@ class CrmLead extends Model
         'opportunity_id'         => 'integer',
         'converted_at'           => 'datetime',
         'converted_by'           => 'integer',
+        // Its score and the scoring rules that gave it (Phase I2), kept by LeadScoring only.
+        'score'                  => 'integer',
+        'score_factors'          => 'array',
     ];
 
     public function workspace(): BelongsTo

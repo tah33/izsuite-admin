@@ -20,6 +20,8 @@ class CrmLeadListResource extends JsonResource
             'owner'           => $this->owner?->name,
             'estimated_value' => $this->estimated_value,
             'currency'        => $this->currency,
+            // Phase I2: its score, null while the business scores none.
+            'score'           => $this->score,
             'added_on'        => $this->created_at?->toDateString(),
             // Phase C2: open, with a possible duplicate not decided about.
             'possible_duplicate' => (bool) $this->possible_duplicate,

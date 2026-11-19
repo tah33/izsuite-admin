@@ -27,13 +27,20 @@ class CrmLeadRepository
         'converter:id,first_name,last_name',
     ];
 
+    /** What lead scoring (Phase I2) reads of a lead. */
+    private const SCORED = [
+        'id', 'workspace_id', 'status', 'source_id', 'location_id', 'email', 'phone', 'business_name', 'job_title', 'address_line1', 'address_city',
+        'decision_maker', 'customer_need', 'estimated_value', 'budget', 'currency', 'purchase_period', 'business_size',
+        'contacted_at', 'first_contacted_at', 'created_at', 'score', 'score_factors',
+    ];
+
     /**
      * The Leads page: open leads newest first - or those of one status, or
      * all of them - searched by name, business, e-mail or phone, by owner and
      * by source. Phase G3b's "uncontacted" is the open ones not contacted in
      * time: added before $filters['uncontacted_before'] (FollowUpCutoffs).
      * Phase G4's "awaiting" is those awaiting follow-up, as overview() counts
-     * them.
+     * them. Phase I2's score is a band of CrmLead::SCORE_BANDS.
      */
     public function paginateFor(Workspace $workspace, array $filters, array $scope, int $perPage): LengthAwarePaginator
     {
@@ -52,6 +59,8 @@ class CrmLeadRepository
             ->when($status && ! in_array($status, ['all', 'awaiting', 'uncontacted'], true), fn (Builder $query) => $query->where('status', $status))
             ->when($filters['owner_id'] ?? null, fn (Builder $query, $id) => $query->where('owner_id', $id))
             ->when($filters['source_id'] ?? null, fn (Builder $query, $id) => $query->where('source_id', $id))
+            // Phase I2: a score's band, hot, warm or cold.
+            ->when(CrmLead::SCORE_BANDS[$filters['score'] ?? ''] ?? null, fn (Builder $query, array $band) => $query->whereBetween('score', $band))
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate($perPage);
@@ -257,6 +266,55 @@ class CrmLeadRepository
             ->pluck('open_count', 'owner_id')
             ->map(fn ($count) => (int) $count)
             ->all();
+    }
+
+    /**
+     * Leads $ids of $workspace with what LeadScoring reads (Phase I2): their
+     * details, value, budget, qualification, first contact and score.
+     */
+    public function forScoring(Workspace $workspace, array $ids): \Illuminate\Database\Eloquent\Collection
+    {
+        return CrmLead::query()->where('workspace_id', $workspace->id)->whereIn('id', $ids)->get(self::SCORED);
+    }
+
+    /** Each run of up to 200 of $workspace's open leads, as forScoring() reads them, to $each. */
+    public function eachOpenForScoring(Workspace $workspace, callable $each): void
+    {
+        CrmLead::query()->where('workspace_id', $workspace->id)->whereIn('status', CrmLead::OPEN)->select(self::SCORED)->chunkById(200, $each);
+    }
+
+    /**
+     * What leads $ids are interested in (Phase B2a), by lead id: the ids of
+     * the items named, none for those typed in. A lead interested in nothing
+     * has no entry.
+     *
+     * @return array<int, list<int>>
+     */
+    public function interestsOf(array $ids): array
+    {
+        return CrmLeadItem::query()
+            ->whereIn('crm_lead_id', $ids)
+            ->get(['crm_lead_id', 'item_id'])
+            ->groupBy('crm_lead_id')
+            ->map(fn ($rows) => $rows->pluck('item_id')->filter()->map(fn ($id) => (int) $id)->values()->all())
+            ->all();
+    }
+
+    /**
+     * Its score and factors (Phase I2), quietly: they are not a change to the
+     * lead, so its version stays and someone editing it saves as before.
+     *
+     * @param  list<array{name: string, points: int}>|null  $factors
+     */
+    public function scored(int $leadId, ?int $score, ?array $factors): void
+    {
+        CrmLead::query()->whereKey($leadId)->toBase()->update(['score' => $score, 'score_factors' => $factors === null ? null : json_encode($factors)]);
+    }
+
+    /** No lead of $workspace has a score any more, quietly: how many had one. */
+    public function unscoreAll(Workspace $workspace): int
+    {
+        return CrmLead::query()->where('workspace_id', $workspace->id)->whereNotNull('score')->toBase()->update(['score' => null, 'score_factors' => null]);
     }
 
     /** Open, never contacted (Phase G3a's first contact), and added before $before. */

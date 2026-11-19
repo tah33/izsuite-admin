@@ -2,10 +2,10 @@
 
 What is done, what comes next, and how to carry on from another PC.
 
-- **Last updated:** 2026-11-18
-- **Code:** Doc 17 Phase I1 (the lead assignment rules) is committed: frontend `ce8c86b` on `nuxt`, and on `main` the admin commit right after `4b75b5c`.
-- **Tests:** 1019 backend tests pass (last full run 2026-11-18, on the first PC, on this code).
-- **Next step:** Doc 17 Phase I2: lead scoring (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Last updated:** 2026-11-19
+- **Code:** Doc 17 Phase I2 (lead scoring) is committed: frontend `8306872` on `nuxt`, and on `main` the admin commit right after shuvo's `9bf4525`. Before it, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
+- **Tests:** 1029 backend tests, last full run 2026-11-19 on the first PC: 1028 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Phase I2 (see [Small things left](#small-things-left)).
+- **Next step:** Doc 17 Phase I3: marketing consent (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase I1 the latest is 000183. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 17 Phase I2 the latest is 000184. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 17 Phase I2.
+   > Read PROJECT_STATUS.md, then start Doc 17 Phase I3.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -59,7 +59,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | 14 | Shared Platform Services | Done, except what was left on purpose (see [Doc 14](#2-doc-14-shared-platform-services-done-2026-11-12)) |
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
-| **17** | **CRM** | **In progress: gap check and Phases A to H done (Campaign-to-Opportunity Results waits for Doc 21), Phase I split (I1 built 2026-11-18), Phase I2 next** |
+| **17** | **CRM** | **In progress: gap check and Phases A to H done (Campaign-to-Opportunity Results waits for Doc 21), Phase I split (I1 built 2026-11-18, I2 2026-11-19), Phase I3 next** |
 | 18 to 21 | POS, eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -1404,7 +1404,7 @@ The gap check was done on 2026-11-14. Doc 16 is the full Sales app, which replac
 - A legal hold stops deleting draft deliveries and returns, their files, and price lists.
 - `SalesRecordLocationsTest`. No migration.
 
-### 5. Doc 17: CRM (next: Phase I2)
+### 5. Doc 17: CRM (next: Phase I3)
 
 The gap check was done on 2026-11-15. Doc 17 is CRM: leads, opportunities and the activities around them, before and alongside Sales. It shares Contacts, and nothing in it counts as sales.
 
@@ -2274,11 +2274,41 @@ The first PC's parts were taken out: both repos are D3b to F4 as the second PC b
   - The Activity Log named each rule. The Add Lead form's owner list offered "Nobody yet: the assignment rules, else the queue".
   - The rules, the team, the leads, the CRM settings and lists, the app's state, the sign-in and the activity were then put back.
 
-**Phase I2: lead scoring** (section 17.22), suggested defaults:
+**Phase I2: lead scoring** (section 17.22) is built. Its suggested defaults named source, budget, purchase period, decision maker, business size, interested items and being contacted. Section 17.22 also names location, contact details, estimated value, engagement and time since last activity, so it has them all:
 
-- Points for what Settings → CRM names: source, budget, purchase period, decision maker, business size, interested items and being contacted. Setting them up needs Manage Assignment and Scoring Rules.
-- The score shows on the lead with its factors, and the Leads page gets a Score column and filter.
-- It never qualifies or rejects a lead by itself.
+- **Settings → CRM gains a Scoring Rules card** after Assignment Rules, while the business uses leads, for whoever may manage assignment and scoring rules. A rule is added, edited, switched off and deleted, with a confirmation.
+- **A rule gives a lead points, from -100 to 100 (never 0), when it:**
+  - comes from a lead source, or is at a location (offered while there are several);
+  - has a detail filled in: e-mail, phone, business name, job title, address, decision maker, customer need or interested items;
+  - is interested in an item;
+  - is worth, or has a budget of, at least an amount in the base currency. Another currency counts at today's rate; with no rate today, it gets no points;
+  - expects to buy in a purchase period, or has words in its business size or type;
+  - has at least so many activities done and e-mails sent;
+  - was contacted, or was not contacted within Settings → CRM's lead response days;
+  - has gone at least so many days without activity, as its page counts them.
+- **An open lead's score** is its rules' points added up, kept from 0 to 100: hot from 70, warm from 40, cold below.
+- **When it is scored:**
+  - when it is added or edited, marked contacted, qualified or reopened;
+  - when an activity is done or an e-mail sent for it;
+  - every hour (`crm:score-leads`), as time without activity and late first contacts change by themselves;
+  - and every open lead, by the queue, when the rules change.
+- A score is not a change to the lead: someone editing it saves as before.
+- A closed lead keeps the score it had. With no rule switched on, no lead has a score.
+- **The lead's page** shows its score and band by its status, and a Lead Score card with the rules that gave it and their points. Over 100, the card says what the points add up to.
+- **The Leads page** gains a Score column and a Score filter (hot, warm, cold) while the business scores its leads.
+- A score never qualifies, unqualifies or archives a lead. AI scoring waits for the AI application.
+- **Checked in the browser** on the first PC, as `user@izsuite.io` with CRM switched on by hand:
+  - Settings → CRM showed Scoring Rules after Assignment Rules: "None yet: leads are not scored."
+  - "Website leads" (Comes from a lead source, Website, 20) was added through its dialog: "Rule added. The open leads are being scored again.", its row reading "comes from Website" and +20.
+  - "Gone quiet" (Has gone days without activity, 7, -15) read "has gone 7 days or more without activity" and -15 in red.
+  - Six more were added through the API: an e-mail, a phone, worth at least $50,000.00, expects to buy this month, "wholesale" in its business size or type, was contacted. Each row read as it should.
+  - Three leads were added. Karim Ahmed (website, e-mail and phone, $60,000, this month, a wholesale trader) scored 95 · Hot, Salma Begum 40 · Warm, and Rahim Uddin (a referral with a phone) 10 · Cold.
+  - The Leads page showed them in its Score column, and its Hot filter showed Karim alone.
+  - Karim's page showed "Score 95 · Hot" by its status. Its Lead Score card listed its six rules, Big value's +25 first.
+  - Marked contacted, it read 100, with Contacted's +15 and "Its points add up to 110; a score stays from 0 to 100."
+  - Big value, edited and switched off, showed an Off pill; Wholesale was deleted through its confirmation. The queue scored Karim again: 75.
+  - The hourly `crm:score-leads` changed nothing. Each rule change was in the Activity Log.
+  - The rules, the leads, the CRM settings and lists, the app's state, the sign-in and the activity were then put back.
 
 **Phase I3: marketing consent** (section 17.25), suggested defaults, on contacts and leads, apart from sales follow-up:
 
@@ -2329,6 +2359,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 17: Phase H1 | none |
 | Doc 17: Phases H2, H3 | none, none |
 | Doc 17: Phase I1 | 000183 |
+| Doc 17: Phase I2 | 000184 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -2796,6 +2827,23 @@ On a fresh business, set the days in Settings → CRM to fit what you have, rath
 - [ ] As the member with only Manage Assignment and Scoring Rules: the CRM tab shows the Assignment Rules alone. Without the permission, the card is not there.
 - [ ] With Opportunities Only, the card is gone.
 
+**Phase I2: lead scoring**
+
+**Before you start:** CRM on and using leads, with a member whose role has Settings' View and Manage Assignment and Scoring Rules, but not Manage CRM Settings.
+
+- [ ] Settings → CRM has Scoring Rules after Assignment Rules: "None yet: leads are not scored." The Leads page has no Score column.
+- [ ] Add "Website leads" (Comes from a lead source, Website, 20): "Rule added. The open leads are being scored again." Leads from the website already there now score 20.
+- [ ] Add rules for an e-mail (10), an estimated value of at least an amount (25) and buying this month (20). Each row says what it asks, with its points in green; add one with a minus and they show in red.
+- [ ] Add a website lead with an e-mail, a value above that amount and This month. Its page shows its score and band by its status, and the Lead Score card lists the rules that gave it.
+- [ ] A value in another currency counts at today's rate. With no rate today, it gets no value points.
+- [ ] The Leads page has a Score column. The Score filter's Hot, Warm and Cold each show only theirs.
+- [ ] With a rule for being contacted, or for activities done and e-mails sent: mark a lead contacted, complete an activity or send an e-mail for it, and its score moves.
+- [ ] Edit a lead: its score follows. Points above 100 stay at 100, and the card says what they add up to.
+- [ ] Switch a rule off: it shows Off, and the leads lose its points. Delete one: a confirmation first, then the same.
+- [ ] Archive a lead: it keeps its score. Switch off or delete every rule: no lead has a score, and the Score column goes.
+- [ ] A score never qualifies or rejects a lead by itself.
+- [ ] As the member with only Manage Assignment and Scoring Rules: the CRM tab shows the two rules cards alone.
+
 ## How we work
 
 Each document goes the same way:
@@ -3058,9 +3106,10 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 17: Phase G4, the Dashboard's CRM figures | `19cb5ad` | `9fdefc0` | none |
 | Doc 17: Phase H1, the CRM lead reports | `ff2f536` | `6171111` | none |
 | Doc 17: Phases H2 and H3, the CRM opportunity, people and activity reports | `4b75b5c` | `26f0f0e` | none |
-| Doc 17: Phase I1, the lead assignment rules | the commit after `4b75b5c` | `ce8c86b` | 000183 |
+| Doc 17: Phase I1, the lead assignment rules | `9f37087` | `ce8c86b` | 000183 |
+| Doc 17: Phase I2, lead scoring | the commit after `9bf4525` | `8306872` | 000184 |
 
-Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`).
+Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`). Between I1 and I2, shuvo added rich text for payment instructions and the Sales settings' notes and terms (`a5e46cb` and `9bf4525`, with no frontend commit yet).
 
 ### Decisions worth knowing
 
@@ -3565,10 +3614,27 @@ These are easy to undo by mistake.
     - SettingsCrmAssignmentRules, with CrmAssignmentRuleModal and CrmAssignmentRuleWhen (the conditions), on `useCrmAssignmentRules()`, whose shared state is `crm:assignment-rules`;
     - SettingsCrm shows its other cards only with `crm.settings.manage`, and the settings page's CRM tab needs either permission;
     - CrmLeadAssignModal's "Use the Assignment Rules" (`LeadStep` `assign-by-rules`).
+- Lead scoring (Doc 17 Phase I2, migration 000184):
+  - `crm_scoring_rules`: name, `is_active`, `factor`, what it asks (`source_id`, `location_id`, `item_id`, `option` or `threshold`, as `CrmScoringRule::NEEDS` says) and `points`, -100 to 100 and never 0.
+  - `crm_leads` gains `score` (0 to 100, null while not scored) and `score_factors`: the fitting rules' names and points, most first. `CrmLead::SCORE_BANDS` holds the bands.
+  - `App\Services\Crm\LeadScoring`:
+    - `rescore()` scores one lead while it is open;
+    - `rescoreAll()` scores a business's open leads in runs of 200 - or, with no rule on, clears every lead's score;
+    - `rescoreEveryBusiness()` is `crm:score-leads`' (hourly, for businesses with a rule on and CRM in use).
+    - It reads interests, activities done and e-mails sent in bulk (`CrmLeadRepository::interestsOf()`, `CrmActivityRepository::doneByLead()`, `CrmEmailRepository::sentByLead()`) and converts at today's rate.
+    - It writes through `CrmLeadRepository::scored()`, quietly (`toBase()`), so a lead's version (EditConflicts) stays, and only where the score or factors changed.
+  - It is called from `CrmLeadService::create()` and `update()`, `CrmLeadFlow::move()` (contact, qualify, unqualify, archive, reopen), `CrmActivityService::complete()` and `CrmEmailService::send()`. A rule's change dispatches `ScoreLeads` (queued, safe to retry).
+  - Settings: `CrmScoringRuleService` (keeps only what the factor asks, each id the business's own), `CrmScoringRuleController`, `SaveCrmScoringRuleRequest` and `CrmScoringRuleResource`. The routes are under `/business-settings/crm/scoring-rules`, with `crm.rules.manage`.
+  - Leads: `CrmLeadResource` has `score` and `score_factors`, `CrmLeadListResource` `score`, and the options `scoring`. `ListCrmLeadsRequest`'s `score` is a band.
+  - Frontend:
+    - SettingsCrmScoringRules, with CrmScoringRuleModal and CrmScoringRuleAsk (what the factor needs), on `useCrmScoringRules()`, whose shared state is `crm:scoring-rules`;
+    - `utils/crmScoring.ts`: the factors, details, responses and bands, and `describeScoringRule()`;
+    - CrmLeadScoreCard and CrmLeadScorePill on the lead's page and the Leads list, and CrmLeadsToolbar's Score filter.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
 
+- `SalesSettingsApiTest` fails since shuvo's `a5e46cb` (pulled 2026-11-19). The Sales settings' notes and terms are now kept as rich text, so plain text comes back wrapped in `<p>`, and the test still sends and expects plain text. Until a frontend editor for them is on `nuxt`, the settings form would show those tags too. Check it with shuvo.
 - **Doc 05:** the optional Responsible User on a payment account, and the Transfer Fee on a transfer, were never built.
 - A disabled Settings section also disables its "Try again" button. Reloading the page works.
 - Purchase and expense duplicate warnings can name document numbers from other locations, because that check covers the whole business.
@@ -3702,4 +3768,5 @@ Each of these is yours to settle.
 - Doc 17 Phase H1: no migration. A new permission, CRM → CRM Reports: View CRM Reports, brings Reports' View with it. Roles made from the Manager template from now on have it; give it to custom roles in Settings → Users & Roles. Deploy the frontend with it (the Reports page gains its CRM group and filters).
 - Doc 17 Phases H2 and H3: no migration. Deploy the frontend with them (the Reports page's CRM group gains thirteen reports, and the Pipeline and Stage filters).
 - Doc 17 Phase I1: migration 000183 adds `crm_assignment_rules`; businesses start with none, so every lead added without an owner still waits in the queue until rules are set up. A new permission, CRM → Assignment and Scoring Rules: Manage Assignment and Scoring Rules, brings Settings' View with it. Roles made from the Manager template from now on have it; give it to custom roles in Settings → Users & Roles. Deploy the frontend with it.
+- Doc 17 Phase I2: migration 000184 adds `crm_scoring_rules`, and the leads' `score` and `score_factors`. Businesses start with no rules, so no lead is scored until rules are set up. The scheduler runs `crm:score-leads` hourly, and the queue worker scores the leads again when the rules change. It uses Phase I1's permission. Deploy the frontend with it.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

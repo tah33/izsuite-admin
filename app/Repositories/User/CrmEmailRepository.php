@@ -93,6 +93,25 @@ class CrmEmailRepository
             ->all();
     }
 
+    /**
+     * How many e-mails were sent to each of leads $ids from izSuite, and when
+     * the latest was (Phase I2's lead scoring), by lead id - none for a lead
+     * never e-mailed.
+     *
+     * @return array<int, array{count: int, last_at: string}>
+     */
+    public function sentByLead(Workspace $workspace, array $ids): array
+    {
+        return CrmEmail::query()
+            ->where('workspace_id', $workspace->id)
+            ->whereIn('lead_id', $ids)
+            ->groupBy('lead_id')
+            ->selectRaw('lead_id, count(*) as sent_count, max(created_at) as last_at')
+            ->get()
+            ->mapWithKeys(fn ($row) => [(int) $row->lead_id => ['count' => (int) $row->sent_count, 'last_at' => (string) $row->last_at]])
+            ->all();
+    }
+
     /** Whether any was sent from $contact: it is then deactivated, not deleted. */
     public function usesContact(Contact $contact): bool
     {

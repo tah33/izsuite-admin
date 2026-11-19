@@ -227,6 +227,26 @@ class CrmActivityRepository
             ->all();
     }
 
+    /**
+     * How many activities were done for each of leads $ids, and when the
+     * latest was (Phase I2's lead scoring), by lead id - none for a lead with
+     * none done.
+     *
+     * @return array<int, array{count: int, last_at: string}>
+     */
+    public function doneByLead(Workspace $workspace, array $ids): array
+    {
+        return CrmActivity::query()
+            ->where('workspace_id', $workspace->id)
+            ->whereIn('lead_id', $ids)
+            ->where('status', CrmActivity::COMPLETED)
+            ->groupBy('lead_id')
+            ->selectRaw('lead_id, count(*) as done_count, max(completed_at) as last_at')
+            ->get()
+            ->mapWithKeys(fn ($row) => [(int) $row->lead_id => ['count' => (int) $row->done_count, 'last_at' => (string) $row->last_at]])
+            ->all();
+    }
+
     /** Planned ones $scope sees - given to $filters' owner_id, at its location_id, when they name one. */
     private function planned(Workspace $workspace, array $scope, array $filters): Builder
     {

@@ -17,7 +17,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * A lead's page and form (Doc 17 Phase B1): every field, its source, owner,
  * team and location by name, and what the signed-in user may do with it now
  * (edit, assign, contact, qualify, unqualify, archive, reopen). Phase G3a
- * adds its response and follow-up (RecordFollowUp).
+ * adds its response and follow-up (RecordFollowUp), Phase I2 its score with
+ * its factors.
  */
 class CrmLeadResource extends JsonResource
 {
@@ -43,6 +44,9 @@ class CrmLeadResource extends JsonResource
             'team'                   => $named($this->team),
             'location'               => $named($this->location),
             'priority'               => $this->priority,
+            // Its score and the scoring rules that gave it (Phase I2): null and none while the business scores none.
+            'score'                  => $this->score,
+            'score_factors'          => $this->score_factors ?? [],
             'estimated_value'        => $this->estimated_value,
             'currency'               => $this->currency,
             'expected_purchase_date' => $this->expected_purchase_date?->toDateString(),

@@ -367,6 +367,12 @@ class Workspace extends Model
         return $this->hasMany(CrmAssignmentRule::class);
     }
 
+    /** Its lead scoring rules (Doc 17 Phase I2). */
+    public function crmScoringRules(): HasMany
+    {
+        return $this->hasMany(CrmScoringRule::class);
+    }
+
     /** How each kind of document is numbered - a row only where a default was changed. */
     public function documentNumbering(): HasMany
     {

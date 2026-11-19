@@ -41,6 +41,8 @@ Schedule::command('usage:snapshot')->dailyAt('23:50')->timezone('UTC')->withoutO
 
 // CRM activities' reminders whose moment has come (Doc 17 Phase E2).
 Schedule::command('crm:remind-activities')->everyMinute()->withoutOverlapping();
+// Open CRM leads scored again, as time without activity and late first contacts change by themselves (Doc 17 Phase I2).
+Schedule::command('crm:score-leads')->hourly()->withoutOverlapping();
 
 // Support sessions past their end, recorded as ended in the business's Activity Log (Doc 15 Phase B4).
 Schedule::command('support-sessions:close-expired')->everyFiveMinutes()->withoutOverlapping();

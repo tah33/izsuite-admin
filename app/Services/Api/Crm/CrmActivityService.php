@@ -15,6 +15,7 @@ use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Crm\ActivityAssignments;
 use App\Services\Crm\ActivityNotices;
 use App\Services\Crm\ActivityVisibility;
+use App\Services\Crm\LeadScoring;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\BusinessCalendar;
 use App\Services\Shared\WorkspaceAccess;
@@ -53,6 +54,7 @@ class CrmActivityService
         protected BusinessCalendar $calendar,
         protected WorkspaceAccess $access,
         protected ActivityNotices $notices,
+        protected LeadScoring $scoring,
     ) {}
 
     /** The Activities page (see CrmActivityRepository::paginateFor), "me" given for whom it is given to being the user. */
@@ -234,6 +236,11 @@ class CrmActivityService
 
             return $next;
         });
+
+        // Phase I2: an activity done for a lead counts towards its score.
+        if ($activity->lead_id) {
+            $this->scoring->rescore($workspace, $activity->lead_id);
+        }
 
         // Phase E2: whom the follow-up is given to hears of it.
         if ($followUp) {

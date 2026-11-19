@@ -36,6 +36,7 @@ use App\Http\Controllers\Api\CrmContactSummaryController;
 use App\Http\Controllers\Api\CrmEmailController;
 use App\Http\Controllers\Api\CrmAssignmentRuleController;
 use App\Http\Controllers\Api\CrmEmailTemplateController;
+use App\Http\Controllers\Api\CrmScoringRuleController;
 use App\Http\Controllers\Api\CrmTimelineController;
 use App\Http\Controllers\Api\CrmOpportunityController;
 use App\Http\Controllers\Api\CrmOpportunityDocumentController;
@@ -322,6 +323,11 @@ Route::prefix('v1')->group(function () {
             Route::put('/assignment-rules/order', [CrmAssignmentRuleController::class, 'reorder'])->name('api.business-settings.crm.assignment-rules.order');
             Route::put('/assignment-rules/{id}', [CrmAssignmentRuleController::class, 'update'])->whereNumber('id')->name('api.business-settings.crm.assignment-rules.update');
             Route::delete('/assignment-rules/{id}', [CrmAssignmentRuleController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.assignment-rules.destroy');
+            // Phase I2: the lead scoring rules.
+            Route::get('/scoring-rules', [CrmScoringRuleController::class, 'index'])->name('api.business-settings.crm.scoring-rules.index');
+            Route::post('/scoring-rules', [CrmScoringRuleController::class, 'store'])->middleware('idempotent')->name('api.business-settings.crm.scoring-rules.store');
+            Route::put('/scoring-rules/{id}', [CrmScoringRuleController::class, 'update'])->whereNumber('id')->name('api.business-settings.crm.scoring-rules.update');
+            Route::delete('/scoring-rules/{id}', [CrmScoringRuleController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.crm.scoring-rules.destroy');
         });
 
         // Sales teams (Doc 16 Phase A): the full Sales app's - and, since Doc

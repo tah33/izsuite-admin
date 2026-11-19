@@ -7,6 +7,7 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\CrmLeadRepository;
 use App\Repositories\User\CrmOptionRepository;
+use App\Repositories\User\CrmScoringRuleRepository;
 use App\Repositories\User\LocationRepository;
 use App\Repositories\User\SalesTeamRepository;
 use App\Services\Api\Sales\RefusesConflicts;
@@ -16,6 +17,7 @@ use App\Services\Crm\LeadAssignments;
 use App\Services\Crm\LeadDuplicates;
 use App\Services\Crm\LeadInterests;
 use App\Services\Crm\LeadRouting;
+use App\Services\Crm\LeadScoring;
 use App\Services\Crm\LeadVisibility;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\EditConflicts;
@@ -66,6 +68,8 @@ class CrmLeadService
         protected LeadDuplicates $duplicates,
         protected FollowUpCutoffs $cutoffs,
         protected LeadRouting $routing,
+        protected LeadScoring $scoring,
+        protected CrmScoringRuleRepository $scoringRules,
     ) {}
 
     /**
@@ -104,8 +108,9 @@ class CrmLeadService
      * sources and sales teams switched on, the people a lead can be given
      * to, where a new lead starts and who owns it - $user, unless they choose
      * someone else - what qualifying needs filled in (Phase B2a), and (Phase
-     * G3b) the days its "uncontacted" filter is named with. The lists start
-     * here if Settings > CRM was never opened.
+     * G3b) the days its "uncontacted" filter is named with, and (Phase I2)
+     * whether the business scores its leads. The lists start here if
+     * Settings > CRM was never opened.
      */
     public function options(Workspace $workspace, User $user): array
     {
@@ -119,6 +124,7 @@ class CrmLeadService
             'owner_id'               => $user->id,
             'qualification_required' => $this->settings->qualificationRequired($workspace),
             'lead_response_days'     => $this->settings->periods($workspace)['lead_response_days'],
+            'scoring'                => $this->scoringRules->anyActive($workspace),
         ];
     }
 
@@ -164,6 +170,8 @@ class CrmLeadService
 
             return [$lead, $routed['rule'] ?? null];
         });
+        // Phase I2: scored as it is.
+        $this->scoring->rescore($workspace, $lead->id);
         $lead = $this->leads->loadShown($lead);
 
         ActivityLogService::record(
@@ -217,6 +225,9 @@ class CrmLeadService
                 ...($itemsChanged ? ['interested_items'] : []),
             ],
         ]);
+
+        // Phase I2: scored again as it is now.
+        $this->scoring->rescore($workspace, $lead->id);
 
         return $this->leads->loadShown($lead);
     }

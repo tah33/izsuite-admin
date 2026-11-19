@@ -22,6 +22,7 @@ use App\Repositories\User\EmailSettingRepository;
 use App\Repositories\User\WorkspaceFileRepository;
 use App\Services\Api\Documents\EmailSettingService;
 use App\Services\Api\Sales\RefusesConflicts;
+use App\Services\Crm\LeadScoring;
 use App\Services\Crm\OpportunityDocuments;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\WorkspaceAccess;
@@ -61,6 +62,7 @@ class CrmEmailService
         protected WorkspaceAccess $access,
         protected CrmEmailTemplateRepository $templates,
         protected CrmLeadRepository $leadRepository,
+        protected LeadScoring $scoring,
     ) {}
 
     /**
@@ -127,6 +129,8 @@ class CrmEmailService
         // Phase G3a: a lead e-mailed is answered, from the moment it was sent.
         if ($record instanceof CrmLead) {
             $this->leadRepository->answered($record->id, $email->created_at);
+            // Phase I2: an e-mail sent counts towards its score.
+            $this->scoring->rescore($workspace, $record->id);
         }
 
         SendCrmEmail::dispatch($email->id);

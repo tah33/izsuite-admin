@@ -11,6 +11,7 @@ use App\Services\Crm\CrmLeadRules;
 use App\Services\Crm\LeadAssignments;
 use App\Services\Crm\LeadQualification;
 use App\Services\Crm\LeadRouting;
+use App\Services\Crm\LeadScoring;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -39,6 +40,7 @@ class CrmLeadFlow
         protected LeadAssignments $assignments,
         protected LeadQualification $qualification,
         protected LeadRouting $routing,
+        protected LeadScoring $scoring,
     ) {}
 
     /** A lead in the queue given to whom the first fitting assignment rule says (Phase I1) - refused when none fits. */
@@ -119,7 +121,7 @@ class CrmLeadFlow
         $now  = now();
 
         // Phase G3a: its first contact stays, however often it is marked again.
-        return $this->move($lead, ['status' => CrmLead::CONTACTED, 'contacted_at' => $now, 'first_contacted_at' => $lead->first_contacted_at ?? $now], 'Marked '.$this->service->describe($lead).' contacted');
+        return $this->move($workspace, $lead, ['status' => CrmLead::CONTACTED, 'contacted_at' => $now, 'first_contacted_at' => $lead->first_contacted_at ?? $now], 'Marked '.$this->service->describe($lead).' contacted');
     }
 
     /** Once what Settings > CRM requires (Phase B2a) is filled in. Nothing is sold by it (section 17.10). */
@@ -132,28 +134,28 @@ class CrmLeadFlow
             throw ValidationException::withMessages(['qualification' => 'Fill in '.$this->qualification->describe($missing).' before qualifying this lead.']);
         }
 
-        return $this->move($lead, ['status' => CrmLead::QUALIFIED], 'Qualified '.$this->service->describe($lead));
+        return $this->move($workspace, $lead, ['status' => CrmLead::QUALIFIED], 'Qualified '.$this->service->describe($lead));
     }
 
     public function unqualify(Workspace $workspace, User $user, int $id, string $reason): CrmLead
     {
         $lead = $this->allowed($workspace, $user, $id, 'unqualify', 'Only an open lead is marked unqualified.');
 
-        return $this->move($lead, ['status' => CrmLead::UNQUALIFIED, 'status_reason' => $reason], 'Marked '.$this->service->describe($lead).' unqualified', ['reason' => $reason]);
+        return $this->move($workspace, $lead, ['status' => CrmLead::UNQUALIFIED, 'status_reason' => $reason], 'Marked '.$this->service->describe($lead).' unqualified', ['reason' => $reason]);
     }
 
     public function archive(Workspace $workspace, User $user, int $id, ?string $reason): CrmLead
     {
         $lead = $this->allowed($workspace, $user, $id, 'archive', 'This lead cannot be archived.');
 
-        return $this->move($lead, ['status' => CrmLead::ARCHIVED, 'status_reason' => $reason], 'Archived '.$this->service->describe($lead), ['reason' => $reason]);
+        return $this->move($workspace, $lead, ['status' => CrmLead::ARCHIVED, 'status_reason' => $reason], 'Archived '.$this->service->describe($lead), ['reason' => $reason]);
     }
 
     public function reopen(Workspace $workspace, User $user, int $id): CrmLead
     {
         $lead = $this->allowed($workspace, $user, $id, 'reopen', 'Only an unqualified or archived lead is reopened.');
 
-        return $this->move($lead, ['status' => $lead->owner_id ? CrmLead::ASSIGNED : CrmLead::NEW, 'status_reason' => null], 'Reopened '.$this->service->describe($lead));
+        return $this->move($workspace, $lead, ['status' => $lead->owner_id ? CrmLead::ASSIGNED : CrmLead::NEW, 'status_reason' => null], 'Reopened '.$this->service->describe($lead));
     }
 
     /** $lead - one $user sees - when its status allows $action. */
@@ -168,11 +170,14 @@ class CrmLeadFlow
         return $lead;
     }
 
-    private function move(CrmLead $lead, array $changes, string $what, array $properties = []): CrmLead
+    /** $lead given $changes, logged as $what - and (Phase I2) scored again while it stays open: one closed keeps its score. */
+    private function move(Workspace $workspace, CrmLead $lead, array $changes, string $what, array $properties = []): CrmLead
     {
         $this->leads->update($lead, $changes);
 
         ActivityLogService::record('updated', $what, $lead, ['source' => 'api', 'status' => $changes['status'], ...array_filter($properties)]);
+
+        $this->scoring->rescore($workspace, $lead->id);
 
         return $this->leads->loadShown($lead);
     }

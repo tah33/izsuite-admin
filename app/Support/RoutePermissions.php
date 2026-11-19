@@ -201,6 +201,11 @@ final class RoutePermissions
             'api.business-settings.crm.assignment-rules.order'   => 'crm.rules.manage',
             'api.business-settings.crm.assignment-rules.update'  => 'crm.rules.manage',
             'api.business-settings.crm.assignment-rules.destroy' => 'crm.rules.manage',
+            // Phase I2: the lead scoring rules, under the same permission.
+            'api.business-settings.crm.scoring-rules.index'      => 'crm.rules.manage',
+            'api.business-settings.crm.scoring-rules.store'      => 'crm.rules.manage',
+            'api.business-settings.crm.scoring-rules.update'     => 'crm.rules.manage',
+            'api.business-settings.crm.scoring-rules.destroy'    => 'crm.rules.manage',
             'api.business-settings.expenses.show'              => 'settings.view',
             'api.business-settings.expenses.update'            => 'expenses.settings.manage',
 
