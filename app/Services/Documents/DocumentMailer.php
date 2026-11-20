@@ -5,9 +5,11 @@ namespace App\Services\Documents;
 use App\Exceptions\PdfUnavailable;
 use App\Mail\DocumentMail;
 use App\Models\User\DocumentEmail;
+use App\Models\User\PosOrder;
 use App\Models\User\SalesPayment;
 use App\Repositories\User\DocumentEmailRepository;
 use App\Repositories\User\EmailSettingRepository;
+use App\Repositories\User\PosOrderRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Repositories\User\SalesPaymentRepository;
 use App\Services\Api\Documents\EmailSettingService;
@@ -27,6 +29,7 @@ class DocumentMailer
         protected EmailSettingService $emailSettingService,
         protected SalesDocumentRepository $salesDocumentRepository,
         protected SalesPaymentRepository $salesPaymentRepository,
+        protected PosOrderRepository $posOrderRepository,
         protected DocumentPdf $documentPdf,
     ) {}
 
@@ -43,9 +46,12 @@ class DocumentMailer
         $record    = $email->emailable;
         $setting   = $this->emailSettingRepository->forWorkspace($workspace);
 
-        [$filename, $pdf] = $record instanceof SalesPayment
-            ? $this->documentPdf->receipt($workspace, $this->salesPaymentRepository->loadForReceipt($record))
-            : $this->documentPdf->sales($workspace, $this->salesDocumentRepository->loadForPdf($record));
+        // A POS sale's receipt (Doc 18 Phase C4) goes as the original: e-mailed, it is not a printed copy.
+        [$filename, $pdf] = match (true) {
+            $record instanceof SalesPayment => $this->documentPdf->receipt($workspace, $this->salesPaymentRepository->loadForReceipt($record)),
+            $record instanceof PosOrder     => $this->documentPdf->posReceipt($workspace, $this->posOrderRepository->loadForReceipt($record), false),
+            default                         => $this->documentPdf->sales($workspace, $this->salesDocumentRepository->loadForPdf($record)),
+        };
 
         Mail::to($email->to)->cc($email->cc ?? [])->send(new DocumentMail(
             $email->subject,

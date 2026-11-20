@@ -148,6 +148,8 @@ final class RoutePermissions
             'api.reports.pdf'      => 'reports.view',
             'api.reports.export'   => 'reports.export',
             'api.reports.excel'    => 'reports.export',
+            // Doc 18 Phase H1: what POS's reports can be narrowed to.
+            'api.reports.pos-choices' => 'pos.reports.view',
 
             // Settings (Doc 11): what forms pick from is open to every member.
             'api.business-settings.show'                       => self::MEMBER,
@@ -187,6 +189,7 @@ final class RoutePermissions
             'api.business-settings.pos.show'                   => 'pos.settings.manage',
             'api.business-settings.pos.update'                 => 'pos.settings.manage',
             'api.business-settings.pos.cash-count.update'      => 'pos.settings.manage',
+            'api.business-settings.pos.selling.update'         => 'pos.settings.manage',
             'api.business-settings.pos.payment-methods.store'  => 'pos.settings.manage',
             'api.business-settings.pos.payment-methods.update' => 'pos.settings.manage',
             'api.business-settings.pos.payment-methods.destroy' => 'pos.settings.manage',
@@ -422,6 +425,13 @@ final class RoutePermissions
             'api.pos.registers.store'   => 'pos.registers.manage',
             'api.pos.registers.update'  => 'pos.registers.manage',
             'api.pos.registers.destroy' => 'pos.registers.manage',
+            // Phase I3: a register's devices.
+            'api.pos.devices.index'     => 'pos.registers.view',
+            'api.pos.devices.store'     => 'pos.registers.manage',
+            'api.pos.devices.update'    => 'pos.registers.manage',
+            'api.pos.devices.destroy'   => 'pos.registers.manage',
+            'api.pos.devices.test'      => 'pos.registers.manage',
+            'api.pos.devices.test-page' => 'pos.registers.manage',
             // Doc 18 Phase B1: POS sessions.
             'api.pos.sessions.index'   => 'pos.sessions.view',
             'api.pos.sessions.options' => 'pos.sessions.view',
@@ -432,8 +442,57 @@ final class RoutePermissions
             'api.pos.sessions.reopen'  => 'pos.sessions.reopen',
             // Doc 18 Phase C1: the selling screen, in the user's own open session (PosSellingService).
             'api.pos.sell.show'  => 'pos.selling.open',
+            // Phase I1: one's PIN, and one's register's lock.
+            'api.pos.lock'   => 'pos.selling.open',
+            'api.pos.unlock' => 'pos.selling.open',
+            'api.pos.pin'    => 'pos.selling.open',
+            // Phase I2: a manager's approval at one's register.
+            'api.pos.approvers'       => 'pos.selling.open',
+            'api.pos.approvals.store' => 'pos.selling.open',
             'api.pos.sell.items' => 'pos.selling.open',
             'api.pos.sell.quote' => 'pos.selling.open',
+            // Phase D3b: what credit the customer holds, to pay a sale with.
+            'api.pos.sell.credit' => 'pos.selling.sell',
+            // Phase C2: a sale paid and completed.
+            'api.pos.orders.store' => 'pos.selling.sell',
+            // Phase G1: POS's pages of records; G2, its Overview.
+            'api.pos.overview'             => 'pos.orders.view',
+            'api.pos.orders.index'         => 'pos.orders.view',
+            'api.pos.returns.index'        => 'pos.returns.view',
+            'api.pos.cash-movements.index' => 'pos.cash.view',
+            // Phase C4: its receipt - the first copy its cashier's, every later one needing Reprint Receipts (PosReceiptService).
+            'api.pos.orders.receipt'       => ['pos.selling.sell', 'pos.receipts.reprint'],
+            'api.pos.orders.receipt.email' => ['pos.selling.sell', 'pos.receipts.reprint'],
+            // Phase D4: its formal invoice, as its receipt (PosFormalInvoices).
+            'api.pos.orders.formal-invoice.store' => ['pos.selling.sell', 'pos.receipts.reprint'],
+            'api.pos.orders.formal-invoice.show'  => ['pos.selling.sell', 'pos.receipts.reprint'],
+            // Phase D1: orders held at the user's own register (PosHoldService).
+            'api.pos.held-orders.index'  => 'pos.selling.hold',
+            'api.pos.held-orders.store'  => 'pos.selling.hold',
+            'api.pos.held-orders.show'   => 'pos.selling.hold',
+            'api.pos.held-orders.resume' => 'pos.selling.hold',
+            'api.pos.held-orders.cancel' => 'pos.selling.cancel',
+            // Phase E1: returns, in one's own session; paying one back needs Process Refunds too (PosReturnService).
+            'api.pos.returns.lookup' => 'pos.returns.process',
+            'api.pos.returns.quote'  => 'pos.returns.process',
+            'api.pos.returns.store'  => 'pos.returns.process',
+            // Phase E2: a return's refund receipt; refunds waiting to be confirmed, as pending payments are.
+            'api.pos.returns.receipt'          => 'pos.returns.process',
+            'api.pos.sessions.pending-refunds' => 'pos.payments.confirm',
+            'api.pos.returns.refund.confirm'   => 'pos.payments.confirm',
+            'api.pos.returns.refund.decline'   => 'pos.payments.confirm',
+            // Phase F1: cash movements.
+            'api.pos.cash-movements.options'  => 'pos.cash.move',
+            'api.pos.cash-movements.store'    => 'pos.cash.move',
+            'api.pos.sessions.cash-movements' => 'pos.sessions.view',
+            // Phase F3: a session's X and Z reports.
+            'api.pos.sessions.report'         => 'pos.sessions.view',
+            'api.pos.cash-movements.approve'  => 'pos.cash.approve',
+            'api.pos.cash-movements.decline'  => 'pos.cash.approve',
+            // Phase D2: payments waiting to be confirmed (PosPendingPayments).
+            'api.pos.sessions.pending-payments' => 'pos.payments.confirm',
+            'api.pos.order-payments.confirm'    => 'pos.payments.confirm',
+            'api.pos.order-payments.decline'    => 'pos.payments.confirm',
             // Phase F3a: e-mail from a lead, an opportunity or a contact - the record's own view permission checked too (CrmEmailService).
             'api.crm.emails.draft' => 'crm.emails.send',
             'api.crm.emails.store' => 'crm.emails.send',

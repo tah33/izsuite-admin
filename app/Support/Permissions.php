@@ -134,8 +134,23 @@ final class Permissions
         'pos.sessions' => ['Sessions', 'pos', [
             'view' => self::VIEW, 'open' => 'Open and Close Sessions', 'approve' => 'Approve Variances and Close Others\' Sessions', 'reopen' => 'Reopen Closed Sessions',
         ]],
-        // Phase C1: the selling screen.
-        'pos.selling' => ['Selling', 'pos', ['open' => 'Open POS']],
+        // Phase C1: the selling screen; C2, completing a sale; C3, discounts and price overrides - beyond Settings' limit, a manager's; D1, held orders.
+        'pos.selling' => ['Selling', 'pos', [
+            'open' => 'Open POS', 'sell' => 'Sell Items', 'discount' => 'Apply Discounts', 'override' => 'Override Prices', 'beyond' => 'Discount Beyond the Limit',
+            'hold' => 'Hold and Resume Orders', 'cancel' => 'Cancel Held Orders', 'credit' => 'Create Credit Sales',
+        ]],
+        // Phase G1: the Orders page.
+        'pos.orders' => ['Orders', 'pos', ['view' => self::VIEW]],
+        // Phase C4: a receipt's copies after the first.
+        'pos.receipts' => ['Receipts', 'pos', ['reprint' => 'Reprint Receipts']],
+        // Phase E1: returns, and paying them back.
+        'pos.returns' => ['Returns and Refunds', 'pos', ['view' => self::VIEW, 'process' => 'Process Returns', 'refund' => 'Process Refunds', 'alternative' => 'Use Alternative Refund Methods']],
+        // Phase D2: a card or mobile payment waiting to be confirmed.
+        'pos.payments' => ['Pending Payments', 'pos', ['confirm' => 'Confirm Pending Payments']],
+        // Phase F1: cash moved into and out of a session's drawer - above Settings' limit, approved.
+        'pos.cash' => ['Cash Movements', 'pos', ['view' => self::VIEW, 'move' => 'Record Cash Movements', 'approve' => 'Approve Cash Movements']],
+        // Phase H1: POS's reports on the Reports page, each with the view of what it counts besides.
+        'pos.reports' => ['POS Reports', 'pos', ['view' => 'View POS Reports']],
     ];
 
     /** The groups whose records carry their app's values: anything but viewing one needs them. */
@@ -202,6 +217,25 @@ final class Permissions
         'pos.sessions.reopen'        => ['pos.sessions.view'],
         // Phase C1: one sells in one's own open session, to a customer chosen among the contacts.
         'pos.selling.open'           => ['pos.sessions.open', 'contacts.view'],
+        'pos.selling.sell'           => ['pos.selling.open'],
+        'pos.selling.discount'       => ['pos.selling.open'],
+        'pos.selling.override'       => ['pos.selling.open'],
+        'pos.selling.beyond'         => ['pos.selling.discount'],
+        'pos.selling.hold'           => ['pos.selling.open'],
+        'pos.selling.cancel'         => ['pos.selling.hold'],
+        'pos.selling.credit'         => ['pos.selling.sell'],
+        'pos.receipts.reprint'       => ['pos.selling.open'],
+        'pos.payments.confirm'       => ['pos.sessions.view'],
+        'pos.returns.process'        => ['pos.selling.open', 'pos.returns.view'],
+        'pos.returns.view'           => ['pos.sessions.view'],
+        'pos.orders.view'            => ['pos.sessions.view'],
+        'pos.returns.refund'         => ['pos.returns.process'],
+        'pos.returns.alternative'    => ['pos.returns.refund'],
+        'pos.cash.view'              => ['pos.sessions.view'],
+        'pos.cash.move'              => ['pos.selling.open', 'pos.cash.view'],
+        'pos.cash.approve'           => ['pos.sessions.view', 'pos.cash.view'],
+        // Phase H1: its reports are on the Reports page.
+        'pos.reports.view'           => ['reports.view'],
         'purchases.purchases.create' => ['contacts.view', 'items.view'],
         'purchases.payments.record'  => ['purchases.purchases.view', 'payment_accounts.view'],
         'purchases.payments.reverse' => ['payment_accounts.view'],

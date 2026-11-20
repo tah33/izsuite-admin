@@ -21,15 +21,29 @@ class PosSetting extends Model
         'return_policy',
         'receipt_footer',
         'variance_limit',
+        // Phase F1: above it, a cash movement waits for a manager's approval.
+        'cash_movement_limit',
         'counts_denominations',
         'denominations',
+        // Phase C3: the discount limit (a percentage) and the cash rounding step.
+        'discount_limit',
+        'cash_rounding',
+        // Phase D1: how many hours a held order is kept.
+        'hold_hours',
+        // Phase I1: the minutes without use after which a register locks.
+        'lock_minutes',
     ];
 
     protected $casts = [
         'walk_in_contact_id'   => 'integer',
         'variance_limit'       => 'decimal:2',
+        'cash_movement_limit'  => 'decimal:2',
         'counts_denominations' => 'boolean',
         'denominations'        => 'array',
+        'discount_limit'       => 'decimal:2',
+        'cash_rounding'        => 'decimal:2',
+        'hold_hours'           => 'integer',
+        'lock_minutes'         => 'integer',
     ];
 
     public function workspace(): BelongsTo

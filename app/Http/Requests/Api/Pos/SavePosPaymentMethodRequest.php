@@ -26,6 +26,7 @@ class SavePosPaymentMethodRequest extends FormRequest
             'payment_account_id' => ['required', 'integer'],
             'needs_reference'    => ['sometimes', 'boolean'],
             'gives_change'       => ['sometimes', 'boolean'],
+            'confirms_later'     => ['sometimes', 'boolean'],
             'is_active'          => ['sometimes', 'boolean'],
         ];
     }

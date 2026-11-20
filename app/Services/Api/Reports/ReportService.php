@@ -13,6 +13,8 @@ use App\Repositories\User\ExpenseCategoryRepository;
 use App\Repositories\User\ItemLabelRepository;
 use App\Repositories\User\ItemRepository;
 use App\Repositories\User\PaymentAccountRepository;
+use App\Repositories\User\PosRegisterRepository;
+use App\Repositories\User\PosReportRepository;
 use App\Services\Documents\DocumentFormat;
 use App\Services\Documents\DocumentTemplates;
 use App\Services\Documents\GotenbergClient;
@@ -50,6 +52,8 @@ class ReportService
         protected DocumentTemplates $documentTemplates,
         protected GotenbergClient $gotenbergClient,
         protected WorkspaceAccess $access,
+        protected PosRegisterRepository $posRegisterRepository,
+        protected PosReportRepository $posReportRepository,
     ) {}
 
     public function catalog(Workspace $workspace): array
@@ -135,7 +139,8 @@ class ReportService
      * the contact, item, category, expense category and account named, each
      * the business's own. CRM's reports (Doc 17 Phase H) also take a sales
      * team, an owner, a lead source, a pipeline and a stage - ids of another
-     * business find nothing - and count what the signed-in user sees.
+     * business find nothing - and count what the signed-in user sees; POS's
+     * (Doc 18 Phase H1) a register and a cashier, at the user's locations.
      */
     private function filters(Workspace $workspace, string $key, array $input): array
     {
@@ -162,6 +167,8 @@ class ReportService
             'lead_source_id'      => $input['lead_source_id'] ?? null,
             'pipeline_id'         => $input['pipeline_id'] ?? null,
             'stage_id'            => $input['stage_id'] ?? null,
+            'register_id'         => $input['register_id'] ?? null,
+            'cashier_id'          => $input['cashier_id'] ?? null,
             'user'                => $this->access->user(),
             'week_start'          => $workspace->weekStartDay(),
             'date_format'         => $workspace->date_format,
@@ -174,7 +181,7 @@ class ReportService
 
         $max = self::MAX_PERIODS[$filters['group_by']] ?? null;
 
-        if (in_array($key, ['sales-summary', 'purchase-summary'], true) && $max && count($this->reportPeriod->buckets($from, $to, $filters['group_by'])) >= $max) {
+        if (in_array($key, ['sales-summary', 'purchase-summary', 'pos-sales-summary', 'pos-sales-by-day', 'pos-average-order'], true) && $max && count($this->reportPeriod->buckets($from, $to, $filters['group_by'])) >= $max) {
             throw ValidationException::withMessages(['group_by' => 'That range is too long to show '.($filters['group_by'] === 'day' ? 'day by day' : 'week by week').'. Group it by month instead.']);
         }
 
@@ -205,6 +212,17 @@ class ReportService
         if ($filters['expense_category_id']) {
             $filters['expense_category'] = $this->expenseCategoryRepository->findFor($workspace, (int) $filters['expense_category_id'])
                 ?? throw ValidationException::withMessages(['expense_category_id' => 'Choose one of your expense categories.']);
+        }
+
+        // POS's (Doc 18 Phase H1): a register, or a cashier who sold or took returns, at the user's locations.
+        if ($filters['register_id']) {
+            $filters['register'] = $this->posRegisterRepository->findFor($workspace, (int) $filters['register_id'], $filters['location_ids'])
+                ?? throw ValidationException::withMessages(['register_id' => 'Choose one of your registers.']);
+        }
+
+        if ($filters['cashier_id']) {
+            $filters['cashier'] = $this->posReportRepository->cashiers($workspace, $filters['location_ids'])->firstWhere('id', (int) $filters['cashier_id'])
+                ?? throw ValidationException::withMessages(['cashier_id' => 'Choose one of your cashiers.']);
         }
 
         if ($filters['payment_account_id'] || $key === 'account-transactions') {

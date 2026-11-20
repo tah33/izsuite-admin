@@ -6,6 +6,7 @@ use App\Enums\DocumentType;
 use App\Enums\ExpenseStatus;
 use App\Enums\PurchaseStatus;
 use App\Models\User\Expense;
+use App\Models\User\PosReturn;
 use App\Models\User\Purchase;
 use App\Models\User\SalesDocument;
 use App\Models\User\Workspace;
@@ -58,6 +59,8 @@ class DocumentIndexService
             'sales'     => $apps->row('sales')?->app?->name ?? 'Sales',
             'purchases' => $apps->row('purchases')?->app?->name ?? 'Purchases',
             'expenses'  => $apps->row('expenses')?->app?->name ?? 'Expenses',
+            // Doc 18 Phase G3: POS's sales receipts, invoices, credit notes and refund receipts.
+            'pos'       => $apps->row('pos')?->app?->name ?? 'Point of Sale',
         ];
     }
 
@@ -102,6 +105,8 @@ class DocumentIndexService
         return [
             ...$filters,
             'location_ids' => $this->access->locations(),
+            // Doc 18 Phase G3: POS's refund receipts, for whoever may view its returns.
+            'refund_receipts' => $this->access->can('pos.returns.view'),
             'values'       => ['sales' => $this->access->seesValues('sales'), 'purchases' => $this->access->seesValues('purchases'), 'expenses' => $this->access->seesValues('expenses')],
         ];
     }
@@ -112,8 +117,25 @@ class DocumentIndexService
         return $this->access->seesValues($family) ? $amount : '';
     }
 
-    private function csvRow(SalesDocument|Purchase|Expense $document, string $today, array $sources): array
+    private function csvRow(SalesDocument|Purchase|Expense|PosReturn $document, string $today, array $sources): array
     {
+        // Doc 18 Phase G3: a POS return's refund receipt.
+        if ($document instanceof PosReturn) {
+            return [
+                $document->creditNote?->document_date ?? '',
+                $document->number,
+                'Refund Receipt',
+                $document->contact?->name ?? '',
+                $sources['pos'] ?? '',
+                ucfirst($document->refund_status),
+                '',
+                $this->shown('sales', (string) $document->total),
+                $document->currency,
+                '',
+                $document->location?->name ?? '',
+            ];
+        }
+
         if ($document instanceof Expense) {
             return [
                 $document->document_date,

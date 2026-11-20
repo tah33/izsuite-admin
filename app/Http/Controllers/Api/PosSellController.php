@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Pos\QuotePosCartRequest;
+use App\Http\Requests\Api\Pos\ShowPosCustomerCreditRequest;
+use App\Http\Resources\Pos\PosCustomerCreditResource;
 use App\Http\Requests\Api\Pos\SearchPosItemsRequest;
 use App\Http\Resources\Pos\PosCartQuoteResource;
 use App\Http\Resources\Pos\PosSellItemsResource;
@@ -38,6 +40,18 @@ class PosSellController extends Controller
     {
         try {
             return response()->json(['data' => new PosSellItemsResource($this->sellingService->items($this->currentWorkspace($request), $request->validated()))]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** Phase D3b: what credit the customer holds, to pay a sale with. */
+    public function credit(ShowPosCustomerCreditRequest $request): JsonResponse
+    {
+        try {
+            return response()->json(['data' => new PosCustomerCreditResource($this->sellingService->credit($this->currentWorkspace($request), $request->validated()))]);
 
         } catch (\Throwable $e) {
             report($e);

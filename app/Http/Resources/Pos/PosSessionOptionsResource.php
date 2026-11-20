@@ -26,6 +26,8 @@ class PosSessionOptionsResource extends JsonResource
                 'currency' => $row['register']->currency,
                 'refusal'  => $row['refusal'],
             ])->values(),
+            // Doc 18 Phase G1: the registers' cashiers, by name.
+            'cashiers'  => collect($this->resource['cashiers'] ?? [])->map(fn ($user) => ['id' => $user->id, 'name' => $user->name])->values(),
             'mine'      => $mine ? ['id' => $mine->id, 'number' => $mine->number, 'register' => ['name' => $mine->register->name, 'code' => $mine->register->code]] : null,
         ];
     }

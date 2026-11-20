@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Dashboard;
 
+use App\Http\Resources\Pos\PosOverviewResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -62,6 +63,8 @@ class DashboardResource extends JsonResource
                 'closing_soon'      => $crm['closing_soon'],
                 'activities'        => $crm['activities'],
             ] : null,
+            // Doc 18 Phase G2: POS today, as its Overview shows it.
+            'pos'       => isset($this->resource['pos']) ? (new PosOverviewResource($this->resource['pos']))->toArray($request) : null,
         ];
     }
 }

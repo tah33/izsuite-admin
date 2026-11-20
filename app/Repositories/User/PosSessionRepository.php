@@ -39,6 +39,12 @@ class PosSessionRepository
     }
 
     /** The session as it stands, locked while it changes: inside a transaction. */
+    /** Keeps $changes on the session: when it was last used, and its lock (Doc 18 Phase I1). */
+    public function mark(PosSession $session, array $changes): void
+    {
+        $session->forceFill($changes)->save();
+    }
+
     public function lock(PosSession $session): PosSession
     {
         return PosSession::query()->lockForUpdate()->findOrFail($session->id);
@@ -59,13 +65,13 @@ class PosSessionRepository
 
     /**
      * The cashier's open session in the business - not suspended - with its
-     * register, the register's location and price list: where they sell
-     * (Phase C1).
+     * register, the register's location, price list and payment methods:
+     * where they sell (Phases C1 and C2).
      */
     public function sellingOf(Workspace $workspace, int $userId): ?PosSession
     {
         return PosSession::query()->where('workspace_id', $workspace->id)->where('cashier_id', $userId)->where('status', PosSession::OPEN)
-            ->with(['register.location:id,name', 'register.priceList:id,name'])->first();
+            ->with(['register.location:id,name', 'register.priceList:id,name', 'register.paymentMethods'])->first();
     }
 
     /** The ids of its registers with a session open. */

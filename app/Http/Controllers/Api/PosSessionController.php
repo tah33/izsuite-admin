@@ -14,6 +14,7 @@ use App\Models\User\PosSession;
 use App\Services\Api\Pos\PosSessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 /**
  * POS sessions (Doc 18 Phases B1 and B2a): the Sessions page and its choices,
@@ -98,6 +99,20 @@ class PosSessionController extends Controller
             $page = $this->sessionService->approve($this->currentWorkspace($request), $id);
 
             return response()->json(['message' => "Variance approved: session {$page['session']->number} is closed.", 'data' => new PosSessionResource($page)]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** Phase F3: its X report while it is open, or its Z report once counted - $kind x or z - as a PDF. */
+    public function report(Request $request, int $id, string $kind): Response
+    {
+        try {
+            [$filename, $pdf] = $this->sessionService->report($this->currentWorkspace($request), $id, $kind);
+
+            return $this->pdfResponse($filename, $pdf, $request->boolean('download'));
 
         } catch (\Throwable $e) {
             report($e);

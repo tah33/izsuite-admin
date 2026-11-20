@@ -84,6 +84,19 @@ use App\Http\Controllers\Api\NavigationController;
 use App\Http\Controllers\Api\NotificationSettingController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PaymentAccountController;
+use App\Http\Controllers\Api\PosApprovalController;
+use App\Http\Controllers\Api\PosCashMovementController;
+use App\Http\Controllers\Api\PosDeviceController;
+use App\Http\Controllers\Api\PosFormalInvoiceController;
+use App\Http\Controllers\Api\PosHeldOrderController;
+use App\Http\Controllers\Api\PosLockController;
+use App\Http\Controllers\Api\PosOrderController;
+use App\Http\Controllers\Api\PosOverviewController;
+use App\Http\Controllers\Api\PosPendingPaymentController;
+use App\Http\Controllers\Api\PosPendingRefundController;
+use App\Http\Controllers\Api\PosReceiptController;
+use App\Http\Controllers\Api\PosReportChoiceController;
+use App\Http\Controllers\Api\PosReturnController;
 use App\Http\Controllers\Api\PosRegisterController;
 use App\Http\Controllers\Api\PosSellController;
 use App\Http\Controllers\Api\PosSessionController;
@@ -313,6 +326,8 @@ Route::prefix('v1')->group(function () {
             Route::put('/', [PosSettingController::class, 'update'])->name('api.business-settings.pos.update');
             // Phase B2b: closing sessions - the variance limit, and counting cash by notes and coins.
             Route::put('/cash-count', [PosSettingController::class, 'saveCashCount'])->name('api.business-settings.pos.cash-count.update');
+            // Doc 18 Phase C3: selling - the discount limit and the cash rounding step.
+            Route::put('/selling', [PosSettingController::class, 'saveSelling'])->name('api.business-settings.pos.selling.update');
             Route::post('/payment-methods', [PosSettingController::class, 'storeMethod'])->middleware('idempotent')->name('api.business-settings.pos.payment-methods.store');
             Route::put('/payment-methods/{id}', [PosSettingController::class, 'updateMethod'])->whereNumber('id')->name('api.business-settings.pos.payment-methods.update');
             Route::delete('/payment-methods/{id}', [PosSettingController::class, 'destroyMethod'])->whereNumber('id')->name('api.business-settings.pos.payment-methods.destroy');
@@ -545,6 +560,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/documents/export', [DocumentIndexController::class, 'export'])->name('api.documents.export');
 
         Route::get('/reports', [ReportController::class, 'index'])->name('api.reports.index');
+        // Doc 18 Phase H1: the registers and cashiers POS's reports can be narrowed to.
+        Route::get('/reports/pos/choices', [PosReportChoiceController::class, 'index'])->name('api.reports.pos-choices');
         Route::get('/reports/{report}', [ReportController::class, 'show'])->where('report', '[a-z-]+')->name('api.reports.show');
         Route::get('/reports/{report}/export', [ReportController::class, 'export'])->where('report', '[a-z-]+')->name('api.reports.export');
         Route::get('/reports/{report}/excel', [ReportController::class, 'excel'])->where('report', '[a-z-]+')->name('api.reports.excel');
@@ -926,6 +943,13 @@ Route::prefix('v1')->group(function () {
         Route::post('/', [PosRegisterController::class, 'store'])->middleware('idempotent')->name('api.pos.registers.store');
         Route::put('/{id}', [PosRegisterController::class, 'update'])->whereNumber('id')->name('api.pos.registers.update');
         Route::delete('/{id}', [PosRegisterController::class, 'destroy'])->whereNumber('id')->name('api.pos.registers.destroy');
+        // Doc 18 Phase I3: its devices - listed, added, changed, removed and tested.
+        Route::get('/{register}/devices', [PosDeviceController::class, 'index'])->whereNumber('register')->name('api.pos.devices.index');
+        Route::post('/{register}/devices', [PosDeviceController::class, 'store'])->whereNumber('register')->middleware('idempotent')->name('api.pos.devices.store');
+        Route::put('/{register}/devices/{device}', [PosDeviceController::class, 'update'])->whereNumber(['register', 'device'])->name('api.pos.devices.update');
+        Route::delete('/{register}/devices/{device}', [PosDeviceController::class, 'destroy'])->whereNumber(['register', 'device'])->name('api.pos.devices.destroy');
+        Route::post('/{register}/devices/{device}/test', [PosDeviceController::class, 'test'])->whereNumber(['register', 'device'])->name('api.pos.devices.test');
+        Route::get('/{register}/devices/{device}/test-page', [PosDeviceController::class, 'testPage'])->whereNumber(['register', 'device'])->middleware('throttle:30,1')->name('api.pos.devices.test-page');
     });
 
     /* --------------------------------------------------------
@@ -943,7 +967,21 @@ Route::prefix('v1')->group(function () {
         // Phase B2a: a supervisor approves a variance beyond the limit, and reopens a counted session.
         Route::post('/{id}/approve', [PosSessionController::class, 'approve'])->whereNumber('id')->middleware('idempotent')->name('api.pos.sessions.approve');
         Route::post('/{id}/reopen', [PosSessionController::class, 'reopen'])->whereNumber('id')->middleware('idempotent')->name('api.pos.sessions.reopen');
+        // Phase D2: its payments waiting to be confirmed.
+        Route::get('/{id}/pending-payments', [PosPendingPaymentController::class, 'index'])->whereNumber('id')->name('api.pos.sessions.pending-payments');
+        // Phase E2: its returns' refunds waiting to be confirmed.
+        Route::get('/{id}/pending-refunds', [PosPendingRefundController::class, 'index'])->whereNumber('id')->name('api.pos.sessions.pending-refunds');
+        // Phase F1: its cash movements.
+        Route::get('/{id}/cash-movements', [PosCashMovementController::class, 'index'])->whereNumber('id')->name('api.pos.sessions.cash-movements');
+        // Phase F3: its X report while open, its Z report once counted.
+        Route::get('/{id}/{kind}-report', [PosSessionController::class, 'report'])->whereNumber('id')->whereIn('kind', ['x', 'z'])->name('api.pos.sessions.report');
     });
+
+    /* --------------------------------------------------------
+     | Point of Sale (Doc 18): its Overview (Phase G2) - today at the
+     | registers of the locations the user may use.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:pos', 'access'])->get('/pos/overview', [PosOverviewController::class, 'show'])->name('api.pos.overview');
 
     /* --------------------------------------------------------
      | Point of Sale (Doc 18): the selling screen (Phase C1), in the user's
@@ -955,6 +993,90 @@ Route::prefix('v1')->group(function () {
         Route::get('/', [PosSellController::class, 'show'])->name('api.pos.sell.show');
         Route::get('/items', [PosSellController::class, 'items'])->name('api.pos.sell.items');
         Route::get('/quote', [PosSellController::class, 'quote'])->name('api.pos.sell.quote');
+        // Phase D3b: what credit the customer holds.
+        Route::get('/credit', [PosSellController::class, 'credit'])->name('api.pos.sell.credit');
+    });
+
+    /* --------------------------------------------------------
+     | Point of Sale (Doc 18 Phase I1): the cashier's PIN, and locking and
+     | unlocking their register - tries at a PIN or password held back.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:pos', 'access'])->prefix('pos')->group(function () {
+        Route::post('/lock', [PosLockController::class, 'lock'])->name('api.pos.lock');
+        Route::post('/unlock', [PosLockController::class, 'unlock'])->middleware('throttle:10,1')->name('api.pos.unlock');
+        Route::put('/pin', [PosLockController::class, 'pin'])->middleware('throttle:10,1')->name('api.pos.pin');
+        // Phase I2: a manager's approval at the register - who may give it, and giving it.
+        Route::get('/approvers', [PosApprovalController::class, 'approvers'])->name('api.pos.approvers');
+        Route::post('/approvals', [PosApprovalController::class, 'store'])->middleware('throttle:10,1')->name('api.pos.approvals.store');
+    });
+
+    /* --------------------------------------------------------
+     | Point of Sale (Doc 18): a sale paid and completed (Phase C2), in the
+     | user's own open session - its invoice, payments and order at once -
+     | and its receipt (Phase C4): its PDF, each copy counted, and e-mailed.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:pos', 'access'])->prefix('pos/orders')->group(function () {
+        // Phase G1: the Orders page.
+        Route::get('/', [PosOrderController::class, 'index'])->name('api.pos.orders.index');
+        Route::post('/', [PosOrderController::class, 'store'])->middleware('idempotent')->name('api.pos.orders.store');
+        Route::get('/{id}/receipt', [PosReceiptController::class, 'show'])->whereNumber('id')->name('api.pos.orders.receipt');
+        Route::post('/{id}/receipt/email', [PosReceiptController::class, 'email'])->whereNumber('id')->middleware('throttle:30,1')->name('api.pos.orders.receipt.email');
+        // Phase D4: its invoice given the business's invoice number, and that invoice's PDF.
+        Route::post('/{id}/formal-invoice', [PosFormalInvoiceController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.pos.orders.formal-invoice.store');
+        Route::get('/{id}/formal-invoice', [PosFormalInvoiceController::class, 'show'])->whereNumber('id')->name('api.pos.orders.formal-invoice.show');
+    });
+
+    /* --------------------------------------------------------
+     | Point of Sale (Doc 18): orders held at the user's own register
+     | (Phase D1) - the list, a cart held, one as resuming would load it,
+     | resumed and cancelled.
+     | -------------------------------------------------------- */
+    /* --------------------------------------------------------
+     | Point of Sale (Doc 18): a sale's payment waiting to be confirmed
+     | (Phase D2), confirmed - the customer payment it becomes - or declined.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:pos', 'access'])->prefix('pos/order-payments')->group(function () {
+        Route::post('/{id}/confirm', [PosPendingPaymentController::class, 'confirm'])->whereNumber('id')->middleware('idempotent')->name('api.pos.order-payments.confirm');
+        Route::post('/{id}/decline', [PosPendingPaymentController::class, 'decline'])->whereNumber('id')->name('api.pos.order-payments.decline');
+    });
+
+    /* --------------------------------------------------------
+     | Point of Sale (Doc 18): cash moved into and out of the drawer of the
+     | user's own open session (Phase F1) - what recording one starts from,
+     | one recorded - and one waiting for approval, approved or declined.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:pos', 'access'])->prefix('pos/cash-movements')->group(function () {
+        // Phase G1: the Cash Movements page.
+        Route::get('/', [PosCashMovementController::class, 'list'])->name('api.pos.cash-movements.index');
+        Route::get('/options', [PosCashMovementController::class, 'options'])->name('api.pos.cash-movements.options');
+        Route::post('/', [PosCashMovementController::class, 'store'])->middleware('idempotent')->name('api.pos.cash-movements.store');
+        Route::post('/{id}/approve', [PosCashMovementController::class, 'approve'])->whereNumber('id')->middleware('idempotent')->name('api.pos.cash-movements.approve');
+        Route::post('/{id}/decline', [PosCashMovementController::class, 'decline'])->whereNumber('id')->name('api.pos.cash-movements.decline');
+    });
+
+    /* --------------------------------------------------------
+     | Point of Sale (Doc 18): returns (Phase E1), in the user's own open
+     | session - the sale one starts from, by its receipt number, what it
+     | would credit, and the return recorded with its refund.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:pos', 'access'])->prefix('pos/returns')->group(function () {
+        // Phase G1: the Returns and Refunds page.
+        Route::get('/', [PosReturnController::class, 'index'])->name('api.pos.returns.index');
+        Route::get('/lookup', [PosReturnController::class, 'lookup'])->name('api.pos.returns.lookup');
+        Route::get('/quote', [PosReturnController::class, 'quote'])->name('api.pos.returns.quote');
+        Route::post('/', [PosReturnController::class, 'store'])->middleware('idempotent')->name('api.pos.returns.store');
+        // Phase E2: its refund receipt, and a refund waiting to be confirmed - confirmed or declined.
+        Route::get('/{id}/receipt', [PosReturnController::class, 'receipt'])->whereNumber('id')->name('api.pos.returns.receipt');
+        Route::post('/{id}/refund/confirm', [PosPendingRefundController::class, 'confirm'])->whereNumber('id')->middleware('idempotent')->name('api.pos.returns.refund.confirm');
+        Route::post('/{id}/refund/decline', [PosPendingRefundController::class, 'decline'])->whereNumber('id')->name('api.pos.returns.refund.decline');
+    });
+
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:pos', 'access'])->prefix('pos/held-orders')->group(function () {
+        Route::get('/', [PosHeldOrderController::class, 'index'])->name('api.pos.held-orders.index');
+        Route::post('/', [PosHeldOrderController::class, 'store'])->middleware('idempotent')->name('api.pos.held-orders.store');
+        Route::get('/{id}', [PosHeldOrderController::class, 'show'])->whereNumber('id')->name('api.pos.held-orders.show');
+        Route::post('/{id}/resume', [PosHeldOrderController::class, 'resume'])->whereNumber('id')->middleware('idempotent')->name('api.pos.held-orders.resume');
+        Route::post('/{id}/cancel', [PosHeldOrderController::class, 'cancel'])->whereNumber('id')->name('api.pos.held-orders.cancel');
     });
 
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm')->group(function () {

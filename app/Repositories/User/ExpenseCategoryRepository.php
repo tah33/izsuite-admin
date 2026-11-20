@@ -19,6 +19,12 @@ class ExpenseCategoryRepository
         return $workspace->expenseCategories()->withExists('lines as in_use')->orderBy('name')->orderBy('id')->get();
     }
 
+    /** Its active categories by name: those a POS paid out is in (Doc 18 Phase F2). */
+    public function activeFor(Workspace $workspace): Collection
+    {
+        return $workspace->expenseCategories()->where('is_active', true)->orderBy('name')->orderBy('id')->get(['id', 'name']);
+    }
+
     public function findFor(Workspace $workspace, int $id): ?ExpenseCategory
     {
         return $workspace->expenseCategories()->withExists('lines as in_use')->find($id);

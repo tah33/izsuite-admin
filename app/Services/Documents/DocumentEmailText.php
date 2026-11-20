@@ -3,6 +3,7 @@
 namespace App\Services\Documents;
 
 use App\Enums\DocumentType;
+use App\Models\User\PosOrder;
 use App\Models\User\SalesDocument;
 use App\Models\User\SalesPayment;
 use App\Models\User\Workspace;
@@ -56,6 +57,30 @@ class DocumentEmailText
             'due_date'        => $invoice->due_date ? $format->date($invoice->due_date) : '',
             'amount'          => $format->money((string) $payment->amount, $payment->account->currency),
             'balance'         => $format->money((string) $payment->balance_after, $invoice->currency),
+            'document_link'   => '',
+        ];
+    }
+
+    /**
+     * A POS sale's receipt (Doc 18 Phase C4), as its invoice's template
+     * writes dates and money: the receipt number, the day it was sold and its
+     * total - and "Customer" for the walk-in one ($walkInId), who has no name
+     * to greet. It has no link. Expects the order loaded for its receipt.
+     */
+    public function forPosReceipt(Workspace $workspace, PosOrder $order, ?int $walkInId): array
+    {
+        $invoice  = $order->invoice;
+        $format   = DocumentFormat::of($this->documentTemplates->settingsFor($workspace, DocumentType::Invoice, $invoice->template_snapshot));
+        $customer = $this->customer($invoice);
+
+        return [
+            'business_name'   => $this->businessName($workspace, $invoice),
+            'contact_name'    => $order->contact_id === $walkInId ? 'Customer' : (($customer['contact_person'] ?? null) ?: ($customer['name'] ?? '')),
+            'document_number' => (string) $order->number,
+            'document_date'   => $format->date((string) $invoice->document_date),
+            'due_date'        => '',
+            'amount'          => $format->money((string) $order->grand_total, $order->currency),
+            'balance'         => $format->money((string) $invoice->balance_due, $order->currency),
             'document_link'   => '',
         ];
     }

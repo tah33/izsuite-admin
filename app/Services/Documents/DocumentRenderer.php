@@ -8,6 +8,12 @@ use App\Enums\PurchaseStatus;
 use App\Enums\SalesDocumentStatus;
 use App\Models\User\Expense;
 use App\Models\User\ExpensePayment;
+use App\Models\User\PosDevice;
+use App\Models\User\PosOrder;
+use App\Models\User\PosRegister;
+use App\Models\User\PosReturn;
+use App\Models\User\PosSession;
+use App\Models\User\PosSessionClosing;
 use App\Models\User\Purchase;
 use App\Models\User\SalesDelivery;
 use App\Models\User\SalesDocument;
@@ -23,7 +29,8 @@ use App\Support\Decimal;
  * The shared document-rendering service (Doc 14 section 14.13): a sales
  * document, a payment receipt, a purchase's or an expense's record or a
  * supplier or expense payment voucher drawn up as HTML - for its PDF, its print and its
- * secure link alike - in its template's colour, font, layout and formats.
+ * secure link alike - in its template's colour, font, layout and formats. And
+ * a POS sale's receipt, for a receipt printer's roll (Doc 18 Phase C4).
  *
  * A numbered document is drawn from what it kept: the business, the customer,
  * supplier or payee and the template as they were (Doc 06 section 15). A draft
@@ -38,6 +45,8 @@ class DocumentRenderer
         protected DocumentSheet $documentSheet,
         protected PurchaseSheet $purchaseSheet,
         protected ExpenseSheet $expenseSheet,
+        protected PosReceiptSheet $posReceiptSheet,
+        protected PosSessionReportSheet $posSessionReportSheet,
         protected SalesSnapshots $salesSnapshots,
         protected WorkspaceFileRepository $workspaceFileRepository,
         protected FileStorage $fileStorage,
@@ -336,6 +345,82 @@ class DocumentRenderer
         );
     }
 
+    /**
+     * A POS sale's receipt (Doc 18 section 18.19 - Phase C4), on an 80 mm
+     * roll, drawn from what its invoice kept - the business as it was, its
+     * template's language and formats - and the return policy and footer the
+     * order kept. A copy after the first says Reprint ($reprint). Its foot is
+     * empty: a receipt has no pages to count, and says "Powered by izSuite"
+     * itself, as its invoice was issued with it.
+     */
+    public function posReceipt(Workspace $workspace, PosOrder $order, bool $reprint): RenderedDocument
+    {
+        $invoice  = $order->invoice;
+        $template = $this->documentTemplates->settingsFor($workspace, DocumentType::Invoice, $invoice->template_snapshot);
+        $format   = DocumentFormat::of($template);
+        $business = $invoice->business_snapshot ?? $this->salesSnapshots->business($workspace, $invoice->location);
+        $texts    = $order->receipt_texts ?? [];
+
+        $data = [
+            'title'        => "Receipt {$order->number}",
+            'number'       => $order->number,
+            'reprint'      => $reprint,
+            'business'     => $business,
+            'logo'         => $this->image($workspace, $template['show_logo'] ? ($business['logo_file_id'] ?? null) : null),
+            ...$this->posReceiptSheet->facts($workspace, $order, $format),
+            'lines'        => $this->posReceiptSheet->lines($order, $format),
+            ...$this->posReceiptSheet->totals($order, $format),
+            'payments'     => $this->posReceiptSheet->payments($order, $format),
+            'returnPolicy' => $texts['return_policy'] ?? null,
+            'footer'       => $texts['footer'] ?? null,
+            'poweredBy'    => $business['powered_by'] ?? true,
+            'lang'         => $template['language'],
+        ];
+
+        return new RenderedDocument(
+            view('documents.pos-receipt', $data)->render(),
+            '<!DOCTYPE html><html><body></body></html>',
+            'receipt',
+            $this->filename('Receipt', $order->number, $order->id),
+        );
+    }
+
+    /**
+     * A POS return's refund receipt (Doc 18 section 18.24 - Phase E2), on the
+     * receipt's roll: drawn from what its credit note kept - the business as
+     * it was, its template's language and formats - naming its sale.
+     */
+    public function posRefundReceipt(Workspace $workspace, PosReturn $return): RenderedDocument
+    {
+        $note     = $return->creditNote;
+        $template = $this->documentTemplates->settingsFor($workspace, DocumentType::CreditNote, $note->template_snapshot);
+        $format   = DocumentFormat::of($template);
+        $business = $note->business_snapshot ?? $this->salesSnapshots->business($workspace, $note->location);
+
+        $data = [
+            'title'        => "Refund Receipt {$return->number}",
+            'heading'      => 'Refund Receipt',
+            'numberLabel'  => 'Return',
+            'number'       => $return->number,
+            'sale'         => $return->order?->number,
+            'reprint'      => false,
+            'business'     => $business,
+            'logo'         => $this->image($workspace, $template['show_logo'] ? ($business['logo_file_id'] ?? null) : null),
+            ...$this->posReceiptSheet->refund($workspace, $return, $format),
+            'returnPolicy' => null,
+            'footer'       => null,
+            'poweredBy'    => $business['powered_by'] ?? true,
+            'lang'         => $template['language'],
+        ];
+
+        return new RenderedDocument(
+            view('documents.pos-receipt', $data)->render(),
+            '<!DOCTYPE html><html><body></body></html>',
+            'receipt',
+            $this->filename('Refund-Receipt', $return->number, $return->id),
+        );
+    }
+
     /** DRAFT, VOID, CANCELLED - or PAID for an invoice settled in full. */
     private function stamp(SalesDocument $document): ?string
     {
@@ -372,6 +457,59 @@ class DocumentRenderer
      * "Invoice-INV-00001.pdf", or "Invoice-draft-12.pdf" before it is
      * numbered. A number's slashes - INV/2026/1 - become dashes in a file name.
      */
+    /**
+     * A POS session's X report - its totals as they stand, $closing null -
+     * or its Z report, from $closing (Doc 18 sections 18.27 and 18.28 -
+     * Phase F3), on the receipt's roll: the business as it is now, with the
+     * register's location, in the invoice template's language and formats.
+     */
+    public function posSessionReport(Workspace $workspace, PosSession $session, array $totals, ?PosSessionClosing $closing): RenderedDocument
+    {
+        $template = $this->documentTemplates->settingsFor($workspace, DocumentType::Invoice, null);
+        $format   = DocumentFormat::of($template);
+        $business = $this->salesSnapshots->business($workspace, $session->register->location, $session->currency);
+        $label    = $closing ? 'Z Report' : 'X Report';
+
+        $data = [
+            'title'     => "{$label} {$session->number}",
+            'business'  => $business,
+            'logo'      => $this->image($workspace, $template['show_logo'] ? ($business['logo_file_id'] ?? null) : null),
+            ...$this->posSessionReportSheet->of($workspace, $session, $totals, $closing, $format),
+            'poweredBy' => $business['powered_by'] ?? true,
+            'lang'      => $template['language'],
+        ];
+
+        return new RenderedDocument(
+            view('documents.pos-session-report', $data)->render(),
+            '<!DOCTYPE html><html><body></body></html>',
+            'receipt',
+            $this->filename($label, $session->number, $session->id),
+        );
+    }
+
+    /** A receipt printer's test page (Doc 18 Phase I3), on the receipt roll: the business, the register, the printer, and when. */
+    public function posDeviceTest(Workspace $workspace, PosRegister $register, PosDevice $device, string $printed): RenderedDocument
+    {
+        $template = $this->documentTemplates->settingsFor($workspace, DocumentType::Invoice, null);
+        $business = $this->salesSnapshots->business($workspace, $register->location, $register->currency);
+
+        return new RenderedDocument(
+            view('documents.pos-device-test', [
+                'title'     => "Test Page {$device->name}",
+                'business'  => $business,
+                'logo'      => $this->image($workspace, $template['show_logo'] ? ($business['logo_file_id'] ?? null) : null),
+                'register'  => "{$register->name} ({$register->code})",
+                'printer'   => $device->name,
+                'printed'   => $printed,
+                'poweredBy' => $business['powered_by'] ?? true,
+                'lang'      => $template['language'],
+            ])->render(),
+            '<!DOCTYPE html><html><body></body></html>',
+            'receipt',
+            $this->filename('Test Page', $device->name, $device->id),
+        );
+    }
+
     private function filename(string $label, ?string $number, int $id): string
     {
         return str_replace([' ', '/', '\\'], '-', $label.'-'.($number ?? "draft-{$id}")).'.pdf';

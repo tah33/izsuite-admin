@@ -52,8 +52,8 @@ class SalesDocumentRepository
         return SalesDocument::query()
             ->where('workspace_id', $workspace->id)
             ->where('type', $type->value)
-            // A credit note's invoice with what its refund needs (SalesDocumentRules::refundable).
-            ->with(['contact:id,name', 'location:id,name', 'source:id,number,amount_paid,refunded_amount'])
+            // A credit note's invoice with what its refund needs (SalesDocumentRules::refundable) - and the app each was made in: a POS sale's is Point of Sale (Doc 18 Phase C2).
+            ->with(['contact:id,name', 'location:id,name', 'source:id,number,amount_paid,refunded_amount', 'sourceApp:id,family_key'])
             ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $query->where(fn (Builder $query) => $query
                 ->where('number', 'like', "%{$search}%")
                 ->orWhere('customer_reference', 'like', "%{$search}%")
@@ -121,7 +121,7 @@ class SalesDocumentRepository
     /** With what its PDF shows - for one drawn away from its page: an email, a secure link. */
     public function loadForPdf(SalesDocument $document): SalesDocument
     {
-        return $document->load(['lines', 'contact', 'location:id,name', 'source:id,type,number']);
+        return $document->load(['lines', 'contact', 'location:id,name', 'source:id,type,number', 'posOrder:id,sales_document_id,number']);
     }
 
     /** Its lines with the rates their taxes came from, as those are now. */
@@ -179,6 +179,26 @@ class SalesDocumentRepository
     public function create(Workspace $workspace, array $data): SalesDocument
     {
         return $workspace->salesDocuments()->create($data);
+    }
+
+    /**
+     * Made for the business by another app, $appId - Point of Sale's
+     * invoice for a sale (Doc 18 Phase C2) - so its workspace is never read
+     * from $data.
+     */
+    public function createMadeBy(Workspace $workspace, array $data, ?int $appId): SalesDocument
+    {
+        $document = $workspace->salesDocuments()->make($data);
+        $document->source_app_id = $appId;
+        $document->save();
+
+        return $document;
+    }
+
+    /** Its lines' ids, by position. */
+    public function lineIds(SalesDocument $document): array
+    {
+        return $document->lines()->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
 
     public function update(SalesDocument $document, array $data): SalesDocument

@@ -6,6 +6,7 @@ use App\Enums\ExpenseStatus;
 use App\Enums\PurchaseStatus;
 use App\Http\Resources\Concerns\HidesValues;
 use App\Models\User\Expense;
+use App\Models\User\PosReturn;
 use App\Models\User\Purchase;
 use App\Services\Expenses\ExpenseRules;
 use App\Services\Purchases\PurchaseRules;
@@ -49,6 +50,10 @@ class DocumentIndexResource extends JsonResource
             return $this->expense();
         }
 
+        if ($this->resource instanceof PosReturn) {
+            return $this->refundReceipt();
+        }
+
         $rules = app(SalesDocumentRules::class);
 
         return $this->hideValues('sales', [
@@ -58,7 +63,10 @@ class DocumentIndexResource extends JsonResource
             'revision'       => $this->revision,
             'document_date'  => $this->document_date,
             'contact'        => $this->customer_snapshot['name'] ?? $this->contact?->name,
-            'source'         => $this->sources[$this->type->family()] ?? null,
+            'source'         => $this->pos() ? ($this->sources['pos'] ?? 'Point of Sale') : ($this->sources[$this->type->family()] ?? null),
+            // Doc 18 Phase G3: what it is at POS, and its POS order, register and session.
+            'pos'            => $this->pos(),
+            'pos_reference'  => $this->posReference(),
             'status'         => $rules->status($this->resource, $this->today),
             'payment_status' => $this->payment_status,
             'overdue'        => $rules->overdue($this->resource, $this->today),
@@ -68,6 +76,58 @@ class DocumentIndexResource extends JsonResource
             'location'       => $this->location?->name,
             'actions'        => app(AllowedActions::class)->sales($this->type, $rules->actions($this->resource, $this->today)),
             'delivery'       => app(AllowedActions::class)->delivery($this->type, $rules->delivery($this->resource, $this->today)),
+        ], self::VALUES);
+    }
+
+    /** What a sales document is at POS (Doc 18 Phase G3) - its sales receipt, its formal invoice, a return's credit note - or null. */
+    private function pos(): ?string
+    {
+        return match (true) {
+            $this->posOrder !== null  => $this->posOrder->invoiced_at ? 'invoice' : 'sales_receipt',
+            $this->posReturn !== null => 'credit_note',
+            default                  => null,
+        };
+    }
+
+    /** Its POS order, register and session: "R1-00001 · Front Counter (R1) · S-00001" - a return's naming itself first. */
+    private function posReference(): ?string
+    {
+        $pos = $this->posOrder ?? $this->posReturn;
+
+        if ($pos === null) {
+            return null;
+        }
+
+        return implode(' · ', array_filter([
+            $pos === $this->posReturn ? $pos->number : null,
+            $pos === $this->posReturn ? $pos->order?->number : ($this->posOrder->invoiced_at ? $pos->number : null),
+            $pos->register ? "{$pos->register->name} ({$pos->register->code})" : null,
+            $pos->session?->number,
+        ]));
+    }
+
+    /** A POS return as its refund receipt (Doc 18 Phase G3): it opens on the Returns and Refunds page; it has no actions of its own. */
+    private function refundReceipt(): array
+    {
+        return $this->hideValues('sales', [
+            'id'             => $this->id,
+            'kind'           => 'pos-refund-receipts',
+            'number'         => $this->number,
+            'revision'       => 0,
+            'document_date'  => $this->creditNote?->document_date,
+            'contact'        => $this->contact?->name,
+            'source'         => $this->sources['pos'] ?? 'Point of Sale',
+            'pos'            => 'refund_receipt',
+            'pos_reference'  => implode(' · ', array_filter([$this->order?->number, $this->register ? "{$this->register->name} ({$this->register->code})" : null, $this->session?->number])),
+            'status'         => $this->refund_status,
+            'payment_status' => null,
+            'overdue'        => false,
+            'grand_total'    => (string) $this->total,
+            'currency'       => $this->currency,
+            'balance_due'    => null,
+            'location'       => $this->location?->name,
+            'actions'        => [],
+            'delivery'       => [],
         ], self::VALUES);
     }
 

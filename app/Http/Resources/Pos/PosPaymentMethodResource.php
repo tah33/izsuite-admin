@@ -29,6 +29,7 @@ class PosPaymentMethodResource extends JsonResource
             ] : null,
             'needs_reference' => $this->needs_reference,
             'gives_change'    => $this->gives_change,
+            'confirms_later'  => $this->confirms_later,
             'is_active'       => $this->is_active,
         ];
     }

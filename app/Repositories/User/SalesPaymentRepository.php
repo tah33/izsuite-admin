@@ -93,6 +93,16 @@ class SalesPaymentRepository
         return $workspace->salesPayments()->create($data);
     }
 
+    /** Made for the business by another app, $appId - a POS sale's payment (Doc 18 Phase C2). */
+    public function createMadeBy(Workspace $workspace, array $data, ?int $appId): SalesPayment
+    {
+        $payment = $workspace->salesPayments()->make($data);
+        $payment->source_app_id = $appId;
+        $payment->save();
+
+        return $payment;
+    }
+
     public function update(SalesPayment $payment, array $data): SalesPayment
     {
         $payment->update($data);

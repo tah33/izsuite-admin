@@ -24,6 +24,18 @@ use App\Services\Reports\Crm\StageDurationReport;
 use App\Services\Reports\Crm\WinRateReport;
 use App\Services\Reports\Expenses\ExpensesByCategoryReport;
 use App\Services\Reports\Expenses\ExpenseSummaryReport;
+use App\Services\Reports\Pos\PosAverageOrderReport;
+use App\Services\Reports\Pos\PosCashMovementsReport;
+use App\Services\Reports\Pos\PosCashVariancesReport;
+use App\Services\Reports\Pos\PosDiscountsReport;
+use App\Services\Reports\Pos\PosMarginReport;
+use App\Services\Reports\Pos\PosPaymentMethodsReport;
+use App\Services\Reports\Pos\PosReturnsReport;
+use App\Services\Reports\Pos\PosSalesByReport;
+use App\Services\Reports\Pos\PosSessionsReport;
+use App\Services\Reports\Pos\PosTaxesReport;
+use App\Services\Reports\Pos\PosTopItemsReport;
+use App\Services\Reports\Pos\PosVoidsReport;
 use App\Services\Reports\Purchases\OutstandingPurchasesReport;
 use App\Services\Reports\Purchases\PaymentsMadeReport;
 use App\Services\Reports\Purchases\PurchaseSummaryReport;
@@ -64,10 +76,12 @@ use App\Services\User\Apps\WorkspaceApps;
  * 07 section 16); Payment Account Transactions always; the full Sales app's
  * while it is on (Doc 16 section 16.26); CRM's while it is on (Doc 17 section
  * 17.29) - its leads', opportunities' and activities' (Phases H1 to H3) -
- * the lead reports while the business uses leads. Each only for a
+ * the lead reports while the business uses leads; POS's while the business
+ * has its records (Doc 18 section 18.36). Each only for a
  * role that may see what it shows, values included (PARTS) - the tax reports
  * with Tax Information too, the account's with its balances, CRM's with View
- * CRM Reports and the view of what each counts (CRM); another is not found.
+ * CRM Reports and the view of what each counts (CRM), POS's with View POS
+ * Reports and the view of what each counts (POS); another is not found.
  */
 class ReportCatalog
 {
@@ -79,6 +93,7 @@ class ReportCatalog
         'contacts'  => 'Contacts',
         'accounts'  => 'Payment Accounts',
         'crm'       => 'CRM',
+        'pos'       => 'Point of Sale',
     ];
 
     /** Keys a report was known by before, and the report each is now. */
@@ -90,10 +105,13 @@ class ReportCatalog
         'sales-by-location' => 'location', 'sales-by-salesperson' => 'salesperson', 'sales-by-team' => 'team', 'sales-by-source' => 'source',
         'leads-by-source'   => 'source', 'leads-by-owner' => 'owner', 'leads-by-status' => 'status',
         'sales-team-performance' => 'team', 'salesperson-performance' => 'owner',
+        // Doc 18 Phase H1: POS Sales Summary, each grouped one way.
+        'pos-sales-by-location' => 'location', 'pos-sales-by-register' => 'register', 'pos-sales-by-cashier' => 'cashier', 'pos-sales-by-salesperson' => 'salesperson',
+        'pos-sales-by-item' => 'item', 'pos-sales-by-category' => 'category', 'pos-sales-by-brand' => 'brand', 'pos-sales-by-hour' => 'hour', 'pos-sales-by-day' => 'day',
     ];
 
     /** How a report with a Group By groups its rows unless told - by month for any not named. */
-    public const DEFAULT_GROUPS = ['expenses-by-category' => 'category', 'pipeline-value' => 'stage'];
+    public const DEFAULT_GROUPS = ['expenses-by-category' => 'category', 'pipeline-value' => 'stage', 'pos-sales-summary' => 'day', 'pos-average-order' => 'day'];
 
     /**
      * What CRM's reports need (Doc 17 section 17.29): CRM on, View CRM
@@ -101,6 +119,21 @@ class ReportCatalog
      * uses them), opportunities or activities.
      */
     private const CRM = ['crm_leads' => 'crm.leads.view', 'crm_opportunities' => 'crm.opportunities.view', 'crm_activities' => 'crm.activities.view'];
+
+    /**
+     * What POS's reports need (Doc 18 section 18.36): View POS Reports, and
+     * the view of what each counts - its orders, for its sales (Phase H1) -
+     * and (Phase H2) its returns, taxes besides, or items' costs besides -
+     * and (Phase H3) its sessions, or its cash movements.
+     */
+    private const POS = [
+        'pos_sales'   => ['pos.orders.view'],
+        'pos_returns' => ['pos.returns.view'],
+        'pos_taxes'   => ['pos.orders.view', 'taxes.view'],
+        'pos_costs'   => ['pos.orders.view', 'items.costs'],
+        'pos_sessions' => ['pos.sessions.view'],
+        'pos_cash'    => ['pos.cash.view'],
+    ];
 
     /**
      * What the full Sales app's reports need (Doc 16 section 16.26): the app
@@ -190,6 +223,30 @@ class ReportCatalog
         'activity-completion'        => ['Activity Completion', 'crm', ActivityCompletionReport::class, ['period', 'group_by', 'location', 'owner'], 'The activities due in a period: completed, on time, cancelled and still planned.', 'crm_activities'],
         'overdue-activities'         => ['Overdue Activities', 'crm', OverdueActivitiesReport::class, ['location', 'owner'], 'The planned activities past their due time now, the longest overdue first.', 'crm_activities'],
         'opportunities-without-follow-up' => ['Opportunities Without Follow-up', 'crm', OpportunityListReport::class, ['location', 'sales_team', 'owner', 'lead_source', 'pipeline', 'stage'], 'The open opportunities with no activity planned, the longest without activity first.', 'crm_opportunities'],
+        // Point of Sale's (Doc 18 Phase H1): its completed sales less their returns, at the registers of the user's locations.
+        'pos-sales-summary'        => ['POS Sales Summary', 'pos', PosSalesByReport::class, ['period', 'group_by', 'location', 'register', 'cashier'], 'Completed POS sales less their returns for a period - by day, week, month, location, register, cashier, salesperson, hour, item, category or brand.', 'pos_sales'],
+        'pos-sales-by-location'    => ['Sales by Location', 'pos', PosSalesByReport::class, ['period', 'cashier'], 'POS sales less returns for a period, before tax, by location.', 'pos_sales'],
+        'pos-sales-by-register'    => ['Sales by Register', 'pos', PosSalesByReport::class, ['period', 'location', 'cashier'], 'POS sales less returns for a period, before tax, by register.', 'pos_sales'],
+        'pos-sales-by-cashier'     => ['Sales by Cashier', 'pos', PosSalesByReport::class, ['period', 'location', 'register'], 'POS sales less returns for a period, before tax, by the cashier who made each.', 'pos_sales'],
+        'pos-sales-by-salesperson' => ['Sales by Salesperson', 'pos', PosSalesByReport::class, ['period', 'location', 'register'], 'POS sales less returns for a period, before tax, by the salesperson each names.', 'pos_sales'],
+        'pos-sales-by-item'        => ['Sales by Item', 'pos', PosSalesByReport::class, ['period', 'location', 'register', 'cashier'], 'The items POS sold for a period, less those returned - quantities and sales before tax.', 'pos_sales'],
+        'pos-sales-by-category'    => ['Sales by Category', 'pos', PosSalesByReport::class, ['period', 'location', 'register', 'cashier'], "POS sales less returns for a period, before tax, by each item's category now.", 'pos_sales'],
+        'pos-sales-by-brand'       => ['Sales by Brand', 'pos', PosSalesByReport::class, ['period', 'location', 'register', 'cashier'], "POS sales less returns for a period, before tax, by each item's brand now.", 'pos_sales'],
+        'pos-sales-by-hour'        => ['Sales by Hour', 'pos', PosSalesByReport::class, ['period', 'location', 'register', 'cashier'], "POS sales less returns for a period, before tax, by the hour of the business's day.", 'pos_sales'],
+        'pos-sales-by-day'         => ['Sales by Day', 'pos', PosSalesByReport::class, ['period', 'location', 'register', 'cashier'], 'POS sales less returns for each day of a period, before tax.', 'pos_sales'],
+        'pos-payment-methods'      => ['Sales by Payment Method', 'pos', PosPaymentMethodsReport::class, ['period', 'location', 'register', 'cashier'], 'What each payment method took for POS sales in a period, and paid back for returns.', 'pos_sales'],
+        'pos-average-order'        => ['Average Order Value', 'pos', PosAverageOrderReport::class, ['period', 'group_by', 'location', 'register', 'cashier'], 'What a POS sale comes to on average, and how many items it has - by day, week, month, location, register or cashier.', 'pos_sales'],
+        // Phase H2's: discounts, taxes, returns, what was called off, and items - the margin for those who see costs.
+        'pos-discounts'            => ['Discounts and Price Overrides', 'pos', PosDiscountsReport::class, ['period', 'location', 'register', 'cashier'], 'POS sales that gave a discount or had a price overridden, why, and who approved a discount beyond the limit.', 'pos_sales'],
+        'pos-taxes'                => ['Taxes Collected', 'pos', PosTaxesReport::class, ['period', 'location', 'register', 'cashier'], 'The tax POS sales charged, less what their returns gave back, by rate.', 'pos_taxes'],
+        'pos-returns'              => ['Returns and Refunds', 'pos', PosReturnsReport::class, ['period', 'location', 'register', 'cashier'], 'POS returns of a period, what each credited, and how it was paid back.', 'pos_returns'],
+        'pos-voids'                => ['Void and Cancellation Report', 'pos', PosVoidsReport::class, ['period', 'location', 'register', 'cashier'], 'Held orders cancelled or expired, and payments and refunds declined - who called each off, and why.', 'pos_sales'],
+        'pos-top-items'            => ['Top-Selling Items', 'pos', PosTopItemsReport::class, ['period', 'location', 'register', 'cashier', 'category'], 'What POS sold most, by quantity, less what came back.', 'pos_sales'],
+        'pos-margin'               => ['Estimated POS Margin', 'pos', PosMarginReport::class, ['period', 'location', 'register', 'cashier', 'category'], "POS sales by item less each item's cost now - an estimate, not a Profit and Loss Statement.", 'pos_costs'],
+        // Phase H3's: sessions and cash.
+        'pos-sessions'             => ['Session Summary', 'pos', PosSessionsReport::class, ['period', 'location', 'register', 'cashier'], 'The sessions opened in a period - what each took, the cash it should have held, what was counted, and the difference.', 'pos_sessions'],
+        'pos-cash-movements'       => ['Cash Movement Report', 'pos', PosCashMovementsReport::class, ['period', 'location', 'register', 'cashier'], 'Cash put into and taken out of the drawers in a period - each kind, where it went, why, and who approved it.', 'pos_cash'],
+        'pos-cash-variances'       => ['Cash Variance Report', 'pos', PosCashVariancesReport::class, ['period', 'location', 'register', 'cashier'], 'Sessions closed over or short in a period, why, and who approved the difference.', 'pos_sessions'],
     ];
 
     /**
@@ -240,6 +297,10 @@ class ReportCatalog
             'crm_leads'         => $apps->has('crm') && $this->crmSettings->forWorkspace($workspace)->usesLeads(),
             'crm_opportunities' => $apps->has('crm'),
             'crm_activities'    => $apps->has('crm'),
+            // POS's (Doc 18 section 18.36): while the business has its records.
+            ...array_fill_keys(array_keys(self::POS), $apps->hasHistory('pos')),
+            // Taxes Collected while taxes are on, or sales kept tax (Phase H2).
+            'pos_taxes'         => $apps->hasHistory('pos') && ($workspace->usesTaxes() || $this->salesReportRepository->hasTaxHistory($workspace)),
         ];
         $entries = [];
 
@@ -269,9 +330,9 @@ class ReportCatalog
         $names = [];
 
         foreach (self::REPORTS as [$name, , , , , $needs]) {
-            // The full Sales app's own count as Sales', marked as the full edition's (Doc 16 Phase H2a); CRM's as CRM's (Doc 17 Phase H1).
+            // The full Sales app's own count as Sales', marked as the full edition's (Doc 16 Phase H2a); CRM's as CRM's (Doc 17 Phase H1), POS's as POS's (Doc 18 Phase H1).
             $edition = array_key_exists($needs ?? '', self::FULL_SALES) ? 'full' : null;
-            $needs   = $edition ? 'sales' : (array_key_exists($needs ?? '', self::CRM) ? 'crm' : $needs);
+            $needs   = $edition ? 'sales' : (array_key_exists($needs ?? '', self::CRM) ? 'crm' : (array_key_exists($needs ?? '', self::POS) ? 'pos' : $needs));
 
             if ($needs === $family || in_array($needs, $shared, true)) {
                 $names[] = ['name' => $name, 'shared' => $needs !== $family, 'edition' => $edition];
@@ -314,6 +375,7 @@ class ReportCatalog
             'sales_full', 'sales_costs', 'sales_lists', 'sales_quotes', 'sales_orders' => $this->sees(['sales' => true]) && (self::FULL_SALES[$needs] === null || $this->access->can(self::FULL_SALES[$needs])),
             'sales_deliveries', 'sales_returns' => $this->access->can(self::FULL_SALES[$needs]),
             'crm_leads', 'crm_opportunities', 'crm_activities' => $this->access->can('crm.reports.view') && $this->access->can(self::CRM[$needs]),
+            'pos_sales', 'pos_returns', 'pos_taxes', 'pos_costs', 'pos_sessions', 'pos_cash' => $this->access->can('pos.reports.view') && collect(self::POS[$needs])->every(fn (string $permission) => $this->access->can($permission)),
             'payables'   => $this->sees(['supplier_payments' => $purchases, 'expense_payments' => $expenses]),
             'taxes'      => $this->access->can('taxes.view') && $this->sees(['sales' => $sales, 'purchases' => $purchases, 'expenses' => $expenses]),
             // A statement for either side: a customer's, or a supplier's.

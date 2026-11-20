@@ -86,11 +86,36 @@ class PosSettingService
 
         $settings = $this->settings->save($workspace, [
             'variance_limit'       => ($data['variance_limit'] ?? null) === null ? null : bcadd((string) $data['variance_limit'], '0', 2),
+            // Phase F1: kept as it was when not given.
+            ...(array_key_exists('cash_movement_limit', $data) ? ['cash_movement_limit' => $data['cash_movement_limit'] === null ? null : bcadd((string) $data['cash_movement_limit'], '0', 2)] : []),
             'counts_denominations' => (bool) $data['counts_denominations'],
             'denominations'        => $lists === [] ? null : $lists,
         ]);
 
         ActivityLogService::record('updated', 'Updated the POS cash count settings', $workspace, ['source' => 'api', 'changes' => SettingChanges::of($settings)]);
+
+        return $this->show($workspace);
+    }
+
+    /**
+     * $data is validated (see SavePosSellingSettingsRequest): selling (Phase
+     * C3) - the discount limit, a percentage, and the step a cash sale's
+     * total rounds to - each empty for none.
+     */
+    public function saveSelling(Workspace $workspace, array $data): array
+    {
+        $this->start($workspace);
+
+        $settings = $this->settings->save($workspace, [
+            'discount_limit' => ($data['discount_limit'] ?? null) === null ? null : bcadd((string) $data['discount_limit'], '0', 2),
+            'cash_rounding'  => ($data['cash_rounding'] ?? null) === null ? null : bcadd((string) $data['cash_rounding'], '0', 2),
+            // Phase D1: how long a held order is kept - for as long as it takes, when null.
+            'hold_hours'     => isset($data['hold_hours']) ? (int) $data['hold_hours'] : null,
+            // Phase I1: after how many minutes without use a register locks - only by its cashier, when null.
+            'lock_minutes'   => isset($data['lock_minutes']) ? (int) $data['lock_minutes'] : null,
+        ]);
+
+        ActivityLogService::record('updated', 'Updated the POS selling settings', $workspace, ['source' => 'api', 'changes' => SettingChanges::of($settings)]);
 
         return $this->show($workspace);
     }
@@ -219,12 +244,17 @@ class PosSettingService
             throw ValidationException::withMessages(['gives_change' => 'Change is given only in cash.']);
         }
 
+        if ($cash && ! empty($data['confirms_later'])) {
+            throw ValidationException::withMessages(['confirms_later' => 'Cash is in the drawer at once: it does not wait to be confirmed.']);
+        }
+
         return [
             'name'               => $name,
             'type'               => $data['type'],
             'payment_account_id' => $accountId,
             'needs_reference'    => (bool) ($data['needs_reference'] ?? false),
             'gives_change'       => $cash && (bool) ($data['gives_change'] ?? false),
+            'confirms_later'     => ! $cash && (bool) ($data['confirms_later'] ?? false),
             'is_active'          => (bool) ($data['is_active'] ?? true),
         ];
     }

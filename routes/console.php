@@ -46,3 +46,6 @@ Schedule::command('crm:score-leads')->hourly()->withoutOverlapping();
 
 // Support sessions past their end, recorded as ended in the business's Activity Log (Doc 15 Phase B4).
 Schedule::command('support-sessions:close-expired')->everyFiveMinutes()->withoutOverlapping();
+
+// POS orders held past Settings → Point of Sale's hours, expired (Doc 18 Phase D1).
+Schedule::command('pos:expire-held-orders')->hourly()->withoutOverlapping();

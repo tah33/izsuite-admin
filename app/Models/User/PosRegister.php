@@ -77,6 +77,12 @@ class PosRegister extends Model
     }
 
     /** Who may sell at it. */
+    /** Doc 18 Phase I3: its printers, scanners, drawers and displays. */
+    public function devices(): HasMany
+    {
+        return $this->hasMany(PosDevice::class);
+    }
+
     public function cashiers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'pos_register_cashiers');

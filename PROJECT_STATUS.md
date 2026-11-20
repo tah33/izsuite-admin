@@ -2,10 +2,10 @@
 
 What is done, what comes next, and how to carry on from another PC.
 
-- **Last updated:** 2026-11-19
-- **Code:** Doc 18 Phase C1 (the selling screen) is committed: frontend `27ce76c` on `nuxt`, and on `main` the admin commit right after `3936732`. Doc 18's gap check and Phases A and B are pushed: B2b (counting cash by notes and coins), the last, is frontend `7166223` and admin `3936732`. Doc 17 is done and pushed: Phase I4, the last, is frontend `e20fa70` and admin `e5cd080`. Before I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
-- **Tests:** 1059 backend tests, last full run 2026-11-19 on the second PC: 1058 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Docs 17 or 18 (see [Small things left](#small-things-left)).
-- **Next step:** Doc 18 (Point of Sale) Phase C2: payment and the completed sale (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Last updated:** 2026-11-20
+- **Code:** Doc 18 Phases C2 (payment and the completed sale), C3 (discounts, price overrides and cash rounding), C4 (the receipt), D1 (holding and resuming orders), D2 (pending payments), D3a (credit sales), D3b (the customer's credit as a payment), D4 (the formal invoice), E1 (returns and their refunds), E2 (refund receipts and other refund methods), E3 (exchanges), F1 (cash movements), F2 (paying an expense from the drawer), F3 (the X and Z reports), G1 (the Orders, Returns and Refunds, and Cash Movements pages), G2 (the POS Overview and the Dashboard's POS card), G3 (POS documents on the Documents page), H1 (the POS sales reports), H2 (discounts, taxes, returns, voids and items), H3 (sessions and cash), I1 (the cashier's PIN and the register's lock), I2 (a manager's approval at the register) and I3 (registered devices) are built, checked on the second PC and committed together, not yet pushed: frontend `7933c6d` on `nuxt`, and on `main` the admin commit right after `8c8f380`. Phase C1 (the selling screen), just before them, is committed but not yet pushed either: frontend `27ce76c`, admin `8c8f380`. Doc 18's gap check and Phases A and B are pushed: B2b (counting cash by notes and coins), the last, is frontend `7166223` and admin `3936732`. Doc 17 is done and pushed: Phase I4, the last, is frontend `e20fa70` and admin `e5cd080`. Before I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
+- **Tests:** 1132 backend tests, last full run 2026-11-20 on the second PC: 1131 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Docs 17 or 18 (see [Small things left](#small-things-left)).
+- **Next step:** Doc 18 (Point of Sale) is built but for offline mode: work through its testing checklist; then Doc 19 (eCommerce) - its gap check first (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 18 Phase C1 the latest is 000192. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 18 Phase I3 the latest is 000210. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 18 Phase C2.
+   > Read PROJECT_STATUS.md, then start Doc 19 with its gap check.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -60,7 +60,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | **15** | **izSuite System Administration Portal** | **Done (2026-11-14): gap check and Phases A to G; a few parts left by choice (see below)** |
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
 | **17** | **CRM** | **Done (2026-11-19): gap check and Phases A to I; Campaign-to-Opportunity Results waits for Doc 21** |
-| **18** | **Point of Sale** | **In progress: gap check done 2026-11-19, Phases A (A1, A2), B (B1, B2a, B2b) and C1 built 2026-11-19, Phase C2 next** |
+| **18** | **Point of Sale** | **Done (2026-11-20): gap check and Phases A to I; offline mode (18.29) later, and what waits for Inventory and the integrations (see below)** |
 | 19 to 21 | eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -2369,7 +2369,7 @@ The first PC's parts were taken out: both repos are D3b to F4 as the second PC b
 
 **With Phase I4, Doc 17 is done** (2026-11-19). Campaign-to-Opportunity Results waits for Doc 21, and AI scoring for the AI application.
 
-### 6. Doc 18: Point of Sale (next: Phase C2)
+### 6. Doc 18: Point of Sale (done 2026-11-20)
 
 The gap check was done on 2026-11-19. Doc 18 is Point of Sale: fast selling over the counter, from a register, in a cashier's session, with receipts, cash and closing counts. It sells through the shared Sales records, Contacts, Items, Taxes and Payment Accounts: a completed POS order counts as a sale once.
 
@@ -2509,35 +2509,312 @@ The gap check was done on 2026-11-19. Doc 18 is Point of Sale: fast selling over
       - Reloaded, the cart came back - its customer, lines and notes - priced again. The Tea Gift Set showed $11.50, its parts'. Cancel Order asked first, then emptied the cart, back to the walk-in customer.
       - As a throwaway cashier whose role holds Open POS alone: Open POS and Sessions in the sidebar, not Registers. Open Session offered Back Counter (R2), saying "Front Counter: You are not one of this register's cashiers."; there the tea sold at its own $3.50, and at $2.80 to Rahman Traders. With Open POS taken off the role, the sidebar lost it and the page said "Your role does not allow this."
       - The items, lists, invoices, registers, sessions, settings, member, the apps' and taxes' state, the sign-in and the activity were then put back.
-  - **Phase C2: payment and the completed sale.**
-    - Payment: cash with the amount tendered and the change, and other methods with their reference, split across several. When it is paid in full, the order completes.
-    - **A completed order is one invoice with Source: POS,** numbered by its register's receipt sequence, with its payments in their accounts. Sales Lite and Sales list it with that source, and it counts once.
-  - **Phase C3: discounts, price overrides and cash rounding.**
-    - A price override needs its permission and a reason. Line and order discounts, by percentage or amount, up to a limit in Settings; beyond it, a manager's approval.
-    - Cash rounding to a step set in Settings, kept apart from discounts.
-  - **Phase C4: the receipt.** Printed on a receipt printer through the browser, as a PDF, or by e-mail, with the business's details, the cashier and register, the payments, tendered and change, and the return policy. A reprint says so.
-- **Phase D: holding, pending payments and credit.**
-  - Hold an order and resume it, re-checking prices; held orders expire as Settings says.
-  - A card or mobile payment can wait as Pending until someone with the permission confirms it.
-  - With full Sales: customer credit as a payment, and credit sales - a customer, payment terms and the credit limit, or an override with a reason - leaving a balance due on the invoice.
-  - A formal invoice from a POS sale: the same record given an invoice number, linked to its receipt, never a second sale.
-- **Phase E: returns, refunds and exchanges.**
-  - A return from the original receipt: the items and quantities still returnable, a reason and the item's condition, at the sale's prices, discounts and taxes. A return without a receipt needs its permission.
-  - Refunds to the original method, cash or customer credit - another method with its permission and a reason - each with a refund receipt, and linked to the sale.
-  - An exchange: a linked return and a new sale, with the difference paid or refunded.
-  - Returns use the Sales app's credit notes and refunds underneath, so they count once.
-- **Phase F: cash movements and the X report.**
-  - Cash in, cash out, safe drop, bank deposit and float adjustment, each with a reason, in the open session. A safe drop or bank deposit is a transfer between payment accounts; a cash expense goes to Expenses. Above a limit in Settings, a manager approves.
-  - The X report: the open session's totals, without closing it. The session's closing then counts every movement.
-- **Phase G: the POS pages, Documents and the Dashboard.**
-  - The POS Overview with today's figures; the Orders, Returns and Refunds, and Cash Movements pages, by register, session, cashier and status.
-  - The Documents page gains POS Sales Receipts, POS Invoices and Refund Receipts.
-  - The Dashboard's POS card: today's sales, orders, average order value, open sessions, payments by method, returns and refunds, cash variances and the top items.
-- **Phase H: POS reports.** The 21 reports of 18.36 on the Reports page, under View POS Reports. The estimated margin is shown only where items have a cost.
-- **Phase I: cashier security and devices.**
-  - A cashier PIN for switching cashiers at a register, which locks after a period without use.
-  - Manager approval and re-authentication, each naming the approving user.
-  - Registered devices (receipt printers, scanners), with their register, connection, last use and a test.
+  - **Phase C2 is built:**
+    - Pay on the cart, under a new permission, Selling: Sell Items (with Open POS), once the cart is priced as it stands, for a customer, every line with a price. It takes the payment by the methods the register takes now - switched on, into an active account taking customer payments in its currency (a cash method's into the register's own cash account, when it has one):
+      - one or several: each method chosen starts with what is still due;
+      - cash for what was handed over - as much of it as is due paid, the rest the change - and other methods for their amount, with their reference where they need one;
+      - Complete Sale once they pay the total exactly; done, it says the sale's number and the change to give, and the cart starts again.
+    - The API prices the cart again: a line without a price is refused, and a total that changed since says what it is now - the cart is then priced again. Change comes only from a method that gives it; more than the total, or less, is refused.
+    - **A completed sale is one invoice** of the business, written in one transaction:
+      - issued at once, numbered by its register's own receipt run - its prefix and five digits, R1-00001 - skipping a number an invoice has already; dated and due today, at the register's location, in its currency, the order note its notes and each line note its line's description;
+      - made in Point of Sale, so Sales Lite and Sales list it marked POS, its page says Made In Point of Sale, and it counts once, as any issued invoice;
+      - each payment a customer payment, numbered as receipts are (RCT-00001), into its account and that account's history - the invoice paid.
+    - A POS order keeps the sale: its session, register, cashier, customer and invoice, what was handed over and the change, each payment's method as it was named then, and where each line's price came from.
+    - The session's takings count its sales now: how many, their total and taxes, the payments by method, and the cash sales - in the cash expected, and in the Z report.
+    - Each sale is logged once, on its invoice: "Sold R1-00001 at the register "Front Counter" (R1) to Walk-in Customer, for USD 17.25: Cash 17.25".
+    - A card or mobile payment completes at once, the cashier confirming it by hand; one waiting as Pending comes with Phase D.
+    - **Found while checking:** a payment refused for a total that had changed left the cart showing the old total until something in it changed; the cart is priced again now.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS switched on by hand, taxes on with VAT at 15%, Cash into the Front Till and Card into City Bank (needing a reference), and Front Counter (R1) taking both:
+      - S-00001 opened with $100. Two teas and a mug: $15.00, VAT $2.25, "Pay $17.25". Cash, $20 handed over: Still to Pay $0.00, Change $2.75; then "Sale R1-00001 completed. Change: $2.75".
+      - Three packs of biscuits and a green tea, $8.74: Card for $5.00 kept Complete Sale greyed out until its reference was typed; Cash started at the $3.74 left, and $5 handed over gave $1.26 change. "Sale R1-00002 completed."
+      - The mug's price changed while its payment was open: "The total is now USD 10.35: check the cart, and take the payment again." Back on the cart, it read the new total.
+      - Sales Lite's Invoices listed R1-00002 and R1-00001 marked POS, Issued and Paid. R1-00001's page showed its lines and VAT, Paid −$17.25, "RCT-00001 · Front Till · Cash $17.25" and "Made In Point of Sale".
+      - The session read Sales 2 · $25.99, Taxes $3.39, Cash $20.99, Card $5.00 and Cash Expected $120.99.
+      - As a throwaway cashier whose role held Open POS alone, at Back Counter (R2): a cart, and no Pay. With Sell Items, "Pay $4.60" and "Sale R2-00001 completed. No change to give."
+      - The orders, invoices, payments, account entries, registers, sessions, settings, member, the app's and taxes' state, the sign-in and the activity were then put back.
+  - **Phase C3 is built:**
+    - Settings → Point of Sale has a Selling card, saved apart: the discount limit - a percentage - and the cash rounding step, each empty for none.
+    - Three new permissions under Selling, each bringing Open POS: Apply Discounts, Override Prices, and Discount Beyond the Limit (with Apply Discounts) - a manager's.
+    - A cart line's + Price or Discount: a price typed over the item's, for whoever may override prices - and why, needed to take the payment - and a discount, by percentage or amount, for whoever may give one. The sale has a discount of its own, shared over its lines before tax, as a sales document's is. A percentage takes up to 100 off.
+    - Each line shows what its discount takes off, and an override the price it replaced.
+    - **Beyond the limit** - a line's or the sale's discount, as given, or a price typed more than the limit below the one it replaced - the sale needs Discount Beyond the Limit, and why; anyone else is told so, and cannot take the payment. The order keeps the reason and who allowed it, as the invoice keeps the reason; an overridden line keeps the price it replaced, and why.
+    - **Paid in cash at all**, the total rounds to the step, the nearest: the difference is a Cash rounding line of the invoice - no share of the discounts, no tax - and the order keeps it. Paid by other methods alone, the total stands.
+    - **Found while testing:** a 10% discount rounded to the cent can come to just over 10% of a total, and counted as beyond a 10% limit; a percentage counts as given now.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS on by hand, taxes on with VAT at 15%, Cash and Card (needing a reference) at Front Counter (R1):
+      - Settings → Point of Sale's Selling card saved a 10% limit and 0.05 rounding: "Selling settings saved."
+      - Two teas at 10% off ("$3.50 / Piece · Item price · $0.70 off", $6.30), biscuits, and 5% off the whole sale: Subtotal $7.50, Discount −$0.38, VAT $1.07, Total $8.19. Cash started at $8.20 - Cash Rounding +$0.01 - and $10 handed over gave $1.80 change. R1-00001's invoice kept the 5% discount, the tea's $0.70 off and a Cash rounding line of $0.01, untaxed.
+      - The mug's price typed as $7.00: "Price changed, was $8.00", 12.5% under it - beyond the limit. Pay waited for the override's reason ("Display model") and "Why Beyond the 10% Limit" ("Last one left"), then took $8.05 by card, unrounded. The order kept the reason, allowed by izSuite User, and the line the price it replaced.
+      - As a throwaway cashier who may sell and give discounts: no Price field. 20% off a green tea said "These discounts go beyond the 10% limit: someone with Discount Beyond the Limit gives them.", and Pay stayed greyed out; at 10%, Pay $4.14, and $4.15 in cash once rounded.
+      - The orders, invoices, payments, account entries, registers, sessions, settings, member, the app's and taxes' state, the sign-in and the activity were then put back.
+  - **Phase C4 is built:**
+    - A sale's receipt is a PDF on an 80 mm roll, one page as long as the receipt (at least 4.9 inches), to print from the browser on a receipt printer, or save. Drawn from what its invoice kept, in the invoice template's language, dates and money:
+      - the business - its logo, name, address, phone, e-mail, registration and tax numbers - and the location, with its own header lines;
+      - the receipt number, the date and time sold in the business's time, the register, the cashier, and the customer - none for the walk-in one;
+      - each item with its quantity, unit, price, line note and discount; the subtotal, the sale's discount, each tax, the cash rounding and the total;
+      - each payment by its method's name then and its reference, what was handed over where it was more, and the change;
+      - the return policy and footer as Settings → Point of Sale had them when it was sold - the order keeps them - and "Powered by izSuite" as the invoice was issued with it.
+    - **The first copy is its cashier's**, made as the sale completes: the sale's dialog has Receipt, E-mail Receipt and New Sale. Every later copy is a reprint, under a new permission, Receipts: Reprint Receipts (with Open POS). It says REPRINT across its top, the order counts its copies, and each reprint is logged: "Reprinted receipt R1-00001, copy 2". A copy that could not be made is not counted.
+    - **E-mailed** - by its cashier, or whoever may reprint - to the customer's own address when they have one, or one typed: in the business's receipt e-mail of Settings → Email, the walk-in customer greeted as "Customer", the receipt attached as the original. Each is logged.
+    - Under the cart, the session's last sale, with its receipt - Reprint Receipt once one was made, for whoever may - and E-mail Receipt.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS on by hand, taxes on with VAT at 15%, Cash and Card (needing a reference) at Front Counter (R1), a return policy of two lines and the footer "Thank you for shopping with us!":
+      - S-00001 opened with $100. Two teas - one "No sugar" - and a mug for $17.25, $20 in cash: "Sale R1-00001 completed.", Change: $2.75. Receipt closed the dialog and opened the PDF: Billing Starter, Main Location, R1-00001, 19 Nov 2026 17:58, Front Counter (R1), izSuite User, "2 Piece × $3.50 $7.00", No sugar, VAT 15% $2.25, Total $17.25, Cash $17.25, Tendered $20.00, Change $2.75, the policy, the footer and Powered by izSuite - no customer named.
+      - Closed, the cart's Last sale R1-00001 said Reprint Receipt: the copy said REPRINT, and the order counted 2. E-mail Receipt to a typed address: "Receipt R1-00001 is on its way to walkin.buyer@example.test." The queue sent it - "Dear Customer," with Receipt-R1-00001.pdf - to the log mailer.
+      - Rahman Traders, $4.60 by card ("AUTH-5521"): the sale's dialog started with their own address, and sent it; the receipt named them, with "Card · AUTH-5521".
+      - As a throwaway cashier whose role held Sell Items alone, at Back Counter (R2): R2-00001's first copy printed, without REPRINT; then Last sale offered E-mail Receipt alone, and a second copy - theirs or R1-00001 - was refused: "Receipt R2-00001 was printed already: a copy needs Reprint Receipts." With Reprint Receipts, Reprint Receipt came back, and its copy said REPRINT.
+      - The orders, invoices, payments, e-mails, account entries, registers, sessions, settings, member, the app's and taxes' state, the sign-in and the activity were then put back.
+- **Phase D: holding, pending payments and credit** - split on starting it (2026-11-19): D1, holding and resuming orders; D2, pending payments; D3, credit sales and customer credit; D4, the formal invoice.
+  - **Phase D1 is built:**
+    - Hold Order under the cart, under a new permission, Selling: Hold and Resume Orders (with Open POS). The cart is held as it stands - its customer, lines with their notes, prices typed over (with why) and discounts, the order's discount and note - priced then, numbered H-00001, at its register. It is no sale: nothing reaches Sales, stock or the payment accounts. The cart empties for the next customer: "Order H-00001 held."
+    - What the user may not give is not held either, and an item no longer sold is refused, as a sale's are.
+    - Held Orders, at the head of the cart, with how many wait: the orders held at the user's register - by anyone - each with its customer, items, total when held, who held it, when, and when it expires. Resume loads one into an empty cart: "Hold or cancel the sale in the cart to resume another."
+    - **Resuming prices it again.** What changed is said first, with its total then and now: a price that is not what it was ("Ceramic Mug: USD 8.00 when it was held, USD 9.00 now."), an item no longer sold - left out - a customer no longer sold to - back to the walk-in one - and a price typed over or a discount the user may not give, left out. With none of its items sold any longer, there is nothing to resume. Resumed, it waits no longer.
+    - A held order is resumed at the register it was held at. Cancelling one needs a second new permission, Cancel Held Orders (with Hold and Resume Orders), and a reason.
+    - Settings → Point of Sale's Selling card: Keep Held Orders For (Hours), up to 720 - empty, an order waits until it is resumed or cancelled. Past its time one cannot be resumed; the scheduler records it as expired, hourly.
+    - Each hold, resume, cancellation and expiry is logged on the held order: "Held the order H-00001 at the register "Front Counter" (R1) for Rahman Traders: 2 items, USD 17.25".
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS on by hand, taxes on with VAT at 15%, Cash and Card at Front Counter (R1):
+      - Two teas - one "No sugar" - and a mug for Rahman Traders, the order note "Back in 10 minutes": Hold Order said "Order H-00001 held.", the cart emptied back to the walk-in customer, and Held Orders (1). A green tea held next was H-00002. Nothing was sold: no invoice, no order.
+      - The mug's price raised to $9.00 by hand. Held Orders listed both, each "Held by izSuite User, 19 Nov 2026, 18:22"; Resume on H-00001 said "Ceramic Mug: USD 8.00 when it was held, USD 9.00 now." and "Its total: $17.25 when held, $18.40 now." Resume with These Changes loaded Rahman Traders, both lines, "No sugar" and the order note: "Order H-00001 resumed.", Pay $18.40 - sold as R1-00001.
+      - H-00002 cancelled, "Customer left without it": the list said none was held. Settings saved 4 hours: "Selling settings saved."
+      - As a throwaway cashier who may sell, hold and resume, at Back Counter (R2): Held Orders started empty - R1's stay at R1. A tea held was H-00003, "expires 19 Nov 2026, 22:27", with Resume and no Cancel. Without Hold and Resume Orders: neither Hold Order nor Held Orders, and the list's API answered "Your role does not allow this."
+      - The held orders, orders, invoices, payments, account entries, registers, sessions, settings, member, the app's and taxes' state, the sign-in and the activity were then put back.
+  - **Phase D2 is built:**
+    - A payment method can wait to be confirmed - a card or mobile payment the cashier cannot see arrive: Settings → Point of Sale's method form, "Its payments wait to be confirmed", never for cash. The list marks it Confirmed Later.
+    - Taken in a sale, its line says it waits. The sale completes as any - its invoice, its order, its receipt - but that payment is **pending**: the order's, with the account its money is to go into, and no customer payment yet - nothing in the account, the invoice owing it. The sale's dialog says "Card $10.00 (pending)", its receipt "Card · AUTH-1 (pending)", and the sale's log entry "Card 10.00 (pending)".
+    - The session's totals count it apart, as Waiting to Be Confirmed - not under its method, not in the cash - while its Z report keeps what waited when it closed.
+    - Under a new permission, Pending Payments: Confirm Pending Payments (with Sessions' View): the cart's Pending Payments (n) opens the session's page, whose Waiting to Be Confirmed card lists each with its sale, method, amount, reference and when. Confirm makes it the customer payment - numbered as receipts are, dated the day it is confirmed, into its account - and pays the invoice: "The Card payment for R1-00001 is confirmed." Decline, with a reason, leaves the invoice owing it, paid from the invoice. Each is done once, and logged on the invoice.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS on by hand, taxes on with VAT at 15%, Cash and Card (needing a reference, and confirmed later) at Front Counter (R1):
+      - Settings → Point of Sale listed Card as Confirmed Later; its form had the box ticked.
+      - A tea and a mug, $13.23: Card $10.00 ("AUTH-7781") said "It waits as pending until someone who may confirm payments says it arrived."; the rest in cash. "Sale R1-00001 completed.", "Card $10.00 (pending) · Cash $3.23". The cart then had Pending Payments (1).
+      - The session's page: Cash $3.23, Waiting to Be Confirmed $10.00, and the card listing "R1-00001 · Card · $10.00", "Reference AUTH-7781". Confirm: "The Card payment for R1-00001 is confirmed.", then Card $10.00 under the methods. R1-00001 was paid - RCT-00001 the cash, RCT-00002 the card into City Bank.
+      - A green tea, $4.60 all by card ("AUTH-9902"), declined - "Terminal shows it failed": "The Card payment for R1-00002 is declined: its invoice still owes it." R1-00002 stayed Unpaid, $4.60 due, the reason kept.
+      - As a throwaway cashier whose role held Sell Items alone, at Back Counter (R2): a card sale's payment waited; the cart had no Pending Payments, and the session's page showed Waiting to Be Confirmed $4.03 with no list to confirm.
+      - The orders, invoices, payments, account entries, registers, sessions, settings, member, the app's and taxes' state, the sign-in and the activity were then put back.
+  - **Phase D3: credit sales and customer credit** - split on starting it (2026-11-19): D3a, credit sales; D3b, the customer's credit as a payment.
+    - **Phase D3a is built:**
+      - With the full Sales app, under a new permission, Selling: Create Credit Sales (with Sell Items), what a sale's payments leave can stay on a named customer's account: the payment dialog's "Leave what is still to pay on the customer's account" - never the walk-in customer's. Still to Pay then reads On Account, and the sale completes with any payments - or none.
+      - The sale is still one invoice: paid in part, or unpaid, owing the rest, due by the customer's payment terms - else Settings > Sales's. The order keeps what was left on account; the receipt says "On account · due 19 Dec 2026", and the sale's log entry "Cash 5.00, on account 10.00". Later payments are taken from the invoice, in Sales.
+      - **The credit limit** is the customer's credit control's (Doc 16 Phase G1), counting only what is left on account: within it, the sale goes ahead; over it, a customer who warns lets it, the sale's dialog saying so; one who blocks refuses it, unless the user may override credit limits (Sales' Override Credit Limits) and says why - the order keeps the reason, and the invoice's log entry says "Sold R1-00003 over its customer's credit limit, because: ...".
+      - Paid in full, a sale needs no credit, whatever is asked. Without the full Sales app, a sale is never left on account.
+      - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS and full Sales switched on by hand, taxes on with VAT at 15%, Cash and Card at Front Counter (R1), and Rahman Traders on 30 days with a $20.00 limit that warns:
+        - A tea and a mug for Rahman Traders, $13.23: $5 in cash, then the box ticked - On Account $8.23. "Sale R1-00001 completed.", "Cash $5.00", "On account: $8.23, on the invoice." R1-00001 was Partially Paid, $8.23 due on 19 Dec 2026, 30 days' terms.
+        - The same again, all on account: completed with "Rahman Traders has a credit limit of USD 20.00, and this takes their balance to USD 21.46."
+        - Rahman Traders made to block: a green tea on account was refused - "... would take their balance to USD 26.06. To go on, give a reason." - and Why Go Over the Credit Limit appeared; with "Pays every Friday", R1-00003 completed, the order keeping the reason, the invoice's log saying it.
+        - As a throwaway cashier who may sell, but not create credit sales: no box in the payment dialog for Rahman Traders, and the API answered "Leaving a sale on account needs Create Credit Sales."
+        - The orders, invoices, payments, account entries, registers, sessions, settings, member, the apps' and taxes' state, the sign-in and the activity were then put back.
+    - **Phase D3b is built:**
+      - With the full Sales app, a named customer's own credit - their advances and credit notes with credit left, in the register's currency - pays part of a sale: the payment dialog's "Pay with the customer's credit: $6.00 held", and Credit to Use, starting with as much as the credit and the total allow. Still to Pay then counts it first.
+      - It is applied to the sale's invoice as Sales applies credit (Doc 16 sections 16.15 and 16.18) - oldest first, each source read again and locked in the sale's own transaction - and is no payment: nothing goes into an account. The order keeps how much; the receipt says "Customer credit", and the sale's log entry "Customer credit 6.00, Cash 9.00".
+      - Never more than the customer holds - "Rahman Traders holds USD 6.00 of credit." - nor than the total; the walk-in customer holds none. It needs no permission beyond Sell Items.
+      - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS and full Sales switched on by hand, taxes on with VAT at 15%, and a $6.00 advance (ADV-00001) recorded for Rahman Traders:
+        - A tea and a mug for Rahman Traders, $13.23: the dialog offered "Pay with the customer's credit: $6.00 held"; ticked, Credit to Use 6.00, and Cash started at $7.23. "Sale R1-00001 completed.", "Customer credit $6.00 · Cash $7.23".
+        - R1-00001 was Paid: $7.23 by RCT-00001 into the till, $6.00 allocated from ADV-00001, whose balance was then nil.
+        - The advance, allocation, orders, invoice, payments, account entries, registers, session, settings, the apps' and taxes' state, the sign-in and the activity were then put back.
+  - **Phase D4 is built.** Phase D is done.
+    - Under the cart, Last sale's Formal Invoice - for a sale to a named customer, by its cashier or whoever may reprint receipts: the sale's own invoice is given the business's invoice number, once, at its location, in its period - never a second sale. The order keeps the receipt number; the row then reads "Last sale R1-00001 · invoice INV-00001", and Formal Invoice opens it again.
+    - Its PDF is the business's A4 or Letter invoice, naming the receipt: "POS Receipt R1-00001". Sales lists it by its invoice number, still marked POS; the receipt still says R1-00001.
+    - A sale to the walk-in customer has none: "A formal invoice is made out to a named customer: R1-00002 was sold to the walk-in customer." Given, it is logged on the invoice: "Gave the POS sale R1-00001 its formal invoice number INV-00001".
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS switched on by hand, taxes on with VAT at 15%:
+      - A sale to Rahman Traders, $17.25 in cash, as R1-00001. Formal Invoice opened "Invoice INV-00001": Bill To Rahman Traders, POS Receipt R1-00001, the lines and VAT, PAID. The row then read "Last sale R1-00001 · invoice INV-00001".
+      - A walk-in sale after it, R1-00002: no Formal Invoice. Sales Lite's invoices listed INV-00001 and R1-00002, both POS - one invoice for each sale.
+      - The orders, invoices, payments, account entries, register, session, settings, the app's and taxes' state, the sign-in and the activity were then put back.
+- **Phase E: returns, refunds and exchanges** - split on starting it (2026-11-19): E1, returns and their refunds; E2, refund receipts, other refund methods and returns without a receipt; E3, exchanges.
+  - **Phase E1 is built:**
+    - Return, at the head of the selling page, under a new permission group, Returns and Refunds: Process Returns (with Open POS), and Process Refunds (with Process Returns). In one's own session, the sale is found by its receipt number - "There is no sale with the receipt number R9-99999." - at a location the user may use.
+    - Each of its items shows how much was sold and how much is still returnable - what its credit notes have not taken - with its price. What comes back - each with its condition: Resellable, Damaged, Quarantined or Not Returned - and why; what it credits is worked out as each line changes, at the sale's prices, discounts and taxes ("Credits $4.03").
+    - **Underneath** it is the Sales app's credit note of the sale's invoice, issued at once (CN-00001), so it counts once; the return is RT-00001, keeping its lines, conditions and reason. No more comes back than is left: "Only USD 3.50 of this line is left to credit."
+    - **Paid back** - for whoever may process refunds - in cash from the drawer (the register's cash account, else its cash method's), or by the sale's own method into its account: a customer refund out of that account. Never more than the sale was paid in money; what is not paid out stays as credit on the credit note, or takes off what the invoice still owes. **Kept as credit** instead - a named customer's only - nothing is paid out. Without Process Refunds, a return is kept as credit.
+    - The session's Cash Refunds count what its returns paid back in cash, and Cash Expected is less by it. Each return is logged on its credit note: "Took back RT-00001 from R1-00001 at the register "Front Counter" (R1), for USD 4.03: Cash 4.03 - Wrong flavour".
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS switched on by hand, taxes on with VAT at 15%, Cash and Card at Front Counter (R1), a cash sale to the walk-in customer (R1-00001, two teas and a mug) and a card sale to Rahman Traders (R1-00002, a mug):
+      - Return, R1-00001: "Walk-in Customer · sold 19 Nov 2026, 19:38 · paid by Cash", Black Tea 2 sold, 2 returnable; In cash or By the sale's own method (Cash) - no credit for the walk-in customer. One tea, Resellable, "Wrong flavour", in cash: "Credits $4.03", then "Return RT-00001 recorded." and "Pay back $4.03 by Cash."
+      - R1-00002 for Rahman Traders offered Kept as the customer's credit too: the mug, Damaged, "Chipped", kept as credit - "Nothing is paid back. $9.20 stays as credit on CN-00002."
+      - The session read Cash Refunds $4.03 and Cash Expected $113.22; CN-00001 was used up by its refund out of the till, CN-00002 kept $9.20.
+      - As a throwaway cashier who may process returns but not refunds: R1-00001 had its tea at 1 returnable, and no way to pay it back - so no return.
+      - The returns, credit notes, refunds, orders, invoices, payments, account entries, registers, sessions, settings, member, the app's and taxes' state, the sign-in and the activity were then put back.
+  - **Phase E2 is built** - but for returns without a receipt (see [Small things left](#small-things-left)):
+    - **A refund receipt** for each return: Refund Receipt once it is recorded, on the receipt's 80 mm roll - headed Refund Receipt, the return's number and its sale's, when, where and by whom, each line brought back, the credit note's totals, what was paid back and how - "(pending)" while it waits - and what was kept as credit.
+    - **Another method**: "By another method" - one of the register's methods, and why - under a third new permission, Use Alternative Refund Methods (with Process Refunds). The return keeps why.
+    - **A method that waits to be confirmed** (Phase D2's), the sale's own or another: the refund is pending - nothing paid out, the credit on the credit note: "$4.03 by Card waits to be confirmed." Whoever may confirm pending payments sees it on the session's page, under Refunds Waiting to Be Confirmed: Confirm makes it the customer refund out of its account, never more than the credit note may still refund; Decline, with a reason, leaves the credit on the credit note. Each is done once, and logged on the credit note.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS switched on by hand, taxes on with VAT at 15%, Cash and Card (confirmed later) at Front Counter (R1), and a cash sale R1-00001:
+      - Return, R1-00001: a tea, "Wrong flavour", By another method - Card, "Customer has no cash" - "Credits $4.03". "Return RT-00001 recorded." and "$4.03 by Card waits to be confirmed."
+      - Refund Receipt opened "Refund Receipt RT-00001": Return RT-00001, Sale R1-00001, the tea, VAT 15% $0.53, Total $4.03, "Card (pending) $4.03".
+      - The session's page listed "RT-00001 · from R1-00001 · Card · $4.03" under Refunds Waiting to Be Confirmed; Confirm: "The Card refund for RT-00001 is confirmed." - a $4.03 refund out of City Bank, the reason kept.
+      - The member's side - another method refused without Use Alternative Refund Methods - is covered by the API tests, not the browser.
+      - The return, credit note, refund, order, invoice, payments, account entries, register, session, settings, the app's and taxes' state, the sign-in and the activity were then put back.
+  - **Phase E3 is built**, and with it Phase E:
+    - **Exchanged**, a fourth way to settle a return: nothing is paid out, its credit kept on its credit note for the sale of the replacement - for any customer, the walk-in one too, and for whoever may process returns: "Its credit of $9.20 pays for the replacement: start its sale, and add what the customer takes instead." Start the Exchange Sale puts the exchange in the cart, for the return's customer: "Exchange for RT-00001: its credit of $9.20 pays for this sale first."
+    - **The replacement's sale** is paid by that credit first, as much as it costs - applied from the credit note to its invoice - and its payments pay the rest ("Pay $4.03"). Costing less, what the credit leaves over is paid back in cash from the register, for whoever may process refunds - a customer refund out of the till, never more than the returned sale was paid in money: "Paid Back in Cash $5.17". The customer's own credit does not pay it besides; Hold Order is not offered while the cart carries an exchange; Cancel Order leaves the credit on its credit note.
+    - **Two separate, linked records**: the return keeps the sale it paid, and the sale its return, how much the credit paid and what was paid back. Each exchange is sold once, to its return's own customer: "RT-00001's exchange was sold already." The sale's receipt shows "Exchange · RT-00001" and "Paid back"; the refund receipt, "Kept for the exchange". The session's Cash Refunds count what exchanges paid back. Logged on the invoice: "Sold R1-00002 at the register "Front Counter" (R1) to Walk-in Customer, for USD 3.50: Exchange RT-00001 3.50, Cash 4.50 paid back".
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS switched on by hand, taxes on with VAT at 15%, Cash and Card at Front Counter (R1), and a cash sale of a mug to the walk-in customer, R1-00001 ($9.20):
+      - Return, R1-00001: the mug, Damaged, "Chipped", Exchanged - "Credits $9.20". "Return RT-00001 recorded." and "Its credit of $9.20 pays for the replacement: ..."; Start the Exchange Sale.
+      - A Black Tea in the cart ($4.03): "... pays for this sale first, and the $5.17 it leaves over is paid back in cash", and Pay $0.00. Take Payment showed Exchange RT-00001 −$4.03, Still to Pay $0.00 and Paid Back in Cash $5.17; Complete Sale: "Sale R1-00002 completed. Pay back $5.17 in cash." Its receipt: "Exchange · RT-00001 $4.03", "Paid back $5.17".
+      - The session read Cash Sales $9.20, Cash Refunds $5.17 and Cash Expected $54.03.
+      - As a throwaway cashier who may process returns and sell but not refund, at Back Counter (R2): a second mug sale, R1-00003, came back offering Exchanged alone (RT-00002). A tea in its place said "paying the difference back needs Process Refunds", and Complete Sale was refused: "The replacement costs less than RT-00002's credit: paying the difference back needs Process Refunds." With a mug added (Pay $4.03), cash paid the rest: "Sale R2-00001 completed." - "Exchange RT-00002 $9.20 · Cash $4.03". A third exchange, cancelled, took its banner and the page's note with it.
+      - The returns, credit notes, refunds, allocations, orders, invoices, payments, account entries, registers, sessions, settings, member, the app's and taxes' state, the sign-in and the activity were then put back.
+- **Phase F: cash movements and the X report** - split on starting it (2026-11-20): F1, cash movements and their approval; F2, a cash expense paid from the drawer, recorded in Expenses; F3, the X report.
+  - **Phase F1 is built:**
+    - **Cash In or Out**, on the selling page, under a new permission group, Cash Movements: Record Cash Movements (with Open POS) and Approve Cash Movements (with Sessions' View). In one's own open session: Cash In, Cash Out, Safe Drop, Bank Deposit or Float Adjustment (into the drawer or out of it), an amount and why. "The drawer's cash is in Front Till: it should hold $68.40 now."
+    - **Each moves money** between the drawer's cash account - the register's cash account, else its cash method's - and another active account of the business in the session's currency, by a completed transfer whose reference is the movement's number (CM-00001): a safe drop into a cash account (the safe), a bank deposit into a bank account, the others any. Never the drawer's own account, and no more out of the drawer than it should hold: "The drawer should hold USD 28.40: no more can come out of it."
+    - **The session counts what moved**: its Cash In and Cash Out, and Cash Expected with them - so the Z report too, at the close.
+    - **Above a limit** - Settings → Point of Sale → Closing Sessions' new Cash Movement Needing Approval - one recorded by someone who may not approve cash movements waits, nothing moved: "Safe drop CM-00003 waits for a manager's approval: nothing moves until then." The session's page lists its movements under Cash Movements; whoever may approve them approves one ("the cash has moved") or declines it with why ("nothing moves"), while the session is open. A session closes only once none waits: "CM-00003 waits for approval: approve or decline it, then close the session." Each movement, approval and decline is logged on the session.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS switched on by hand, Front Till, City Bank and a Back Office Safe (a cash account), Front Counter (R1) taking Cash and Card, a $50.00 float and a cash sale of two mugs ($18.40):
+      - Cash In or Out: "The drawer's cash is in Front Till: it should hold $68.40 now."; a Safe Drop of $40 into Back Office Safe, "Too much cash in the drawer": "Safe drop CM-00001 recorded."
+      - A Bank Deposit (City Bank chosen for it) of $50: "The drawer should hold USD 28.40: no more can come out of it."; of $20: "Bank deposit CM-00002 recorded." The session then read Cash Out $60.00 and Cash Expected $8.40.
+      - Settings → Point of Sale: Cash Movement Needing Approval $30 - "Closing settings saved."
+      - As a throwaway cashier who may record cash movements but not approve them, at Back Counter (R2) with a $100 float: a $60 safe drop, "End of shift" - the dialog said "Above $30.00, it counts once a manager approves it." - waited: "Safe drop CM-00003 waits for a manager's approval: nothing moves until then." Their session's page listed it Waiting for Approval, with no Approve; Close Session was refused: "CM-00003 waits for approval: approve or decline it, then close the session."
+      - Back as `user@izsuite.io`, on that session's page: Approve - "Safe drop CM-00003 approved: the cash has moved." - Cash Out $60.00, Cash Expected $40.00.
+      - The cash movements, transfers, order, invoice, payment, account entries, accounts, registers, sessions, settings, member, the app's and taxes' state, the sign-in and the activity were then put back.
+  - **Phase F2 is built:**
+    - **Paid Out**, a sixth kind of cash movement, with the Expenses app: an expense paid from the drawer - who it is paid to, one of the business's active expense categories, the amount and why. Underneath, an expense of Expenses at the register's location, in the session's currency, without tax - its reference the movement's number - recorded at once and paid from the drawer's cash account. It counts as the session's cash out.
+    - It is offered only where the drawer may pay one: with the Expenses app on, and the drawer's account paying expenses - "Shop Till does not pay expenses: allow it in Payment Accounts to pay one out of the drawer."
+    - Above Settings' limit it waits like any other; approved, its expense is made and paid then. The session's page names its payee, and its expense once it moved.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS switched on by hand, the Expenses app on as the dev business has it, Front Counter (R1) taking Cash into Front Till, a $50.00 float and a cash sale of two mugs ($18.40):
+      - Cash In or Out offered Paid Out; chosen, Paid To and Expense Category (the business's categories) took the account's place. $12.50 to "Door Fix Co", Repairs, "Fixing the shop door": "Paid out CM-00001 recorded."
+      - The session's page listed "CM-00001 · Paid Out · −$12.50 to Door Fix Co · EXP-00001" and read Cash Out $12.50, Cash Expected $55.90. Expenses listed EXP-00001 - Door Fix Co, Repairs, $12.50, Recorded, Paid.
+      - As a throwaway cashier who may record cash movements - and nothing of Expenses - at Back Counter (R2) with a $30 float: $8 to "Corner Shop", "Milk for the staff": "Paid out CM-00002 recorded." - EXP-00002, paid; their session read Cash Out $8.00, Cash Expected $22.00.
+      - The cash movements, expenses and their payments, order, invoice, payment, account entries, accounts, registers, sessions, settings, member, the app's and taxes' state, the sign-in and the activity were then put back - and the plan's "More users than the plan includes" notice the hourly check gave while the member was there.
+  - **Phase F3 is built**, and with it Phase F:
+    - **X Report** on the session's page while the session is open, for whoever may view sessions: its totals so far on the receipt's 80 mm roll - the business and location, the session, register and cashier, when it opened and "As at" now; its sales, taxes, payments by method and those waiting to be confirmed; and its cash - the opening cash, cash sales, refunds, cash in and out, and the cash expected. "Not a closing: the session stays open."
+    - **Z Report** in its place once the session is counted: the same from what its closing kept, with when it closed, the cash counted, and the variance with why.
+    - Each one made is logged on the session ("Printed the X report of the POS session S-00001"). Asked for the other - an X report of a closed session, a Z report of an open one - it says which to use.
+    - The receipt's look and business head are now shared partials (`documents/partials/pos-roll-styles` and `pos-roll-business`), used by the receipt, the refund receipt and the reports.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS switched on by hand, Front Counter (R1) taking Cash into Front Till, a $50.00 float, a cash sale of two mugs ($18.40) and a $20 safe drop:
+      - The session's page offered X Report: "X Report S-00001" on the roll - Front Counter (R1), izSuite User, opened 21:09, As at 21:10, Sales (1) $18.40, Taxes $2.40, Cash $18.40; Opening cash $50.00, Cash sales $18.40, Cash refunds $0.00, Cash in $0.00, Cash out −$20.00, Cash expected $48.40; "Not a closing: the session stays open." (A first look showed "−$0.00" for no refunds; the minus now shows only on an amount.)
+      - Closed with $46.40 counted, "Two dollars short": the page offered Z Report instead - closed 21:11, Cash expected $48.40, Cash counted $46.40, Variance −$2.00, "Two dollars short".
+      - As a throwaway member who may only view sessions, the session's page offered Z Report and opened it.
+      - The cash movement, transfer, order, invoice, payment, account entries, accounts, registers, session and its closing, settings, member, the app's and taxes' state, the sign-in and the activity were then put back.
+- **Phase G: the POS pages, Documents and the Dashboard** - split on starting it (2026-11-20): G1, the Orders, Returns and Refunds, and Cash Movements pages; G2, the POS Overview and the Dashboard's POS card; G3, POS documents on the Documents page.
+  - **Phase G1 is built:**
+    - Point of Sale's menu gains **Orders**, **Returns and Refunds** and **Cash Movements** after Sessions - 18.3's order - each under a new View permission: Orders (a new group), Returns and Refunds, and Cash Movements, each with Sessions' View. Processing returns now brings their View, and recording or approving cash movements theirs.
+    - Each lists its records at the locations the user may use, the latest first, by register and cashier - the Sessions page's registers, and now their cashiers - and by session from a session's page ("Its sales", "Its returns": "Session S-00001 ×").
+    - **Orders**: the receipt number - opening its invoice for whoever may view invoices, a formal invoice's number beside it - when, the register, session, cashier and customer, how it was paid, its total and what returns have credited of it; a receipt number searched for.
+    - **Returns and Refunds**: the return and when, its sale, where and by whom, what it credits, and how it was paid back - "Cash $9.20", waiting or declined, kept as credit, or exchanged (naming the replacement's sale); by how it was paid back and its refund's status, and a number searched for - its own or its sale's. Whoever may process returns opens each one's refund receipt.
+    - **Cash Movements**: each movement and when, where, its kind and amount (+ or −), the other account - or a paid out's payee and expense - why, by whom and its status; by kind and status, and by who recorded it.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS switched on by hand, Front Counter (R1) taking Cash into Front Till, and in session S-00001 two cash sales (R1-00001, two mugs, $18.40; R1-00002, a tea, $4.03), a return of a mug in cash (RT-00001, $9.20), a $20 safe drop and a $5 cash in:
+      - Orders listed R1-00002 ($4.03) and R1-00001 ($18.40, $9.20 returned), each opening its invoice; "00001" in the search left R1-00001.
+      - Returns and Refunds listed RT-00001 - from R1-00001, credits $9.20, "Cash $9.20" - and its Refund Receipt opened over the page.
+      - Cash Movements listed CM-00002 (Cash In, +$5.00, from Back Office Safe) and CM-00001 (Safe Drop, −$20.00); Kind, Safe Drop, left CM-00001.
+      - The session's page's "Its sales" opened Orders for that session alone: "Session S-00001 ×".
+      - As a throwaway member who may view Orders alone, Point of Sale's menu showed Sessions and Orders; Orders listed both sales, their numbers not links, with a Cashier filter; Returns and Refunds said "Your role does not allow this."
+      - Found while checking: the list's refund receipt dialog was made as it opened, so it never loaded; it is made with the page now.
+      - The return, credit note, refund, cash movements, transfers, orders, invoices, payments, account entries, accounts, registers, session, settings, member, the app's and taxes' state, the sign-in and the activity were then put back.
+  - **Phase G2 is built:**
+    - **Overview**, first in Point of Sale's menu (18.3's order), for whoever may view its orders: today - the business's day - at the registers of the locations the user may use, in the base currency, each sale valued as its invoice was. Sales Today and how many orders, the Average Order, Returns (what they credit, and what was paid back), the sessions open now and those closed today with a variance - each opening the page it counts; what each payment method took (completed payments), the items that took the most (before tax), the open sessions and the variances, each opening its session; and Open POS, for whoever may sell.
+    - **The Dashboard's Point of Sale card**, while POS is on, for whoever may view its orders: today's figures as the Overview counts them - at the location the Dashboard shows, whatever its range - with what each method took and the top items.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS switched on by hand, taxes on with VAT at 15%, Front Counter (R1) taking Cash and Card, and in session S-00001 a cash sale of two mugs (R1-00001, $18.40), a card sale of three teas (R1-00002, $12.08) and a mug brought back in cash ($9.20):
+      - Point of Sale's menu started with Overview: "Today, 19 Nov 2026, at the registers of your locations - in USD." - Sales Today $30.48 (2 orders), Average Order $15.24, Returns $9.20 ("1 today · $9.20 paid back"), Open Sessions 1, Cash Variances 0; Payments by Method Cash $18.40 and Card $12.08; Top Items Ceramic Mug × 2 $16.00 and Black Tea × 3 $10.50 (before tax); Open Sessions "S-00001 · Front Counter (R1) · izSuite User".
+      - The Dashboard's Point of Sale card showed the same figures, with "By method Cash $18.40 · Card $12.08" and "Top items Ceramic Mug × 2 · Black Tea × 3".
+      - The session closed $1.20 short: Open Sessions 0, and Cash Variances 1 - "S-00001 · Front Counter (R1) · -$1.20".
+      - As a throwaway member who may view Orders alone, Point of Sale's menu showed Overview, Sessions and Orders, and the Overview opened, without Open POS.
+      - The return, credit note, refund, orders, invoices, payments, account entries, accounts, registers, session and its closing, settings, member, the app's and taxes' state, the sign-in and the activity were then put back.
+  - **Phase G3 is built**, and with it Phase G:
+    - **The Documents page lists POS's documents** (18.34) under a new source app, Point of Sale: each sale's invoice as its **POS Sales Receipt** - a **POS Invoice** once formally invoiced - each return's credit note as a **Credit Note**, and each return as its **Refund Receipt**, a row of its own for whoever may view POS's returns, dated as its credit note and found by its number or its sale's.
+    - Each keeps its POS order, register and session references under its label: "RT-00001 · R1-00001 · Front Counter (R1) · S-00001". They are sales documents still - Sales' source lists them too, but for the refund receipts - and a refund receipt opens on Returns and Refunds, searched for it, with no Preview or actions of its own there.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS switched on by hand, Front Counter (R1) taking Cash, and in session S-00001 a cash sale to the walk-in customer (R1-00001, $9.20), one to Rahman Traders formally invoiced ("R1-00002 is now invoice INV-00001.") and R1-00001 brought back in cash (RT-00001):
+      - Documents, Source app Point of Sale, listed CN-00001 (Credit Note, "RT-00001 · R1-00001 · Front Counter (R1) · S-00001", Issued, Refunded), RT-00001 (Refund Receipt, "R1-00001 · Front Counter (R1) · S-00001", Completed, no Preview), INV-00001 (POS Invoice, "R1-00002 · Front Counter (R1) · S-00001", Issued, Paid) and R1-00001 (POS Sales Receipt, "Front Counter (R1) · S-00001").
+      - RT-00001's actions: "Open in Returns and Refunds" - the page searched for RT-00001.
+      - As a throwaway member who may view documents, invoices and credit notes but not POS's returns, the same source listed the three sales documents, their amounts hidden, and no refund receipt.
+      - The return, credit note, refund, orders, invoices, payments, account entries, accounts, registers, session, settings, member, the app's and taxes' state, the sign-in and the activity were then put back.
+- **Phase H: POS reports** - split on starting it (2026-11-20): H1, the sales reports; H2, discounts, taxes, returns, voids and items; H3, sessions and cash. In all three:
+  - **A Point of Sale group on the shared Reports page,** while the business has POS's records - on, or turned off since - each counting what is at the locations the user may use.
+  - **A new permission, POS Reports: View POS Reports** (18.37), which brings Reports' View with it. A report needs it and the view of what it counts - Orders' View for its sales. Roles made from the Manager template get it; give it to custom roles in Settings → Users & Roles.
+  - Each has the Reports page's period and exports, and POS's filters that apply: location, register and cashier.
+  - Completed sales count once, by their invoice's date, in the base currency at their own rate - held, payment-pending and cancelled orders never - and returns take off what their credit notes credit, by the credit note's date (18.38).
+  - **Phase H1 is built:**
+    - **Twelve reports.** POS Sales Summary groups by day unless told (every day of the range, quiet ones too), or by week, month, location, register, cashier, salesperson, hour, item, category or brand, with its headline figures and a chart over time. Under 18.36's names it is grouped one way: Sales by Location, Register, Cashier, Salesperson, Item, Category, Brand, Hour and Day.
+      - A row has the orders, sales before tax, the tax (while taxes show), the total, the average order, returns, net sales (before tax: sales less returns) and net tax. By item, category or brand: quantities sold and returned, and sales before tax after each line's share of the sale's discount, a category or brand being the item's now.
+      - **Sales by Hour** is the hour of the business's day a sale was completed or a return made, and **Sales by Day** each day of the range. A return counts for its sale's salesperson.
+    - **Sales by Payment Method:** what each method took (completed payments, after change) and paid back for the period's returns, each by the name it had then. The cash an exchange gave back is on a row of its own. Credit sales, and the credit an exchange used, are not payments.
+    - **Average Order Value:** orders, their total and average - with tax and before it - and items per order, by day, week, month, location, register or cashier. Returns are not taken off an order's value.
+    - **Register and Cashier filters** (`GET /reports/pos/choices`, for View POS Reports): the registers at the user's locations, and their cashiers with whoever sold or took a return there.
+    - The Reports page now says so when a role sees none of its reports: Reports' View, which View POS Reports brings, without the view of any report's records.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS switched on by hand, taxes on with VAT at 15%, and Front Counter (R1) and Back Counter (R2) taking Cash and Card. At R1, in session S-00001: a cash sale of two mugs (R1-00001, $18.40), a card sale of three teas (R1-00002, $12.08), a cash sale of a green tea and two packs of biscuits (R1-00003, $7.36, dated back to 18 Nov at 14:20 in the database), and a mug of R1-00001 brought back in cash (RT-00001, $9.20). At R2, a throwaway member's cash sale of a tea (R2-00001, $4.03):
+      - The Reports page ended with a Point of Sale group of the twelve.
+      - POS Sales Summary for 18 to 19 Nov, by day: Sales Before Tax $36.40, Returns $8.00, Net Sales $28.40 and Average Order $10.47, with a chart of the two days. 18 Nov had 1 order ($6.40, $0.96 tax, $7.36); 19 Nov 3 orders ($30.00, $4.51 tax, $34.51, average $11.50, returns $8.00, net $22.00); in total 4 orders and $41.87.
+      - Register, Back Counter (R2): "18 Nov 2026 - 19 Nov 2026 · Back Counter (R2)", 18 Nov empty and 19 Nov 1 order of $3.50. Grouped by Cashier: izSuite User 3 orders, net $24.90; Counter Cashier 1, $3.50.
+      - Sales by Hour: 14:00 - 14:59, 1 order and $6.40; 22:00 - 22:59, 3 orders and net $22.00. Sales by Item: Black Tea 4 ($14.00), Ceramic Mug 2 sold and 1 returned (net $8.00), Green Tea 1 ($4.00), Butter Biscuits 2 ($2.40). Sales by Category: Drinks $18.00, No category $8.00, Snacks $2.40.
+      - Sales by Payment Method: Cash 3 payments, $29.79 received, 1 refund and $9.20 paid back, net $20.59; Card 1 payment, $12.08.
+      - Average Order Value: Average Order $10.47 and Average Before Tax $9.10; 18 Nov 1 order of 3 items; 19 Nov 3 orders, $11.50 on average, 2 items each; in total 9 items, 2.25 per order.
+      - The summary's CSV matched the page, and its Excel and PDF came back.
+      - As the throwaway member, who may sell and view POS's orders and reports: the Reports page showed the Point of Sale group alone, and Sales by Register ran with a Cashier filter (no Location filter, dev having one location). With View POS Reports taken off their role, the page listed no reports and POS Sales Summary said "There is no such report, or its app is not on."
+      - Found while checking: a role with Reports' View and none of the records a report counts saw an empty Reports page. It now says "There are no reports for you here yet: each needs the view of the records it counts."
+      - The return, credit note, refund, orders, invoices, payments, account entries, accounts, registers, sessions, settings, member, the app's and taxes' state, the sign-in and the activity were then put back. The database matched its backup.
+  - **Phase H2 is built:** six more reports, each with location, register and cashier.
+    - **Discounts and Price Overrides:** each completed sale that gave a discount - on its lines or the whole - or had a price overridden, oldest first. It shows what the sale came to before its discounts, the discounts and their share, how many prices were overridden and what that changed (below zero when lowered), why, and the manager who approved a discount beyond the limit. Its headline figures are the line discounts, the sale discounts and the override change.
+    - **Taxes Collected**, while taxes are on or sales kept tax, for whoever may also see tax information: by tax and rate, the taxable sales and the tax their invoices kept, less what the returns' credit notes gave back. Tax Summary still has every app's.
+    - **Returns and Refunds**, for whoever may view POS's returns: each return as its credit note is dated, with its sale, where, by whom, why, what it credited (tax included), how it was paid back and where its refund stands - paid, waiting or declined; none for credit kept or an exchange. Its headline figures are what was credited, paid back, waiting, and not paid back.
+    - **Void and Cancellation Report:** held orders cancelled (with why) or expired, and payments and refunds declined, by the business's days, each in its own currency, with who called it off. A completed sale is never voided: its return corrects it.
+    - **Top-Selling Items:** the top 100 by quantity sold less returned, then by net sales, with each one's share; narrowed to an item category if asked.
+    - **Estimated POS Margin**, for whoever may also see item costs: by item, the net quantity and net sales, less the purchase price now times that quantity. An item without one shows no cost, and the totals leave it out. It is an estimate, not a Profit and Loss Statement.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS switched on by hand, taxes on with VAT at 15%, Front Counter (R1) taking Cash and Card (confirmed later), and the mug's purchase price at $5.00. In session S-00001: two mugs less 10% for cash (R1-00001, $16.56), a tea's price overridden from $3.50 to $3.00 ("Dented tin") paid by card (R1-00002, $3.45), a green tea less $0.50 for cash (R1-00003, $4.03), a mug of R1-00001 brought back in cash (RT-00001, $8.28), three packs of biscuits held and cancelled ("Customer left"), and the card payment declined ("The bank refused it"):
+      - The Point of Sale group had eighteen reports.
+      - Discounts and Price Overrides: R1-00001, $16.00 before and $1.60 off (10.0%); R1-00002, $3.00, one price overridden, -$0.50, "Dented tin"; R1-00003, $4.00 and $0.50 off (12.5%); in total $23.00 and $2.10 (9.1%). Line Discounts $1.60, Sale Discounts $0.50, Override Change -$0.50.
+      - Taxes Collected: VAT 15%, $20.90 taxable and $3.14 collected, $7.20 and $1.08 returned, net $13.70 and $2.06.
+      - Returns and Refunds: RT-00001 of R1-00001, "Chipped handle", $8.28 credited and paid back in Cash, Paid.
+      - Void and Cancellation Report: H-00001, Held order cancelled, USD $4.14, by izSuite User, "Customer left"; R1-00002, Card payment declined, $3.45, "The bank refused it".
+      - Top-Selling Items: Ceramic Mug (2 sold, 1 returned, $7.20, 52.6%), Green Tea ($3.50, 25.5%) and Black Tea ($3.00, 21.9%). With Item category Drinks: "· Drinks items", the two teas.
+      - Estimated POS Margin: Ceramic Mug, 1, $7.20 less $5.00, $2.20 (30.6%); the teas without a cost; "Total of items with a cost" $2.20.
+      - As a throwaway member who may view POS's orders and reports, but not its returns, tax information or item costs: fifteen reports, without Taxes Collected, Returns and Refunds and Estimated POS Margin. Returns and Refunds said "There is no such report, or its app is not on."; the Void and Cancellation Report ran.
+      - The return, credit note, refund, held order, orders, invoices, payments, account entries, accounts, registers, session, settings, member, the app's and taxes' state, the sign-in and the activity were then put back. The database matched its backup.
+  - **Phase H3 is built**, and with it Phase H - all 21 reports of 18.36:
+    - **Session Summary**, for whoever may view sessions: each session opened in the period, by the business's days - where, whose, where it stands (open, suspended, waiting for approval or closed), its opening float, sales, the cash it should hold, what was counted and the difference. A counted session's figures are those its latest closing kept, and one still open's as they stand now.
+    - **Cash Variance Report**, for whoever may view sessions: each session closed over or short in the period, by its latest count - the expected and counted cash, the difference, why, and whether it was approved, waits for approval or was within the limit. Its headline figures are what was over, short, and the net.
+    - **Cash Movement Report**, for whoever may view cash movements: each cash in, cash out, safe drop, bank deposit, float adjustment and paid out recorded in the period - its session, kind, amount in or out, the account or payee on the other side, why, who recorded it, and its status with who decided it. The Cashier filter is who recorded it; the totals add completed movements.
+    - Each is in its registers' currencies: totals and headline figures show while the rows share one.
+    - Every POS report now counts a sale only while its invoice is issued: one voided in Sales drops out, as it does from Sales' own reports.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS switched on by hand, VAT at 15%, a variance limit of $2.00, and Front Counter (R1) and Back Counter (R2) taking Cash. Session S-00001 at R1: a $50.00 float, two mugs for cash ($18.40), $10.00 cash in from Back Office Safe (CM-00001), counted $80.00. At R2, a throwaway member's S-00002: a $20.00 float, a tea for cash ($4.03), a $10.00 safe drop (CM-00002), counted $10.00. Then S-00003 at R1, still open: a $50.00 float and a green tea ($4.60):
+      - Session Summary: S-00001 Closed, $18.40 of sales, $78.40 expected, $80.00 counted, $1.60 over; S-00002 Waiting for approval, $14.03 expected, $10.00 counted, -$4.03; S-00003 Open, $54.60 expected, no count yet; in total 3 sales, $27.03, and -$2.43 of variance.
+      - Cash Variance Report: Over $1.60, Short -$4.03, Net Variance -$2.43. S-00001 "A customer left their change", Within the limit; S-00002 "A note missing", Waiting for approval - and once approved, "Approved by izSuite User".
+      - Cash Movement Report: Cash In $10.00, Cash Out $10.00, Net $0.00. CM-00001, Cash in, $10.00 in, Back Office Safe, "Change for the drawer", by izSuite User, Completed; CM-00002, Safe drop, $10.00 out, by Counter Cashier.
+      - As the member, who may sell, move cash and view POS's reports but not its orders: the Point of Sale group listed Session Summary, Cash Movement Report and Cash Variance Report alone, the Cash Movement Report ran, and POS Sales Summary said "There is no such report, or its app is not on."
+      - The sessions and their closings, cash movements, transfers, orders, invoices, payments, account entries, accounts, registers, settings, member, the app's and taxes' state, the sign-in and the activity were then put back. The database matched its backup.
+- **Phase I: cashier security and devices** - split on starting it (2026-11-20): I1, the cashier's PIN and the register's lock; I2, a manager's approval at the register; I3, registered devices.
+  - **Phase I1 is built** (migration 000208):
+    - **Each user sets their own POS PIN** on the selling screen (Set PIN, then Change PIN): 4 to 6 digits, typed twice, with their account's password - the re-authentication 18.31 asks for. It is kept hashed on their account, one PIN for the person wherever they sell, owner or member, and never shown. Setting or changing it is logged.
+    - **Lock** locks the register of one's own open session. **Settings → Point of Sale → Selling** gains Lock a Register After (Minutes), up to 240: a register left that long without a key or a touch locks - on the screen, and on the server, which counts from the session's last use.
+    - While a register is locked nothing is sold at it: searching, pricing, selling, holding, returns and cash movements are refused with "Front Counter (R1) is locked: enter your PIN to go on." (423), and the screen shows its lock over the cart.
+    - It opens with the cashier's PIN, or their password until they set one. A wrong one is refused under its field, and tries are held back to 10 a minute. A search the lock refused runs again.
+    - **Switching cashiers:** each cashier sells in a session of their own, so another cashier signs in and opens theirs; the first cashier's sales and session stay theirs (18.31's "changing cashiers doesn't change the original user"). Suspended stays unused.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS switched on by hand, Front Counter (R1) taking Cash, Settings' lock after 1 minute, and session S-00001 open:
+      - Open POS showed Set PIN and Lock. Lock covered the screen: "Front Counter (R1) is locked - Session S-00001. Enter your password to go on - or set a PIN to open it faster."
+      - Meanwhile a search through the API was refused with 423. A wrong password: "That is not your password."; the right one opened it.
+      - Set PIN with 2580 twice and the password: "Your PIN is saved.", and the button read Change PIN.
+      - Reloaded after more than a minute without use, the screen came up locked: the server had locked it. "1111": "That PIN is not right."; 2580 opened it. Left alone for a minute, the screen locked itself.
+      - Locked on the server behind the open screen, a search brought the lock up. Once opened with the PIN, the search ran again and listed Black Tea and Green Tea.
+      - Settings → Point of Sale → Selling showed Lock a Register After (Minutes) at 1; 300 was refused, and 5 saved: "Selling settings saved."
+      - A throwaway cashier of Back Counter (R2) with no PIN locked their register. It refused the owner's PIN ("That is not your password.") and refused a search with "Back Counter (R2) is locked: enter your password to go on."
+      - Found while checking:
+        - The API told a cashier with no PIN to enter their PIN; it says "your password" to them now.
+        - The refused search's message stayed under the search box once the register was open; the search runs again now.
+        - Settings said "The lock minutes field must not be greater than 240."; it has its own words now.
+      - The sessions, registers, settings, member, the PIN, the app's and taxes' state, the sign-in and the activity were then put back, and the hourly usage check's notice to the throwaway member deleted. The database matched its backup, but for migration 000208's columns.
+  - **Phase I2 is built** (migration 000209):
+    - **A manager approves at the cashier's register** what the cashier may not do alone - a price typed over, a discount beyond the limit, cash moved above the limit, a refund by another method - by choosing themselves and typing their PIN. Whoever may do that thing, has a PIN and may use the register's location may approve it; the cashier never approves for themselves.
+    - **Ask a Manager** shows where it is needed: on a cart line (Ask a Manager to Change the Price), under a discount beyond the limit, beside a cash movement above the limit (Ask a Manager Now), and on recording a return paid back by another method.
+    - An approval lasts ten minutes, for that one kind of thing, in that session. The cart's go with its quotes, its hold and its sale, and are let go once it is sold or cancelled.
+    - Each is named: a sale's discount beyond the limit keeps its approver (as before), a line's price typed over its own, a cash movement its decider - and it moves at once - and a return its refund's approver. The activity log says who approved what, where.
+    - The refusals say so: "… someone with Discount Beyond the Limit gives it - or approves it at the register.", "… needs Use Alternative Refund Methods - or a manager's approval at the register."
+    - **Checked in the browser** on the second PC, with POS switched on by hand, a 10% discount limit, cash movements above $50.00 needing approval, the owner `user@izsuite.io` holding PIN 2580, and a throwaway cashier of Back Counter (R2) who may sell, give discounts, move cash and refund - but not override prices, go beyond the limit, approve cash or refund by another method. As the cashier, in session S-00001 at R2:
+      - On a Black Tea line, + Price or Discount offered "Ask a Manager to Change the Price". Its dialog, "Approve a Price Change", named izSuite User; "1111" was refused ("That PIN is not right."), and 2580 approved it. The Price field then showed, and the tea went to $3.00 ("Dented tin").
+      - That was more than 10% off: "These discounts go beyond the 10% limit … Ask a Manager". "Approve the Discount" with 2580 brought the reason field, "Approved by izSuite User.", and with "Damaged stock" Pay $3.45 completed R2-00001 in cash.
+      - The sale kept izSuite User as approver of the discount and of the line's price, and its log said "… because Damaged stock, approved by izSuite User, prices typed over approved by izSuite User", after "izSuite User approved a price typed over at Back Counter (R2), in session S-00001" and the same for the discount.
+      - Cash In or Out: a $80.00 safe drop showed "Above $50.00, it counts once a manager approves it. Ask a Manager Now". "Approve the Cash Movement" opened over it; with 2580: "Approved by izSuite User: it moves at once." Recorded: "Safe drop CM-00001 recorded." - completed, decided by izSuite User.
+      - Return, R2-00001's tea, "By another method", Card, "Customer asked for card": Record Return asked "Approve the Refund Method", and with 2580 "Return RT-00001 recorded. Pay back $3.45 by Card." - its approver izSuite User.
+      - Found while checking: the approval dialog opened behind the cash dialog; it is drawn last on the page now.
+      - The return, credit note, refund, cash movement, transfer, orders, invoices, payments, account entries, accounts, registers, session, settings, member, the PIN, the app's and taxes' state, the sign-in and the activity were then put back. The database matched its backup, but for migration 000209's columns.
+  - **Phase I3 is built** (migration 000210), and with it Phase I - Doc 18 is built but for offline mode (18.29):
+    - **Each register keeps its devices** (18.30): receipt printers, barcode scanners, cash drawers and customer displays - each named, connected through the browser, USB, the network or Bluetooth, at an address if it has one, in use or switched off - from Devices on its row of the Registers page, for whoever may view registers. Manage Registers adds, changes, removes and tests them; Remove takes one off at once, as it holds no records. Changes and tests are logged.
+    - **Its test:** a receipt printer's is a test page on the receipt roll, to print from the browser; a barcode scanner's, a code it reads into the dialog; a drawer's or display's is marked done. A device switched off is not tested.
+    - **Its last use:** a receipt printed at its register uses its receipt printers, and an item found by its very barcode or SKU there - scanned - its scanners.
+    - Driving a device itself - opening a drawer, a display's lines, a fiscal printer - waits for the device integrations; the browser prints and the scanner types, as before.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with POS switched on by hand and Front Counter (R1) taking Cash:
+      - Registers: each row had Devices. Front Counter's opened empty ("No devices yet.") with Add a Device.
+      - "Counter Printer" (Receipt Printer, through the browser) and "Hand Scanner" (Barcode Scanner, USB) were added: "Counter Printer added.", "Hand Scanner added.", each "Not yet" used or tested.
+      - The scanner's Test asked "Scan any barcode with Hand Scanner now"; 4006381333931 typed as a scanner would: "Hand Scanner read 4006381333931.", tested 19 Nov 2026, 23:52.
+      - The printer's Test opened its test page on the receipt roll: Billing Starter, Main Location, "Test Page", Register Front Counter (R1), Printer Counter Printer, Printed 19 Nov 2026 23:52, a line of figures and letters, "If you can read all of this, the printer works."
+      - After a session, an item found by its barcode, and a sale's receipt printed, both showed as last used 19 Nov 2026, 23:52.
+      - Edit, In use cleared: "Hand Scanner saved.", the row "Barcode Scanner · Switched off" without Test. Remove: "Counter Printer removed."
+      - Found while checking: the daily usage snapshot ran during the check, with POS on; it was deleted with the rest.
+      - The devices, session, order, invoice, payment, account entries, accounts, register, settings, the app's and taxes' state, the sign-in and the activity were then put back. The database matched its backup, but for migration 000210's table.
 
 After Doc 18 come Docs 19 to 21 (eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
@@ -2586,6 +2863,29 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 18: Phase B2a | 000190 |
 | Doc 18: Phase B2b | 000191 |
 | Doc 18: Phase C1 | 000192 |
+| Doc 18: Phase C2 | 000193 |
+| Doc 18: Phase C3 | 000194 |
+| Doc 18: Phase C4 | 000195 |
+| Doc 18: Phase D1 | 000196 |
+| Doc 18: Phase D2 | 000197 |
+| Doc 18: Phase D3a | 000198 |
+| Doc 18: Phase D3b | 000199 |
+| Doc 18: Phase D4 | 000200 |
+| Doc 18: Phase E1 | 000201 |
+| Doc 18: Phase E2 | 000202 |
+| Doc 18: Phase E3 | 000203 |
+| Doc 18: Phase F1 | 000204 |
+| Doc 18: Phase F2 | 000205 |
+| Doc 18: Phase F3 | none |
+| Doc 18: Phase G1 | 000206 |
+| Doc 18: Phase G2 | 000207 |
+| Doc 18: Phase G3 | none |
+| Doc 18: Phase H1 | none |
+| Doc 18: Phase H2 | none |
+| Doc 18: Phase H3 | none |
+| Doc 18: Phase I1 | 000208 |
+| Doc 18: Phase I2 | 000209 |
+| Doc 18: Phase I3 | 000210 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -3187,6 +3487,220 @@ On a fresh business, set the days in Settings → CRM to fit what you have, rath
 - [ ] With taxes on, the totals show each tax; with prices including tax, the total is the shelf price.
 - [ ] Reload: the cart comes back, priced. Cancel Order asks first, then empties it.
 - [ ] As a member without Open POS: no Open POS in the sidebar, and the page says their role does not allow it.
+
+**Phase C2: payment and the completed sale**
+
+**Before you start:** POS on, a register taking Cash (giving change) and Card (needing a reference), a walk-in customer, priced items, and a member whose role holds Open POS but not Sell Items.
+
+- [ ] Fill the cart and Pay: Cash, with more handed over than is due, shows the change; Complete Sale says the sale's number and the change.
+- [ ] Split a sale: Card for part - Complete Sale waits for its reference - and Cash for the rest.
+- [ ] Sales → Invoices lists the sale marked POS, issued and paid; its page shows its payments and Made In Point of Sale. Payments Received lists each payment.
+- [ ] The session's page counts the sales, the payments by method and the cash expected; its Z report keeps them.
+- [ ] Change an item's price while its payment is open: Complete Sale says the total now, and the cart shows it.
+- [ ] As the member: Open POS builds a cart, but there is no Pay.
+
+**Phase C3: discounts, price overrides and cash rounding**
+
+**Before you start:** POS on, a register taking Cash and Card; in Settings → Point of Sale → Selling, a 10% discount limit and cash rounding to 0.05; and a member whose role may sell and give discounts, but not override prices or go beyond the limit.
+
+- [ ] On a line, + Price or Discount: 10% off shows what it takes off; a discount on the whole sale shows under Discount.
+- [ ] Pay in cash: the total rounds to 0.05 (Cash Rounding), and the invoice has a Cash rounding line; paid by card alone, it does not round.
+- [ ] Type a price over an item's: the line says the price it replaced, and Pay waits for why.
+- [ ] Go beyond the limit: Pay waits for why; the order and the invoice keep the reason.
+- [ ] As the member: no Price field; beyond the limit, the cart says someone with Discount Beyond the Limit gives it, and Pay stays greyed out.
+
+**Phase C4: the receipt**
+
+**Before you start:** POS on, a register taking Cash and Card; in Settings → Point of Sale, a return policy and a receipt footer; a customer with an e-mail address; and a member whose role may sell, but not reprint receipts.
+
+- [ ] Complete a cash sale: the dialog has Receipt, E-mail Receipt and New Sale. Receipt opens the receipt on a narrow roll: the business, the receipt number, date and time, register, cashier, the items, taxes, total, cash handed over, change, the return policy and the footer.
+- [ ] Close it: under the cart, Last sale says Reprint Receipt. Its copy says REPRINT.
+- [ ] E-mail Receipt to an address: it says it is on its way, and the e-mail comes with the receipt attached.
+- [ ] Sell to the customer with an address: the dialog's e-mail starts with it, and the receipt names them.
+- [ ] As the member: the first copy prints; Last sale then offers E-mail Receipt alone.
+
+**Phase D1: holding and resuming orders**
+
+**Before you start:** POS on, a register taking Cash; in Settings → Point of Sale → Selling, Keep Held Orders For 4 hours; a customer; and a member whose role may sell, hold and resume orders, but not cancel them.
+
+- [ ] Fill the cart - a line note, the order note, the customer - and Hold Order: it says the order is held, the cart empties, and Held Orders counts 1.
+- [ ] Change an item's price on the Items page, then Resume the order from Held Orders: it says the price changed, and the total then and now, before it loads.
+- [ ] Resumed, the cart has its customer, lines and notes; it sells as any sale.
+- [ ] Cancel a held order: it asks why, and it is gone from the list.
+- [ ] As the member: a held order shows when it expires, with Resume and no Cancel. Held at another register, it is not in the list.
+
+**Phase D2: pending payments**
+
+**Before you start:** POS on, a register taking Cash and Card; in Settings → Point of Sale, Card's payments waiting to be confirmed; and a member whose role may sell, but not confirm pending payments.
+
+- [ ] Pay part of a sale by card: its line says it waits; the sale's dialog says the card is pending, and the cart has Pending Payments (1).
+- [ ] On the session's page, Waiting to Be Confirmed lists it. Confirm it: the session counts it under Card, and the invoice is paid.
+- [ ] Sell by card alone and Decline it with a reason: the invoice still owes it.
+- [ ] As the member: no Pending Payments in the cart, and no list to confirm on the session's page.
+
+**Phase D3a: credit sales**
+
+**Before you start:** POS and full Sales on, a register taking Cash; a customer with payment terms and a small credit limit that warns; and a member whose role may sell, but not create credit sales.
+
+- [ ] Sell to the customer, pay part in cash, and tick "Leave what is still to pay on the customer's account": the sale completes, saying what is on account; its invoice owes the rest, due by their terms.
+- [ ] Sell to them again on account, over the limit: it completes with a warning. Make the limit block: the next one asks why, and completes once given.
+- [ ] To the walk-in customer, the box is not there.
+- [ ] As the member: no box in the payment dialog.
+
+**Phase D3b: the customer's credit as a payment**
+
+**Before you start:** POS and full Sales on, a register taking Cash, and an advance recorded for a customer (Sales → Advances).
+
+- [ ] Sell to that customer: the payment dialog offers their credit. Tick it: Credit to Use starts with as much as it can, and Still to Pay is the rest.
+- [ ] Complete the sale: it says what the credit paid; the invoice shows the credit applied, and the advance has that much less left.
+- [ ] The walk-in customer is offered no credit.
+
+**Phase D4: the formal invoice**
+
+**Before you start:** POS on, a register taking Cash, and a customer other than the walk-in one.
+
+- [ ] Sell to that customer; under the cart, Last sale's Formal Invoice opens an A4 invoice with the business's invoice number, naming the POS receipt.
+- [ ] The row then names the invoice; Sales' Invoices list it once, by its invoice number, marked POS.
+- [ ] Sell to the walk-in customer: no Formal Invoice.
+
+**Phase E1: returns and their refunds**
+
+**Before you start:** POS on, a register taking Cash and Card; a cash sale to the walk-in customer and a card sale to a named one; and a member whose role may process returns, but not refunds.
+
+- [ ] Return, and the cash sale's receipt number: its items show what is still returnable. Bring one back with a condition and a reason: it says what it credits, at the sale's prices and taxes.
+- [ ] Pay it back in cash: the return is recorded; the session's Cash Refunds count it. The walk-in customer is offered no credit.
+- [ ] The card sale: pay it back by its own method - or keep it as the customer's credit, and nothing is paid out.
+- [ ] Bring back more than is left: it is refused.
+- [ ] As the member: no way to pay back a walk-in customer's return - only, from Phase E3, to exchange it.
+
+**Phase E2: refund receipts and other refund methods**
+
+**Before you start:** POS on, a register taking Cash and Card, Card's payments waiting to be confirmed, and a cash sale.
+
+- [ ] Return from the sale, By another method - Card, with why: it says the refund waits to be confirmed.
+- [ ] Refund Receipt: headed so, naming the return and its sale, the card refund pending.
+- [ ] On the session's page, Refunds Waiting to Be Confirmed lists it: Confirm pays it out of the card's account; Decline, with why, keeps the credit on the credit note.
+- [ ] A member without Use Alternative Refund Methods is not offered another method.
+
+**Phase E3: exchanges**
+
+**Before you start:** POS on, a register taking Cash, and a cash sale of a mug to the walk-in customer.
+
+- [ ] Return the mug, Exchanged: it says its credit pays for the replacement. Start the Exchange Sale: the cart says so.
+- [ ] Add something cheaper: Pay shows nothing left to pay, and Take Payment the exchange and what is paid back in cash. Completed, the receipt shows the exchange and Paid back; the session's Cash Refunds count it.
+- [ ] Return another sale as an exchange, and add something dearer: the payments pay the rest.
+- [ ] As a member without Process Refunds: a cheaper replacement is refused; a dearer one is sold.
+
+**Phase F1: cash movements**
+
+**Before you start:** POS on, a register taking Cash, a safe (a cash account) and a bank account, and an open session with a float and a cash sale.
+
+- [ ] Cash In or Out: it says what the drawer should hold. A Safe Drop into the safe is recorded; the session's Cash Out and Cash Expected count it.
+- [ ] A Bank Deposit offers the bank accounts; more than the drawer holds is refused.
+- [ ] Settings → Point of Sale: a Cash Movement Needing Approval. As a member who may not approve: one above it waits, and their session will not close; approved on the session's page, it counts.
+
+**Phase F2: paying an expense from the drawer**
+
+**Before you start:** Phase F1's, with the Expenses app on and an expense category.
+
+- [ ] Cash In or Out, Paid Out: who it is paid to, the category, the amount and why. Recorded, Expenses lists it, paid from the drawer's account; the session's Cash Out counts it.
+- [ ] The session's page names its payee and the expense.
+
+**Phase F3: the X and Z reports**
+
+**Before you start:** POS on, a register taking Cash, and an open session with a cash sale and a cash movement.
+
+- [ ] The session's page: X Report opens its totals so far on the receipt's roll, "Not a closing".
+- [ ] Close the session with a variance and why: the page now offers Z Report - the cash counted, the variance and why.
+
+**Phase G1: the POS pages of records**
+
+**Before you start:** POS on, and a session with a couple of sales, a return and a cash movement.
+
+- [ ] Point of Sale's menu: Orders, Returns and Refunds, and Cash Movements after Sessions.
+- [ ] Orders lists the sales, with what returns credited; the search finds a receipt number. Returns and Refunds lists the return and opens its refund receipt. Cash Movements lists the movements; Kind filters them.
+- [ ] A session's page: "Its sales" opens Orders for that session alone.
+- [ ] As a member with Orders' View alone: the menu shows Orders, and not the others.
+
+**Phase G2: the POS Overview and the Dashboard's POS card**
+
+**Before you start:** POS on, and today a cash sale, a card sale and a return.
+
+- [ ] Point of Sale's menu starts with Overview: today's sales, average, returns, open sessions and variances; what each method took; the top items; the open sessions.
+- [ ] The Dashboard shows a Point of Sale card with the same figures.
+- [ ] Close the session short: the Overview lists it under Cash Variances.
+
+**Phase G3: POS documents on the Documents page**
+
+**Before you start:** POS on, a cash sale, another formally invoiced, and a return of the first.
+
+- [ ] Documents, Source app Point of Sale: the POS Sales Receipt, the POS Invoice, the Credit Note and the Refund Receipt, each with its order, register and session.
+- [ ] The Refund Receipt opens on Returns and Refunds, searched for it.
+- [ ] As a member who may not view POS's returns: no refund receipts.
+
+**Phase H1: the POS sales reports**
+
+**Before you start:** POS on, taxes on, two registers, cash and card sales on two days, and a return.
+
+- [ ] Reports: a Point of Sale group of twelve reports.
+- [ ] POS Sales Summary by day: every day of the range, each sale once, its return taken off, the headline figures and the chart.
+- [ ] The Register and Cashier filters narrow it, and show in its period line.
+- [ ] Grouped by hour, item and cashier, and the "Sales by" reports, agree with it.
+- [ ] Sales by Payment Method: each method's payments, and what it paid back.
+- [ ] Average Order Value: the averages with and before tax, and items per order.
+- [ ] CSV, Excel and PDF.
+- [ ] As a member without View POS Reports: no Point of Sale group.
+
+**Phase H2: discounts, taxes, returns, voids and items**
+
+**Before you start:** POS on, taxes on, a card method confirmed later, an item with a purchase price, and sales with a line discount, a sale discount and a price override; a return, a held order cancelled, and a card payment declined.
+
+- [ ] Discounts and Price Overrides: each such sale, its discounts and overrides, and why.
+- [ ] Taxes Collected: by rate, less the returns' tax.
+- [ ] Returns and Refunds: each return, how it was paid back, and the headline figures.
+- [ ] Void and Cancellation Report: the cancelled held order and the declined payment, with who and why.
+- [ ] Top-Selling Items by quantity, and narrowed to an item category.
+- [ ] Estimated POS Margin: only items with a cost in its totals.
+- [ ] As a member without POS's returns, tax information or item costs: none of those three reports.
+
+**Phase H3: sessions and cash**
+
+**Before you start:** POS on, a variance limit, a session with a cash sale and a safe drop closed short beyond the limit and approved by a supervisor, and another session still open with a sale.
+
+- [ ] Session Summary: both sessions, the closed one's count and variance, the open one's figures now.
+- [ ] Cash Variance Report: the short session, why, and who approved it.
+- [ ] Cash Movement Report: the safe drop, its account, and who recorded it.
+- [ ] As a member who may view sessions but not cash movements: no Cash Movement Report.
+
+**Phase I1: the cashier's PIN and the register's lock**
+
+**Before you start:** POS on, Settings → Point of Sale → Selling's Lock a Register After at 1 minute, and a session open.
+
+- [ ] Open POS: Lock covers the screen; the password opens it while there is no PIN.
+- [ ] Set PIN: 4 to 6 digits, twice, with the password; the button reads Change PIN.
+- [ ] Left alone a minute, the screen locks; a wrong PIN is refused, the right one opens it.
+- [ ] While locked, nothing sells: a search brings the lock up, and runs again once it is open.
+- [ ] Another cashier's register does not open with your PIN.
+
+**Phase I2: a manager's approval at the register**
+
+**Before you start:** POS on, a discount limit and a cash movement limit, a manager with a PIN, and a cashier who may not override prices, go beyond the limit, approve cash or refund by another method.
+
+- [ ] A price typed over: Ask a Manager to Change the Price; a wrong PIN is refused; once approved, the price field shows, and the sale names the approver.
+- [ ] A discount beyond the limit: Ask a Manager, then the reason under "Approved by …".
+- [ ] A cash movement above the limit: Ask a Manager Now, and it moves at once.
+- [ ] A return paid back by another method: approved as it is recorded.
+
+**Phase I3: registered devices**
+
+**Before you start:** POS on and a register.
+
+- [ ] Registers → Devices: add a receipt printer and a barcode scanner.
+- [ ] The scanner's Test reads a code; the printer's opens its test page.
+- [ ] A receipt printed, and an item scanned, show as their last use.
+- [ ] Switched off, a device has no Test; Remove takes it off.
+- [ ] As a member who may view registers but not manage them: the list, without changes.
+
 ## How we work
 
 Each document goes the same way:
@@ -3459,7 +3973,30 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 18: Phase B1, opening and closing sessions | `620aebe` | `19499c7` | 000189 |
 | Doc 18: Phase B2a, the supervisor's side of sessions | `4a0bd4d` | `0e3b89c` | 000190 |
 | Doc 18: Phase B2b, counting cash by notes and coins | `3936732` | `7166223` | 000191 |
-| Doc 18: Phase C1, the selling screen | the commit after `3936732` | `27ce76c` | 000192 |
+| Doc 18: Phase C1, the selling screen | `8c8f380` | `27ce76c` | 000192 |
+| Doc 18: Phase C2, payment and the completed sale | the commit after `8c8f380` | `7933c6d` | 000193 |
+| Doc 18: Phase C3, discounts, price overrides and cash rounding | the commit after `8c8f380` | `7933c6d` | 000194 |
+| Doc 18: Phase C4, the receipt | the commit after `8c8f380` | `7933c6d` | 000195 |
+| Doc 18: Phase D1, holding and resuming orders | the commit after `8c8f380` | `7933c6d` | 000196 |
+| Doc 18: Phase D2, pending payments | the commit after `8c8f380` | `7933c6d` | 000197 |
+| Doc 18: Phase D3a, credit sales | the commit after `8c8f380` | `7933c6d` | 000198 |
+| Doc 18: Phase D3b, the customer's credit as a payment | the commit after `8c8f380` | `7933c6d` | 000199 |
+| Doc 18: Phase D4, the formal invoice | the commit after `8c8f380` | `7933c6d` | 000200 |
+| Doc 18: Phase E1, returns and their refunds | the commit after `8c8f380` | `7933c6d` | 000201 |
+| Doc 18: Phase E2, refund receipts and other refund methods | the commit after `8c8f380` | `7933c6d` | 000202 |
+| Doc 18: Phase E3, exchanges | the commit after `8c8f380` | `7933c6d` | 000203 |
+| Doc 18: Phase F1, cash movements | the commit after `8c8f380` | `7933c6d` | 000204 |
+| Doc 18: Phase F2, paying an expense from the drawer | the commit after `8c8f380` | `7933c6d` | 000205 |
+| Doc 18: Phase F3, the X and Z reports | the commit after `8c8f380` | `7933c6d` | none |
+| Doc 18: Phase G1, the POS pages of records | the commit after `8c8f380` | `7933c6d` | 000206 |
+| Doc 18: Phase G2, the POS Overview and the Dashboard's POS card | the commit after `8c8f380` | `7933c6d` | 000207 |
+| Doc 18: Phase G3, POS documents on the Documents page | the commit after `8c8f380` | `7933c6d` | none |
+| Doc 18: Phase H1, the POS sales reports | the commit after `8c8f380` | `7933c6d` | none |
+| Doc 18: Phase H2, discounts, taxes, returns, voids and items | the commit after `8c8f380` | `7933c6d` | none |
+| Doc 18: Phase H3, sessions and cash | the commit after `8c8f380` | `7933c6d` | none |
+| Doc 18: Phase I1, the cashier's PIN and the register's lock | the commit after `8c8f380` | `7933c6d` | 000208 |
+| Doc 18: Phase I2, a manager's approval at the register | the commit after `8c8f380` | `7933c6d` | 000209 |
+| Doc 18: Phase I3, registered devices | the commit after `8c8f380` | `7933c6d` | 000210 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`). Between I1 and I2, shuvo added rich text for payment instructions and the Sales settings' notes and terms (`a5e46cb` and `9bf4525`, with no frontend commit yet).
 
@@ -4077,11 +4614,84 @@ These are easy to undo by mistake.
   - `PosPricing`: `rate()`, `standard()` (an item's price at the register) and `quote()`. The customer's own lists (`PriceListRepository::eligible()`, those naming them), then the register's (`fallback()`), through `PriceListPricing::quoteFrom()` - else the item's price divided by the rate. Taxes as a sales form picks them, totals by `SalesDocumentService::totals()`.
   - The quote is a GET, its lines in the address (`lines[0][item_id]=…`), so `LogApiWriteActivity` logs nothing for it.
   - Frontend: `pages/pos/sell.vue` with PosSellCatalog, PosSellCart, PosSellCartLine and PosSellCustomer; `usePosSelling()`; `usePosCart()` and `usePosCartSync()` (the cart in `useState`, kept in `localStorage` per session, priced 250 ms after a change, the latest answer only); `.pos-item` in `main.css`; PosSessionOpenModal's `stay`.
+- Payment and the completed sale (Doc 18 Phase C2, migration 000193: `pos_orders`, `pos_order_payments`, `pos_order_lines`): `PosOrderService::complete()` behind `POST /pos/orders` (`PosOrderController`, `CompletePosOrderRequest`, `PosOrderResource`; idempotent), under `pos.selling.sell`.
+  - `PosCounter` holds what selling stands on - the user's open session, today's rate, the customer, the cart's lines and the register's usable methods (`methods()`) - for `PosSellingService` and `PosOrderService` both.
+  - `PosPricing::priced()` gives the invoice's rows and totals; `quote()` trims them for the cart.
+  - `PosSale::record()` writes the sale in one transaction: the invoice (`SalesDocumentRepository::createMadeBy()`, Point of Sale its source app), its lines, the order, each payment (`SalesPaymentRepository::createMadeBy()`, `AccountLedger::recordPayment()`), then `InvoiceSettlement::settle()`. Receipt numbers come from `WorkspaceSequence`, as `pos_receipt|{register id}`.
+  - `PosSessionTotals` counts a session's completed orders and their payments (`PosOrderRepository::completedIn()`, `paymentsIn()`) in bcmath.
+  - Sales lists: `SalesDocumentListResource`'s `pos`, from the document's `sourceApp`.
+  - Frontend: PosPayModal with PosPayRow and `usePosPayment()` (display-only cents, worked out as the API does); `usePosCart()`'s `pricing` and `reprice()`; PosSellCart's Pay; SalesDocumentsTable's POS pill.
+- Discounts, price overrides and cash rounding (Doc 18 Phase C3, migration 000194): `pos_settings.discount_limit` and `cash_rounding`, saved by `PosSettingService::saveSelling()` (PUT `/business-settings/pos/selling`, `SavePosSellingSettingsRequest`); `pos_orders.discount_reason`, `discount_approved_by` and `cash_rounding`; `pos_order_lines.standard_price` and `override_reason`.
+  - `PosCounter::lines()` reads each line's `price`, `override_reason` and discount, `discount()` the order's. `PosPricing::priced()` puts an override over the line's price (keeping its `standard`), totals through `SalesCalculator` itself and, given a step, adds the Cash rounding line as a deduction (`rounding()`); `shown()` is the cart's quote.
+  - `PosDiscounts::check()` refuses what the user may not give and says whether it goes beyond the limit; `allowBeyond()` needs `pos.selling.beyond` and a reason.
+  - Frontend: SettingsPosSelling (`saveSelling()`), PosSellLineAdjust on PosSellCartLine, PosSellOrderDiscount, `usePosCart()`'s `discount`, `lineBody()` and `discountBody()`, and `usePosPayment()`'s rounding.
+- The receipt (Doc 18 Phase C4, migration 000195): `pos_orders.receipt_prints` and `receipt_texts` (the return policy and footer, written by `PosSale::record()`).
+  - `PosReceiptService::pdf()` (GET `/pos/orders/{id}/receipt`, `PosReceiptController`) locks the order, counts the copy and makes it - the first the cashier's, a later one needing `pos.receipts.reprint`; `email()` (POST `/pos/orders/{id}/receipt/email`, `EmailPosReceiptRequest`) queues a `DocumentEmail` for the `PosOrder`, which `DocumentMailer` sends with the receipt as the original.
+  - `DocumentRenderer::posReceipt()` with `PosReceiptSheet` (facts, lines, totals, payments) draws `documents/pos-receipt.blade.php`; `DocumentPdf::posReceipt()`; `GotenbergClient`'s `receipt` paper - 80 mm, its own margins, `singlePage`. `DocumentEmailText::forPosReceipt()`.
+  - The screen's `last_order` (`PosOrderRepository::lastIn()`, `PosReceiptResource`), and `PosOrderResource`'s `email`.
+  - Frontend: PosSaleDone (the sale's dialog, out of PosPayModal), PosReceiptEmail, PosSellLastSale with DocumentPdfModal, `usePosSelling()`'s `receiptPdf()` and `emailReceipt()`.
+- Holding and resuming orders (Doc 18 Phase D1, migration 000196): `pos_held_orders` (`PosHeldOrder`, `PosHeldOrderRepository`) - the cart as JSON with each line's price then - and `pos_settings.hold_hours`.
+  - `PosHoldService::hold()`, `list()`, `preview()`, `resume()` and `cancel()` (`/pos/held-orders`, `PosHeldOrderController`, `HoldPosOrderRequest`, `CancelPosHeldOrderRequest`); `resumable()` prices the cart again and says what changed, leaving out what can no longer be sold or given. `expire()`, run by `pos:expire-held-orders` hourly.
+  - `PosCounter::unsold()` and `usableCustomer()`; the screen's `held_count`.
+  - Frontend: PosSellHold, PosHeldOrdersModal, `usePosHeldOrders()`, `usePosCart()`'s `load()`; SettingsPosSelling's Keep Held Orders For.
+- Pending payments (Doc 18 Phase D2, migration 000197): `pos_payment_methods.confirms_later`; `pos_order_payments.payment_account_id`, `status` (completed, pending, declined), `closed_by`, `closed_at` and `decline_reason`.
+  - `PosSale::pay()` records a pending one without a customer payment; `PosSale::receive()` makes the customer payment, for a sale and for a confirmation alike.
+  - `PosPendingPayments::of()`, `confirm()` and `decline()` (GET `/pos/sessions/{id}/pending-payments`, POST `/pos/order-payments/{id}/confirm` and `/decline`, `PosPendingPaymentController`, `DeclinePosPaymentRequest`, `PosOrderPaymentResource`); `PosSessionTotals`' `pending`; the screen's `pending_count`.
+  - Frontend: PosPendingPayments on the session's page with `usePosPendingPayments()`, PosPaymentMethodModal's box, PosPayRow's hint, PosSaleDone, PosSessionTotalsList's Waiting to Be Confirmed.
+- Credit sales (Doc 18 Phase D3a, migration 000198): `pos_orders.on_account` and `credit_reason`. `PosOrderService::credit()` - the full Sales app, `pos.selling.credit`, a named customer - and `CustomerCredit::checkAdding()`, the credit check for what is left on account (`check()` now goes through the same `against()`); `PosSale::record()`'s `terms`; the screen's `credit_sales`.
+  - Frontend: PosPayModal's on-account box and Why Go Over the Credit Limit, `usePosPayment()`'s `onAccount`, PosSaleDone's on-account line and warning.
+- The customer's credit as a payment (Doc 18 Phase D3b, migration 000199): `pos_orders.credit_applied`. `PosCustomerCredit::available()` and `apply()` - allocations from advances and credit notes, oldest first, in the sale's transaction (`PosSale::record()`); `PosOrderService::usableCredit()`; GET `/pos/sell/credit` (`ShowPosCustomerCreditRequest`, `PosCustomerCreditResource`).
+  - Frontend: PosPayCredit in PosPayModal, `usePosPayment()`'s `credit`, `usePosSelling()`'s `customerCredit()`, PosSaleDone's "Customer credit".
+- The formal invoice (Doc 18 Phase D4, migration 000200): `pos_orders.invoiced_at`. `PosFormalInvoices::issue()` and `pdf()` (POST and GET `/pos/orders/{id}/formal-invoice`, `PosFormalInvoiceController`, `PosFormalInvoiceResource`); `PosOrderAccess` - who may handle a sale's documents - shared with `PosReceiptService`; `SalesDocument::posOrder()` and `DocumentSheet::facts()`' POS Receipt; the last order's `contact_id` and `invoice`.
+  - Frontend: PosSellLastSale's Formal Invoice, with `usePosLastSale()` - the last sale shared by the cart and its row - and `usePosSelling()`'s `formalInvoice()` and `formalInvoicePdf()`.
+- Returns and their refunds (Doc 18 Phase E1, migration 000201): `pos_returns` and `pos_return_lines` (`PosReturn`, `PosReturnLine`, `PosReturnRepository`). `PosReturnService::lookup()`, `quote()` and `record()` (GET `/pos/returns/lookup` and `/quote`, POST `/pos/returns`, `PosReturnController`, `LookupPosReturnRequest`, `QuotePosReturnRequest`, `RecordPosReturnRequest`): the Sales app's `CreditNoteLines`, `CreditNoteService::create()` and `issue()` and `CreditNoteRefunds::refund()` underneath, the refund capped by `SalesDocumentRules::refundable()`. `PosSessionTotals`' `cash_refunds`.
+  - Frontend: PosReturnModal with PosReturnLines and `usePosReturns()`, on the selling page.
+- The refund rules (Doc 18 Phase E2, migration 000202): `pos_returns.refund_status`, `refund_reason`, `refund_account_id`, `refund_due`, `refund_closed_by`, `refund_closed_at` and `refund_decline_reason`. `PosReturnService::alternative()` and the waiting refund in `record()`; `PosPendingRefunds::of()`, `confirm()` and `decline()` (GET `/pos/sessions/{id}/pending-refunds`, POST `/pos/returns/{id}/refund/confirm` and `/decline`, `PosPendingRefundController`, `PosPendingRefundResource`); the refund receipt - `DocumentRenderer::posRefundReceipt()`, `PosReceiptSheet::refund()`, `documents/pos-receipt.blade.php`'s heading, sale and Kept as credit - at GET `/pos/returns/{id}/receipt`.
+  - Frontend: PosReturnModal's By another method and Refund Receipt, the selling page's refund receipt dialog, PosPendingRefunds on the session's page.
+- Exchanges (Doc 18 Phase E3, migration 000203): `pos_returns.exchange_order_id`; `pos_orders.exchange_return_id`, `exchange_credit` and `exchange_refunded`. `PosReturn::EXCHANGE`; `PosExchanges::usable()` checks the exchange for the sale (`CompletePosOrderRequest`'s `exchange_return_id`) in `PosOrderService::complete()`, and `PosSale::exchange()` applies its credit note's credit (`PosCustomerCredit::applyNote()`), links the two and pays the rest back through `CreditNoteRefunds`. `PosOrderRepository::exchangeRefundedIn()` counts in `PosSessionTotals`' cash refunds; the receipt's Exchange and Paid back, and the refund receipt's Kept for the exchange, are `PosReceiptSheet`'s.
+  - Frontend: PosReturnModal's Exchanged and Start the Exchange Sale (`returnOutcome()` in usePosReturns), the cart's exchange (usePosCart's `exchangeFrom()` and `exchangeSplit()`), PosSellExchange, PosPayModal's exchange and Paid Back in Cash (usePosPayment), PosSaleDone.
+- Cash movements (Doc 18 Phase F1, migration 000204): `pos_cash_movements` and `pos_settings.cash_movement_limit`. `PosCashMovement` (its kinds, their directions, and the account types a safe drop and a bank deposit take), `PosCashMovementRepository`, `PosCashMovementService` (`options()`, `record()`, `of()`, `approve()`, `decline()`) behind `PosCashMovementController`: GET `/pos/cash-movements/options`, POST `/pos/cash-movements`, GET `/pos/sessions/{id}/cash-movements`, POST `/pos/cash-movements/{id}/approve` and `/decline`. Each moves by `AccountTransferService::create()`; `PaymentAccountRepository::forCashMovements()` lists the accounts. `PosSessionTotals`' cash in and out are `PosCashMovementRepository::totalsIn()`; `PosSessionService::close()` refuses while one waits.
+  - Frontend: PosCashMovementModal (the selling page's Cash In or Out) and PosCashMovements (the session's page), with usePosCashMovements; SettingsPosClosing's Cash Movement Needing Approval.
+- Paid outs (Doc 18 Phase F2, migration 000205): `pos_cash_movements.payee_name`, `expense_category_id` and `expense_id`. `PosCashMovement::PAID_OUT`; `PosCashMovementService::payOut()` - `ExpenseService::create()`, `ExpenseFlow::record()` and `ExpensePaymentService::record()` - with `paysOut()` and `category()` (`ExpenseCategoryRepository::activeFor()`); the options' `categories`.
+  - Frontend: PosCashMovementModal's Paid Out, PosCashMovements' payee and expense.
+- The X and Z reports (Doc 18 Phase F3, no migration): GET `/pos/sessions/{id}/x-report` and `/z-report` (`PosSessionController::report()`), `PosSessionService::report()`, `DocumentPdf`/`DocumentRenderer::posSessionReport()`, `PosSessionReportSheet`, `documents/pos-session-report.blade.php` - and the roll's shared partials `documents/partials/pos-roll-styles` and `pos-roll-business`.
+  - Frontend: the session's page's X Report or Z Report, in a DocumentPdfModal (usePosSessions' `sessionReportPdf()`).
+- POS's pages of records (Doc 18 Phase G1, migration 000206 for the menu): `PosRecordLists` (`orders()`, `returns()`, `movements()`) over `PosOrderRepository`, `PosReturnRepository` and `PosCashMovementRepository::paginateFor()`; GET `/pos/orders` (`PosOrderController::index`, `ListPosOrdersRequest`, `PosOrderListResource`), `/pos/returns` (`PosReturnController::index`, `ListPosReturnsRequest`, `PosReturnListResource`) and `/pos/cash-movements` (`PosCashMovementController::list`, `ListPosCashMovementsRequest`, `PosCashMovementListResource`). The Sessions page's choices gain `cashiers`.
+  - Frontend: pages/pos/orders, pos/returns and pos/cash-movements, with PosRecordsToolbar and usePosRecords; the session page's "Its sales" and "Its returns".
+- POS today (Doc 18 Phase G2, migration 000207 for the menu): `PosOverviewService::today()` over `PosOverviewRepository` (`sales()`, `payments()`, `returns()`, `variances()`, `topItems()`, `openSessions()`), GET `/pos/overview` (`PosOverviewController`, `PosOverviewResource`); the Dashboard's `pos` (`DashboardService`, `DashboardResource`).
+  - Frontend: pages/pos/overview and DashboardPos, with PosTodayFigures and usePosOverview.
+- POS's documents on the Documents page (Doc 18 Phase G3, no migration): `DocumentIndexRepository`'s `pos` source (`fromPos()`), its refund receipts' half of the union (`refundReceipts()`, family `pos_returns`), `SalesDocument::posReturn()`; `DocumentIndexResource`'s `pos` and `pos_reference`, and a refund receipt's row (`refundReceipt()`); `DocumentIndexService`'s source name and CSV row.
+  - Frontend: useDocumentIndex's POS labels and the `pos-refund-receipts` kind, DocumentsTable's reference line, DocumentsToolbar's Point of Sale source; the Returns page opens searched.
+- POS's reports (Doc 18 Phase H, no migration): `PosReportRepository` (sales, their lines, returns, theirs, payments, cashiers) and `app/Services/Reports/Pos` - `PosReport` (the base: grouping by period, hour, location, register, cashier or salesperson), `PosSalesByReport` (POS Sales Summary and the "Sales by" reports), `PosPaymentMethodsReport`, `PosAverageOrderReport`; `ReportCatalog`'s `pos` category and `POS` needs, `ReportService`'s register and cashier; the `pos.reports.view` permission; `PosReportChoiceController` (`GET /reports/pos/choices`).
+  - Frontend: ReportPosNarrowing, useReports' POS groupings and `loadPosChoices`; the Reports page's empty state.
+  - Phase H2: `PosDiscountsReport`, `PosTaxesReport`, `PosReturnsReport`, `PosVoidsReport`, `PosTopItemsReport` and `PosMarginReport`, `PosReport::lineRows()`; `PosReportRepository::discounted()`, `overrides()`, `closedHeld()`, `declinedPayments()` and `declinedRefunds()`.
+  - Phase H3: `PosSessionsReport` (with `PosSessionTotals` for a session still open), `PosCashVariancesReport` and `PosCashMovementsReport`, `PosReport::oneCurrency()`; `PosReportRepository::sessions()`, `variances()` and `cashMovements()`.
+- The cashier's PIN and the register's lock (Doc 18 Phase I1, migration 000208): `users.pos_pin` (hashed) and `pos_pin_set_at`, `pos_settings.lock_minutes`, `pos_sessions.last_active_at` and `locked_at`. `PosLockService` (pin, lock, unlock), `PosPinRepository`, `PosLockController` (`PUT /pos/pin`, `POST /pos/lock`, `POST /pos/unlock`), `PosLockResource`; `PosCounter::selling()` refuses a locked register (423) and keeps its last use, `PosCounter::lockOf()` locks one idle past the minutes; `PosSessionRepository::mark()`.
+  - Frontend: PosSellLock (the lock screen, the idle timer), PosPinModal, usePosLock (`POS_LOCKED_EVENT`, `POS_UNLOCKED_EVENT`, `useIdle`); useApi raises the locked event on a 423; PosSellCatalog searches again once it is open.
+- A manager's approval at the register (Doc 18 Phase I2, migration 000209): `pos_order_lines.override_approved_by`, `pos_returns.refund_approved_by`. `PosApprovals` (approvers, approve, approverFor: a cached token per session and kind), `PosApproverRepository`, `PosApprovalController` (`GET /pos/approvers`, `POST /pos/approvals`); `PosDiscounts`, `PosOrderService`, `PosSale`, `PosHoldService`, `PosSellingService`, `PosCashMovementService` and `PosReturnService` take `approvals`.
+  - Frontend: usePosApprovals (`ask()`, the cart's tokens), PosApprovalModal (last on the selling page, so it opens over the others); PosSellLineAdjust, PosSellOrderDiscount, PosCashMovementModal and PosReturnModal ask; usePosSelling and usePosHeldOrders send the tokens.
+- A register's devices (Doc 18 Phase I3, migration 000210): `pos_devices`, `PosDevice`, `PosRegister::devices()`; `PosDeviceRepository` (and `used()`, from `PosReceiptService::pdf()` and `PosSellingService::items()`), `PosDeviceService`, `PosDeviceController` (`/pos/registers/{register}/devices`, `/test`, `/test-page`), `PosDeviceResource`; `DocumentRenderer::posDeviceTest()` and `pos-device-test.blade.php`.
+  - Frontend: PosRegisterDevicesModal, PosDeviceForm, usePosDevices; the Registers page's Devices.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
 
 - `SalesSettingsApiTest` fails since shuvo's `a5e46cb` (pulled 2026-11-19). The Sales settings' notes and terms are now kept as rich text, so plain text comes back wrapped in `<p>`, and the test still sends and expects plain text. Until a frontend editor for them is on `nuxt`, the settings form would show those tags too. Check it with shuvo.
+- A POS return without its receipt is not built: the Sales app credits only from an issued invoice, so it needs a credit note of its own first. Its permission, Return Without a Receipt, comes with it (Doc 18 Phase E2).
+- The POS Overview and the Dashboard's card show today alone, and the top items by what they took before tax; Phase H's reports bring other days (Doc 18 Phase G2).
+- POS's pages of records filter by the registers' cashiers as they are now: someone no longer a register's cashier is not offered, though their sales stay listed. The pages have no dates to filter by; Phase H's reports come with them (Doc 18 Phase G1).
+- `AdminUsageTest` failed once in a full run (2026-11-20, Doc 18 Phase G1's): its search for "rahim" also found Karim Stores, whose members' and owner's surnames and e-mails are made up at random - one happened to hold it. It passes alone; naming them in the test would steady it.
+- A POS paid out's expense has no tax, whatever its category starts with, and no receipt number; it is recorded without the duplicate check's question (Doc 18 Phase F2).
+- A POS cash movement's other account is any active account of the business in the session's currency: a safe is simply a cash account. Above the limit, approving is done on the session's page - or, since Phase I2, by a manager's PIN at the register (Doc 18 Phase F1).
+- An exchange whose replacement is never sold keeps its credit on its credit note: a named customer's to use as their credit, the walk-in customer's there until it is refunded from the credit note in Sales. What an exchange pays back is paid to the cent, from the register's cash (Doc 18 Phase E3).
+- A POS return's cash refund is paid to the cent: cash rounding does not round refunds. Item conditions are kept for Inventory, which is not built: no stock moves. Each return also logs its credit note's and refund's own entries (Doc 18 Phase E1).
+- A POS sale's formal invoice renumbers its own invoice: links, e-mails and log entries made before keep the receipt number. It is offered for the session's last sale; any sale's comes with Phase G's Orders page (Doc 18 Phase D4).
+- A POS credit sale's override needs Sales' own Override Credit Limits, as an invoice's does: Doc 18's "Override credit limits" is that permission. A sale left on account is due by the customer's payment terms; a due date typed at the register is not offered (Doc 18 Phase D3a).
+- A pending payment is confirmed by hand: a card terminal's or a mobile provider's own confirmation comes with the payment integrations, which never create a payment twice. A declined one is paid from its invoice, in Sales; the session's page lists only what still waits (Doc 18 Phase D2).
+- A held order is resumed into the cart and waits no longer: a resumed cart cancelled is gone, so hold it again rather than cancel it. Held orders are seen and cancelled from the selling screen, in one's own session at their register; Phase G's Orders page may list them by register (Doc 18 Phase D1).
+- A POS receipt is at least 4.9 inches long: Gotenberg's one-page PDF is never shorter than its window, so a short receipt has paper to spare. It is drawn in the invoice template's formats: a register's own receipt template (section 18.5) is not built. Sending a receipt by a messaging app waits for the messaging integrations; reprints from any sale come with Phase G's Orders page (Doc 18 Phase C4).
+- A discount beyond the limit is given by whoever is signed in with Discount Beyond the Limit - or, since Phase I2, approved at the cashier's register by a manager's PIN. Cash rounding rounds a whole sale paid in cash at all, and none paid by other methods alone; one step serves every currency (Doc 18 Phase C3).
+- A POS sale's payments are ordinary customer payments, each numbered as a receipt (RCT-00001) and listed in Payments Received; the POS receipt's number is the invoice's (R1-00001). Reversing one there leaves the invoice owed again while its POS order stays completed: Phase E's refunds are the way to correct a sale (Doc 18 Phase C2).
 - A POS cart is kept in the browser that made it, for its session, until it is sold or cancelled: another browser or device does not see it, and nothing of it is on the server before Phase C2. Holding orders comes with Phase D (Doc 18 Phase C1).
 - An item has one unit, so the selling screen sells in it: choosing another waits for items with more than one. Every item takes quantities to 3 decimals, as sales lines do (Doc 18 Phase C1).
 - A register sells by the customer's own price list or its own - never by the business's other lists for every customer, nor Settings → Sales's default one (Doc 18 Phase C1).
@@ -4227,4 +4837,27 @@ Each of these is yours to settle.
 - Doc 18 Phase B2a: migration 000190 adds the variance limit to `pos_settings`, and the supervisor's marks to `pos_session_closings`. Two new permissions, Point of Sale → Sessions: Approve Variances and Close Others' Sessions, and Reopen Closed Sessions, are not given to custom roles: give them in Settings → Users & Roles. Deploy the frontend with it.
 - Doc 18 Phase B2b: migration 000191 adds counting by notes and coins to `pos_settings` and `pos_session_closings`. No permission is new. Deploy the frontend with it: Variance Needing Approval moves to the Closing Sessions card in Settings → Point of Sale.
 - Doc 18 Phase C1: migration 000192 adds Open POS, first in Point of Sale's menu (`AppCatalogSeeder` has it for new installs). A new permission, Point of Sale → Selling: Open POS (with Open and Close Sessions and Contacts' View), is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it.
+- Doc 18 Phase I3: migration 000210 adds `pos_devices`. Run `php artisan migrate`. Deploy the frontend with it (the Registers page's Devices).
+- Doc 18 Phase I2: migration 000209 keeps who approved a price typed over (on order lines) and a refund by another method (on returns). Run `php artisan migrate`. Deploy the frontend with it (Ask a Manager on the selling screen, the cash dialog and the return dialog).
+- Doc 18 Phase I1: migration 000208 adds a POS PIN to users, Settings → Point of Sale's lock minutes, and a session's last use and lock. Run `php artisan migrate`. Deploy the frontend with it (the selling screen's Lock and Set PIN, its lock screen, and the lock minutes in Settings → Point of Sale → Selling).
+- Doc 18 Phase H3: no migration, and no frontend change of its own.
+- Doc 18 Phase H2: no migration, and no frontend change of its own.
+- Doc 18 Phase H1: no migration. Give View POS Reports (POS Reports) to the custom roles that should see POS's reports. Deploy the frontend with it (the Reports page's Point of Sale group, its Register and Cashier filters, and its empty state).
+- Doc 18 Phase G3: no migration. Deploy the frontend with it (the Documents page's Point of Sale source, POS labels and references, and refund receipts).
+- Doc 18 Phase G2: migration 000207 puts Overview first in Point of Sale's menu, for whoever may view POS's orders. Deploy the frontend with it (the Overview, and the Dashboard's Point of Sale card).
+- Doc 18 Phase G1: migration 000206 puts Orders, Returns and Refunds, and Cash Movements in Point of Sale's menu. Three new permissions - Point of Sale → Orders → View, Returns and Refunds → View, and Cash Movements → View - are not given to custom roles: give them in Settings → Users & Roles. Deploy the frontend with it.
+- Doc 18 Phase F3: no migration. Deploy the frontend with it (a session's page gains X Report and Z Report).
+- Doc 18 Phase F2: migration 000205 adds what a paid out keeps: its payee, expense category and expense. No new permission. Deploy the frontend with it.
+- Doc 18 Phase F1: migration 000204 adds cash movements and their approval limit. Two new permissions, Point of Sale → Cash Movements → Record Cash Movements and Approve Cash Movements, are not given to custom roles: give them in Settings → Users & Roles. Deploy the frontend with it.
+- Doc 18 Phase E3: migration 000203 links a return made as an exchange and the sale of its replacement. No new permission. Deploy the frontend with it.
+- Doc 18 Phase E2: migration 000202 adds what a return keeps of its refund's method, reason and confirmation. A new permission, Point of Sale → Returns and Refunds → Use Alternative Refund Methods, is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it.
+- Doc 18 Phase E1: migration 000201 adds `pos_returns` and `pos_return_lines`. A new permission group, Point of Sale → Returns and Refunds - Process Returns and Process Refunds - is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it.
+- Doc 18 Phase D4: migration 000200 adds `pos_orders.invoiced_at`. Deploy the frontend with it.
+- Doc 18 Phase D3b: migration 000199 adds `pos_orders.credit_applied`. Deploy the frontend with it.
+- Doc 18 Phase D3a: migration 000198 adds `pos_orders.on_account` and `credit_reason`. A new permission under Point of Sale → Selling, Create Credit Sales, is not given to custom roles: give it in Settings → Users & Roles. Credit sales need the full Sales app. Deploy the frontend with it.
+- Doc 18 Phase D2: migration 000197 adds `pos_payment_methods.confirms_later` and what a POS payment keeps of its confirmation - each payment so far given its customer payment's account. A new permission, Point of Sale → Pending Payments → Confirm Pending Payments, is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it.
+- Doc 18 Phase D1: migration 000196 adds `pos_held_orders` and `pos_settings.hold_hours`. Two new permissions under Point of Sale → Selling - Hold and Resume Orders, and Cancel Held Orders - are not given to custom roles: give them in Settings → Users & Roles. The scheduler runs `pos:expire-held-orders` hourly. Deploy the frontend with it.
+- Doc 18 Phase C4: migration 000195 adds `pos_orders.receipt_prints` and `receipt_texts`. A new permission, Point of Sale → Receipts → Reprint Receipts, is not given to custom roles: give it in Settings → Users & Roles. The receipt needs Gotenberg 8 (its `singlePage`). Deploy the frontend with it.
+- Doc 18 Phase C3: migration 000194 adds the discount limit and the cash rounding step to `pos_settings`, and what an order keeps of its discounts, overrides and rounding. Three new permissions under Point of Sale → Selling - Apply Discounts, Override Prices and Discount Beyond the Limit - are not given to custom roles: give them in Settings → Users & Roles. Deploy the frontend with it.
+- Doc 18 Phase C2: migration 000193 adds `pos_orders`, `pos_order_payments` and `pos_order_lines`. A new permission, Point of Sale → Selling: Sell Items (with Open POS), is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it: Open POS gains Pay, and the Sales lists mark POS sales.
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

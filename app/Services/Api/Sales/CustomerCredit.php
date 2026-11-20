@@ -134,15 +134,40 @@ class CustomerCredit
         }
 
         $customer = $this->contacts->findFor($workspace, (int) $document->contact_id);
-        $limit    = $customer ? $this->limitOf($customer) : null;
 
-        if ($limit === null) {
+        if (! $customer || $this->limitOf($customer) === null) {
             return null;
         }
 
         $counts = $this->countsOrders($workspace);
         $orders = $counts ? $this->credit->openOrdersFor($workspace, $customer->id) : collect();
-        $adds   = $this->adds($document, $rate, $orders, $counts);
+
+        return $this->against($workspace, $customer, $this->adds($document, $rate, $orders, $counts), $orders, $counts, $reason);
+    }
+
+    /**
+     * As check(), for a sale adding $adds - in the base currency - to
+     * $customer's exposure: a POS sale left partly on their account (Doc 18
+     * Phase D3a), where only what its payments leave unpaid adds.
+     *
+     * @return ?array{message: string, overridden: bool}
+     */
+    public function checkAdding(Workspace $workspace, Contact $customer, string $adds, ?string $reason): ?array
+    {
+        if (! WorkspaceApps::for($workspace)->has('sales', Edition::Full) || $this->limitOf($customer) === null) {
+            return null;
+        }
+
+        $counts = $this->countsOrders($workspace);
+        $orders = $counts ? $this->credit->openOrdersFor($workspace, $customer->id) : collect();
+
+        return $this->against($workspace, $customer, $adds, $orders, $counts, $reason);
+    }
+
+    /** $adds against $customer's limit: within it, or adding nothing, null; over it, a warning - or refused, or overridden with $reason. */
+    private function against(Workspace $workspace, Contact $customer, string $adds, Collection $orders, bool $counts, ?string $reason): ?array
+    {
+        $limit = $this->limitOf($customer);
 
         if (bccomp($adds, '0', 2) <= 0) {
             return null;

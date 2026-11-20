@@ -51,6 +51,8 @@ class DocumentSheet
             $document->type === DocumentType::CreditNote && $document->source ? ['Invoice', (string) $document->source->number] : null,
             // An invoice made from a sales order names it (Doc 16 Phase B2).
             $document->type === DocumentType::Invoice && $document->source?->type === DocumentType::SalesOrder ? ['Order', (string) $document->source->number] : null,
+            // A POS sale's formal invoice names its receipt (Doc 18 Phase D4).
+            $document->type === DocumentType::Invoice && $document->posOrder && $document->posOrder->number !== $document->number ? ['POS Receipt', (string) $document->posOrder->number] : null,
             in_array('references', $visible, true) && $document->customer_reference ? ['Your Reference', $document->customer_reference] : null,
             in_array('references', $visible, true) && $document->sales_reference ? ['Our Reference', $document->sales_reference] : null,
             in_array('location', $visible, true) && $document->location ? ['Location', $document->location->name] : null,

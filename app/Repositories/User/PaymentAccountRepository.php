@@ -37,6 +37,17 @@ class PaymentAccountRepository
     }
 
     /**
+     * Its active accounts in $currency but $except, alphabetical: those cash
+     * moves to or from at a POS drawer (Doc 18 Phase F1) - for a user of the
+     * locations $locationIds, those they may use.
+     */
+    public function forCashMovements(Workspace $workspace, string $currency, int $except, ?array $locationIds): Collection
+    {
+        return $workspace->paymentAccounts()->usableAt($locationIds)->where('is_active', true)->where('currency', $currency)->whereKeyNot($except)
+            ->orderBy('name')->orderBy('id')->get(['id', 'name', 'type', 'currency']);
+    }
+
+    /**
      * The cash account a business's POS Cash method starts on (Doc 18 Phase
      * A1): an active one taking customer payments, in the base currency and
      * the receiving default first.

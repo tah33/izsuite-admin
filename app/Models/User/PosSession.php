@@ -52,6 +52,9 @@ class PosSession extends Model
         'opening_notes',
         'closed_at',
         'closed_by',
+        // Phase I1: when it was last used, and whether its register is locked.
+        'last_active_at',
+        'locked_at',
     ];
 
     protected $casts = [
@@ -60,6 +63,8 @@ class PosSession extends Model
         'opened_at'       => 'datetime',
         'closed_at'       => 'datetime',
         'opening_float'   => 'decimal:2',
+        'last_active_at'  => 'datetime',
+        'locked_at'       => 'datetime',
     ];
 
     protected $attributes = [

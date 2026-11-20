@@ -6,10 +6,12 @@ use App\Models\User\PosRegister;
 use App\Models\User\PosSession;
 use App\Models\User\PosSessionClosing;
 use App\Models\User\Workspace;
+use App\Repositories\User\PosCashMovementRepository;
 use App\Repositories\User\PosRegisterRepository;
 use App\Repositories\User\PosSessionRepository;
 use App\Repositories\User\PosSettingRepository;
 use App\Services\Api\Sales\RefusesConflicts;
+use App\Services\Documents\DocumentPdf;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\WorkspaceAccess;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -43,6 +45,9 @@ use Illuminate\Validation\ValidationException;
  *
  * Sessions are seen where their register's location may be used. Each
  * opening, closing, approval and reopening is logged.
+ *
+ * Phase F3: its X report while it is open - its totals so far - and, once
+ * counted, its Z report, each on the receipt's roll; each one made is logged.
  */
 class PosSessionService
 {
@@ -55,6 +60,8 @@ class PosSessionService
         protected PosSessionTotals $totals,
         protected WorkspaceAccess $access,
         protected PosSettingService $posSettings,
+        protected PosCashMovementRepository $movements,
+        protected DocumentPdf $documentPdf,
     ) {}
 
     public function list(Workspace $workspace, array $filters, int $perPage): LengthAwarePaginator
@@ -67,17 +74,21 @@ class PosSessionService
      * with why the user may not open a session on it now - null when they
      * may - and the user's own open session, if any.
      *
-     * @return array{registers: list<array{register: PosRegister, refusal: ?string}>, mine: ?PosSession}
+     * @return array{registers: list<array{register: PosRegister, refusal: ?string}>, cashiers: list<User>, mine: ?PosSession}
      */
     public function options(Workspace $workspace): array
     {
         $userId = $this->userId();
         $live   = $this->sessions->liveRegisterIds($workspace);
 
+        $registers = $this->registers->getFor($workspace, $this->access->locations());
+
         return [
-            'registers' => $this->registers->getFor($workspace, $this->access->locations())
+            'registers' => $registers
                 ->map(fn (PosRegister $register) => ['register' => $register, 'refusal' => $this->refusal($register, $userId, in_array($register->id, $live, true))])
                 ->all(),
+            // Doc 18 Phase G1: their cashiers, by name - what POS's pages filter by.
+            'cashiers'  => $registers->flatMap(fn (PosRegister $register) => $register->cashiers)->unique('id')->sortBy(fn ($user) => $user->name)->values()->all(),
             'mine'      => $this->sessions->liveOf($workspace, $userId),
         ];
     }
@@ -178,6 +189,11 @@ class PosSessionService
                 $this->refuse("Session {$locked->number} is closed already.");
             }
 
+            // Phase F1: the cash expected is known once no cash movement waits for approval.
+            if ($waiting = $this->movements->firstPendingIn($locked)) {
+                $this->refuse("{$waiting->number} waits for approval: approve or decline it, then close the session.");
+            }
+
             [$closing, $approved] = $this->counted($locked, $data, $limit === null ? null : (string) $limit);
             $now = now();
 
@@ -253,6 +269,31 @@ class PosSessionService
         ActivityLogService::record('updated', "Reopened the POS session {$session->number}: {$reason}", $session, ['source' => 'api']);
 
         return $this->show($workspace, $session->id);
+    }
+
+    /**
+     * The session's X report while it is open - $kind 'x' - or, counted, its
+     * Z report - 'z' - from its closing (Phase F3). Its file name and PDF.
+     *
+     * @return array{0: string, 1: string}
+     */
+    public function report(Workspace $workspace, int $id, string $kind): array
+    {
+        $session = $this->find($workspace, $id);
+        $closing = $session->closing;
+
+        if ($kind === 'x') {
+            $session->isLive() || $this->refuse("Session {$session->number} is closed: its Z report shows how it closed.");
+            $made = $this->documentPdf->posSessionReport($workspace, $session, $this->totals->of($session), null);
+        } else {
+            in_array($session->status, PosSession::COUNTED, true) && $closing && ! $closing->isReopened()
+                || $this->refuse("Session {$session->number} is open: its X report shows it so far.");
+            $made = $this->documentPdf->posSessionReport($workspace, $session, $closing->totals ?? [], $closing);
+        }
+
+        ActivityLogService::record('updated', 'Printed the '.strtoupper($kind)." report of the POS session {$session->number}", $session, ['source' => 'api']);
+
+        return $made;
     }
 
     private function find(Workspace $workspace, int $id): PosSession

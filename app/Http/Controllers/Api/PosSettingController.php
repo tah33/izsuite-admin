@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Pos\SavePosCashCountRequest;
 use App\Http\Requests\Api\Pos\SavePosPaymentMethodRequest;
+use App\Http\Requests\Api\Pos\SavePosSellingSettingsRequest;
 use App\Http\Requests\Api\Pos\SavePosSettingsRequest;
 use App\Http\Resources\Pos\PosPaymentMethodResource;
 use App\Http\Resources\Pos\PosSettingsResource;
@@ -49,6 +50,20 @@ class PosSettingController extends Controller
             $settings = $this->posSettingService->saveCashCount($this->currentWorkspace($request), $request->validated());
 
             return response()->json(['message' => 'Closing settings saved.', 'data' => new PosSettingsResource($settings)]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** Doc 18 Phase C3: selling - the discount limit and the cash rounding step. */
+    public function saveSelling(SavePosSellingSettingsRequest $request): JsonResponse
+    {
+        try {
+            $settings = $this->posSettingService->saveSelling($this->currentWorkspace($request), $request->validated());
+
+            return response()->json(['message' => 'Selling settings saved.', 'data' => new PosSettingsResource($settings)]);
 
         } catch (\Throwable $e) {
             report($e);

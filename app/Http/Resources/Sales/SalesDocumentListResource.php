@@ -54,6 +54,8 @@ class SalesDocumentListResource extends JsonResource
             'amount_paid'    => $this->amount_paid,
             'balance_due'    => $this->balance_due,
             'invoice'        => $this->when($this->type === DocumentType::CreditNote, fn () => ['id' => $this->source_id, 'number' => $this->source?->number]),
+            // A POS sale's invoice: Source: POS (Doc 18 Phase C2).
+            'pos'            => $this->sourceApp?->family_key === 'pos',
             'actions'        => app(AllowedActions::class)->sales($this->type, $rules->actions($this->resource, $this->today)),
             'delivery'       => app(AllowedActions::class)->delivery($this->type, $rules->delivery($this->resource, $this->today)),
         ], self::VALUES);

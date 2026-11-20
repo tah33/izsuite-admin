@@ -26,6 +26,7 @@ use App\Services\Reports\Sales\SalesTrendReport;
 use App\Services\Reports\SalesFigures;
 use App\Services\Sales\SalesDocumentRules;
 use App\Services\Shared\WorkspaceAccess;
+use App\Services\Api\Pos\PosOverviewService;
 use App\Services\User\Apps\WorkspaceApps;
 use App\Support\Decimal;
 use Closure;
@@ -71,6 +72,7 @@ class DashboardService
         protected AccountTransactionRepository $accountTransactionRepository,
         protected WorkspaceAccess $access,
         protected CrmOverviewService $crmOverview,
+        protected PosOverviewService $posOverview,
     ) {}
 
     /** $input is validated (see DashboardRequest); $user is the one it is for, whom CRM's figures count for. */
@@ -100,6 +102,10 @@ class DashboardService
             // Phase G4: CRM's, the leads it adds counted over the range, the rest as they stand now.
             'crm'       => $apps->has('crm') && $this->access->can('crm.opportunities.view')
                 ? $this->crmOverview->dashboard($workspace, $user, $from, $to, isset($input['location_id']) ? (int) $input['location_id'] : null)
+                : null,
+            // Doc 18 Phase G2: POS today, at the location shown - whatever the range.
+            'pos'       => $apps->has('pos') && $this->access->can('pos.orders.view')
+                ? $this->posOverview->today($workspace, isset($input['location_id']) ? (int) $input['location_id'] : null)
                 : null,
         ];
     }

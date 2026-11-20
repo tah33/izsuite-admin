@@ -4,6 +4,12 @@ namespace App\Services\Documents;
 
 use App\Models\User\Expense;
 use App\Models\User\ExpensePayment;
+use App\Models\User\PosDevice;
+use App\Models\User\PosOrder;
+use App\Models\User\PosRegister;
+use App\Models\User\PosReturn;
+use App\Models\User\PosSession;
+use App\Models\User\PosSessionClosing;
 use App\Models\User\Purchase;
 use App\Models\User\SalesDelivery;
 use App\Models\User\SalesDocument;
@@ -64,6 +70,30 @@ class DocumentPdf
     public function supplierVoucher(Workspace $workspace, SupplierPayment $payment): array
     {
         return $this->made($this->documentRenderer->supplierVoucher($workspace, $payment));
+    }
+
+    /** @return array{0: string, 1: string} a POS sale's receipt, for a receipt printer's roll (Doc 18 Phase C4) - a copy after the first marked Reprint */
+    public function posReceipt(Workspace $workspace, PosOrder $order, bool $reprint): array
+    {
+        return $this->made($this->documentRenderer->posReceipt($workspace, $order, $reprint));
+    }
+
+    /** @return array{0: string, 1: string} a POS return's refund receipt, on the receipt's roll (Doc 18 Phase E2) */
+    public function posRefundReceipt(Workspace $workspace, PosReturn $return): array
+    {
+        return $this->made($this->documentRenderer->posRefundReceipt($workspace, $return));
+    }
+
+    /** @return array{0: string, 1: string} a POS session's X report - or, from $closing, its Z report - on the receipt's roll (Doc 18 Phase F3) */
+    public function posSessionReport(Workspace $workspace, PosSession $session, array $totals, ?PosSessionClosing $closing): array
+    {
+        return $this->made($this->documentRenderer->posSessionReport($workspace, $session, $totals, $closing));
+    }
+
+    /** A receipt printer's test page (Doc 18 Phase I3). */
+    public function posDeviceTest(Workspace $workspace, PosRegister $register, PosDevice $device, string $printed): array
+    {
+        return $this->made($this->documentRenderer->posDeviceTest($workspace, $register, $device, $printed));
     }
 
     private function made(RenderedDocument $rendered): array

@@ -25,7 +25,16 @@ class PosSettingsResource extends JsonResource
             'return_policy'    => $settings->return_policy,
             'receipt_footer'   => $settings->receipt_footer,
             'variance_limit'   => $settings->variance_limit === null ? null : (string) $settings->variance_limit,
+            // Phase F1: above it, a cash movement waits for a manager's approval.
+            'cash_movement_limit' => $settings->cash_movement_limit === null ? null : (string) $settings->cash_movement_limit,
             'counts_denominations' => (bool) $settings->counts_denominations,
+            // Phase C3: selling - the discount limit (a percentage) and the cash rounding step.
+            'discount_limit'   => $settings->discount_limit === null ? null : (string) $settings->discount_limit,
+            'cash_rounding'    => $settings->cash_rounding === null ? null : (string) $settings->cash_rounding,
+            // Phase D1: how many hours a held order is kept - null for until it is resumed or cancelled.
+            'hold_hours'       => $settings->hold_hours,
+            // Phase I1: after how many minutes without use a register locks - null for only by its cashier.
+            'lock_minutes'     => $settings->lock_minutes,
             'denominations'    => $this->resource['denominations'],
             'payment_methods'  => PosPaymentMethodResource::collection($this->resource['methods']),
             'accounts'         => $this->resource['accounts']->map(fn ($account) => ['id' => $account->id, 'name' => $account->name, 'currency' => $account->currency, 'type' => $account->type])->values(),

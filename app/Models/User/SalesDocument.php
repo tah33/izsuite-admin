@@ -11,6 +11,7 @@ use App\Models\Concerns\MadeByApp;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 
@@ -234,6 +235,18 @@ class SalesDocument extends Model
     public function opportunity(): BelongsTo
     {
         return $this->belongsTo(CrmOpportunity::class, 'opportunity_id');
+    }
+
+    /** The POS return it is the credit note of (Doc 18 Phase G3) - none for any other. */
+    public function posReturn(): HasOne
+    {
+        return $this->hasOne(PosReturn::class, 'credit_note_id');
+    }
+
+    /** The POS sale it is the invoice of (Doc 18 Phase C2) - none for any other. */
+    public function posOrder(): HasOne
+    {
+        return $this->hasOne(PosOrder::class, 'sales_document_id');
     }
 
     /** The quotation or proforma it was converted from - or, for a credit note, the invoice it credits. */

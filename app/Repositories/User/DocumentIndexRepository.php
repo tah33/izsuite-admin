@@ -7,6 +7,8 @@ use App\Enums\ExpenseStatus;
 use App\Enums\PurchaseStatus;
 use App\Enums\SalesDocumentStatus;
 use App\Models\User\Expense;
+use App\Models\Frontend\Application;
+use App\Models\User\PosReturn;
 use App\Models\User\Purchase;
 use App\Models\User\SalesDocument;
 use App\Models\User\Workspace;
@@ -34,11 +36,19 @@ use Illuminate\Support\LazyCollection;
 class DocumentIndexRepository
 {
     /** The app families whose documents the index lists - by its source filter. */
-    public const SOURCES = ['sales', 'purchases', 'expenses'];
+    public const SOURCES = ['sales', 'purchases', 'expenses', 'pos'];
 
     private const OFFERS = [DocumentType::Quotation->value, DocumentType::Proforma->value];
 
-    private const SALES_WITH = ['contact:id,name', 'location:id,name', 'source:id,amount_paid,refunded_amount'];
+    private const SALES_WITH = [
+        'contact:id,name', 'location:id,name', 'source:id,amount_paid,refunded_amount',
+        // Doc 18 Phase G3: a POS sale's or return's - its order, register and session.
+        'posOrder:id,sales_document_id,number,invoiced_at,pos_register_id,pos_session_id', 'posOrder.register:id,name,code', 'posOrder.session:id,number',
+        'posReturn:id,number,credit_note_id,pos_order_id,pos_register_id,pos_session_id', 'posReturn.order:id,number', 'posReturn.register:id,name,code', 'posReturn.session:id,number',
+    ];
+
+    /** Doc 18 Phase G3: a refund receipt's - its sale, register, session, credit note and customer. */
+    private const REFUND_RECEIPTS_WITH = ['order:id,number', 'register:id,name,code', 'session:id,number', 'creditNote:id,number,document_date', 'contact:id,name', 'location:id,name'];
 
     private const PURCHASES_WITH = ['contact:id,name', 'location:id,name'];
 
@@ -84,6 +94,8 @@ class DocumentIndexRepository
             $sales && $this->wants($filters, 'sales') ? $this->keys($this->sales($workspace, $filters, $today)->whereIn('type', $sales), 'sales') : null,
             in_array(DocumentType::Purchase, $types, true) && $this->wants($filters, 'purchases') ? $this->keys($this->purchases($workspace, $filters, $today), 'purchases') : null,
             in_array(DocumentType::Expense, $types, true) && $this->wants($filters, 'expenses') ? $this->keys($this->expenses($workspace, $filters, $today), 'expenses') : null,
+            // Doc 18 Phase G3: POS's refund receipts.
+            ($filters['refund_receipts'] ?? false) && $this->wantsRefundReceipts($filters) ? $this->refundReceipts($workspace, $filters) : null,
         ]));
 
         // Nothing asked for comes from an app with documents: an empty list, shaped like the rest.
@@ -107,7 +119,8 @@ class DocumentIndexRepository
         $credit = in_array($filters['payment_status'] ?? null, ['refunded', 'available', 'partially_applied', 'fully_applied'], true);
 
         return match ($family) {
-            'sales'     => ($filters['source'] ?? 'sales') === 'sales'
+            // Doc 18 Phase G3: POS's sales receipts, invoices and credit notes are sales documents too.
+            'sales'     => in_array($filters['source'] ?? 'sales', ['sales', 'pos'], true)
                 && ! in_array($type, [DocumentType::Purchase->value, DocumentType::Expense->value], true)
                 && $status !== PurchaseStatus::Recorded->value,
             'purchases' => ($filters['source'] ?? 'purchases') === 'purchases'
@@ -134,6 +147,7 @@ class DocumentIndexRepository
             'sales'     => SalesDocument::with(self::SALES_WITH)->findMany($rows->where('family', 'sales')->pluck('id'))->keyBy('id'),
             'purchases' => Purchase::with(self::PURCHASES_WITH)->findMany($rows->where('family', 'purchases')->pluck('id'))->keyBy('id'),
             'expenses'  => Expense::with(self::EXPENSES_WITH)->findMany($rows->where('family', 'expenses')->pluck('id'))->keyBy('id'),
+            'pos_returns' => PosReturn::with(self::REFUND_RECEIPTS_WITH)->findMany($rows->where('family', 'pos_returns')->pluck('id'))->keyBy('id'),
         ];
 
         return $rows->map(fn (object $row) => $loaded[$row->family][$row->id])->values();
@@ -145,6 +159,7 @@ class DocumentIndexRepository
             ->where('workspace_id', $workspace->id)
             ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $this->search($query, $search, ['customer_reference', 'sales_reference'], amounts: $filters['values']['sales'] ?? false))
             ->when($filters['type'] ?? null, fn (Builder $query, string $type) => $query->where('type', $type))
+            ->when(($filters['source'] ?? null) === 'pos', fn (Builder $query) => $this->fromPos($query))
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $this->whereStatus($query, $status, $today))
             ->when($filters['payment_status'] ?? null, fn (Builder $query, string $status) => $query->where('payment_status', $status))
             ->when(filter_var($filters['overdue'] ?? false, FILTER_VALIDATE_BOOLEAN), fn (Builder $query) => $query
@@ -153,6 +168,45 @@ class DocumentIndexRepository
                 ->where('due_date', '<', $today)
                 ->where('balance_due', '>', 0))
             ->tap(fn (Builder $query) => $this->common($query, $filters));
+    }
+
+    /** POS's sales documents (Doc 18 Phase G3): the invoices it made - its sales receipts and formal invoices - and its returns' credit notes. */
+    private function fromPos(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $query) => $query
+            ->whereIn('source_app_id', Application::query()->where('family_key', 'pos')->select('id'))
+            ->orWhereIn('id', PosReturn::query()->select('credit_note_id')));
+    }
+
+    /** Whether POS's refund receipts can be among what the filters ask for (Doc 18 Phase G3): no type, status or payment of the apps' own. */
+    private function wantsRefundReceipts(array $filters): bool
+    {
+        return in_array($filters['source'] ?? 'pos', ['pos'], true)
+            && empty($filters['type']) && empty($filters['status']) && empty($filters['payment_status']) && ! filter_var($filters['overdue'] ?? false, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * POS's returns as their refund receipts (Doc 18 Phase G3), each dated as
+     * its credit note is - by its number or its sale's, its customer, where,
+     * in which currency and when.
+     */
+    private function refundReceipts(Workspace $workspace, array $filters): QueryBuilder
+    {
+        return PosReturn::query()
+            ->join('sales_documents', 'sales_documents.id', '=', 'pos_returns.credit_note_id')
+            ->where('pos_returns.workspace_id', $workspace->id)
+            ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $query->where(fn (Builder $query) => $query
+                ->where('pos_returns.number', 'like', "%{$search}%")
+                ->orWhereHas('order', fn (Builder $query) => $query->where('number', 'like', "%{$search}%"))))
+            ->when($filters['contact_id'] ?? null, fn (Builder $query, $id) => $query->where('pos_returns.contact_id', $id))
+            ->when($filters['location_id'] ?? null, fn (Builder $query, $id) => $query->where('pos_returns.location_id', $id))
+            ->when(($filters['location_ids'] ?? null) !== null, fn (Builder $query) => $query->whereIn('pos_returns.location_id', $filters['location_ids']))
+            ->when($filters['currency'] ?? null, fn (Builder $query, string $currency) => $query->where('pos_returns.currency', $currency))
+            ->when($filters['date_from'] ?? null, fn (Builder $query, string $date) => $query->where('sales_documents.document_date', '>=', $date))
+            ->when($filters['date_to'] ?? null, fn (Builder $query, string $date) => $query->where('sales_documents.document_date', '<=', $date))
+            ->select(['pos_returns.id', 'sales_documents.document_date', 'pos_returns.created_at'])
+            ->selectRaw("'pos_returns' as family")
+            ->toBase();
     }
 
     private function purchases(Workspace $workspace, array $filters, string $today): Builder

@@ -78,6 +78,9 @@ class User extends Authenticatable
         'two_factor_secret',
         'two_factor_recovery_codes',
         'two_factor_last_step',
+
+        // Doc 18 Phase I1: the POS PIN's hash - only PosLockService reads it.
+        'pos_pin',
     ];
 
     /**
@@ -117,6 +120,7 @@ class User extends Authenticatable
             'two_factor_confirmed_at'   => 'datetime',
             'two_factor_last_step'      => 'integer',
             'sessions_valid_from'       => 'datetime',
+            'pos_pin_set_at'            => 'datetime',
         ];
     }
 
