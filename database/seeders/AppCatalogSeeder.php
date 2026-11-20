@@ -35,7 +35,7 @@ class AppCatalogSeeder extends Seeder
             'sales'            => ['Sales', 'receipt', 'Sales Lite', 'available', true, 'Quotations, proforma invoices, invoices and sales orders.'],
             'crm'              => ['CRM', 'contact', null, 'available', true, 'Leads, deals and the pipeline that turns them into customers.'],
             'pos'              => ['Point of Sale', 'scan-barcode', null, 'available', true, 'Sell over the counter, with receipts and cash sessions.'],
-            'ecommerce'        => ['eCommerce', 'shopping-cart', null, 'coming_soon', false, 'An online store that shares your items and stock.'],
+            'ecommerce'        => ['eCommerce', 'shopping-cart', null, 'available', false, 'An online store that shares your items and stock.'],
             'subscriptions'    => ['Subscriptions', 'repeat', null, 'coming_soon', false, 'Recurring plans and automatic invoicing.'],
             'marketing'        => ['Marketing', 'megaphone', null, 'coming_soon', false, 'Campaigns and audiences built from your contacts.'],
             'loyalty'          => ['Loyalty', 'gift', null, 'coming_soon', false, 'Points and rewards for returning customers.'],
@@ -117,6 +117,17 @@ class AppCatalogSeeder extends Seeder
                 'Receipts printed, as PDFs or by e-mail',
             ],
         ],
+        'ecommerce' => [
+            'Your own online store, on the same customers, items, prices, taxes and payment accounts as the rest of izSuite: storefronts in your languages and currencies, orders that become your invoices, and returns that become your credit notes. An online order counts once, in Sales and the reports.',
+            [
+                'Storefronts with their own address, languages, currencies and countries',
+                'Your items published online, with their own words and pictures',
+                'Checkout as a guest or with a customer account',
+                'Orders, payments and fulfilment kept apart, each with its status',
+                'Returns and refunds through your credit notes',
+                'Online sales on the Dashboard and in the reports',
+            ],
+        ],
         'sales_lite' => [
             'Everything a small business needs to quote, invoice and get paid: documents numbered your way, in your template and currency, shared as PDFs, by e-mail or by secure link.',
             [
@@ -153,6 +164,7 @@ class AppCatalogSeeder extends Seeder
     private const DEPENDENCIES = [
         'inventory'     => ['purchases' => 'lite'],
         'pos'           => ['sales' => 'lite'],
+        'ecommerce'     => ['sales' => 'lite'],
         'warehouses'    => ['inventory' => 'lite'],
         'barcode'       => ['inventory' => 'lite'],
         'manufacturing' => ['inventory' => 'lite'],
@@ -211,6 +223,10 @@ class AppCatalogSeeder extends Seeder
         ['apps', 'pos', 'Orders', 'receipt', '/pos/orders', 'lite', null],
         ['apps', 'pos', 'Returns and Refunds', 'undo-2', '/pos/returns', 'lite', null],
         ['apps', 'pos', 'Cash Movements', 'wallet', '/pos/cash-movements', 'lite', null],
+        // eCommerce (Doc 19), in 19.3's order as each phase adds its own: Phase A1 its storefronts.
+        ['apps', 'ecommerce', 'Storefronts', 'store', '/ecommerce/storefronts', 'lite', null],
+        // Phase B1: the catalog.
+        ['apps', 'ecommerce', 'Catalog', 'library', '/ecommerce/catalog', 'lite', null],
         ['apps', 'inventory', 'Stock', 'boxes', '/inventory/stock', 'lite', null],
         ['apps', 'inventory', 'Adjustments', 'sliders-horizontal', '/inventory/adjustments', 'lite', null],
 
@@ -251,6 +267,8 @@ class AppCatalogSeeder extends Seeder
         '/pos/orders'         => 'pos.orders.view',
         '/pos/returns'        => 'pos.returns.view',
         '/pos/cash-movements' => 'pos.cash.view',
+        '/ecommerce/storefronts' => 'ecommerce.store.view',
+        '/ecommerce/catalog'     => 'ecommerce.catalog.view',
         '/purchases'          => 'purchases.purchases.view',
         '/purchases/payments' => 'purchases.payments.view',
         '/expenses'           => 'expenses.expenses.view',

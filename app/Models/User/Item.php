@@ -9,6 +9,7 @@ use App\Services\User\Workspaces\WorkspaceSequence;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 /**
@@ -200,6 +201,18 @@ class Item extends Model
     public function image(): MorphOne
     {
         return $this->fileIn(FileCollection::Image);
+    }
+
+    /** Doc 19 Phase B1: its online listing, when it is in the catalog. */
+    public function catalogProduct(): HasOne
+    {
+        return $this->hasOne(CatalogProduct::class);
+    }
+
+    /** Doc 19 Phase B3: the variant it is of a listing with options - its own, or another item's. */
+    public function catalogVariant(): HasOne
+    {
+        return $this->hasOne(CatalogProductVariant::class);
     }
 
     /** A combo's components, in the order they were given. */

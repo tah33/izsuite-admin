@@ -15,6 +15,8 @@
     $lines  = fn ($version) => array_filter([
         'user_limit'       => $version->user_limit === null ? __('Unlimited users') : trans_choice(':count user|:count users', $version->user_limit),
         'location_limit'   => $version->location_limit === null ? __('Unlimited locations') : trans_choice(':count location|:count locations', $version->location_limit),
+        'storefront_limit' => $version->storefront_limit === null ? __('Unlimited storefronts') : trans_choice(':count storefront|:count storefronts', $version->storefront_limit),
+        'storefront_page_limit' => $version->storefront_page_limit === null ? __('Unlimited pages per storefront') : trans_choice(':count page per storefront|:count pages per storefront', $version->storefront_page_limit),
         'business_limit'   => $version->business_limit === null ? __('Unlimited businesses per account') : trans_choice(':count business per account|:count businesses per account', $version->business_limit),
         'storage_limit_mb' => $version->storage_limit_mb === null ? __('Unlimited storage') : __(':size of storage', ['size' => \App\Support\Bytes::format($version->storage_limit_mb * 1048576)]),
         'removes_branding' => $version->removes_branding ? __('No "Powered by izSuite"') : __('"Powered by izSuite" on documents'),

@@ -9,7 +9,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /**
  * Settings > Subscription, the Dashboard's limit warning and the upload
  * panels' warning: the business's package, its storage as
- * StorageUsage::summary() measures it, and its users and locations against
+ * StorageUsage::summary() measures it, and its users and locations - and its
+ * storefronts, while eCommerce is on (Doc 19 Phase A2), else null - against
  * the package's limits, each with its state - ok, warning, full or over (see
  * PlanLimits::usage()). A limit of null is none.
  *
@@ -34,8 +35,9 @@ class BusinessUsageResource extends JsonResource
                 'percent'     => $storage['percent'],
                 'state'       => $storage['state'],
             ],
-            'users'     => $this->usage['users'],
-            'locations' => $this->usage['locations'],
+            'users'       => $this->usage['users'],
+            'locations'   => $this->usage['locations'],
+            'storefronts' => $this->usage['storefronts'],
         ];
     }
 }

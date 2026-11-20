@@ -4,27 +4,32 @@ namespace App\Services\User\Workspaces;
 
 use App\Models\Billing\Package;
 use App\Models\Billing\PackageVersion;
+use App\Models\User\Storefront;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\Billing\PackageRepository;
 use App\Repositories\User\LocationRepository;
+use App\Repositories\User\StorefrontPageRepository;
+use App\Repositories\User\StorefrontRepository;
 use App\Repositories\User\WorkspaceMemberRepository;
 use App\Repositories\User\WorkspaceRepository;
 use App\Services\Files\StorageUsage;
+use App\Services\User\Apps\WorkspaceApps;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
 /**
  * A package's count limits (Doc 01 section 4, Doc 13), as the admin sets them:
- * how many businesses on it one account may own, and how many users and
- * locations each business has. Empty is no limit.
+ * how many businesses on it one account may own, and how many users,
+ * locations and - with eCommerce (Doc 19 Phase A2) - storefronts each
+ * business has. Empty is no limit.
  *
  * Adding past a limit is refused with a 403 that says so. A business already
  * over one - after a downgrade, or a limit lowered - keeps everything; it only
  * cannot add more, until its owner chooses what stays active (OverLimitService).
  * A business's users are its members who are active or invited (Doc 12
- * section 3) - its owner among them; its locations, the active ones. Its
- * limits are those of the plan's version it is held to, if any (Doc 15
- * Phase E3b: Workspace::terms()).
+ * section 3) - its owner among them; its locations, the active ones; its
+ * storefronts, all but the archived ones. Its limits are those of the plan's
+ * version it is held to, if any (Doc 15 Phase E3b: Workspace::terms()).
  */
 class PlanLimits
 {
@@ -37,6 +42,8 @@ class PlanLimits
         protected LocationRepository $locationRepository,
         protected WorkspaceMemberRepository $memberRepository,
         protected StorageUsage $storageUsage,
+        protected StorefrontRepository $storefrontRepository,
+        protected StorefrontPageRepository $storefrontPageRepository,
     ) {}
 
     /** A new business starts on Billing Starter, so the account may own only so many there. */
@@ -84,22 +91,51 @@ class PlanLimits
         }
     }
 
+    /** Doc 19 Phase A2: a storefront added - or an archived one opened again - needs room under the plan. */
+    public function ensureCanAddStorefront(Workspace $workspace): void
+    {
+        $terms = $this->workspaceRepository->termsOf($workspace);
+
+        if ($terms?->storefront_limit !== null && $this->storefronts($workspace) >= $terms->storefront_limit) {
+            $this->refuse($this->reached($terms, $terms->storefront_limit, 'storefront', 'storefronts').' Upgrade the plan to add another.');
+        }
+    }
+
+    /** Doc 19 Phase C5b: a page of the business's own added to $storefront needs room under the plan - each storefront has its own. */
+    public function ensureCanAddStorefrontPage(Workspace $workspace, Storefront $storefront): void
+    {
+        $terms = $this->workspaceRepository->termsOf($workspace);
+
+        if ($terms?->storefront_page_limit !== null && $this->storefrontPageRepository->ownCount($storefront) >= $terms->storefront_page_limit) {
+            $this->refuse($this->reached($terms, $terms->storefront_page_limit, 'page of your own on each storefront', 'pages of your own on each storefront').' Upgrade the plan to add another.');
+        }
+    }
+
+    /** Doc 19 Phase C5b: how many pages of its own the plan gives each of the business's storefronts - null for no limit. */
+    public function storefrontPageLimit(Workspace $workspace): ?int
+    {
+        return $this->workspaceRepository->termsOf($workspace)?->storefront_page_limit;
+    }
+
     /**
      * Settings > Subscription's Usage and Limits (Doc 13 sections 13.11 and
      * 13.14): the business's storage as StorageUsage measures it, and how
      * many users and locations it has of how many its plan gives it (null for
      * no limit), each with its state (see count()).
      *
-     * @return array{storage: array, users: array{used: int, limit: ?int, state: string}, locations: array{used: int, limit: ?int, state: string}}
+     * And its storefronts, while eCommerce is on (Doc 19 Phase A2) - null otherwise.
+     *
+     * @return array{storage: array, users: array{used: int, limit: ?int, state: string}, locations: array{used: int, limit: ?int, state: string}, storefronts: array{used: int, limit: ?int, state: string}|null}
      */
     public function usage(Workspace $workspace): array
     {
         $terms = $this->workspaceRepository->termsOf($workspace);
 
         return [
-            'storage'   => $this->storageUsage->summary($workspace),
-            'users'     => self::count($this->users($workspace), $terms?->user_limit),
-            'locations' => self::count($this->locations($workspace), $terms?->location_limit),
+            'storage'     => $this->storageUsage->summary($workspace),
+            'users'       => self::count($this->users($workspace), $terms?->user_limit),
+            'locations'   => self::count($this->locations($workspace), $terms?->location_limit),
+            'storefronts' => WorkspaceApps::for($workspace)->has('ecommerce') ? self::count($this->storefronts($workspace), $terms?->storefront_limit) : null,
         ];
     }
 
@@ -131,6 +167,12 @@ class PlanLimits
     public function locations(Workspace $workspace): int
     {
         return $this->locationRepository->countActiveFor($workspace);
+    }
+
+    /** Its storefronts but the archived ones: an archived one sells nothing, so it is outside the limit. */
+    public function storefronts(Workspace $workspace): int
+    {
+        return $this->storefrontRepository->countOpenFor($workspace);
     }
 
     /** "Billing Starter includes one user." - by the plan's terms the business is held to (Doc 15 Phase E3b). */

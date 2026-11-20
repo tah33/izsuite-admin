@@ -84,6 +84,18 @@ use App\Http\Controllers\Api\NavigationController;
 use App\Http\Controllers\Api\NotificationSettingController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PaymentAccountController;
+use App\Http\Controllers\Api\CatalogCategoryController;
+use App\Http\Controllers\Api\CatalogCollectionController;
+use App\Http\Controllers\Api\CatalogVariantController;
+use App\Http\Controllers\Api\StoreCatalogController;
+use App\Http\Controllers\Api\StorefrontPageController;
+use App\Http\Controllers\Api\StorefrontThemeController;
+use App\Http\Controllers\Api\CatalogPictureController;
+use App\Http\Controllers\Api\EcommerceCatalogController;
+use App\Http\Controllers\Api\EcommerceSettingController;
+use App\Http\Controllers\Api\StorefrontController;
+use App\Http\Controllers\Api\StorefrontDomainController;
+use App\Http\Controllers\Api\StorefrontHostController;
 use App\Http\Controllers\Api\PosApprovalController;
 use App\Http\Controllers\Api\PosCashMovementController;
 use App\Http\Controllers\Api\PosDeviceController;
@@ -174,6 +186,31 @@ Route::prefix('v1')->group(function () {
     Route::get('/currencies', [CurrencyController::class, 'index'])->name('api.currencies.index');
     Route::get('/languages', [LanguageController::class, 'index'])->name('api.languages.index');
     Route::get('/countries', [CountryController::class, 'index'])->name('api.countries.index');
+
+    // Whether izSuite answers for a name - a storefront's izSuite address or a verified domain - for the
+    // server before it issues a certificate, and for the storefront (Doc 19 Phase A3).
+    Route::get('/storefront-hosts', [StorefrontHostController::class, 'show'])->middleware('throttle:120,1')->name('api.storefront-hosts.show');
+
+    // A storefront as its customers see it, by its code and without signing in: the store, its products and a
+    // product by its link (Doc 19 Phase C1).
+    Route::middleware('throttle:120,1')->prefix('stores/{code}')->where(['code' => '[A-Za-z0-9-]+'])->group(function () {
+        Route::get('/', [StoreCatalogController::class, 'show'])->name('api.stores.show');
+        // Phase C4b: its home page, as its theme lays it out.
+        Route::get('/home', [StoreCatalogController::class, 'home'])->name('api.stores.home');
+        Route::get('/products', [StoreCatalogController::class, 'products'])->name('api.stores.products');
+        Route::get('/products/{slug}', [StoreCatalogController::class, 'product'])->where('slug', '[A-Za-z0-9-]+')->name('api.stores.product');
+        // Phase C2: its categories' and collections' pages, and what its search suggests.
+        Route::get('/categories/{slug}', [StoreCatalogController::class, 'category'])->where('slug', '[A-Za-z0-9-]+')->name('api.stores.category');
+        Route::get('/collections', [StoreCatalogController::class, 'collections'])->name('api.stores.collections');
+        Route::get('/collections/{slug}', [StoreCatalogController::class, 'collection'])->where('slug', '[A-Za-z0-9-]+')->name('api.stores.collection');
+        Route::get('/suggestions', [StoreCatalogController::class, 'suggestions'])->name('api.stores.suggestions');
+        // Phase C3: what its products offer to filter by - price, options and attributes.
+        Route::get('/facets', [StoreCatalogController::class, 'facets'])->name('api.stores.facets');
+        // Phase C5a: a page of the store's - its contact or about page, or a policy - by its link.
+        Route::get('/pages/{slug}', [StoreCatalogController::class, 'page'])->where('slug', '[A-Za-z0-9-]+')->name('api.stores.page');
+        // Phase C6a: what its sitemap lists.
+        Route::get('/sitemap', [StoreCatalogController::class, 'sitemap'])->name('api.stores.sitemap');
+    });
 
     // Stripe's notifications of finished checkouts, taken only with its signature (Doc 13 Phase D2).
     Route::post('/webhooks/stripe', [StripeWebhookController::class, 'handle'])->name('api.webhooks.stripe');
@@ -331,6 +368,13 @@ Route::prefix('v1')->group(function () {
             Route::post('/payment-methods', [PosSettingController::class, 'storeMethod'])->middleware('idempotent')->name('api.business-settings.pos.payment-methods.store');
             Route::put('/payment-methods/{id}', [PosSettingController::class, 'updateMethod'])->whereNumber('id')->name('api.business-settings.pos.payment-methods.update');
             Route::delete('/payment-methods/{id}', [PosSettingController::class, 'destroyMethod'])->whereNumber('id')->name('api.business-settings.pos.payment-methods.destroy');
+        });
+
+        // Settings → eCommerce (Doc 19 Phase A1): the business's own rules for
+        // its storefronts - there while eCommerce is on.
+        Route::middleware('app:ecommerce')->prefix('ecommerce')->group(function () {
+            Route::get('/', [EcommerceSettingController::class, 'show'])->name('api.business-settings.ecommerce.show');
+            Route::put('/', [EcommerceSettingController::class, 'update'])->name('api.business-settings.ecommerce.update');
         });
 
         // Settings > CRM (Doc 17 Phase A1): the mode, and the lead sources,
@@ -1077,6 +1121,69 @@ Route::prefix('v1')->group(function () {
         Route::get('/{id}', [PosHeldOrderController::class, 'show'])->whereNumber('id')->name('api.pos.held-orders.show');
         Route::post('/{id}/resume', [PosHeldOrderController::class, 'resume'])->whereNumber('id')->middleware('idempotent')->name('api.pos.held-orders.resume');
         Route::post('/{id}/cancel', [PosHeldOrderController::class, 'cancel'])->whereNumber('id')->name('api.pos.held-orders.cancel');
+    });
+
+    /* --------------------------------------------------------
+     | eCommerce (Doc 19): its storefronts (Phase A1) - the Storefronts page,
+     | what a storefront's form chooses from, adding, changing and deleting
+     | one. Each is seen where its location may be used.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:ecommerce', 'access'])->prefix('ecommerce/storefronts')->group(function () {
+        Route::get('/', [StorefrontController::class, 'index'])->name('api.ecommerce.storefronts.index');
+        Route::get('/options', [StorefrontController::class, 'options'])->name('api.ecommerce.storefronts.options');
+        Route::post('/', [StorefrontController::class, 'store'])->middleware('idempotent')->name('api.ecommerce.storefronts.store');
+        Route::put('/{id}', [StorefrontController::class, 'update'])->whereNumber('id')->name('api.ecommerce.storefronts.update');
+        Route::delete('/{id}', [StorefrontController::class, 'destroy'])->whereNumber('id')->name('api.ecommerce.storefronts.destroy');
+        // Phase A3: its domains - listed, added, verified, made primary and removed.
+        Route::get('/{storefront}/domains', [StorefrontDomainController::class, 'index'])->whereNumber('storefront')->name('api.ecommerce.domains.index');
+        Route::post('/{storefront}/domains', [StorefrontDomainController::class, 'store'])->whereNumber('storefront')->middleware('idempotent')->name('api.ecommerce.domains.store');
+        Route::post('/{storefront}/domains/primary', [StorefrontDomainController::class, 'primary'])->whereNumber('storefront')->name('api.ecommerce.domains.primary');
+        Route::post('/{storefront}/domains/{domain}/verify', [StorefrontDomainController::class, 'verify'])->whereNumber(['storefront', 'domain'])->middleware('throttle:20,1')->name('api.ecommerce.domains.verify');
+        Route::delete('/{storefront}/domains/{domain}', [StorefrontDomainController::class, 'destroy'])->whereNumber(['storefront', 'domain'])->name('api.ecommerce.domains.destroy');
+        // Phase C4a: its theme and branding - the draft, its pictures, publishing or discarding the draft.
+        Route::get('/{storefront}/theme', [StorefrontThemeController::class, 'show'])->whereNumber('storefront')->name('api.ecommerce.themes.show');
+        Route::put('/{storefront}/theme', [StorefrontThemeController::class, 'update'])->whereNumber('storefront')->name('api.ecommerce.themes.update');
+        Route::post('/{storefront}/theme/pictures', [StorefrontThemeController::class, 'storePictures'])->whereNumber('storefront')->name('api.ecommerce.themes.pictures');
+        Route::post('/{storefront}/theme/publish', [StorefrontThemeController::class, 'publish'])->whereNumber('storefront')->name('api.ecommerce.themes.publish');
+        Route::post('/{storefront}/theme/discard', [StorefrontThemeController::class, 'discard'])->whereNumber('storefront')->name('api.ecommerce.themes.discard');
+        // Phase C5a: its pages - contact, about and the four policies - each by its kind; Phase C5b, the business's own, by id.
+        Route::get('/{storefront}/pages', [StorefrontPageController::class, 'index'])->whereNumber('storefront')->name('api.ecommerce.pages.index');
+        Route::post('/{storefront}/pages', [StorefrontPageController::class, 'store'])->whereNumber('storefront')->name('api.ecommerce.pages.store');
+        Route::get('/{storefront}/pages/{page}', [StorefrontPageController::class, 'show'])->whereNumber('storefront')->where('page', 'about|contact|shipping|returns|privacy|terms|[0-9]+')->name('api.ecommerce.pages.show');
+        Route::put('/{storefront}/pages/{page}', [StorefrontPageController::class, 'update'])->whereNumber('storefront')->where('page', 'about|contact|shipping|returns|privacy|terms|[0-9]+')->name('api.ecommerce.pages.update');
+        Route::delete('/{storefront}/pages/{page}', [StorefrontPageController::class, 'destroy'])->whereNumber('storefront')->whereNumber('page')->name('api.ecommerce.pages.destroy');
+    });
+
+    /* --------------------------------------------------------
+     | eCommerce (Doc 19): its catalog (Phase B1) - the items for sale with
+     | their online listings, an item's listing saved or taken out, and its
+     | pictures.
+     | -------------------------------------------------------- */
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:ecommerce', 'access'])->prefix('ecommerce/catalog')->group(function () {
+        Route::get('/', [EcommerceCatalogController::class, 'index'])->name('api.ecommerce.catalog.index');
+        Route::get('/{item}', [EcommerceCatalogController::class, 'show'])->whereNumber('item')->name('api.ecommerce.catalog.show');
+        Route::put('/{item}', [EcommerceCatalogController::class, 'update'])->whereNumber('item')->name('api.ecommerce.catalog.update');
+        Route::delete('/{item}', [EcommerceCatalogController::class, 'destroy'])->whereNumber('item')->name('api.ecommerce.catalog.destroy');
+        Route::post('/{item}/pictures', [CatalogPictureController::class, 'store'])->whereNumber('item')->name('api.ecommerce.catalog.pictures.store');
+        Route::delete('/{item}/pictures/{file}', [CatalogPictureController::class, 'destroy'])->whereNumber(['item', 'file'])->name('api.ecommerce.catalog.pictures.destroy');
+        // Phase B3: the items a listing may group as its variants, and its options and variants saved.
+        Route::get('/{item}/variant-items', [CatalogVariantController::class, 'items'])->whereNumber('item')->name('api.ecommerce.catalog.variants.items');
+        Route::put('/{item}/variants', [CatalogVariantController::class, 'update'])->whereNumber('item')->name('api.ecommerce.catalog.variants.update');
+    });
+
+    // Phase B2: the item categories as the storefronts show them, and the collections.
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:ecommerce', 'access'])->prefix('ecommerce')->group(function () {
+        Route::get('/catalog-categories', [CatalogCategoryController::class, 'index'])->name('api.ecommerce.categories.index');
+        Route::put('/catalog-categories/{category}', [CatalogCategoryController::class, 'update'])->whereNumber('category')->name('api.ecommerce.categories.update');
+        Route::post('/catalog-categories/{category}/image', [CatalogCategoryController::class, 'storeImage'])->whereNumber('category')->name('api.ecommerce.categories.image.store');
+        Route::delete('/catalog-categories/{category}/image', [CatalogCategoryController::class, 'destroyImage'])->whereNumber('category')->name('api.ecommerce.categories.image.destroy');
+        Route::get('/collections', [CatalogCollectionController::class, 'index'])->name('api.ecommerce.collections.index');
+        Route::get('/collections/options', [CatalogCollectionController::class, 'options'])->name('api.ecommerce.collections.options');
+        Route::post('/collections', [CatalogCollectionController::class, 'store'])->middleware('idempotent')->name('api.ecommerce.collections.store');
+        Route::put('/collections/{id}', [CatalogCollectionController::class, 'update'])->whereNumber('id')->name('api.ecommerce.collections.update');
+        Route::delete('/collections/{id}', [CatalogCollectionController::class, 'destroy'])->whereNumber('id')->name('api.ecommerce.collections.destroy');
+        Route::post('/collections/{id}/image', [CatalogCollectionController::class, 'storeImage'])->whereNumber('id')->name('api.ecommerce.collections.image.store');
+        Route::delete('/collections/{id}/image', [CatalogCollectionController::class, 'destroyImage'])->whereNumber('id')->name('api.ecommerce.collections.image.destroy');
     });
 
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm')->group(function () {

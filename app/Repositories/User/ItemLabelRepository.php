@@ -49,12 +49,21 @@ class ItemLabelRepository
         return $row;
     }
 
-    /** Its items lose it - they are kept, without a category or brand - and then it goes. */
+    /**
+     * Its items lose it - they are kept, without a category or brand - and
+     * then it goes: a category with its online side (Doc 19 Phase B2), through
+     * that side's model so its picture goes too. A brand's collections stay,
+     * without their brand.
+     */
     public function delete(ItemLabel $label, ItemCategory|ItemBrand $row): void
     {
         Item::where('workspace_id', $row->workspace_id)
             ->where($label->itemColumn(), $row->id)
             ->update([$label->itemColumn() => null]);
+
+        if ($row instanceof ItemCategory) {
+            $row->catalogCategory?->delete();
+        }
 
         $row->delete();
     }

@@ -4,10 +4,14 @@
         'business_limit' => [__('Businesses per account'), __('How many businesses on this plan one account may own. New businesses start on Billing Starter, so 1 there means one free business per account.')],
         'user_limit'     => [__('Users per business'), __('The owner and the staff added to the business, together.')],
         'location_limit' => [__('Locations per business'), __('Branches, shops, offices and warehouses, the Main Location included.')],
+        // Doc 19 Phase A2.
+        'storefront_limit' => [__('Storefronts per business'), __('Online stores, with eCommerce. Archived ones are not counted.')],
+        // Doc 19 Phase C5b.
+        'storefront_page_limit' => [__('Pages per storefront'), __('The business\'s own pages on each storefront, besides its contact and about pages and its policies.')],
     ];
 @endphp
 
-<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
     @foreach ($limits as $field => [$label, $hint])
         <div>
             <label class="form-label" for="{{ $field }}">{{ $label }}</label>

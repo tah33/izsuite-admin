@@ -240,7 +240,7 @@ class FileStorage
 
         $written[] = [$disk, $path];
 
-        $thumbnail = $collection === FileCollection::Image ? $this->thumbnails->make($upload, $disk, $directory, $public) : null;
+        $thumbnail = $collection->hasThumbnails() ? $this->thumbnails->make($upload, $disk, $directory, $public) : null;
 
         if ($thumbnail) {
             $written[] = [$disk, $thumbnail];

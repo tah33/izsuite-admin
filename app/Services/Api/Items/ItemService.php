@@ -178,7 +178,7 @@ class ItemService
             ], 409));
         }
 
-        $this->itemRepository->delete($item);
+        DB::transaction(fn () => $this->itemRepository->delete($item));
 
         ActivityLogService::record('deleted', "Deleted item {$this->quoted($item)}", $item, ['source' => 'api']);
     }

@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class PackageVersion extends Model
 {
     /** A plan's terms that change by version. */
-    public const TERMS = ['storage_limit_mb', 'business_limit', 'user_limit', 'location_limit', 'removes_branding', 'reporting_level', 'support_level', 'trial_days', 'grace_days'];
+    public const TERMS = ['storage_limit_mb', 'business_limit', 'user_limit', 'location_limit', 'storefront_limit', 'storefront_page_limit', 'removes_branding', 'reporting_level', 'support_level', 'trial_days', 'grace_days'];
 
     /** Waiting for its day. */
     public const SCHEDULED = 'scheduled';
@@ -38,6 +38,8 @@ class PackageVersion extends Model
         'business_limit',
         'user_limit',
         'location_limit',
+        'storefront_limit',
+        'storefront_page_limit',
         'removes_branding',
         'reporting_level',
         'support_level',
@@ -54,6 +56,8 @@ class PackageVersion extends Model
         'business_limit'   => 'integer',
         'user_limit'       => 'integer',
         'location_limit'   => 'integer',
+        'storefront_limit' => 'integer',
+        'storefront_page_limit' => 'integer',
         'removes_branding' => 'boolean',
         'trial_days'       => 'integer',
         'grace_days'       => 'integer',

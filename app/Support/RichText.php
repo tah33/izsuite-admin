@@ -16,15 +16,27 @@ use DOMNode;
  * that has no editor - is escaped into paragraphs. Only the tags below
  * survive, with no attributes, so the result is safe to print as HTML - on
  * the website and in the PDF. clean() is the same, named for saving.
+ *
+ * page() keeps a storefront page's words (Doc 19 Phase C5a): the same, with
+ * headings of two levels besides.
  */
 final class RichText
 {
     private const TAGS = ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li'];
 
+    /** A storefront page's headings, as its editor makes them. */
+    private const PAGE_TAGS = [...self::TAGS, 'h2', 'h3'];
+
     /** The HTML to keep, or null when there is no text in it. */
     public static function clean(?string $value): ?string
     {
         return self::html($value);
+    }
+
+    /** Phase C5a: a storefront page's HTML to keep - with its headings - or null when there is no text in it. */
+    public static function page(?string $value): ?string
+    {
+        return self::html($value, self::PAGE_TAGS);
     }
 
     /**
@@ -56,14 +68,14 @@ final class RichText
     }
 
     /** $value as HTML to show: rich text cleaned, plain text escaped into paragraphs. */
-    public static function html(?string $value): ?string
+    public static function html(?string $value, array $tags = self::TAGS): ?string
     {
         if ($value === null || trim($value) === '') {
             return null;
         }
 
-        if (preg_match('/<\/?('.implode('|', self::TAGS).')\b/i', $value)) {
-            return self::sanitize($value);
+        if (preg_match('/<\/?('.implode('|', $tags).')\b/i', $value)) {
+            return self::sanitize($value, $tags);
         }
 
         // Plain text: a blank line starts a paragraph, a line break stays one.
@@ -75,7 +87,7 @@ final class RichText
         ));
     }
 
-    private static function sanitize(string $value): ?string
+    private static function sanitize(string $value, array $tags): ?string
     {
         $document = new DOMDocument;
         // The wrapper keeps loadHTML() from adding <html><body>, and the
@@ -88,7 +100,7 @@ final class RichText
             return null;
         }
 
-        self::strip($root);
+        self::strip($root, $tags);
 
         $html = '';
 
@@ -102,8 +114,8 @@ final class RichText
         return trim(strip_tags($html)) === '' ? null : $html;
     }
 
-    /** Keeps $node's allowed elements, without attributes; others give up only their text. */
-    private static function strip(DOMNode $node): void
+    /** Keeps $node's elements among $tags, without attributes; others give up only their text. */
+    private static function strip(DOMNode $node, array $tags): void
     {
         foreach (iterator_to_array($node->childNodes) as $child) {
             if ($child->nodeType === XML_COMMENT_NODE || $child->nodeType === XML_PI_NODE) {
@@ -123,9 +135,9 @@ final class RichText
                 continue;
             }
 
-            self::strip($child);
+            self::strip($child, $tags);
 
-            if (! in_array(strtolower($child->tagName), self::TAGS, true)) {
+            if (! in_array(strtolower($child->tagName), $tags, true)) {
                 while ($child->firstChild) {
                     $node->insertBefore($child->firstChild, $child);
                 }

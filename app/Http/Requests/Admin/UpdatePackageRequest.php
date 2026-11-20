@@ -56,6 +56,10 @@ class UpdatePackageRequest extends FormRequest
             'business_limit'   => $count,
             'user_limit'       => $count,
             'location_limit'   => $count,
+            // Doc 19 Phase A2: its storefronts, with eCommerce.
+            'storefront_limit' => $count,
+            // Phase C5b: the business's own pages on each storefront.
+            'storefront_page_limit' => $count,
             // The plan keeps its own currency whatever the list holds; another must be one of the admin's (Admin > Currencies).
             'price_currency'   => ['required', 'string', 'size:3', 'alpha', Rule::when($this->input('price_currency') !== $this->currentCurrency(), [Rule::exists('currencies', 'code')])],
             'trial_days'       => ['nullable', 'integer', 'min:1', 'max:365'],
@@ -107,7 +111,7 @@ class UpdatePackageRequest extends FormRequest
             'storage_limit_mb.min'     => 'Enter the storage limit as a whole number of MB, or leave it empty for no limit.',
         ];
 
-        foreach (['business_limit', 'user_limit', 'location_limit'] as $field) {
+        foreach (['business_limit', 'user_limit', 'location_limit', 'storefront_limit', 'storefront_page_limit'] as $field) {
             foreach (['integer', 'min', 'max'] as $rule) {
                 $messages["{$field}.{$rule}"] = $count;
             }

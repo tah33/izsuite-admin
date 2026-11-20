@@ -151,6 +151,16 @@ final class Permissions
         'pos.cash' => ['Cash Movements', 'pos', ['view' => self::VIEW, 'move' => 'Record Cash Movements', 'approve' => 'Approve Cash Movements']],
         // Phase H1: POS's reports on the Reports page, each with the view of what it counts besides.
         'pos.reports' => ['POS Reports', 'pos', ['view' => 'View POS Reports']],
+
+        // eCommerce (Doc 19 section 19.42): each phase adds its own - Phase A1 its storefronts, and Settings → eCommerce.
+        'ecommerce.store'    => ['eCommerce', 'ecommerce', ['view' => 'View eCommerce', 'manage' => 'Manage Storefront']],
+        // Phase A3: the storefronts' domains.
+        'ecommerce.domains'  => ['Domains', 'ecommerce', ['manage' => 'Manage Domains']],
+        // Phase B1: the catalog - its items published online; B2, its collections.
+        'ecommerce.catalog'  => ['Catalog', 'ecommerce', ['view' => self::VIEW, 'publish' => 'Publish Products', 'manage' => 'Manage Categories and Collections']],
+        // Phase C4a: a storefront's theme and branding - and, from Phase C5, its pages.
+        'ecommerce.themes'   => ['Themes and Pages', 'ecommerce', ['manage' => 'Manage Themes and Pages']],
+        'ecommerce.settings' => ['eCommerce Settings', 'ecommerce', self::APP_SETTINGS],
     ];
 
     /** The groups whose records carry their app's values: anything but viewing one needs them. */
@@ -236,6 +246,14 @@ final class Permissions
         'pos.cash.approve'           => ['pos.sessions.view', 'pos.cash.view'],
         // Phase H1: its reports are on the Reports page.
         'pos.reports.view'           => ['reports.view'],
+        // Doc 19 Phase A1: its settings are in Settings → eCommerce.
+        'ecommerce.settings.manage'  => ['settings.view'],
+        // Phase A3: a storefront's domains, on the Storefronts page.
+        'ecommerce.domains.manage'   => ['ecommerce.store.view'],
+        // Phase B1: the catalog lists the items for sale.
+        'ecommerce.catalog.view'     => ['ecommerce.store.view', 'items.view'],
+        // Phase C4a: a storefront's theme, on the Storefronts page.
+        'ecommerce.themes.manage'    => ['ecommerce.store.view'],
         'purchases.purchases.create' => ['contacts.view', 'items.view'],
         'purchases.payments.record'  => ['purchases.purchases.view', 'payment_accounts.view'],
         'purchases.payments.reverse' => ['payment_accounts.view'],

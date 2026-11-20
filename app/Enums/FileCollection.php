@@ -5,7 +5,8 @@ namespace App\Enums;
 /**
  * The kinds of file a business keeps, each a collection of a record's files:
  * a contact's attachments (Doc 03 section 5), an item's image and a digital
- * product's files (Doc 04 sections 6 and 12), and the business's logo.
+ * product's files (Doc 04 sections 6 and 12), the business's logo, and an
+ * online product's pictures (Doc 19 Phase B1).
  */
 enum FileCollection: string
 {
@@ -15,6 +16,10 @@ enum FileCollection: string
     case Logo = 'logo';
     // A document template's signature or stamp image (Doc 06 section 14).
     case Signature = 'signature';
+    // Doc 19 Phase B1: the pictures a storefront shows of a product, beside its item's image.
+    case Gallery = 'gallery';
+    // Doc 19 Phase C4a: a storefront's own pictures - its logo and favicon - that its theme shows.
+    case Branding = 'branding';
 
     /**
      * Shown on pages and documents, so anyone with the address may see it.
@@ -23,13 +28,19 @@ enum FileCollection: string
      */
     public function isPublic(): bool
     {
-        return $this === self::Image || $this === self::Logo;
+        return $this === self::Image || $this === self::Logo || $this === self::Gallery || $this === self::Branding;
     }
 
     /** One per record: a new one replaces it. */
     public function isSingle(): bool
     {
         return $this === self::Image || $this === self::Logo || $this === self::Signature;
+    }
+
+    /** A picture: kept with a thumbnail beside it. */
+    public function hasThumbnails(): bool
+    {
+        return $this === self::Image || $this === self::Gallery;
     }
 
     /** The largest file, in kilobytes. */
@@ -41,6 +52,8 @@ enum FileCollection: string
             self::DigitalFiles => 100 * 1024,
             self::Logo         => 2 * 1024,
             self::Signature    => 1024,
+            self::Gallery      => 5 * 1024,
+            self::Branding     => 2 * 1024,
         };
     }
 
@@ -53,6 +66,8 @@ enum FileCollection: string
             self::DigitalFiles => null,
             self::Logo         => ['jpg', 'jpeg', 'png', 'webp'],
             self::Signature    => ['jpg', 'jpeg', 'png', 'webp'],
+            self::Gallery      => ['jpg', 'jpeg', 'png', 'webp'],
+            self::Branding     => ['jpg', 'jpeg', 'png', 'webp'],
         };
     }
 
@@ -65,6 +80,8 @@ enum FileCollection: string
             self::DigitalFiles => 'file',
             self::Logo         => 'logo',
             self::Signature    => 'signature',
+            self::Gallery      => 'picture',
+            self::Branding     => 'picture',
         };
     }
 }

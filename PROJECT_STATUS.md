@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-20
-- **Code:** Doc 18 Phases C2 (payment and the completed sale), C3 (discounts, price overrides and cash rounding), C4 (the receipt), D1 (holding and resuming orders), D2 (pending payments), D3a (credit sales), D3b (the customer's credit as a payment), D4 (the formal invoice), E1 (returns and their refunds), E2 (refund receipts and other refund methods), E3 (exchanges), F1 (cash movements), F2 (paying an expense from the drawer), F3 (the X and Z reports), G1 (the Orders, Returns and Refunds, and Cash Movements pages), G2 (the POS Overview and the Dashboard's POS card), G3 (POS documents on the Documents page), H1 (the POS sales reports), H2 (discounts, taxes, returns, voids and items), H3 (sessions and cash), I1 (the cashier's PIN and the register's lock), I2 (a manager's approval at the register) and I3 (registered devices) are built, checked on the second PC and committed together, not yet pushed: frontend `7933c6d` on `nuxt`, and on `main` the admin commit right after `8c8f380`. Phase C1 (the selling screen), just before them, is committed but not yet pushed either: frontend `27ce76c`, admin `8c8f380`. Doc 18's gap check and Phases A and B are pushed: B2b (counting cash by notes and coins), the last, is frontend `7166223` and admin `3936732`. Doc 17 is done and pushed: Phase I4, the last, is frontend `e20fa70` and admin `e5cd080`. Before I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
-- **Tests:** 1132 backend tests, last full run 2026-11-20 on the second PC: 1131 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Docs 17 or 18 (see [Small things left](#small-things-left)).
-- **Next step:** Doc 18 (Point of Sale) is built but for offline mode: work through its testing checklist; then Doc 19 (eCommerce) - its gap check first (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 19's gap check, Phase A - A1 (eCommerce on, with Settings → eCommerce and its storefronts), A2 (the plans' storefronts) and A3 (the storefronts' domains) - B1 (items published online), B2 (categories, collections and attributes) and B3 (options and variants) - and C1 (the storefront opens), C2 (its categories, collections and search suggestions) C3 (its filters by price, options and attributes), C4a (its theme and branding), C4b (its home page's sections and banners), C5a (its contact and about pages and its policies), C5b (pages of the business's own), C6a (its SEO) and C6b (its cookie notice) are built and checked on the second PC, not yet committed. Doc 18 Phases C2 (payment and the completed sale), C3 (discounts, price overrides and cash rounding), C4 (the receipt), D1 (holding and resuming orders), D2 (pending payments), D3a (credit sales), D3b (the customer's credit as a payment), D4 (the formal invoice), E1 (returns and their refunds), E2 (refund receipts and other refund methods), E3 (exchanges), F1 (cash movements), F2 (paying an expense from the drawer), F3 (the X and Z reports), G1 (the Orders, Returns and Refunds, and Cash Movements pages), G2 (the POS Overview and the Dashboard's POS card), G3 (POS documents on the Documents page), H1 (the POS sales reports), H2 (discounts, taxes, returns, voids and items), H3 (sessions and cash), I1 (the cashier's PIN and the register's lock), I2 (a manager's approval at the register) and I3 (registered devices) are built, checked on the second PC and committed together, not yet pushed: frontend `7933c6d` on `nuxt`, and on `main` the admin commit right after `8c8f380`. Phase C1 (the selling screen), just before them, is committed but not yet pushed either: frontend `27ce76c`, admin `8c8f380`. Doc 18's gap check and Phases A and B are pushed: B2b (counting cash by notes and coins), the last, is frontend `7166223` and admin `3936732`. Doc 17 is done and pushed: Phase I4, the last, is frontend `e20fa70` and admin `e5cd080`. Before I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
+- **Tests:** 1181 backend tests, last full run 2026-11-20 on the second PC: 1180 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Docs 17 or 18 (see [Small things left](#small-things-left)).
+- **Next step:** Doc 19 (eCommerce) Phase D: cart and checkout - the cart, shipping and pickup, checkout in its seven steps, the payment methods without a gateway, and the order with its confirmation e-mail; Doc 18's testing checklist is still to be worked through (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 18 Phase I3 the latest is 000210. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 19 Phase C6b the latest is 000220. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 19 with its gap check.
+   > Read PROJECT_STATUS.md, then start Doc 19 Phase D.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -61,7 +61,8 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
 | **17** | **CRM** | **Done (2026-11-19): gap check and Phases A to I; Campaign-to-Opportunity Results waits for Doc 21** |
 | **18** | **Point of Sale** | **Done (2026-11-20): gap check and Phases A to I; offline mode (18.29) later, and what waits for Inventory and the integrations (see below)** |
-| 19 to 21 | eCommerce, Customer Subscriptions, Marketing and Loyalty | Written, not started |
+| **19** | **eCommerce** | **In progress: gap check, Phases A (A1 to A3), B (B1 to B3) and C (C1 to C6), done 2026-11-20, Phase D next** |
+| 20 and 21 | Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
 Stock, full Sales, OCR and full Accounting features are left out of the Lite apps on purpose. They wait for their own docs.
@@ -2816,7 +2817,333 @@ The gap check was done on 2026-11-19. Doc 18 is Point of Sale: fast selling over
       - Found while checking: the daily usage snapshot ran during the check, with POS on; it was deleted with the rest.
       - The devices, session, order, invoice, payment, account entries, accounts, register, settings, the app's and taxes' state, the sign-in and the activity were then put back. The database matched its backup, but for migration 000210's table.
 
-After Doc 18 come Docs 19 to 21 (eCommerce, Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
+### 7. Doc 19: eCommerce (next: Phase D)
+
+The gap check was done on 2026-11-20. Doc 19 is eCommerce: the business's online storefront, where customers browse its items, order and pay, follow their orders, download what they bought and ask for returns. It sells through the shared Contacts, Items, Taxes, Payment Accounts and Sales records: an online order counts as a sale once, through its invoice.
+
+**Already built, which eCommerce uses:**
+
+- The Apps Center lists eCommerce as coming soon, from Premium. Point of Sale (Doc 18) showed how an app sells through Sales: orders of its own, each completed one an issued invoice of the business, payments into payment accounts by method, pending ones confirmed by hand, returns as credit notes and refunds, and its own entries on the Documents page, the Dashboard and Reports.
+- Items: physical and digital products, services and combos, with SKU, barcode, category, brand, unit, sales price, tax default, sales description and an image; a digital product's files and how it is delivered (by hand, download, license key or external link).
+- Contacts with billing and shipping addresses, duplicates merged by hand, marketing consent with its source and date (Doc 17 Phase I3), and custom fields.
+- Sales: invoices with discounts, taxes and rounding, numbering, currencies at a rate, customer payments, credit notes and refunds, the customer's credit (advances and credit notes), and the full Sales app's price lists with quantity breaks, sales orders, deliveries and returns. Secure customer links (`/d/{token}`) to view and download a document.
+- CRM leads with their items, and draft quotations, for a request for a quotation.
+- Files within the plan's storage, PDFs (Gotenberg), e-mail through the queue in the business's templates, notifications, the Activity Log, idempotent saving, plan limits, locations, roles and permissions.
+- The frontend renders its pages on the server (Nuxt), so public pages can carry their own titles, descriptions and structured data for search engines.
+
+**Missing (what Doc 19 adds):**
+
+- 19.1 to 19.5: the eCommerce menu, Settings → eCommerce, storefronts (name, code, status, languages, currencies, countries, location, support contact, logo and colours) up to the package's limit, and domains: an izSuite subdomain, custom domains once verified, the primary one, redirects from old ones, and a page for a store that is not open.
+- 19.6, 19.7 and 19.36: the storefront's pages (home, shop, categories and collections, product, search, cart, checkout, account, order tracking, contact, about, the four policies, and pages of the business's own), its theme and branding with a preview before publishing, and SEO: titles, descriptions, clean links, canonical links, a sitemap, robots rules, sharing images and product structured data.
+- 19.8 to 19.13: the catalog - items published online with their own title, link, descriptions, images, category, collections, keywords, visibility, publication status and dates, sales method and SEO - with options and variants, collections, filters, search with suggestions, and online prices with their source.
+- 19.14 to 19.20: the cart, checkout in seven steps (as a guest or signed in), finding or making the customer's contact, the order with its fields and snapshots, its three statuses (order, payment and fulfilment), and its confirmation.
+- 19.16: customer accounts, apart from the business's users: profile, addresses, orders, invoices, tracking, returns, downloads and consent.
+- 19.21 to 19.24: editing and cancelling orders, payment methods each into a payment account, payment links, and holding orders for review.
+- 19.26 to 19.30: shipping zones and methods, pickup, fulfilments with carriers and tracking, digital delivery, services, and requests for a quotation.
+- 19.31 to 19.35: discounts and promotions, abandoned carts, returns and refunds, product reviews and the customer's notifications.
+- 19.37 to 19.43: the settings, the Documents page's eCommerce documents, the Dashboard's figures, 21 reports, 20 permissions and the data rules.
+
+**Waiting for other apps or services**, as Doc 19 itself says:
+
+- Inventory (19.25): stock from warehouses, reserved on confirmation and taken on fulfilment, backorders, batches and serials, returns back into stock by their condition, and stock per variant. Until then availability is set by hand, as 19.25 allows.
+- Customer groups and Marketing and Loyalty (Doc 21): products shown to chosen groups, group price lists, points, campaigns and automated cart recovery. Customer Subscriptions (Doc 20): recurring products. Appointments, Field Service and Projects: booking a service bought online.
+- Accounting (postings), Tax and Compliance (electronic invoicing), Helpdesk (support cases) and Analytics.
+- Integrations: payment gateways (paying by card or wallet online, with their callbacks), carriers (live rates and tracking), SMS and messaging, license keys made automatically, advanced fraud checks, analytics services and marketplaces. Until there is a gateway, the storefront takes payments the business confirms: bank transfer and mobile money with the customer's reference, cash on delivery, paying on pickup, and the customer's credit.
+- The server: the certificates of custom domains and of the izSuite subdomains are issued on the server, outside the code. The code keeps which domains are verified, for the server to ask.
+
+**Phases, with suggested defaults.** Saying "Start Phase A" accepts them.
+
+- **The storefront** is served by the frontend: at `/store/{code}`, and on its subdomain and verified domains by the host name once the server is set up for it. Its pages render on the server, for search engines.
+- **A storefront customer** is an account of its own (an e-mail and a password, verified by e-mail), never a user of the business and not counted as one, and is linked to one shared contact. Guest checkout is on unless switched off.
+- **An online order** is a record of eCommerce, numbered by its own sequence (EC-00001). Its invoice is issued when it is confirmed - once paid, or by the business - so it counts as a sale once from then, and its payments go against that invoice.
+- **Prices**: the item's sales price, else the storefront's price list or the customer's own (full Sales), with their quantity breaks, and the promotions of Phase H. Each order line keeps its price and where it came from.
+- **Variants**: a product's options (size, colour…) group existing items, each item one variant with its own SKU, barcode, price, image and status.
+- **Without Inventory**, each product is Available, Out of Stock, or Limited: a quantity set by hand that confirmed orders count down, never a stock movement.
+- **Phase A: eCommerce comes on, with its storefronts** - split on starting it (2026-11-20): A1, eCommerce on, with Settings → eCommerce and its storefronts; A2, the plans' limit of storefronts; A3, their domains (Manage Domains).
+  - **Phase A1 is built** (migration 000211):
+    - The Apps Center offers eCommerce where it was coming soon - from Premium, as its catalog entry had it - needing Sales Lite, with its own page's words. Its menu gains Storefronts.
+    - Two new permissions: eCommerce - View eCommerce, and Manage Storefront (with View) - and eCommerce Settings: Manage Application Settings (with Settings' View), for Settings → eCommerce. Roles made from the Manager template get the first two, and leave the settings out, as they do every app's.
+    - **Settings → eCommerce**: whether guests may check out without an account (on), whether a customer's account waits for their e-mail to be verified (on), prices shown with tax or without it (with tax), and the prefix of the online orders' numbers (EC-, kept in capitals). They apply once checkout and customer accounts come (Phases D and E). Turned off, eCommerce's settings can be read but not changed.
+    - **Storefronts**, in eCommerce's menu - each with:
+      - a name of its own in the business, and a code: its address, in small letters, which no other storefront of izSuite has and izSuite does not keep for itself (www, admin, api, shop, store and the like);
+      - its status - Draft, Live, Maintenance, Suspended or Archived - of which only Live will take orders;
+      - the location it sells from, an active one the user may use;
+      - its default currency and the others it shows, among the business's, and its default language and the others, among izSuite's active languages - each default kept among the others;
+      - the countries it sells to, and its support e-mail and phone.
+    - A new storefront starts at the location picked in the top bar, in the base currency and English, selling to the business's own country when its profile names one.
+    - A storefront is seen where its location may be used; to anyone else it is not found. Each one added, changed or deleted is logged. A location a storefront sells from is kept: it is deactivated instead. Until orders come (Phase D), a storefront is deleted outright.
+    - Its default warehouse waits for Inventory; its logo and brand colours come with the theme (Phase C).
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with eCommerce switched on by hand (its plan, Billing Starter, has it only from Premium) and EUR added to the business's currencies:
+      - The sidebar showed eCommerce → Storefronts, and the page "No storefronts yet. Add one for each online store."
+      - New Storefront started at Main Location, in USD and English, as Draft. "Rahman Online", code Rahman-Online, selling to Bangladesh and India, in EUR and Arabic besides, with a support e-mail and phone: "Storefront added.", the row reading rahman-online, USD "Also EUR", English "Also Arabic", "Bangladesh, India" and Draft.
+      - Through the API the codes www, RAHMAN-ONLINE and -shop were refused: "izSuite keeps this code for itself: choose another.", "Another storefront has this code: choose another." and "Use letters, digits and dashes, starting and ending with a letter or digit."
+      - Edited to Live, with Spanish as its default language - added to its languages: "Storefront saved.", the row Spanish "Also English, Arabic" and Live.
+      - Settings → eCommerce opened on its defaults. Guest checkout off, prices without tax and the prefix web-: "eCommerce settings saved.", the prefix WEB- and "Online orders are numbered after it: WEB-00001."
+      - The Activity Log named the storefront's addition and change, and the settings.
+      - As a throwaway member who may view eCommerce alone: the sidebar showed eCommerce → Storefronts and no Settings, and the list had no New Storefront, Edit or Delete. Adding a storefront and reading Settings → eCommerce through the API were refused (403).
+      - Delete, through its confirmation: "Storefront deleted." The Apps Center showed eCommerce on, and Sales Lite "Needed by eCommerce."
+      - Found after the check: Manage Storefront brought Settings → eCommerce with it, so the Manager template would have handed out an app's settings. They have their own permission now, eCommerce Settings - covered by the tests, as the owner's view does not change.
+      - The storefront, settings, member, the app's state, the business's currencies, the sign-in and the activity were then put back. The database matched its backup, but for migration 000211's changes.
+  - **Phase A2 is built** (migration 000212):
+    - **Each plan gives so many storefronts** (19.4): Storefronts per Business in the admin's plan form - empty for no limit, like its users and locations - kept in its versions too. Billing Starter starts at one; Standard and Premium with no limit.
+    - A storefront counts unless it is archived. Adding one past the limit - or opening an archived one again - is refused: "Billing Starter includes one storefront. Upgrade the plan to add another." A business over a lower limit keeps its storefronts; it only cannot add more.
+    - Settings → Storage & Usage shows the storefronts against the limit while eCommerce is on. The Pricing page and Settings → Apps & Subscription say each plan's storefronts where the plan has eCommerce.
+    - A storefront saved without its status keeps the one it has; it went back to Draft before.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` on Billing Starter, with eCommerce switched on by hand:
+      - Settings → Storage & Usage showed Storefronts "0 of 1".
+      - With a storefront added through the API, the next one from New Storefront was refused in its dialog: "Billing Starter includes one storefront. Upgrade the plan to add another." Storage & Usage then read "1 of 1", Limit reached.
+      - The Pricing page listed "Unlimited storefronts" for Premium - the plan with eCommerce - and none for Billing Starter and Standard.
+      - The admin's plan form was left to the tests: signing in as the seeded admin would start its two-factor setup.
+      - The storefront, the app's state, the sign-in and the activity were then put back. The database matched its backup, but for migration 000212's changes.
+  - **Phase A3 is built** (migration 000213), and with it Phase A:
+    - **Each storefront has its izSuite address**: its code under izSuite's storefront domain - rahman-online.store.izsuite.com, the domain set on the server (`ECOMMERCE_STOREFRONT_DOMAIN`).
+    - **Domains of the business's own** (19.5), from Domains on each row of the Storefronts page - seen by whoever may view eCommerce, changed under a new permission, Domains: Manage Domains (with View eCommerce):
+      - added waiting, each a name no other storefront of izSuite has and never under izSuite's own domain, with the TXT record that proves it is the business's (`_izsuite-verify.` before the name) and the CNAME record that points it at izSuite;
+      - verified once its DNS shows that record - looked up when Verify is asked, its last look kept;
+      - one verified domain is the storefront's primary one, the host the others redirect to; with none, the izSuite address is;
+      - removed at any time, the primary one's place going back to the izSuite address, its orders and customers untouched.
+    - **Which names izSuite answers for**, asked without signing in (`GET /storefront-hosts?domain=`): a storefront's izSuite address or a verified domain, with the storefront's code, status and primary host. The server asks before it issues a certificate for a name; the storefront's pages (Phase C) will ask where to redirect.
+    - Each domain added, verified, made primary or removed is logged. Issuing the certificates and serving the storefront at its names are the server's: see the deploy note.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with eCommerce switched on by hand and a storefront, Rahman Online (rahman-online), added through the API:
+      - Domains showed the izSuite address rahman-online.store.izsuite.com as Primary, and "No domains of your own yet. Add one, point it at izSuite, and verify it."
+      - Shop.Rahman.Test added: "shop.rahman.test added. Give it its DNS records, then verify it.", Waiting for its DNS, with its TXT record (_izsuite-verify.shop.rahman.test → izsuite-verify=…) and CNAME (→ domains.store.izsuite.com).
+      - Verify, against the real DNS: "shop.rahman.test is not verified yet: its TXT record _izsuite-verify.shop.rahman.test was not found. A DNS change can take some hours to reach everywhere - try again later." Its lookup was kept.
+      - With the domain marked verified in the database, standing in for its DNS: Verified with Make Primary, then "Primary domain saved.", the domain Primary and the izSuite address offering Make Primary.
+      - Without signing in, `/storefront-hosts` answered shop.rahman.test and rahman-online.store.izsuite.com with the code, Draft and the primary host shop.rahman.test; www.rahman.test, "izSuite has no storefront at this name." (404).
+      - Remove asked once more ("Remove shop.rahman.test?"), then "shop.rahman.test removed.", the izSuite address Primary again.
+      - As a throwaway member who may view eCommerce alone: the domains and their records, without Add, Verify or Remove.
+      - Found while checking: a refused Verify left its row without its last look until the dialog opened again, and the view-only member was told to Verify. Both fixed.
+      - The domains, storefront, member, the app's state, the sign-in and the activity were then put back. The database matched its backup, but for migration 000213's table.
+- **Phase B: the catalog** - split on starting it (2026-11-20): B1, items published online; B2, categories, collections and filters (Manage Categories and Collections); B3, options and variants.
+  - **Phase B1 is built** (migration 000214):
+    - **A Catalog page** in eCommerce's menu, under a new permission group, Catalog: View (with View eCommerce and Items' View), Publish Products, and Manage Categories and Collections (for B2). It lists the business's items for sale - sold, or sold and bought - with their category, sales price, picture and online status (Not online, Draft, Scheduled, Published, Hidden or Archived), searched by name, number, SKU or barcode, and narrowed by that status and by category.
+    - **An item's page in the catalog** puts it online, one listing per item (19.8 and 19.9):
+      - its online title and link - made from the title unless given, and its own in the business - a short description, starting as the item's sales description, a full description with the editor's formatting, and search keywords;
+      - pictures beside the item's own image - up to 12, JPG, PNG or WebP of up to 5 MB each, public as a storefront shows them, with thumbnails - and up to five https video links;
+      - its status - Draft, Scheduled (from a later first day, Published from then), Published, Hidden or Archived - who sees it (everyone, signed-in customers, or only those with its link), and its first and last days, the business's;
+      - how it sells - at the item's price, by a request for a quotation, by asking for the price, or not online - its availability without Inventory (Available, Out of Stock, or Limited with the quantity left), and its weight for shipping;
+      - its SEO title and description, with how a search result would read, and its storefronts: every one - those added later too - or those chosen.
+    - Published or scheduled, its item is active and - sold at its price - priced; a new listing of an item without a price starts sold by quotation. Each listing put in, changed or taken out, and each picture added or removed, is logged. Taken out, its pictures go with it and the item stays as it was; once orders come (Phase D), a listing will be archived instead.
+    - A listed item without an image of its own shows its listing's first picture on the Catalog page. Customer groups' visibility waits for Doc 21; the storefront's pages that show the listings come with Phase C.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io` with eCommerce switched on by hand, a storefront, and four items: Ceramic Mug (Kitchen, sold, $8.00), Black Tea (sold and bought, $3.50), Office Paper (bought only) and Custom Shelf (sold, no price):
+      - The Catalog page listed Black Tea, Ceramic Mug and Custom Shelf - not Office Paper - each Not online, Custom Shelf with "No price".
+      - Ceramic Mug's page started from the item - "A sturdy mug for tea and coffee.", Draft, Everyone, every storefront - with the link ceramic-mug made from its title. With a full description, "dishwasher safe" in bold, keywords and Published: "Online product saved.", and the page Published.
+      - Two pictures added through the API - the browser pane picks no files - showed as thumbnails; Remove took one off: "Picture removed."
+      - Limited without a quantity: "Say how many are left to sell." under Left to Sell. With 12 it was saved, and the list read Published, "At its price · 12 left".
+      - Custom Shelf started sold by quotation. At its price and Published it was refused: "The item has no sales price: give it one in Items, or sell it by quotation."
+      - As a throwaway member who may view the catalog alone: Catalog in the sidebar, and an item's page read only - no Save, Take Out or Add Pictures.
+      - Take Out of the Catalog asked first, then '"Ceramic Mug" taken out of the catalog.', the page Not online again.
+      - Found while checking: the First Day and Last Day fields ran out of the page's side column, and a listed item without an image of its own showed no picture in the list although its listing had pictures. The days now stack, and the list shows the listing's first picture - checked with the mug put back and given one.
+      - The listings and their pictures (their files too), items, category, storefront, member, item numbers, the app's state, the sign-in and the activity were then put back. The database matched its backup, but for migration 000214's changes.
+  - **Phase B2 is built** (migration 000215), under Manage Categories and Collections (section 19.11):
+    - **The Catalog page has three tabs** - Products (B1's list), Categories and Collections - each seen with the catalog's View.
+    - **An item category's online side.** Categories lists each item category with how many of its items are in the catalog. Each gets:
+      - its link, made from its name unless given, and its own in the business;
+      - whether the storefront's menu lists it, and its place there;
+      - a description with the editor's formatting, and its SEO title and description;
+      - a picture - JPG, PNG or WebP of up to 2 MB, public, with a thumbnail - kept at once, and giving the category its online side if it had none.
+    - **Collections** of the business's products, for a promotion, a season, a brand or a theme of its own (customer groups' wait for Doc 21):
+      - a name and a link, each its own in the business;
+      - up to 500 listings chosen by hand, shown in the order chosen - or, for a brand's, every listed product of the brand, while the business keeps brands;
+      - Active or Hidden, first and last days (the business's), a description, an SEO title and a place;
+      - a picture, once it is saved.
+    - **A listing's attributes**, for the storefront's filters: up to 20 names and values, such as Material: Stoneware, each name once. The filters themselves (category, brand, price, availability, options, rating and attributes) come with the shop's pages in Phase C, options with B3 and ratings with Phase I.
+    - Each online category saved, each collection added, changed or deleted, and each picture added or removed, is logged. Deleting an item category takes its online side and picture with it. Deleting a brand leaves its collections without it, to be given another.
+    - **Checked in the browser** on the second PC, as `user@izsuite.io`. Set up: eCommerce switched on by hand, brands on, the categories Kitchen and Drinks, the brand Rahman, and three items in the catalog - Ceramic Mug (Kitchen), Black Tea (Drinks, Rahman) and Green Tea (Rahman):
+      - Kitchen saved with place 1: "Online category saved.", /categories/kitchen, "Listed, place 1".
+      - Drinks given the link kitchen: "Another category has this link." A picture given through the API (the browser pane picks no files) started its online side, drinks, and showed as a thumbnail.
+      - A collection, Summer Sale, with two products chosen: "Collection added." A brand's, Rahman Teas: "Every listed product of Rahman (2)".
+      - Summer Sale renamed Winter Sale with its link left blank: "Collection saved.", still /collections/summer-sale, as the form had said.
+      - Ceramic Mug's attributes: Material: Stoneware, and Capacity with no value - "Give the attribute its value." under it. With 350 ml: "Online product saved."
+      - As a throwaway member who may view the catalog alone:
+        - Categories and Collections had no Edit, Delete or New Collection, and the mug's attributes were read only;
+        - changes through the API were refused: "Your role does not allow this."
+      - Delete asked first ("Delete Winter Sale? This can't be undone."), then 'Collection "Winter Sale" deleted.'
+      - The brand Rahman deleted: Rahman Teas then read "None: its brand was deleted", and saving it asked "Choose one of your brands."
+      - At phone width the tabs, the lists and the attributes fit.
+      - Found while checking:
+        - A form's link for a blank Link field was "product" for a collection or category with no name yet. For one already online, it was what its name would make, although the API keeps the link it has. Each now shows what the API will use.
+        - Deleting an item or an item category left its listing's or online category's pictures behind, their rows and stored files: the database dropped the listing or online side alone. Both now go through their models, and a test checks it.
+        - A brand's collection without its brand read "Every listed product of its brand (0)".
+      - The collections, online categories and listings were then put back, with their pictures (their files too). So were the items, categories, brand, member, the app's state, the sign-in and the activity. The database matched its backup, but for migration 000215's changes. 000215 was rolled back and run again.
+  - **Phase B3 is built** (migration 000216), under Publish Products (section 19.10):
+    - **Options and Variants**, a card on a listed item's page, saved on its own:
+      - up to three options, each a name and its values (Size: S, M, L): each name once, and each value of an option once;
+      - with options, the items it groups as its variants: its own item first, then other items for sale of the same type that have no listing of their own and are no other listing's variants - up to 100;
+      - each variant with a value of each option (no two the same), shown or hidden, its availability without Inventory (Available, Out of Stock, or Limited with the quantity left), and its weight (none: the listing's). Its SKU, barcode, price and image are its item's, kept in Items, so its SKU is its own.
+    - While the listing is published or scheduled, each variant shown is of an active item, priced when sold at its price; a hidden one need not be. The same is checked when the listing is published.
+    - Without options it has no variants: removing the last option removes them, and the listing's own availability counts again. With variants, the Selling card says each variant has its own, and the Catalog page says how many variants it has.
+    - **An item grouped as another listing's variant** has no listing of its own. The Catalog page shows it as a Variant of that listing, and Not online leaves it out. Its page points to the listing.
+    - Saving options and variants is logged. Taking the listing out takes its variants with it; deleting a variant's item takes that variant. Past orders keep their lines when a variant goes (Phase D). Stock per variant waits for Inventory (19.25).
+    - **Checked in the browser** on the second PC, as `user@izsuite.io`. Set up: eCommerce switched on by hand, and five items for sale - T-Shirt S, M and L (TS-S, TS-M and TS-L, at $10, $10 and $12), T-Shirt XL without a price, and a Ceramic Mug - with S listed as Classic T-Shirt and the mug listed, both drafts:
+      - Add an option made the listing's own item, T-Shirt S (TS-S), its first variant, "The listing's own item". The option: Size, with S, M, L, XL.
+      - The variants' item list offered T-Shirt L, M and XL: not the mug, which is listed, nor S, already chosen.
+      - M was given size S, like the first variant: "Another variant has these options." under it. L was Limited with no quantity: "Say how many are left to sell." With M and 5: "Options and variants saved.", and the Selling card read "Each variant has its own, under Options and Variants."
+      - The Catalog page showed T-Shirt M and L as "Variant of Classic T-Shirt", and XL as Not online. M's page read "A variant of Classic T-Shirt: it is sold there, and its options are changed there.", and its link opened the listing.
+      - XL was added through the API, then the listing published: refused, 'The variant "T-Shirt XL" has no sales price: give it one in Items, or hide the variant.' With XL hidden: "Online product saved.", Published. The status typed in the page stayed while the variants were saved.
+      - As a throwaway member who may view the catalog alone: the four variants read only, with no Add, Remove or Save. The API refused changes: "Your role does not allow this."
+      - At phone width the card fit.
+      - XL removed: three variants saved. The option removed: "Options removed.", and the Availability field was back.
+      - Found while checking: the Catalog page's row of a listing with variants still showed the listing's own availability. It now says how many variants it has: "At its price · 3 variants". Not online then listed T-Shirt XL alone.
+      - Added after the check, as Pictures does: an item not yet in the catalog shows Options and Variants with "Put it in the catalog first, then sell it in sizes, colours… as its variants." It compiles, but was not seen in the browser.
+      - The listings and their variants, items, member, the app's state, the sign-in and the activity were then put back. The database matched its backup, but for migration 000216's changes. 000216 was rolled back and run again.
+- **Phase C: the storefront's pages** - split on starting it (2026-11-20):
+  - C1, the store opens: its shop, search, filters and product pages, and the page of a store that is not open;
+  - C2, its home, category and collection pages, and search suggestions;
+  - C3, filters by price, options and attributes, each offering what the products shown have;
+  - C4, theme and branding, with a preview before publishing (Manage Themes and Pages) - split on starting it into C4a, the theme and branding, and C4b, the homepage's sections and banner images;
+  - C5, the contact and about pages, the four policies, and pages of the business's own up to the package's limit - split on starting it into C5a, the contact and about pages and the four policies, and C5b, pages of the business's own up to the package's limit;
+  - C6, SEO - canonical links, the sitemap, robots rules, sharing images and product structured data - and the cookie notice - split on starting it into C6a, the SEO, and C6b, the cookie notice and its settings.
+  - **Phase C1 is built** (no migration): the storefront at `/store/{code}`, its pages rendered on the server for search engines.
+    - **Open or not.** A store is open while it is Live, its business has eCommerce on, and the business is not suspended or closed. Otherwise its address shows only its name and that it is closed for maintenance or not open, answering 503, and none of its products. An unknown store answers 404.
+    - **What it shows**: the listings published - or scheduled and begun - and not over, of active items it sells, on every storefront or on this one. Those for everyone are in its lists and search; those kept for their link open at their link. Listings for signed-in customers wait for customer accounts (Phase E). A listing's variants are those shown, of active items.
+    - **Its header and footer**: its name, a search, Shop all and the categories in its menu; its support e-mail and phone, whether prices include tax (when the business has taxes on), and "Powered by izSuite" (by the package from C4).
+    - **Its home**: its categories and its eight newest products. C2 adds its collections, and C4 the sections its owner chooses.
+    - **The shop**: every product, 24 a page. Searched by title, keywords, descriptions, SKU, brand or category; narrowed by category, brand and in stock only; sorted by newest, name or price. Its filters are kept in the address, shown as chips to remove, and cleared at once; when nothing matches, it says what to try.
+    - **A product's page**: its pictures (its item's image first), brand, title, price, short description, and its variants to choose from - each with its price, stock, SKU and picture - then its description and details. One sold by quotation or on request, or not sold online, says so with the store's e-mail and phone. Buying comes with the cart (Phase D).
+    - **Prices** (19.13): the item's sales price - a combo's components' sum when priced that way - with its tax added or taken out as Settings → eCommerce shows prices, in the storefront's currency at the day's rate (the base currency while it has none). The tax is the one a sale takes for no customer, as POS picks it. Price lists and promotions come with the cart and Phase H.
+    - The public API: `GET /api/v1/stores/{code}`, `/products` and `/products/{slug}`, 120 a minute per address.
+    - **Checked in the browser** on the second PC, signed out, as a customer. Set up: eCommerce switched on by hand, brands on, a live storefront, Rahman Shop (`/store/rahman-shop`), and Rahman Outlet in maintenance; Kitchen and Drinks in the menu; and six listings - Ceramic Mug (two pictures, a description and details), Black Tea and Green Tea (Rahman's, Green out of stock), Classic T-Shirt (sizes S, M and L, M out of stock and L with 3 left), Custom Shelf (by quotation), and Paper Cups, a draft:
+      - The home showed the store's name, Shop all, Kitchen and Drinks, and five products - not the draft - with "From $10.00" for the T-shirt, "Price by quotation" for the shelf, and "Out of stock" under Green Tea. Its HTML came from the server whole, with the title "Rahman Shop".
+      - Searching "coffee" found the mug by its keywords, the search shown as a filter to remove. Drinks with In stock only left Black Tea alone. Searching "bicycle": "No products match." and what to try.
+      - The T-shirt's page: S at $10.00, "In stock", SKU TS-S. L: $12.00, "Only 3 left", TS-L. M: "Out of stock".
+      - The mug's page: Shop / Kitchen / Ceramic Mug, the two pictures to choose from, its description and its details (Material: Stoneware, Capacity: 350 ml); its card in the shop showed the first picture's thumbnail. The shelf's page offered "E-mail us" and "Call +8801700000000".
+      - Rahman Outlet: "The store is closed for maintenance. Please come back soon." (503). A made-up store: "There is no such store." (404). The draft's address answered 404 too.
+      - At phone width the shop and a product's page fit, the filters one under another.
+      - Found while checking: sorting by price put the shelf, which has no price, first from low to high. Those without a price now come last either way.
+      - The storefronts, listings and their pictures (their files too), items, categories, brand, the app's state and the activity were then put back. The database matched its backup.
+  - **Phase C2 is built** (no migration):
+    - **A category's page** (`/store/{code}/categories/{link}`): its picture, name and description, then its products - searched, narrowed and sorted as on the shop. Its SEO title and description, else its name. The menu's categories open their pages, as does a product's breadcrumb.
+    - **A collection's page** (`/collections/{link}`): its picture, name and description, then its products - those chosen, first in its own order ("Featured"), or a brand's - searched, narrowed and sorted. Only active collections within their days are shown; others answer 404.
+    - **The home** shows the store's collections, with their pictures, before its categories and newest products.
+    - **Search suggestions** (19.12): as a customer types two letters or more, the store's first six products that match, and the categories and collections by that name, each opening its page. Search still shows every product that matches.
+    - The public API gains `GET /api/v1/stores/{code}/categories/{link}`, `/collections`, `/collections/{link}`, `/suggestions?search=` and `/products?collection=`.
+    - **Checked in the browser** on the second PC, signed out. Set up: Phase C1's store, Kitchen's description and picture, and three collections - Summer Sale (Black Tea, the mug and the T-shirt, in that order, with a picture), Rahman Teas (the brand's) and Old Stock (hidden):
+      - The home showed Summer Sale, with its picture, and Rahman Teas - not Old Stock.
+      - Summer Sale's page: its picture and description, then Black Tea, Ceramic Mug and Classic T-Shirt, in its order. By price, high to low, the T-shirt came first; back on Featured, its order again. Its filters offered no category.
+      - Kitchen, from the menu: "Kitchenware - Rahman Shop" in the tab, its description with its formatting, its picture and the mug, and Kitchen marked in the menu. The mug's breadcrumb links to it.
+      - Typing "tea" suggested Green Tea, Black Tea, the mug (its description mentions tea) and the collection Rahman Teas. Choosing the collection opened it - the brand's two teas - and closed the suggestions. "kit" suggested the Kitchen category.
+      - Old Stock's address answered 404, "There is no such collection in this store.", and so did a made-up category.
+      - At phone width, the collection's page and the suggestions fit.
+      - Found while checking: a collection's sort said "Newest" while its products showed in its own order. It now offers "Featured", its order, first.
+      - The collections, the store, its listings and pictures and the rest were then put back. The database matched its backup.
+  - **Phase C3 is built** (no migration): filters by price, options and attributes (19.11), on the shop and on category and collection pages.
+    - **What they offer**: what the products in view have - the lowest and highest price, as placeholders for a range in the store's currency; each option's values (Size: S, M, L), by name across products; and each attribute's values (Material: Cotton, Stoneware). Each list follows the page's search, category, collection, brand and stock.
+    - **How they narrow**: a product is within a price range when its price - or, with variants, one of theirs - is in it, as the store shows prices (its tax and currency). Options pass when one of its variants has every value chosen; attributes, when it has each one. Names and values are matched without regard to case. They are kept in the address (`price_min`, `price_max`, `option[Size]`, `attribute[Material]`) and shown as chips to remove.
+    - Worked out from the store's listings - up to 2,000 at a time - with the same pricing as the pages, not in the database, so a price filter is exact whatever an item's tax.
+    - The public API gains `GET /api/v1/stores/{code}/facets`, and `/products` takes `price_min`, `price_max`, `option[...]` and `attribute[...]`.
+    - **Checked in the browser** on the second PC, signed out, with Phase C2's store:
+      - The shop offered a price range from 3.5 to 12, Size (S, M, L), Capacity (350 ml) and Material (Stoneware).
+      - Size L left the T-shirt, with the chip "Size: L". A price from 5 to 9 left the mug.
+      - Kitchen's page offered only what the mug has: a price of 8, Capacity and Material - no Size.
+      - Found while checking: at phone width the price range ran off the page, and its chip said only "5 to 9". The range now fits, and the chip reads "Price: 5 to 9".
+      - The store and its listings, collections and pictures were then put back. The database matched its backup.
+  - **Phase C4a is built** (migration 000217): a storefront's theme and branding (19.7), under a new permission, eCommerce → Themes and Pages → Manage Themes and Pages.
+    - **What it sets**: its logo (in its header, in place of its name) and favicon, chosen from pictures uploaded for it; three colours (main, background and text); a font (the system's, sans, serif or rounded); its name on the left or in the middle, and an announcement line across the top; product cards standard or minimal, their pictures square, portrait or landscape; the footer's words, its address and opening hours; and links to its social pages (Facebook, Instagram, X, YouTube, TikTok, LinkedIn and WhatsApp), each starting https://.
+    - **Draft, preview, publish.** Changes are saved as a draft, and its customers keep seeing the theme published - izSuite's look until one is. Preview opens the store in the draft, under a bar that says so, for those who may manage themes - even a store not yet Live, which its customers still see closed. Publish puts the draft in the theme's place; Discard Draft brings the published theme back. Pictures neither theme shows are deleted then. A storefront keeps up to 20 pictures.
+    - **"Powered by izSuite"** shows in the footer unless the plan removes izSuite's branding (the package's existing Removes Branding term).
+    - A theme changes no product or order, only how the store looks, and takes no code of its own: 19.7's custom scripts are not offered.
+    - The API gains `GET` and `PUT /api/v1/ecommerce/storefronts/{storefront}/theme`, and `POST` `.../theme/pictures`, `.../theme/publish` and `.../theme/discard`. The public `GET /api/v1/stores/{code}` gains the theme, and every store call takes `preview=1` with the token of one who may manage themes.
+    - **Checked in the browser** on the second PC, with Phase C2's store:
+      - The Theme page: two pictures - uploaded through the API, as the browser pane cannot pick files - chosen as the logo and the favicon. A link starting http:// was refused with "Give the link starting https://.". Then "Draft saved.".
+      - Preview: the bar, the announcement, the logo in the middle, serif headings, tall cards without frames, the store's favicon, and the footer's words, address, hours and social links. Leaving the preview: izSuite's look.
+      - "Theme published.": the store, signed out, in the theme, rendered on the server. A new draft discarded: "Draft discarded.", and Serif back.
+      - The outlet, not yet Live, previewed: "Its customers see it closed."; signed out, closed (503).
+      - A member who may only view the catalog: no Theme on the Storefronts page, the Theme page's address took them to Items, and the outlet stayed closed to them.
+      - At phone width the Theme page and the themed store fit.
+      - Found while checking: the colours' fields were too narrow for their codes (now one colour a row); headings kept izSuite's font (they now take the store's); the minimal cards kept their frame, then lost their pictures' background (both fixed); the preview's bar said customers saw the theme published when they saw the store closed (it now says which); the address and opening hours were cramped side by side (now one under the other).
+      - The store, its listings, collections and pictures - the theme's among them - the member, the app's state, the sign-in and the activity were then put back. The database matched its backup, but for migration 000217's changes. 000217 was rolled back and run again.
+  - **Phase C4b is built** (no migration): the home page's sections and banner images (19.7), part of the theme - drafted, previewed and published with the rest of it, under Manage Themes and Pages.
+    - **Its sections**, up to ten, in the order chosen - each moved up or down, removed, or added at the foot:
+      - a banner: one of the storefront's pictures (among its 20), a heading - the store's name when empty - a line of text, and a button to the shop, a category or a collection;
+      - collections: those chosen, in the order chosen, or every one the store shows;
+      - categories: those in its menu;
+      - products: the newest, or a collection's in its order - 4, 8 or 12 of them - with "See all";
+      - text: a heading and words of its own, their lines kept.
+    - A section with nothing to show today is left out - a collection hidden or over, say - and a banner's button that named it goes to the shop. With no sections, the home shows a link to the shop.
+    - Until its sections are chosen, a store's home is the one it had: its name with Shop all, its collections, its categories and what is new.
+    - The first banner's heading is the page's h1; with no banner, the store's name is, hidden from view.
+    - A banner's picture stays while either theme shows it; once neither does, it goes when the draft is published or discarded, as the logo's and favicon's do.
+    - The API: the theme gains `home`, and the Theme page's call `choices` (the business's categories and collections). The public `GET /api/v1/stores/{code}/home` gives the sections, each with what it shows.
+    - **Checked in the browser** on the second PC, with Phase C2's store:
+      - The Theme page's Home Page card showed the four sections the home had. A wide picture - uploaded through the API, as the browser pane cannot pick files - was chosen for the banner, with a heading, a line and a button "See the sale" to Summer Sale. A Text section and a Products section of Summer Sale (4) were added, and the products moved up to second.
+      - "Draft saved.", then the preview: the banner over its picture, "On sale" with Summer Sale's products and "See all", then Collections, Categories, New in and About us, its two lines kept. The banner's heading was the page's h1. Signed out, the store kept its home.
+      - "Theme published.": the store, signed out, with the new home, rendered on the server.
+      - A banner's button pointed at a category with none chosen: "Choose where it goes." under the field. Kitchen chosen: "Draft saved.". Then "Draft discarded.", and Summer Sale was back.
+      - A member who may only view the catalog, asked through the app itself: the published home even with `preview=1`, and 403 on the theme.
+      - At phone width the home and the Home Page card fit.
+      - Found while checking: a banner's upload button was read out as "Upload a picture for the banner picture"; it now says "for the banner".
+      - The store, its listings, collections, pictures and theme, the member, the app's state, the sign-in and the activity were then put back. The database matched its backup.
+  - **Phase C5a is built** (migration 000218): a storefront's pages (19.6) - its about and contact pages and its four policies (shipping, return and refund, privacy, and terms and conditions) - under Manage Themes and Pages.
+    - **Each page** starts unwritten, with its title, at a link of its own, the same in every store: `/pages/about`, `/pages/contact`, `/pages/shipping-policy`, `/pages/return-and-refund-policy`, `/pages/privacy-policy` and `/pages/terms-and-conditions`. Its words are rich text with headings of two levels, cleaned as they are kept. It has a title for search engines (its own title unless one is given) and a description.
+    - **Published or a draft.** A draft is seen only by those who may manage pages, previewing the store; its customers are told "There is no such page in this store." (404). A policy, or the about page, is published only with words in it: "Write the page before publishing it." Each page added, changed, published or unpublished is logged.
+    - **The footer** links to the pages published, in its order, except those kept out of it, which are still at their links.
+    - **The contact page** shows the storefront's support e-mail and phone and its theme's address and opening hours - the draft theme's while previewing - then any words of the business's own. A form for customers to write in waits for enquiries (Phase H, with requests for a quotation).
+    - The preview's bar now says the store is shown with its drafts - its theme and pages.
+    - The API gains `GET /api/v1/ecommerce/storefronts/{storefront}/pages`, and `GET` and `PUT .../pages/{about|contact|shipping|returns|privacy|terms}`. The public side gains `GET /api/v1/stores/{code}/pages/{slug}`, and the store's `pages` for its footer.
+    - **Checked in the browser** on the second PC, with Phase C2's store:
+      - Storefronts → Pages: the six pages, each "Not written yet".
+      - The Privacy Policy written with a heading and a subheading: "Page saved as a draft.". Signed out, its link was not found; previewed, the page showed with its headings.
+      - Published: "Page saved and published.". The contact page, published with no words of its own, showed the store's e-mail and phone. The About page, published with no words: "Write the page before publishing it." under its words.
+      - Signed out, rendered on the server: the footer linked Contact Us and Privacy Policy; the privacy page kept its headings and was titled "Privacy Policy - Rahman Shop"; About, unpublished, answered 404.
+      - A member who may only view the catalog, asked through the app itself: 403 on the pages and on saving one. The Pages action and the pages' addresses follow the same rule as the Theme's, checked in Phase C4a.
+      - At phone width the editor, the Pages list and the store's pages fit.
+      - Found while checking: the preview's bar spoke of the draft theme alone; the contact page's hint said its details came under the words, where they come above; and the Pages list said "Linked" of pages not yet written - it now says whether each is in the footer.
+      - The store and the rest were then put back. The database matched its backup, but for migration 000218's changes. 000218 was rolled back and run again.
+  - **Phase C5b is built** (migration 000219): pages of the business's own on a storefront (19.6), up to the plan's limit on each storefront, under Manage Themes and Pages.
+    - **A page of its own** has what a standard page has - its title, its words with headings, published or a draft, its link from the footer and its SEO - and the link it is given, or one made from its title (numbered when it is taken): letters, digits and dashes that no other page of the storefront has and no standard page keeps. It has its place in the footer, after the standard pages, lowest first. Each page added, changed or deleted is logged.
+    - **The plan's limit**: Pages per Storefront, a new term of the plans, as the admin sets it - empty for no limit. Billing Starter starts at three; the paid plans have no limit, as for storefronts. Past it: "Billing Starter includes 3 pages of your own on each storefront. Upgrade the plan to add another." The standard pages are outside it. The Pages list says how many are in use; the plans say it where they have eCommerce ("Unlimited pages per storefront"); the admin's plans list and versions show it.
+    - The API gains `POST /api/v1/ecommerce/storefronts/{storefront}/pages`, and `GET`, `PUT` and `DELETE .../pages/{id}`; the plans gain `storefront_page_limit`.
+    - **Checked in the browser** on the second PC, with Phase C2's store, the business on Billing Starter:
+      - Pages: "Pages of Your Own", "0 of the 3 your plan gives each storefront, besides the pages above."
+      - New Page: Wholesale, published - "Page added.", its editor opened at its id, with the link wholesale and the place 1. Its link changed to privacy-policy: "This link is kept for one of its standard pages: choose another." under the field.
+      - Careers (place 0) and Size Guide added through the API; a fourth was refused: "Billing Starter includes 3 pages of your own on each storefront. Upgrade the plan to add another." The list then said all three were in use, with no New Page.
+      - Signed out, rendered on the server: the footer linked Careers, Wholesale and Size Guide, by their places, and Wholesale's link opened it.
+      - Size Guide deleted from the list: "Page deleted.", and room for another.
+      - The pricing page: "Unlimited pages per storefront" for the plan with eCommerce.
+      - A member who may only view the catalog, asked through the app itself: 403 on adding and on deleting a page.
+      - At phone width the list and the editor fit.
+      - The admin's plan form is checked by the tests alone: the browser check does not sign in as the admin.
+      - The store, its pages and the rest were then put back. The database matched its backup, but for migration 000219's changes. 000219 was rolled back and run again.
+  - **Phase C6a is built** (no migration): a storefront's SEO (19.36).
+    - **Search and Sharing**, a new card on the Theme page, is drafted, previewed and published with the rest of the theme: the home's title (the store's name when empty) and description - the description too of any page with none of its own - its sharing picture (one of the storefront's pictures; none: its logo), and whether search engines may list the store (on). It shows the store's sitemap address, for Google Search Console and the like.
+    - **Every page of the store** says, rendered on the server: its title and description; its canonical link - its address with no search, filters, sort or preview, but with its page number past the first; what a shared link shows (Open Graph and X cards: title, description, picture - its own, else the store's sharing picture, else its logo - address, type and the store's name); and whether search engines may list it.
+    - **Kept from search engines** ("noindex, follow"): every page while the published theme says not to list the store; a preview; a store not open (503) or not there; a product kept for its link; a search; and a list filtered or sorted.
+    - **Product structured data**: a product's page carries a schema.org Product - its name, description, pictures, SKU, brand and link - with, sold at its price, its offer: its price, or its variants' lowest and highest, in the store's currency, and whether it is in stock.
+    - **The sitemap**, at `/store/{code}/sitemap.xml`: its home and shop, its categories' pages and those of the collections it shows, the products it lists for anyone and its published pages, each with the day it last changed. It is empty while the theme says not to list the store, and there is none (404) for a store not open.
+    - **A robots.txt of its own waits for its own domain**: crawlers read robots.txt only at a host's root, and stores are served under `/store/{code}` until the server serves their domains (Phase A3). Canonical links and the sitemap use those addresses, on the host they are served from, and move with them then.
+    - The API: the theme gains `seo`, a product's page `listed`, and the public side `GET /api/v1/stores/{code}/sitemap`.
+    - **Checked in the browser** on the second PC, with Phase C2's store, the mug's pictures, and the Custom Shelf kept for its link:
+      - The Theme page's Search and Sharing card: a title, a description and a sharing picture (uploaded through the API). "Draft saved."; previewed, the home's title, description and picture were the draft's, kept from search engines, its canonical link without the preview.
+      - Published, then signed out, rendered on the server: the home's title, description, canonical link, Open Graph and X tags with the sharing picture, and "index, follow". The mug: its own picture to share it by, and its Product data with its pictures and price. The T-shirt: an AggregateOffer of its variants' prices. The shelf, kept for its link: "noindex, follow", and no offer (it is sold by quotation). A search of the shop: noindex, its canonical link the shop's. The shop's second page: its canonical link kept "?page=2". A collection: its own picture.
+      - The sitemap listed the home, the shop, both categories, the two collections shown (not the hidden one) and the four products listed (not the shelf, nor the draft cups), with their days.
+      - "Let search engines list the store" unticked and published: every page "noindex, follow", and an empty sitemap. The outlet, not open: 503 with noindex, and no sitemap (404).
+      - A member who may only view the catalog, through the app itself: 403 on saving the theme.
+      - At phone width the new card fits.
+      - Found while checking: a product with no pictures carried an empty list of them in its data; it now leaves them out.
+      - The store and the rest were then put back. The database matched its backup.
+  - **Phase C6b is built** (migration 000220): the storefronts' cookie notice, under Settings → eCommerce's cookie and consent settings (19.37).
+    - **Settings → eCommerce** gains a Cookie Notice: whether the storefronts show their visitors one (on), and its words - empty for izSuite's own: "This store uses the cookies it needs to work. With your consent, it may also use cookies that help it understand how it is used." A form that sends neither, as one from before this phase would, keeps them as they are.
+    - **On a storefront** the notice sits at the foot of every page, rendered on the server, until the visitor chooses Accept All or Only Essential. The choice is kept for a year in a cookie of the store's own path, so each store asks once. The notice links to the store's privacy policy once it is published, in the footer or not.
+    - Nothing optional is set yet: a storefront keeps only the cookies it needs (its team's preview). Analytics and the like, when a store has them, are to wait for Accept All (`useStoreConsent().allowsOptional`).
+    - The API: the settings gain `cookie_notice` and `cookie_notice_text`; the store's own call gains `cookie_notice` (its words, and whether its privacy policy is published - or null).
+    - **Checked in the browser** on the second PC, with Phase C2's store:
+      - Settings → eCommerce: the Cookie Notice, on, with izSuite's words shown as its placeholder. Words of the business's own saved: "eCommerce settings saved."
+      - The store: the notice at its foot with those words; once the privacy policy was published (kept out of the footer), a link to it.
+      - Only Essential: the notice went, and stayed gone on the shop's page; the choice was kept in a cookie of the store's path alone (the workspace's pages do not see it). Rendered on the server: the notice for a visitor with no choice, none for one who had chosen.
+      - The notice switched off: none on the store, and its words kept.
+      - A member who may only view the catalog, through the app itself: 403 on reading and on saving the settings.
+      - At phone width the notice fits, its words above its buttons.
+      - The store, the settings and the rest were then put back. The database matched its backup, but for migration 000220's changes. 000220 was rolled back and run again.
+- **Phase D: cart and checkout** - the cart and its prices; shipping zones and methods, and pickup locations; checkout in its seven steps, the contact found or made, consent, the payment methods without a gateway, the order and its confirmation e-mail. Permissions Manage Shipping and Manage Payment Methods.
+- **Phase E: customer accounts** - signing up, verifying, signing in and resetting the password; profile, addresses, orders, invoices and receipts, tracking, guest orders linked once verified, consent, and closing the account.
+- **Phase F: orders in the business** - the Orders page, and an order's page with its three statuses and timeline; confirming it (its invoice), holding it for review and releasing it, cancelling it, editing it before payment, payments confirmed or failed, and payment links. Permissions View, Edit, Confirm, Place On Hold and Cancel Orders.
+- **Phase G: fulfilment** - fulfilments, partial ones too, with carrier and tracking; ready for pickup, shipped and delivered; the delivery document; digital delivery (secure downloads within limits, license keys, links, by hand) and services. Permission Manage Fulfilment.
+- **Phase H: promotions, abandoned carts and quotations** - discount codes and automatic discounts with their rules; abandoned carts, recovered with consent; requests for a quotation, as CRM leads or draft quotations. Permission Manage Discounts.
+- **Phase I: after the sale** - return requests and their resolutions, through credit notes and refunds; product reviews and their moderation; the customer's notifications. Permissions Process Returns, Process Refunds and Moderate Reviews.
+- **Phase J: overview, documents and reports** - the eCommerce Overview and the Dashboard's card; its documents on the Documents page; the 21 reports. Permissions View eCommerce Reports and Export eCommerce Data.
+
+After Doc 19 come Docs 20 and 21 (Customer Subscriptions, Marketing and Loyalty). Docs 22 and up must be written before they can be built.
 
 ## Testing checklist
 
@@ -2886,6 +3213,21 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 18: Phase I1 | 000208 |
 | Doc 18: Phase I2 | 000209 |
 | Doc 18: Phase I3 | 000210 |
+| Doc 19: Phase A1 | 000211 |
+| Doc 19: Phase A2 | 000212 |
+| Doc 19: Phase A3 | 000213 |
+| Doc 19: Phase B1 | 000214 |
+| Doc 19: Phase B2 | 000215 |
+| Doc 19: Phase B3 | 000216 |
+| Doc 19: Phase C1 | none |
+| Doc 19: Phase C2 | none |
+| Doc 19: Phase C3 | none |
+| Doc 19: Phase C4a | 000217 |
+| Doc 19: Phase C4b | none |
+| Doc 19: Phase C5a | 000218 |
+| Doc 19: Phase C5b | 000219 |
+| Doc 19: Phase C6a | none |
+| Doc 19: Phase C6b | 000220 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -3701,6 +4043,182 @@ On a fresh business, set the days in Settings → CRM to fit what you have, rath
 - [ ] Switched off, a device has no Test; Remove takes it off.
 - [ ] As a member who may view registers but not manage them: the list, without changes.
 
+**Phase A1: eCommerce on, with its storefronts**
+
+**Before you start:** eCommerce on (Premium, with Sales Lite).
+
+- [ ] The Apps Center shows eCommerce, needing Sales Lite; its menu has Storefronts.
+- [ ] Settings → eCommerce: untick guest checkout, show prices without tax and change the order prefix; save, and reload.
+- [ ] Storefronts → New Storefront: a name, a code, the location, currencies, languages and countries; it is added as Draft.
+- [ ] A code izSuite keeps (www), or another storefront's, is refused.
+- [ ] Edit it: Live, and another default language; the row shows them.
+- [ ] Deleting the location it sells from is refused; Delete removes the storefront.
+- [ ] As a member who may view eCommerce alone: the list without New, Edit or Delete, and no Settings → eCommerce.
+
+**Phase A2: the plans' storefronts**
+
+**Before you start:** eCommerce on, on a plan with a storefront limit (Billing Starter has one).
+
+- [ ] Admin → Packages → a plan: Storefronts per Business saved; the plan's row and its versions show it.
+- [ ] Settings → Storage & Usage: Storefronts, against the limit.
+- [ ] At the limit, New Storefront is refused, naming the plan.
+- [ ] An archived storefront is not counted; opening it again needs room.
+- [ ] Pricing: each plan with eCommerce says its storefronts.
+
+**Phase A3: the storefronts' domains**
+
+**Before you start:** eCommerce on, a storefront, and a domain whose DNS you can change.
+
+- [ ] Storefronts → Domains: the izSuite address, as Primary.
+- [ ] Add your domain, and give it the TXT and CNAME records shown.
+- [ ] Verify before the records are in: refused, saying why. Once they are: Verified.
+- [ ] Make it Primary; the izSuite address then offers Make Primary.
+- [ ] Remove it: asked once more, then the izSuite address is Primary again.
+- [ ] As a member who may view eCommerce alone: the domains, without changes.
+
+**Phase B1: items published online**
+
+**Before you start:** eCommerce on, items for sale (one without a sales price), and a storefront.
+
+- [ ] Catalog: your items for sale, each Not online; an item only bought is not there.
+- [ ] Open one: its listing starts from the item. A full description with formatting, keywords and Published: Put in the Catalog.
+- [ ] Add pictures, and remove one. The list shows a picture when the item has no image of its own.
+- [ ] Limited without a quantity is refused; with one, the list says how many are left.
+- [ ] An item without a price, at its price and Published, is refused; by quotation it is saved.
+- [ ] Scheduled from tomorrow: the list says Scheduled, and from when.
+- [ ] Take Out of the Catalog: asked first, then Not online.
+- [ ] As a member who may view the catalog alone: read only.
+
+**Phase B2: categories, collections and attributes**
+
+**Before you start:** eCommerce on, brands on in Settings → Items, two item categories, a brand, and three items in the catalog, two of them the brand's.
+
+- [ ] Catalog → Categories: each item category, with how many of its items are in the catalog. Give one a link, a place in the menu, a description and a picture.
+- [ ] Give another category the same link: refused.
+- [ ] Catalog → Collections: a promotion with two products in your order, then a brand's, which counts the brand's listed products.
+- [ ] A collection whose last day is before its first: refused.
+- [ ] Rename a collection with its link left blank: its link stays.
+- [ ] Delete a collection: asked first.
+- [ ] An item's page: the attributes Material: Stoneware and Capacity: 350 ml saved; one without a value refused.
+- [ ] Delete a brand that has a collection: the collection says its brand was deleted.
+- [ ] As a member who may view the catalog alone: Categories and Collections without changes.
+
+**Phase B3: options and variants**
+
+**Before you start:** eCommerce on, and a T-shirt for sale in four sizes, each its own item of one type - S, M, L and XL, XL without a price - with S in the catalog.
+
+- [ ] S's page → Options and Variants → Add an option: S becomes the first variant. Name the option Size, with S, M, L, XL.
+- [ ] Add M and L as variants, each with its size, L Limited with 5 left: saved. The Selling card says each variant has its own availability.
+- [ ] Two variants with the same size: refused.
+- [ ] Catalog: M and L show as variants of the listing, which says "3 variants". M's page points to the listing.
+- [ ] Add XL, then publish the listing: refused, as XL has no price. Hide XL: published.
+- [ ] Remove the option: the variants go, and the Availability field is back.
+- [ ] As a member who may view the catalog alone: the variants without changes.
+
+**Phase C1: the storefront opens**
+
+**Before you start:** eCommerce on, a live storefront and one in maintenance, two categories in the storefront's menu, a brand, and listings: one with pictures, one out of stock, one sold by quotation, one with variants, and a draft.
+
+- [ ] Open `/store/{code}`: the store's name, menu, categories and newest products - not the draft.
+- [ ] Search for a keyword: the products that match, with the search shown as a filter to remove.
+- [ ] Narrow to a category and to in stock only; sort by price, low to high: those without a price come last.
+- [ ] A product with variants: choosing one shows its price, stock and SKU.
+- [ ] A product with pictures: choose another to see it large. A product sold by quotation offers the store's e-mail and phone.
+- [ ] The store in maintenance says so; a made-up address says there is no such store.
+- [ ] At phone width, the shop and a product's page fit.
+
+**Phase C2: categories, collections and search suggestions**
+
+**Before you start:** Phase C1's store, a category with a description and a picture, and three collections: one of products chosen in an order, one of a brand, and one hidden.
+
+- [ ] The home shows the collections - not the hidden one.
+- [ ] A collection's page: its products in its order (Featured), then sorted by price.
+- [ ] A category from the menu: its page, with its description, picture and products.
+- [ ] Type two letters or more in the search: products, categories and collections to choose from.
+- [ ] The hidden collection's address: "There is no such collection in this store."
+
+**Phase C3: filters by price, options and attributes**
+
+**Before you start:** Phase C2's store, with a product in sizes and products with attributes.
+
+- [ ] The shop offers a price range, each option's values and each attribute's values.
+- [ ] A size, then an attribute, then a price range: only the products that pass, each filter shown as a chip.
+- [ ] A category's page offers only what its products have.
+- [ ] At phone width the filters fit.
+
+**Phase C4a: the storefront's theme and branding**
+
+**Before you start:** Phase C2's store, a wide picture for a logo and a square one for a favicon, and a member whose role may only view the catalog.
+
+- [ ] eCommerce → Storefronts → Theme: "Not published yet: customers see the default theme."
+- [ ] Upload the two pictures and choose them as the logo and the favicon.
+- [ ] A social link starting http://: "Give the link starting https://."
+- [ ] Change the colours, the font, the header, the cards and the footer, then Save Draft: "Draft saved." and "Draft not published".
+- [ ] Preview: the store in the draft, under the preview's bar. Signed out, in another browser, the store as it was.
+- [ ] Publish: "Theme published.", and the store in the theme for everyone.
+- [ ] Change the font, then Discard Draft: the published font back.
+- [ ] Preview a storefront not yet Live: "Its customers see it closed."
+- [ ] As the member: no Theme on the Storefronts page.
+- [ ] At phone width the Theme page and the themed store fit.
+
+**Phase C4b: the home page's sections and banners**
+
+**Before you start:** Phase C2's store, and a wide picture, at least 1600 by 600 pixels.
+
+- [ ] eCommerce → Storefronts → Theme → Home Page: a banner, Collections, Categories and New in, as the home was.
+- [ ] The banner: upload the picture and choose it; give a heading, a line, and a button to a collection.
+- [ ] Add a Products section of a collection, 4 of them, and move it up to second. Add a Text section.
+- [ ] Point a banner's button at A category, choose none, and Save Draft: "Choose where it goes."
+- [ ] Save Draft, then Preview: the sections in their order, the banner over its picture. Signed out, the home as it was.
+- [ ] Publish: the new home for everyone. Hide the collection: its section leaves, and the banner's button goes to the shop.
+- [ ] At phone width the home and the Home Page card fit.
+
+**Phase C5a: the storefront's pages**
+
+**Before you start:** Phase C2's store, with its support e-mail and phone.
+
+- [ ] eCommerce → Storefronts → Pages: six pages, each "Not written yet".
+- [ ] Write the Privacy Policy with a heading and a subheading, and save it as a draft: "Page saved as a draft." Signed out, its link is not found; Preview shows it.
+- [ ] Publish it: "Page saved and published.", and the footer links to it.
+- [ ] Publish the contact page with no words: it shows the store's e-mail, phone, address and opening hours.
+- [ ] Publish the About page with no words: "Write the page before publishing it."
+- [ ] Untick "Linked from the footer" on a published page: its link still opens it, and the footer leaves it out.
+- [ ] At phone width the editor and the store's pages fit.
+
+**Phase C5b: pages of the business's own**
+
+**Before you start:** Phase C2's store, the business on Billing Starter.
+
+- [ ] eCommerce → Storefronts → Pages: "Pages of Your Own", 0 of 3.
+- [ ] New Page: a title, words and Published, then Add Page: "Page added.", its link made from its title.
+- [ ] Set its link to privacy-policy: "This link is kept for one of its standard pages: choose another."
+- [ ] Add two more: New Page is gone, and the list says all three are in use.
+- [ ] Signed out, the footer links to them after the standard pages, by their places.
+- [ ] Delete one: "Page deleted.", and New Page is back.
+- [ ] Admin → Plans: Pages per Storefront, saved on a plan and shown in its list.
+
+**Phase C6a: the storefront's SEO**
+
+**Before you start:** Phase C2's store, a picture for the mug, and a wide picture (1200 by 630) to share the store by.
+
+- [ ] Theme → Search and Sharing: a title, a description and the sharing picture. Save Draft, then Preview: the tab shows the draft's title.
+- [ ] Publish. Signed out, view the home's source: its title, description, canonical link, og: tags with the picture, and robots "index, follow".
+- [ ] A product's source: its Product data (application/ld+json), with its price.
+- [ ] Search the shop: robots "noindex, follow", and the canonical link is the shop's.
+- [ ] /store/{code}/sitemap.xml lists the home, shop, categories, collections, products and published pages.
+- [ ] Untick "Let search engines list the store" and publish: every page is "noindex", and the sitemap is empty.
+
+**Phase C6b: the cookie notice**
+
+**Before you start:** Phase C2's store, opened in a private window.
+
+- [ ] Settings → eCommerce: Cookie Notice, on, with izSuite's words as the placeholder. Give words of your own and save.
+- [ ] The store: the notice at its foot, with those words.
+- [ ] Publish the Privacy Policy page: the notice links to it.
+- [ ] Only Essential: the notice goes, and stays gone on the store's other pages.
+- [ ] Switch the notice off: a new visitor sees none.
+- [ ] At phone width the notice fits.
+
 ## How we work
 
 Each document goes the same way:
@@ -3997,6 +4515,21 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 18: Phase I1, the cashier's PIN and the register's lock | the commit after `8c8f380` | `7933c6d` | 000208 |
 | Doc 18: Phase I2, a manager's approval at the register | the commit after `8c8f380` | `7933c6d` | 000209 |
 | Doc 18: Phase I3, registered devices | the commit after `8c8f380` | `7933c6d` | 000210 |
+| Doc 19: Phase A1, eCommerce on, with its storefronts | not yet committed | not yet committed | 000211 |
+| Doc 19: Phase A2, the plans' storefronts | not yet committed | not yet committed | 000212 |
+| Doc 19: Phase A3, the storefronts' domains | not yet committed | not yet committed | 000213 |
+| Doc 19: Phase B1, items published online | not yet committed | not yet committed | 000214 |
+| Doc 19: Phase B2, categories, collections and attributes | not yet committed | not yet committed | 000215 |
+| Doc 19: Phase B3, options and variants | not yet committed | not yet committed | 000216 |
+| Doc 19: Phase C1, the storefront opens | not yet committed | not yet committed | none |
+| Doc 19: Phase C2, categories, collections and search suggestions | not yet committed | not yet committed | none |
+| Doc 19: Phase C3, filters by price, options and attributes | not yet committed | not yet committed | none |
+| Doc 19: Phase C4a, the storefront's theme and branding | not yet committed | not yet committed | 000217 |
+| Doc 19: Phase C4b, the home page's sections and banners | not yet committed | not yet committed | none |
+| Doc 19: Phase C5a, the storefront's contact and about pages and its policies | not yet committed | not yet committed | 000218 |
+| Doc 19: Phase C5b, pages of the business's own | not yet committed | not yet committed | 000219 |
+| Doc 19: Phase C6a, the storefront's SEO | not yet committed | not yet committed | none |
+| Doc 19: Phase C6b, the storefronts' cookie notice | not yet committed | not yet committed | 000220 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`). Between I1 and I2, shuvo added rich text for payment instructions and the Sales settings' notes and terms (`a5e46cb` and `9bf4525`, with no frontend commit yet).
 
@@ -4672,6 +5205,76 @@ These are easy to undo by mistake.
   - Frontend: usePosApprovals (`ask()`, the cart's tokens), PosApprovalModal (last on the selling page, so it opens over the others); PosSellLineAdjust, PosSellOrderDiscount, PosCashMovementModal and PosReturnModal ask; usePosSelling and usePosHeldOrders send the tokens.
 - A register's devices (Doc 18 Phase I3, migration 000210): `pos_devices`, `PosDevice`, `PosRegister::devices()`; `PosDeviceRepository` (and `used()`, from `PosReceiptService::pdf()` and `PosSellingService::items()`), `PosDeviceService`, `PosDeviceController` (`/pos/registers/{register}/devices`, `/test`, `/test-page`), `PosDeviceResource`; `DocumentRenderer::posDeviceTest()` and `pos-device-test.blade.php`.
   - Frontend: PosRegisterDevicesModal, PosDeviceForm, usePosDevices; the Registers page's Devices.
+- eCommerce on, with its storefronts (Doc 19 Phase A1, migration 000211): the migration makes the `apps` row `ecommerce` available where it was still coming soon, with its Sales Lite dependency and the Storefronts menu row; `AppCatalogSeeder` has them, and its page's words (`DETAILS['ecommerce']`), for new installs.
+  - Settings → eCommerce: `ecommerce_settings` (`guest_checkout`, `verify_customer_email`, `price_display`, `order_prefix`), `EcommerceSetting`, `EcommerceSettingRepository`, `EcommerceSettingService`, `EcommerceSettingController` (`/business-settings/ecommerce`), `EcommerceSettingsResource`; permission `ecommerce.settings.manage`.
+  - `storefronts`: `name` unique in the business, `code` unique across izSuite (`Storefront::RESERVED_CODES` refused), `status`, `default_language` and `languages`, `currency` and `currencies`, `countries`, `location_id`, `support_email` and `support_phone`. `StorefrontRepository` (and `usesLocation()`, from `LocationService::delete()`), `StorefrontService`, `StorefrontController` (`/ecommerce/storefronts`, `/options`), `StorefrontResource`, `StorefrontOptionsResource`; permissions `ecommerce.store.view` and `ecommerce.store.manage`.
+  - Frontend: the Storefronts page (`pages/ecommerce/storefronts`), StorefrontModal and StorefrontFormReach, useStorefronts; SettingsEcommerce and useEcommerceSettings.
+- The plans' storefronts (Doc 19 Phase A2, migration 000212): `packages.storefront_limit` and `package_versions.storefront_limit` (in `PackageVersion::TERMS`), in the admin's limits partial (`UpdatePackageRequest`); `PlanLimits::ensureCanAddStorefront()` and `storefronts()` - `StorefrontRepository::countOpenFor()`, all but the archived - called by `StorefrontService` on adding one and on opening an archived one; `PlanLimits::usage()['storefronts']`, null while eCommerce is off, through `BusinessUsageResource`; `sells_online` and `storefront_limit` in `PublicCatalog` and `PackageOfferResource`.
+  - Frontend: SettingsUsageCounts' Storefronts row, and `planLimits()` in `utils/plans.ts`.
+- A storefront's domains (Doc 19 Phase A3, migration 000213): `storefront_domains` (`host` unique across izSuite, `token`, `verified_at`, `checked_at`, `is_primary`), `StorefrontDomain`, `StorefrontDomainRepository`, `StorefrontDomainService` (and `addressOf()`, `answersFor()`), `StorefrontDomainController` (`/ecommerce/storefronts/{storefront}/domains`, `/primary`, `/{domain}/verify`), `StorefrontDomainsResource` and `StorefrontDomainResource`; `DomainDns` reads TXT records, and the tests stand in for it. Without signing in: `StorefrontHostController` (`GET /storefront-hosts?domain=`) and `StorefrontHostResource`. `config/ecommerce.php`: `storefront_domain` and `cname_target`. Permission `ecommerce.domains.manage`.
+  - Frontend: StorefrontDomainsModal and StorefrontDomainRow, useStorefrontDomains; the Storefronts page's Domains.
+- Items published online (Doc 19 Phase B1, migration 000214): `catalog_products` - one per item: `title`, `slug` unique in the business, the descriptions, `keywords`, `status`, `visibility`, `available_from` and `available_until` (the business's days), `sales_method`, `availability` and `stock_quantity`, `weight` and `weight_unit`, `video_urls`, the SEO fields and `all_storefronts` - and `catalog_product_storefronts`. `CatalogProduct` (`statusOn()`, and `pictures()` and `cover()` in `FileCollection::Gallery`, public with thumbnails), `Item::catalogProduct()`; `CatalogProductRepository`, `CatalogService`, `EcommerceCatalogController` (`/ecommerce/catalog`, `/{item}`) and `CatalogPictureController` (`/{item}/pictures`), `CatalogItemResource` and `CatalogEntryResource`. Permissions `ecommerce.catalog.view`, `.publish` and `.manage`.
+  - Frontend: the Catalog page and an item's page (`pages/ecommerce/catalog`), CatalogProductListing, CatalogProductMedia, CatalogProductSeo, CatalogProductPublication and CatalogProductSelling; useCatalog and useCatalogProductForm.
+- Categories, collections and attributes (Doc 19 Phase B2, migration 000215):
+  - Tables:
+    - `catalog_categories`, an item category's online side: `slug` unique in the business, `description`, the SEO fields, `in_menu` and `position`.
+    - `catalog_collections`: `name` and `slug` unique in the business, `kind` (promotion, season, brand or theme), `item_brand_id` for a brand's, `description`, `status`, `available_from` and `available_until`, the SEO fields and `position`.
+    - `catalog_collection_products`, with `position`.
+    - `catalog_products.custom_attributes`.
+  - Models: `CatalogCategory` and `CatalogCollection`, each with `image()` in `FileCollection::Image`; `ItemCategory::catalogCategory()`.
+  - Repositories and services: `CatalogCategoryRepository` and `CatalogCollectionRepository`; `CatalogCategoryService` and `CatalogCollectionService`.
+  - Controllers:
+    - `CatalogCategoryController`: `/ecommerce/catalog-categories`, `/{category}` and `/{category}/image`.
+    - `CatalogCollectionController`: `/ecommerce/collections`, `/options`, `/{id}` and `/{id}/image`.
+  - Resources: `CatalogCategoryResource`, `CatalogCollectionResource` and `CatalogCollectionOptionsResource`.
+  - Deleting an item or an item category deletes its listing or online side through that model (`ItemRepository::delete()`, `ItemLabelRepository::delete()`), so their pictures go too.
+  - Frontend:
+    - the Catalog page's tabs (`pages/ecommerce/catalog/index.vue`): CatalogProductsList, CatalogCategoriesList and CatalogCollectionsList;
+    - CatalogCategoryModal, CatalogCollectionModal, CatalogPictureField and CatalogProductAttributes;
+    - useCatalogTaxonomy.
+- Options and variants (Doc 19 Phase B3, migration 000216):
+  - Tables: `catalog_product_variants`, a listing's variants - `item_id` unique (an item is a variant of one listing at most), `option_values` in the options' order, `status` (active or hidden), `availability` and `stock_quantity`, `weight` and `position` - and `catalog_products.options`.
+  - Models: `CatalogProductVariant`; `CatalogProduct::variants()` and `Item::catalogVariant()`.
+  - `CatalogVariantRepository` (`candidatesFor()`, `itemsFor()`, `save()`) and `CatalogVariantService`. `CatalogService` refuses a listing of another listing's variant, checks the variants shown when a listing is published, and gives an item's page `variant_of`.
+  - `CatalogVariantController`: `/ecommerce/catalog/{item}/variant-items` and `/{item}/variants`; `SaveCatalogVariantsRequest` and `CatalogVariantItemResource`. `CatalogEntryResource` and `CatalogItemResource` gain the options, the variants, `variant_of` and `variant_count`.
+  - Frontend: CatalogProductVariants, CatalogVariantOptions and CatalogVariantRow on an item's page; useCatalogVariantsForm.
+- The storefront opens (Doc 19 Phase C1, no migration):
+  - `StorefrontCatalogRepository` (`findStore()`, `products()`, `product()`, `menuOf()`, `brandsOf()`; what a store shows is `showing()`), `StorefrontPricing` (`terms()`, `priceOf()`, `fromPrice()`) and `StorefrontCatalogService` (whether a store is open).
+  - `StoreCatalogController`, public: `GET /api/v1/stores/{code}`, `/products` and `/products/{slug}`; `ListStoreProductsRequest`; `StoreResource`, `StoreProductCardResource` and `StoreProductResource`.
+  - Frontend: the `storefront` layout; `pages/store/[code]` (home, `shop`, `products/[slug]`); StoreHeader, StoreFooter, StoreUnavailable, StoreProductCard, StorePrice, StoreShopFilters, StoreGallery, StoreVariantPicker and StoreProductAction; useStore. Shared styles under "Storefronts" in `main.css`.
+- Categories, collections and search suggestions on the storefront (Doc 19 Phase C2, no migration):
+  - `StorefrontTaxonomyRepository` (`category()`, `collections()`, `collection()`, `categoriesMatching()`, `collectionsMatching()`); `StorefrontCatalogRepository::products()` takes a collection; `CatalogProduct::collections()`. `StorefrontCatalogService` gains `category()`, `collections()`, `collection()` and `suggestions()`.
+  - `StoreCatalogController`: `/categories/{slug}`, `/collections`, `/collections/{slug}` and `/suggestions`; `SuggestStoreProductsRequest`; `StoreCategoryResource`, `StoreCollectionResource` and `StoreSuggestionsResource`.
+  - Frontend: `pages/store/[code]/categories/[slug]` and `collections/[slug]`; StoreProductList (the shop's list, shared), StorePartHead and StoreSearch.
+  - Tests: `Tests\Concerns\RunsAStorefront`, a business with a storefront open.
+- Filters by price, options and attributes (Doc 19 Phase C3, no migration):
+  - `StorefrontFacets` (`of()`, `passing()`) works them out from `StorefrontCatalogRepository::listingsWithin()`, with `StorefrontPricing`; `products()` takes the listings that pass. `StoreCatalogController::facets()` (`/facets`) and `StoreFacetsResource`.
+  - Frontend: StoreFacetFilters, under the shop's filters; the chips in StoreShopFilters; `storeFacetFilters()` and `useStoreFacets()` in useStore.
+- A storefront's theme and branding (Doc 19 Phase C4a, migration 000217):
+  - `storefronts.theme` (what its customers see), `theme_draft` and `theme_published_at`. `App\Support\StorefrontTheme`: the choices, `DEFAULTS`, and `of()`, which fills in what a theme leaves out. Its pictures are in the `branding` collection (`Storefront::brandingFiles()`, up to `MAX_BRANDING`).
+  - `StorefrontThemeRepository`, `StorefrontThemeService` (the draft checked and saved, pictures added, the draft published or discarded, and then the pictures neither theme shows deleted), `StorefrontThemeController` (`/ecommerce/storefronts/{storefront}/theme`, `/pictures`, `/publish`, `/discard`), `SaveStorefrontThemeRequest`, `UploadStorefrontPicturesRequest` and `StorefrontThemeResource`. The permission `ecommerce.themes.manage`, with eCommerce's View.
+  - The store: `StorefrontCatalogService` takes the one previewing (`preview=1` and a token that may manage themes), who sees the draft theme, and a store not open as open. `StoreResource` gains `preview`, `open_to_customers` and `theme` (`StoreThemeResource`).
+  - Frontend: the Theme page (`pages/ecommerce/storefronts/[id]/theme`), ThemeBrandingCard, ThemeLookCard, ThemeLayoutCard and ThemeSocialCard; useStorefrontTheme. The storefront layout wears the theme through the design's colour variables, with the preview's bar and the announcement; `useStorePreview()` in useStore keeps the preview in a cookie for the visit. `nuxt.config.ts` keys izSuite's icons, so a store's favicon takes their place.
+- The home page's sections and banners (Doc 19 Phase C4b, no migration):
+  - The theme's `home` (`StorefrontTheme::SECTIONS`, and the default's four). `StorefrontThemeService` checks them (`sections()`, `banner()`) against the storefront's pictures and the business's categories and collections: `StorefrontThemeRepository::categories()` and `collections()`, which are also the Theme page's `choices`.
+  - `StorefrontHome` lays the home out - what each section shows today, those with nothing left out - for `StorefrontCatalogService::home()`; `StoreCatalogController::home()` (`/stores/{code}/home`) and `StoreHomeResource`; `StorefrontTaxonomyRepository::categorySlug()`.
+  - Frontend: ThemeHomeCard, ThemeHomeBanner and ThemeHomeFields on the Theme page, and ThemePictureChoice for the logo's, favicon's and banners' pictures. The store's home is StoreHomeBanner and StoreHomeSection, from `useStoreHome()` in useStore (`useStoreCollections()` is gone).
+- A storefront's pages (Doc 19 Phase C5a, migration 000218):
+  - `storefront_pages` (`kind`, `title`, `slug` unique in the storefront, `body` - rich text, cleaned by `RichText::page()` with h2 and h3 - `status`, `in_footer`, the SEO fields and `position`); `StorefrontPage` (`STANDARD`: each kind's title and link) and `Storefront::pages()`.
+  - `StorefrontPageRepository`, `StorefrontPageService` (an unwritten page as it starts; publishing needs words, but for the contact page), `StorefrontPageController` (`/ecommerce/storefronts/{storefront}/pages`, `/pages/{kind}`), `SaveStorefrontPageRequest`, `StorefrontPagesResource` and `StorefrontPageResource`.
+  - The store: `StorefrontCatalogService::page()`, and the footer's `pages` in `store()`; `StoreCatalogController::page()` (`/stores/{code}/pages/{slug}`) and `StorePageResource`.
+  - Frontend: the Pages list and a page's editor (`pages/ecommerce/storefronts/[id]/pages`), StorefrontPagePublishing and useStorefrontPages; RichTextEditor's `headings`; the store's `pages/store/[code]/pages/[slug]`, and its links in StoreFooter.
+- Pages of the business's own (Doc 19 Phase C5b, migration 000219):
+  - `packages.storefront_page_limit` and `package_versions.storefront_page_limit` (in `PackageVersion::TERMS`), in the admin's limits partial (`UpdatePackageRequest`), plans list and versions; `PlanLimits::ensureCanAddStorefrontPage()` and `storefrontPageLimit()`; the plans' `storefront_page_limit` (`PublicCatalog`, `PackageOfferResource`).
+  - `StorefrontPage::OWN` pages: `StorefrontPageRepository` (`own()`, `ownPage()`, `ownCount()`, `slugTaken()`, `nextPosition()`, `delete()`), `StorefrontPageService` (`create()`, `delete()`, `slugOf()`), and `StorefrontPageController::store()` and `destroy()`.
+  - Frontend: StorefrontOwnPages on the Pages list; the editor `pages/ecommerce/storefronts/[id]/pages/[page]` takes a kind, an id or `new`; StorefrontPagePublishing's link and place for them; `planLimits()` in `utils/plans.ts`.
+- A storefront's SEO (Doc 19 Phase C6a, no migration):
+  - The theme's `seo` (`StorefrontTheme`: title, description, image, index), checked by `StorefrontThemeService` and shown by `StoreThemeResource`; `StoreProductResource`'s `listed`.
+  - The sitemap: `StorefrontCatalogService::sitemap()`, from `StorefrontCatalogRepository::sitemapProducts()`, `StorefrontTaxonomyRepository::sitemapCategories()` and `StorefrontPageRepository::publishedOf()`; `StoreCatalogController::sitemap()` (`/stores/{code}/sitemap`) and `StoreSitemapResource`.
+  - Frontend: `useStoreSeo()`, `useStoreListAddress()` and `storeProductData()` in `composables/useStoreSeo.ts`, used by every store page; the layout's robots for a store not open; ThemeSearchCard on the Theme page; the sitemap's XML at `server/routes/store/[code]/sitemap.xml.ts`.
+- The cookie notice (Doc 19 Phase C6b, migration 000220):
+  - `ecommerce_settings.cookie_notice` and `cookie_notice_text` (`EcommerceSetting`, `SaveEcommerceSettingsRequest`, `EcommerceSettingService`, `EcommerceSettingsResource`); the store's `cookie_notice` in `StoreResource`, from `StorefrontCatalogService::store()`.
+  - Frontend: SettingsEcommerce's Cookie Notice; StoreCookieNotice in the storefront layout; `useStoreConsent()` and `DEFAULT_COOKIE_NOTICE` in `composables/useStoreConsent.ts`.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
@@ -4837,27 +5440,42 @@ Each of these is yours to settle.
 - Doc 18 Phase B2a: migration 000190 adds the variance limit to `pos_settings`, and the supervisor's marks to `pos_session_closings`. Two new permissions, Point of Sale → Sessions: Approve Variances and Close Others' Sessions, and Reopen Closed Sessions, are not given to custom roles: give them in Settings → Users & Roles. Deploy the frontend with it.
 - Doc 18 Phase B2b: migration 000191 adds counting by notes and coins to `pos_settings` and `pos_session_closings`. No permission is new. Deploy the frontend with it: Variance Needing Approval moves to the Closing Sessions card in Settings → Point of Sale.
 - Doc 18 Phase C1: migration 000192 adds Open POS, first in Point of Sale's menu (`AppCatalogSeeder` has it for new installs). A new permission, Point of Sale → Selling: Open POS (with Open and Close Sessions and Contacts' View), is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it.
-- Doc 18 Phase I3: migration 000210 adds `pos_devices`. Run `php artisan migrate`. Deploy the frontend with it (the Registers page's Devices).
-- Doc 18 Phase I2: migration 000209 keeps who approved a price typed over (on order lines) and a refund by another method (on returns). Run `php artisan migrate`. Deploy the frontend with it (Ask a Manager on the selling screen, the cash dialog and the return dialog).
-- Doc 18 Phase I1: migration 000208 adds a POS PIN to users, Settings → Point of Sale's lock minutes, and a session's last use and lock. Run `php artisan migrate`. Deploy the frontend with it (the selling screen's Lock and Set PIN, its lock screen, and the lock minutes in Settings → Point of Sale → Selling).
-- Doc 18 Phase H3: no migration, and no frontend change of its own.
-- Doc 18 Phase H2: no migration, and no frontend change of its own.
-- Doc 18 Phase H1: no migration. Give View POS Reports (POS Reports) to the custom roles that should see POS's reports. Deploy the frontend with it (the Reports page's Point of Sale group, its Register and Cashier filters, and its empty state).
-- Doc 18 Phase G3: no migration. Deploy the frontend with it (the Documents page's Point of Sale source, POS labels and references, and refund receipts).
-- Doc 18 Phase G2: migration 000207 puts Overview first in Point of Sale's menu, for whoever may view POS's orders. Deploy the frontend with it (the Overview, and the Dashboard's Point of Sale card).
-- Doc 18 Phase G1: migration 000206 puts Orders, Returns and Refunds, and Cash Movements in Point of Sale's menu. Three new permissions - Point of Sale → Orders → View, Returns and Refunds → View, and Cash Movements → View - are not given to custom roles: give them in Settings → Users & Roles. Deploy the frontend with it.
-- Doc 18 Phase F3: no migration. Deploy the frontend with it (a session's page gains X Report and Z Report).
-- Doc 18 Phase F2: migration 000205 adds what a paid out keeps: its payee, expense category and expense. No new permission. Deploy the frontend with it.
-- Doc 18 Phase F1: migration 000204 adds cash movements and their approval limit. Two new permissions, Point of Sale → Cash Movements → Record Cash Movements and Approve Cash Movements, are not given to custom roles: give them in Settings → Users & Roles. Deploy the frontend with it.
-- Doc 18 Phase E3: migration 000203 links a return made as an exchange and the sale of its replacement. No new permission. Deploy the frontend with it.
-- Doc 18 Phase E2: migration 000202 adds what a return keeps of its refund's method, reason and confirmation. A new permission, Point of Sale → Returns and Refunds → Use Alternative Refund Methods, is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it.
-- Doc 18 Phase E1: migration 000201 adds `pos_returns` and `pos_return_lines`. A new permission group, Point of Sale → Returns and Refunds - Process Returns and Process Refunds - is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it.
-- Doc 18 Phase D4: migration 000200 adds `pos_orders.invoiced_at`. Deploy the frontend with it.
-- Doc 18 Phase D3b: migration 000199 adds `pos_orders.credit_applied`. Deploy the frontend with it.
-- Doc 18 Phase D3a: migration 000198 adds `pos_orders.on_account` and `credit_reason`. A new permission under Point of Sale → Selling, Create Credit Sales, is not given to custom roles: give it in Settings → Users & Roles. Credit sales need the full Sales app. Deploy the frontend with it.
-- Doc 18 Phase D2: migration 000197 adds `pos_payment_methods.confirms_later` and what a POS payment keeps of its confirmation - each payment so far given its customer payment's account. A new permission, Point of Sale → Pending Payments → Confirm Pending Payments, is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it.
-- Doc 18 Phase D1: migration 000196 adds `pos_held_orders` and `pos_settings.hold_hours`. Two new permissions under Point of Sale → Selling - Hold and Resume Orders, and Cancel Held Orders - are not given to custom roles: give them in Settings → Users & Roles. The scheduler runs `pos:expire-held-orders` hourly. Deploy the frontend with it.
-- Doc 18 Phase C4: migration 000195 adds `pos_orders.receipt_prints` and `receipt_texts`. A new permission, Point of Sale → Receipts → Reprint Receipts, is not given to custom roles: give it in Settings → Users & Roles. The receipt needs Gotenberg 8 (its `singlePage`). Deploy the frontend with it.
-- Doc 18 Phase C3: migration 000194 adds the discount limit and the cash rounding step to `pos_settings`, and what an order keeps of its discounts, overrides and rounding. Three new permissions under Point of Sale → Selling - Apply Discounts, Override Prices and Discount Beyond the Limit - are not given to custom roles: give them in Settings → Users & Roles. Deploy the frontend with it.
 - Doc 18 Phase C2: migration 000193 adds `pos_orders`, `pos_order_payments` and `pos_order_lines`. A new permission, Point of Sale → Selling: Sell Items (with Open POS), is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it: Open POS gains Pay, and the Sales lists mark POS sales.
+- Doc 18 Phase C3: migration 000194 adds the discount limit and the cash rounding step to `pos_settings`, and what an order keeps of its discounts, overrides and rounding. Three new permissions under Point of Sale → Selling - Apply Discounts, Override Prices and Discount Beyond the Limit - are not given to custom roles: give them in Settings → Users & Roles. Deploy the frontend with it.
+- Doc 18 Phase C4: migration 000195 adds `pos_orders.receipt_prints` and `receipt_texts`. A new permission, Point of Sale → Receipts → Reprint Receipts, is not given to custom roles: give it in Settings → Users & Roles. The receipt needs Gotenberg 8 (its `singlePage`). Deploy the frontend with it.
+- Doc 18 Phase D1: migration 000196 adds `pos_held_orders` and `pos_settings.hold_hours`. Two new permissions under Point of Sale → Selling - Hold and Resume Orders, and Cancel Held Orders - are not given to custom roles: give them in Settings → Users & Roles. The scheduler runs `pos:expire-held-orders` hourly. Deploy the frontend with it.
+- Doc 18 Phase D2: migration 000197 adds `pos_payment_methods.confirms_later` and what a POS payment keeps of its confirmation - each payment so far given its customer payment's account. A new permission, Point of Sale → Pending Payments → Confirm Pending Payments, is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it.
+- Doc 18 Phase D3a: migration 000198 adds `pos_orders.on_account` and `credit_reason`. A new permission under Point of Sale → Selling, Create Credit Sales, is not given to custom roles: give it in Settings → Users & Roles. Credit sales need the full Sales app. Deploy the frontend with it.
+- Doc 18 Phase D3b: migration 000199 adds `pos_orders.credit_applied`. Deploy the frontend with it.
+- Doc 18 Phase D4: migration 000200 adds `pos_orders.invoiced_at`. Deploy the frontend with it.
+- Doc 18 Phase E1: migration 000201 adds `pos_returns` and `pos_return_lines`. A new permission group, Point of Sale → Returns and Refunds - Process Returns and Process Refunds - is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it.
+- Doc 18 Phase E2: migration 000202 adds what a return keeps of its refund's method, reason and confirmation. A new permission, Point of Sale → Returns and Refunds → Use Alternative Refund Methods, is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it.
+- Doc 18 Phase E3: migration 000203 links a return made as an exchange and the sale of its replacement. No new permission. Deploy the frontend with it.
+- Doc 18 Phase F1: migration 000204 adds cash movements and their approval limit. Two new permissions, Point of Sale → Cash Movements → Record Cash Movements and Approve Cash Movements, are not given to custom roles: give them in Settings → Users & Roles. Deploy the frontend with it.
+- Doc 18 Phase F2: migration 000205 adds what a paid out keeps: its payee, expense category and expense. No new permission. Deploy the frontend with it.
+- Doc 18 Phase F3: no migration. Deploy the frontend with it (a session's page gains X Report and Z Report).
+- Doc 18 Phase G1: migration 000206 puts Orders, Returns and Refunds, and Cash Movements in Point of Sale's menu. Three new permissions - Point of Sale → Orders → View, Returns and Refunds → View, and Cash Movements → View - are not given to custom roles: give them in Settings → Users & Roles. Deploy the frontend with it.
+- Doc 18 Phase G2: migration 000207 puts Overview first in Point of Sale's menu, for whoever may view POS's orders. Deploy the frontend with it (the Overview, and the Dashboard's Point of Sale card).
+- Doc 18 Phase G3: no migration. Deploy the frontend with it (the Documents page's Point of Sale source, POS labels and references, and refund receipts).
+- Doc 18 Phase H1: no migration. Give View POS Reports (POS Reports) to the custom roles that should see POS's reports. Deploy the frontend with it (the Reports page's Point of Sale group, its Register and Cashier filters, and its empty state).
+- Doc 18 Phase H2: no migration, and no frontend change of its own.
+- Doc 18 Phase H3: no migration, and no frontend change of its own.
+- Doc 18 Phase I1: migration 000208 adds a POS PIN to users, Settings → Point of Sale's lock minutes, and a session's last use and lock. Run `php artisan migrate`. Deploy the frontend with it (the selling screen's Lock and Set PIN, its lock screen, and the lock minutes in Settings → Point of Sale → Selling).
+- Doc 18 Phase I2: migration 000209 keeps who approved a price typed over (on order lines) and a refund by another method (on returns). Run `php artisan migrate`. Deploy the frontend with it (Ask a Manager on the selling screen, the cash dialog and the return dialog).
+- Doc 18 Phase I3: migration 000210 adds `pos_devices`. Run `php artisan migrate`. Deploy the frontend with it (the Registers page's Devices).
+- Doc 19 Phase A1: migration 000211 adds `ecommerce_settings` and `storefronts`, and offers eCommerce in the Apps Center (from Premium, needing Sales Lite) where it was still coming soon, with Storefronts in its menu. Then run `php artisan db:seed --class=AppCatalogSeeder` for its page's words. The new permissions, eCommerce (View eCommerce, Manage Storefront) and eCommerce Settings, are not given to custom roles: give them in Settings → Users & Roles. Deploy the frontend with it (the Storefronts page, and Settings → eCommerce).
+- Doc 19 Phase A2: migration 000212 adds each plan's storefront limit - Billing Starter 1, the others none - and its versions'. Deploy the frontend with it (Storage & Usage, and the plans).
+- Doc 19 Phase A3: migration 000213 adds `storefront_domains`. Set `ECOMMERCE_STOREFRONT_DOMAIN` (the domain the storefronts' izSuite addresses are under, store.izsuite.com unless set) and `ECOMMERCE_CNAME_TARGET` (where a business points its own domain) in `.env`. On the server: a wildcard DNS record and certificate for the storefront domain, and on-demand certificates for the businesses' own domains, asking `GET /api/v1/storefront-hosts?domain=` first (200 for a name izSuite answers for). A new permission, eCommerce → Domains: Manage Domains, is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it (the Storefronts page's Domains).
+- Doc 19 Phase B1: migration 000214 adds `catalog_products` and `catalog_product_storefronts`, and Catalog in eCommerce's menu (`AppCatalogSeeder` has it for new installs). Its pictures are kept on the public disk. A new permission group, eCommerce → Catalog (View, Publish Products, Manage Categories and Collections), is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it (the Catalog page and an item's page).
+- Doc 19 Phase B2: migration 000215 adds `catalog_categories`, `catalog_collections` and `catalog_collection_products`, and `custom_attributes` to `catalog_products`. Their pictures are kept on the public disk. Manage Categories and Collections, already in B1's Catalog group, now lets a role change them. Deploy the frontend with it (the Catalog page's Categories and Collections, and a listing's attributes).
+- Doc 19 Phase B3: migration 000216 adds `catalog_product_variants`, and `options` to `catalog_products`. Deploy the frontend with it (a listing's Options and Variants, and the Catalog page's variants).
+- Doc 19 Phase C1: no migration. Deploy the frontend with it (the storefronts at `/store/{code}`). Their pages render on the server, which reaches the API at `NUXT_API_BASE`; their pictures come from the API's public storage. A storefront's izSuite subdomain and custom domains (Phase A3) still need the server set up to serve it by its host.
+- Doc 19 Phase C2: no migration. Deploy the frontend with it (a storefront's category and collection pages, and its search's suggestions).
+- Doc 19 Phase C3: no migration. Deploy the frontend with it (a storefront's filters by price, options and attributes).
+- Doc 19 Phase C4a: migration 000217 adds `storefronts.theme`, `theme_draft` and `theme_published_at`. A theme's pictures are kept on the public disk. A new permission, eCommerce → Themes and Pages → Manage Themes and Pages, is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it (the Theme page, and the storefront in its theme; `nuxt.config.ts` now keys izSuite's icons, so a store's favicon takes their place).
+- Doc 19 Phase C4b: no migration. Deploy the frontend with it (the home page's sections and banners, on the Theme page and on the storefront).
+- Doc 19 Phase C5a: migration 000218 adds `storefront_pages`. No new permission: pages come under Manage Themes and Pages. Deploy the frontend with it (the Pages list and editor, and the store's pages and their links in its footer).
+- Doc 19 Phase C5b: migration 000219 adds `packages.storefront_page_limit` and `package_versions.storefront_page_limit` (Billing Starter 3, the others no limit). Deploy the frontend with it (pages of the business's own, and the plans' pages per storefront).
+- Doc 19 Phase C6a: no migration. Deploy the frontend with it (the storefront's head tags, product data and sitemap, and the Theme page's Search and Sharing). The sitemap's server route calls the API at `NUXT_API_BASE`, else `NUXT_PUBLIC_API_BASE`.
+- Doc 19 Phase C6b: migration 000220 adds `ecommerce_settings.cookie_notice` (on) and `cookie_notice_text`. Deploy the frontend with it (Settings → eCommerce's Cookie Notice, and the notice on the storefronts).
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

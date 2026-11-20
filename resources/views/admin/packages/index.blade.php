@@ -65,6 +65,8 @@
                                         $package->business_limit !== null ? trans_choice(':count business per account|:count businesses per account', $package->business_limit) : null,
                                         $package->user_limit !== null ? trans_choice(':count user|:count users', $package->user_limit) : null,
                                         $package->location_limit !== null ? trans_choice(':count location|:count locations', $package->location_limit) : null,
+                                        $package->storefront_limit !== null ? trans_choice(':count storefront|:count storefronts', $package->storefront_limit) : null,
+                                        $package->storefront_page_limit !== null ? trans_choice(':count page per storefront|:count pages per storefront', $package->storefront_page_limit) : null,
                                     ]);
                                 @endphp
                                 @if($limits)

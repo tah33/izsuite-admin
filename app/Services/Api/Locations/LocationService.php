@@ -13,6 +13,7 @@ use App\Repositories\User\PosRegisterRepository;
 use App\Repositories\User\ExpenseRepository;
 use App\Repositories\User\PurchaseRepository;
 use App\Repositories\User\SalesDocumentRepository;
+use App\Repositories\User\StorefrontRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\WorkspaceAccess;
@@ -47,6 +48,7 @@ class LocationService
         protected WorkspaceAccess $access,
         protected CrmLeadRepository $crmLeadRepository,
         protected CrmOpportunityRepository $crmOpportunityRepository,
+        protected StorefrontRepository $storefrontRepository,
     ) {}
 
     public function list(Workspace $workspace): Collection
@@ -172,6 +174,11 @@ class LocationService
         // Doc 18 Phase A2: a register belongs to one location.
         if ($this->posRegisterRepository->usesLocation($location)) {
             $this->refuse('POS registers belong to this location, so it cannot be deleted. Deactivate it instead.');
+        }
+
+        // Doc 19 Phase A1: a storefront sells from one location.
+        if ($this->storefrontRepository->usesLocation($location)) {
+            $this->refuse('Storefronts sell from this location, so it cannot be deleted. Deactivate it instead.');
         }
 
         // An account of the location would quietly become the whole business's.

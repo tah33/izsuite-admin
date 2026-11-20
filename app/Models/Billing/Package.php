@@ -37,6 +37,9 @@ class Package extends Model
         'business_limit',
         'user_limit',
         'location_limit',
+        // Doc 19 Phase A2: its storefronts, with eCommerce.
+        'storefront_limit',
+        'storefront_page_limit',
         // Its main currency: what a business pays in when the plan has no price in the business's own (Doc 15 Phase C3a).
         'price_currency',
         'trial_days',
@@ -57,6 +60,8 @@ class Package extends Model
         'business_limit'   => 'integer',
         'user_limit'       => 'integer',
         'location_limit'   => 'integer',
+        'storefront_limit' => 'integer',
+        'storefront_page_limit' => 'integer',
         'trial_days'       => 'integer',
         'grace_days'       => 'integer',
         'removes_branding' => 'boolean',

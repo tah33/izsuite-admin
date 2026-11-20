@@ -68,6 +68,8 @@ class StorageLimitsTest extends TestCase
             'storage'   => ['used_bytes' => 0, 'limit_bytes' => 100 * 1024 * 1024, 'percent' => 0, 'state' => 'ok'],
             'users'     => ['used' => 1, 'limit' => 1, 'state' => 'full'],
             'locations' => ['used' => 0, 'limit' => 1, 'state' => 'ok'],
+            // Doc 19 Phase A2: none while eCommerce is off.
+            'storefronts' => null,
         ], $this->usage());
     }
 

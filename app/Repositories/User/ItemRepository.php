@@ -217,8 +217,14 @@ class ItemRepository
         return $item->usedInCombos()->with('combo')->first()?->combo;
     }
 
+    /**
+     * The item, and first its online listing (Doc 19 Phase B1) through the
+     * listing's model, so the listing's pictures go too: the database would
+     * drop the listing's row alone.
+     */
     public function delete(Item $item): void
     {
+        $item->catalogProduct?->delete();
         $item->delete();
     }
 

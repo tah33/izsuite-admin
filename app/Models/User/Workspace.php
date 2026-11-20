@@ -397,6 +397,18 @@ class Workspace extends Model
         return $this->hasMany(PosPaymentMethod::class);
     }
 
+    /** Settings → eCommerce (Doc 19 Phase A1). */
+    public function ecommerceSetting(): HasOne
+    {
+        return $this->hasOne(EcommerceSetting::class);
+    }
+
+    /** Its online storefronts (Doc 19 Phase A1). */
+    public function storefronts(): HasMany
+    {
+        return $this->hasMany(Storefront::class);
+    }
+
     /** How each kind of document is numbered - a row only where a default was changed. */
     public function documentNumbering(): HasMany
     {

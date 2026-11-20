@@ -99,6 +99,11 @@ class PublicCatalog
                     'business_limit'   => $terms->business_limit,
                     'user_limit'       => $terms->user_limit,
                     'location_limit'   => $terms->location_limit,
+                    // Doc 19 Phase A2: whether it has eCommerce, and how many storefronts it gives a business.
+                    'sells_online'     => $package->apps->where('status', 'available')->contains('family_key', 'ecommerce'),
+                    'storefront_limit' => $terms->storefront_limit,
+                    // Phase C5b: how many pages of its own a business may keep on each.
+                    'storefront_page_limit' => $terms->storefront_page_limit,
                     // Each app once, by the highest edition the plan has: Sales, not Sales and Sales Lite.
                     'apps'             => $package->apps->where('status', 'available')->groupBy('family_key')->map(fn (Collection $editions) => Application::primaryOf($editions)->name)->values()->all(),
                     'coming_soon'      => $package->apps->where('status', 'coming_soon')->count(),
