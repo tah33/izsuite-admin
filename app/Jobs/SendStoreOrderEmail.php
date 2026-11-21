@@ -1,0 +1,39 @@
+<?php
+
+namespace App\Jobs;
+
+use App\Services\Api\Ecommerce\StoreOrderMailer;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
+
+/**
+ * Sends one e-mail of an online order to its customer (Doc 19 Phase D5) -
+ * the order received, with its own page's link, which the job carries
+ * encrypted: only its hash is kept. Tried three times, a few minutes apart;
+ * after that its row says it failed.
+ */
+class SendStoreOrderEmail implements ShouldBeEncrypted, ShouldQueue
+{
+    use Queueable;
+
+    public int $tries = 3;
+
+    /** @var list<int> seconds */
+    public array $backoff = [60, 300];
+
+    public function __construct(
+        public int $emailId,
+        public string $link,
+    ) {}
+
+    public function handle(StoreOrderMailer $mailer): void
+    {
+        $mailer->deliver($this->emailId, $this->link);
+    }
+
+    public function failed(?\Throwable $exception): void
+    {
+        app(StoreOrderMailer::class)->failed($this->emailId, $exception);
+    }
+}

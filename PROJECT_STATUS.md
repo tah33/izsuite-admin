@@ -2,10 +2,10 @@
 
 What is done, what comes next, and how to carry on from another PC.
 
-- **Last updated:** 2026-11-20
-- **Code:** Doc 19's gap check, Phase A - A1 (eCommerce on, with Settings → eCommerce and its storefronts), A2 (the plans' storefronts) and A3 (the storefronts' domains) - B1 (items published online), B2 (categories, collections and attributes) and B3 (options and variants) - and C1 (the storefront opens), C2 (its categories, collections and search suggestions) C3 (its filters by price, options and attributes), C4a (its theme and branding), C4b (its home page's sections and banners), C5a (its contact and about pages and its policies), C5b (pages of the business's own), C6a (its SEO) and C6b (its cookie notice) are built and checked on the second PC, not yet committed. Doc 18 Phases C2 (payment and the completed sale), C3 (discounts, price overrides and cash rounding), C4 (the receipt), D1 (holding and resuming orders), D2 (pending payments), D3a (credit sales), D3b (the customer's credit as a payment), D4 (the formal invoice), E1 (returns and their refunds), E2 (refund receipts and other refund methods), E3 (exchanges), F1 (cash movements), F2 (paying an expense from the drawer), F3 (the X and Z reports), G1 (the Orders, Returns and Refunds, and Cash Movements pages), G2 (the POS Overview and the Dashboard's POS card), G3 (POS documents on the Documents page), H1 (the POS sales reports), H2 (discounts, taxes, returns, voids and items), H3 (sessions and cash), I1 (the cashier's PIN and the register's lock), I2 (a manager's approval at the register) and I3 (registered devices) are built, checked on the second PC and committed together, not yet pushed: frontend `7933c6d` on `nuxt`, and on `main` the admin commit right after `8c8f380`. Phase C1 (the selling screen), just before them, is committed but not yet pushed either: frontend `27ce76c`, admin `8c8f380`. Doc 18's gap check and Phases A and B are pushed: B2b (counting cash by notes and coins), the last, is frontend `7166223` and admin `3936732`. Doc 17 is done and pushed: Phase I4, the last, is frontend `e20fa70` and admin `e5cd080`. Before I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
-- **Tests:** 1181 backend tests, last full run 2026-11-20 on the second PC: 1180 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Docs 17 or 18 (see [Small things left](#small-things-left)).
-- **Next step:** Doc 19 (eCommerce) Phase D: cart and checkout - the cart, shipping and pickup, checkout in its seven steps, the payment methods without a gateway, and the order with its confirmation e-mail; Doc 18's testing checklist is still to be worked through (see [What is next](#what-is-next)). Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Last updated:** 2026-11-21
+- **Code:** Doc 19 Phase D - D1 (shipping zones and methods, and pickup), D2 (payment methods without a gateway), D3 (the cart), D4 (checkout and the order) and D5 (the order's page and its confirmation e-mail) - is built, checked on the second PC through the API and in a headless browser, and committed and pushed: frontend `b4befbb` on `nuxt`, and on `main` the admin commit right after `47257f3`. Doc 19's gap check and Phases A to C (eCommerce on with its storefronts, the catalog, and the storefront's pages) are committed and pushed: admin `47257f3`, frontend `e7782c7`. Doc 18 is done and pushed: admin `85d748a`, frontend `7933c6d`. Doc 17 is done and pushed: Phase I4, the last, is frontend `e20fa70` and admin `e5cd080`. Before Doc 18 Phase I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
+- **Tests:** 1205 backend tests, last full run 2026-11-21 on the second PC: 1204 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Docs 17 to 19 (see [Small things left](#small-things-left)).
+- **Next step:** Doc 19 (eCommerce) Phase E: customer accounts - signing up, verifying, signing in and resetting the password; profile, addresses, orders, invoices and tracking; guest orders linked once verified; consent; closing the account. Phase D's testing checklist (blocks D1 to D5) is still to be worked through by a person, beyond the flows a headless browser checked, and so is Doc 18's. Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 19 Phase C6b the latest is 000220. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 19 Phase D5 the latest is 000225. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 19 Phase D.
+   > Read PROJECT_STATUS.md, then start Doc 19 Phase E.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -61,7 +61,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
 | **17** | **CRM** | **Done (2026-11-19): gap check and Phases A to I; Campaign-to-Opportunity Results waits for Doc 21** |
 | **18** | **Point of Sale** | **Done (2026-11-20): gap check and Phases A to I; offline mode (18.29) later, and what waits for Inventory and the integrations (see below)** |
-| **19** | **eCommerce** | **In progress: gap check, Phases A (A1 to A3), B (B1 to B3) and C (C1 to C6), done 2026-11-20, Phase D next** |
+| **19** | **eCommerce** | **In progress: gap check, Phases A (A1 to A3), B (B1 to B3) and C (C1 to C6), done 2026-11-20; Phase D (D1 to D5) done 2026-11-21, Phase E next** |
 | 20 and 21 | Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -2817,7 +2817,7 @@ The gap check was done on 2026-11-19. Doc 18 is Point of Sale: fast selling over
       - Found while checking: the daily usage snapshot ran during the check, with POS on; it was deleted with the rest.
       - The devices, session, order, invoice, payment, account entries, accounts, register, settings, the app's and taxes' state, the sign-in and the activity were then put back. The database matched its backup, but for migration 000210's table.
 
-### 7. Doc 19: eCommerce (next: Phase D)
+### 7. Doc 19: eCommerce (next: Phase E)
 
 The gap check was done on 2026-11-20. Doc 19 is eCommerce: the business's online storefront, where customers browse its items, order and pay, follow their orders, download what they bought and ask for returns. It sells through the shared Contacts, Items, Taxes, Payment Accounts and Sales records: an online order counts as a sale once, through its invoice.
 
@@ -3135,7 +3135,136 @@ The gap check was done on 2026-11-20. Doc 19 is eCommerce: the business's online
       - A member who may only view the catalog, through the app itself: 403 on reading and on saving the settings.
       - At phone width the notice fits, its words above its buttons.
       - The store, the settings and the rest were then put back. The database matched its backup, but for migration 000220's changes. 000220 was rolled back and run again.
-- **Phase D: cart and checkout** - the cart and its prices; shipping zones and methods, and pickup locations; checkout in its seven steps, the contact found or made, consent, the payment methods without a gateway, the order and its confirmation e-mail. Permissions Manage Shipping and Manage Payment Methods.
+- **Phase D: cart and checkout** - the cart and its prices; shipping zones and methods, and pickup locations; checkout in its seven steps, the contact found or made, consent, the payment methods without a gateway, the order and its confirmation e-mail. Permissions Manage Shipping and Manage Payment Methods. Split on starting it (2026-11-21), with these defaults:
+  - **D1, shipping zones and methods, and pickup points** (19.26), in Settings → eCommerce under a new permission, Manage Shipping:
+    - a zone: its name and countries, narrowed if wished to regions, cities and postal codes (a code, or its start with `*`). An address takes the methods of the first zone it matches, in the zones' order;
+    - a zone's methods: flat rate, free, by weight, by order value or by quantity (each in bands), local delivery, or quoted after the order. Each has its price in the base currency, its tax (none, or a sales tax rate), its delivery days, the order values and weights it takes, the categories it carries (every product unless some are chosen), and is on or off. Carrier rates wait for the carriers' integrations;
+    - pickup points: the business's active locations, each switched on with its instructions and when an order is ready. Pickup is free;
+    - only physical products need shipping: digital products and services do not.
+  - **D2, payment methods without a gateway** (19.22), in Settings → eCommerce under a new permission, Manage Payment Methods: bank transfer, mobile money or wallet, cash on delivery and pay on pickup. Each takes money into an active payment account that takes customer payments, for orders in that account's currency; has its instructions to the customer; may ask for the customer's payment reference; and is offered for the countries, order amounts and delivery (shipped, picked up or either) chosen. Cash on delivery is for shipped orders and pay on pickup for picked-up ones. Cards and gateways wait for the payment integrations, and the customer's credit for signed-in customers (Phase E).
+  - **D3, the cart** (19.13, 19.14): kept by the API for each visitor of a storefront, by a token their browser keeps. Priced as the store shows prices: the item's price, or with full Sales the storefront's own price list (new on the storefront), with its quantity breaks. Its estimated tax is shown. Add to Cart on a product's page for one sold at its price, its variant chosen, never beyond what a Limited product has left, up to 50 lines; a cart page; and carts expire after Settings → eCommerce's days (30). A cart reserves nothing.
+  - **D4, checkout and the order** (19.15 to 19.20):
+    - the steps on one page: customer details, addresses, delivery or pickup, payment, review, terms and privacy, then the confirmation. Guests may check out unless Settings → eCommerce says not; signing in comes with Phase E. A cart of digital products or services skips delivery;
+    - shipping only to the storefront's countries. The API works out the totals again, and refuses an order whose total is no longer the one reviewed. Placing an order twice makes one;
+    - the order: numbered from the order prefix (EC-00001), Pending, its payment Unpaid, its fulfilment Unfulfilled (Not Required when nothing is shipped), with its lines' prices and where they came from, taxes, shipping, and the customer's details and addresses as given;
+    - its contact: the one an earlier guest order made for the same e-mail, else a new customer contact. A contact of the business's own with that e-mail is not linked while the e-mail is unverified (Phase E links verified customers); the two are merged by hand if they are one;
+    - the terms and privacy policy accepted, recorded on the order. Marketing consent is optional and apart: given, it is recorded as the contact's consent (Promotions and Offers, by e-mail, from the website form);
+    - its invoice is issued when it is confirmed (Phase F). The business's Orders page comes with Phase F; until then each order is in the Activity Log.
+  - **D5, the confirmation** (19.20, 19.35): the order's page for the customer at its own secure link - its number, lines, totals, delivery, payment status and instructions - and the order-received e-mail, through the queue.
+  - **Phase D1 is built** (migration 000221): shipping and pickup (19.26), in Settings → eCommerce under a new permission, eCommerce → Shipping → Manage Shipping.
+    - **Zones**, in an order. Each has a name of its own in the business, its countries, and - if wished - the regions, cities and postal codes it is narrowed to, up to 200 of each. A postal code may be a start followed by `*`: 12* holds 1207.
+    - **An address takes the methods of the first zone it is in**: its country among the zone's, and its region, city and postal code among those the zone names. Names match whatever their case, postal codes whatever their spaces. So a narrow zone (Inside Dhaka) goes before a wide one (Bangladesh).
+    - **A zone's methods**, in an order:
+      - flat rate and local delivery (by the business itself), each at a price; free; or quoted after the order, with no price yet;
+      - by weight, by order value or by quantity: up to 20 bands, each from a value at a price, kept from the lowest. An order pays the band of the highest start it reaches; one below the first start is not offered the method;
+      - each with its tax (none, or a sales tax rate that is on, while the business has taxes on), its delivery days, the order values and weights it takes, the categories it carries, and on or off. With categories chosen, a method is offered only when every product shipped is of them.
+    - Prices and order values are in the base currency, as items' prices are; weights in kg. A zone deleted takes its methods with it. Each zone, method and pickup change is logged.
+    - **Pickup**: the business's active locations - and an inactive one still offered - each switched on with its instructions and when an order is ready ("Ready in 2 hours"). An inactive location is not switched on. Pickup is free, and every storefront offers it at the locations switched on.
+    - **What a checkout will be offered** (`ShippingRates`, for Phase D4): the address's zone, and its methods that are on and take the order, each at its price - none yet when quoted. An order's weight comes from the catalog: each listing's or variant's weight, in kg, g, lb or oz, turned into kg.
+    - **Who may**: Manage Shipping comes with eCommerce's View and Settings' View. The Settings → eCommerce tab shows for it or for Manage Application Settings, each card as the role allows. Roles made from the Manager template get it, as they get CRM's rules in Settings → CRM.
+    - The API: `GET /api/v1/business-settings/ecommerce/shipping`; `POST`, `PUT` and `DELETE` on `.../shipping-zones` and `.../shipping-methods`; and `PUT .../pickup-points/{location}`.
+    - **Checked through the API** on the second PC, not in the browser, which this session could not drive. As `user@izsuite.io` with eCommerce switched on by hand, and as two throwaway members:
+      - Shipping read empty, with Main Location as a pickup point not offered, no tax rates (taxes off) and USD.
+      - Inside Dhaka (Bangladesh; Dhaka; postal codes 12* and 1000) and Bangladesh were added at places 1 and 2: "Shipping zone added.". Bangladesh again: "Another shipping zone has this name."; a postal code *12 was refused.
+      - Methods: Local Delivery ($2.50, 0-1 days) and Free Over 50 in Inside Dhaka. In Bangladesh, Courier by weight - bands given from 5 kg then 0, kept from 0: $6, then $12 from 5 kg, up to 20 kg, 2-4 days - and Freight, quoted, from 20 kg. A quantity method with no rates: "Give at least one rate."; weights from 10 to 2: "The heaviest weight is below the lightest."
+      - Pickup at Main Location with its instructions and "Ready in 2 hours": "Pickup saved.".
+      - A member with eCommerce's settings alone: 403 on shipping. A member with Manage Shipping alone: shipping read, and Standard ($5) added to Bangladesh.
+      - What a checkout would be offered (`ShippingRates`, in tinker): Dhaka 1207 with an order of $60, Inside Dhaka's Local Delivery 2.50 and Free Over 50; Sylhet at 6 kg, Courier 12.00 and Standard 5.00; at 25 kg, Freight (quoted) and Standard; Kolkata, no zone.
+      - Settings → eCommerce, rendered on the server for the Manage Shipping member: the Shipping card, without the general settings. Its dialogs are left to the [testing checklist](#testing-checklist).
+      - The zones, methods, pickup, members, tokens, the app's state and the activity were then put back. The database matched its backup, but for migration 000221's tables.
+  - **Phase D2 is built** (migration 000222): the storefronts' payment methods without a gateway (19.22), in Settings → eCommerce under a new permission, eCommerce → Payment Methods → Manage Payment Methods.
+    - **Each method**, in an order, has a name of its own in the business, which customers see; its type - bank transfer, mobile money or a wallet, cash on delivery, or pay on pickup; the payment account it takes money into, an active one that takes customer payments (or its own still); and its instructions, shown at checkout and with the order.
+    - **A bank transfer or mobile money** must say how to pay. Its customers may give their payment's reference at checkout: not asked, optional (a transfer's to start) or required (mobile money's). It may be for shipped orders, picked-up ones, or either.
+    - **Cash on delivery** is for shipped orders, and paying on pickup for picked-up ones. Neither asks a reference.
+    - **It is offered** for orders in its account's currency, in the countries it names (none: every one), and within its order amounts (the order's total).
+    - **What an order will be offered** (`EcommercePaymentOptions`, for Phase D4): the methods on, whose account is active, takes customer payments and is in the order's currency, for its country, amount and delivery. An order with nothing to ship or collect - digital products and services - is offered only the methods for either.
+    - Each method added, changed or deleted is logged. A method whose account is switched off, or stops taking customer payments, is kept but says it cannot be used, and is not offered. Orders placed by a method (Phase D4) will keep what it was.
+    - **Who may**: Manage Payment Methods comes with eCommerce's View and Settings' View. Roles made from the Manager template get it, as they get Manage Shipping.
+    - Cards and gateways wait for the payment integrations, and the customer's credit for signed-in customers (Phase E). Confirming the payments comes with Phase F.
+    - The API: `GET`, `POST`, `PUT` and `DELETE /api/v1/business-settings/ecommerce/payment-methods`.
+    - **Checked through the API** on the second PC, not in the browser. As `user@izsuite.io` with eCommerce switched on by hand and two USD accounts made for the check (City Bank and Cash Box), and as two throwaway members:
+      - The methods read empty, with both accounts to choose from.
+      - A bank transfer with no instructions: "Tell customers how to pay: the account or number to pay into." With them, for Bangladesh and orders up to 5,000: "Payment method added.", its reference optional.
+      - bKash (mobile money) with its reference required. Cash on Delivery from 10, sent with a required reference and for picked-up orders: kept with none, for shipped orders.
+      - A member with Manage Payment Methods alone added Pay at the Shop. A member with Manage Shipping alone was refused the methods (403).
+      - "bKash" again: "Another payment method has this name."; amounts from 50 to 10: "The highest order amount is below the lowest."
+      - What orders would be offered (`EcommercePaymentOptions`, in tinker), in USD to Bangladesh: $120 shipped, Bank Transfer, bKash and Cash on Delivery; picked up, Bank Transfer, bKash and Pay at the Shop; nothing to deliver, Bank Transfer and bKash. To India: bKash and Cash on Delivery. $6,000: bKash and Cash on Delivery. $5: Bank Transfer and bKash. In euros: none.
+      - Settings → eCommerce, rendered on the server for the member with Manage Payment Methods: the Payment Methods card alone. Its dialog is left to the [testing checklist](#testing-checklist).
+      - The methods, accounts, members, tokens, the app's state and the activity were then put back. The database matched its backup, but for migration 000222's table.
+  - **Phase D3 is built** (migration 000223): the cart (19.13, 19.14).
+    - **A visitor's cart** needs no sign-in. Its first product makes it, on the storefront, and gives back a token, which a cookie of the store's keeps for a year; only the token's hash is kept. It lasts while it is used: Settings → eCommerce's Keep Carts For (30 days to start, 1 to 365) counts from its last use, and then it expires (hourly). A cart is not an order or a sale, and reserves nothing.
+    - **Add to Cart**, on the page of a product sold at its price: how many, whole ones, with its options chosen when it has variants. It must be one the store shows, in stock, and never more than a Limited one has left, counting what the cart has already. A product sold by quotation or on request, out of stock, or with no price is refused, and so are a 51st line and more than 999 of a product. A refused first product makes no cart.
+    - **The cart page** (`/store/{code}/cart`): each line's picture, product and options, its price - and, once, the price it was shown at before when that changed - its quantity, changed one at a time or typed, its amount, and Remove. The header shows how many products the cart holds.
+    - **Read as the store sells now**, every time:
+      - a line whose product the store no longer shows or sells at its price, or whose variant it no longer shows, is Unavailable;
+      - one out of stock is Out of Stock, and one beyond what is left is Limited, with what is left;
+      - such lines are left out of the totals, and checkout waits until they are changed.
+    - **Prices** (19.13): with full Sales, a storefront may sell at a price list of its own - a new Price List field on the storefront, an active list in its currency for its location - with the list's quantity breaks, on its pages and in the cart. Otherwise each item's own price. A customer's own price list waits for signed-in customers (Phase E), and promotions for Phase H. The shop's sorting by price still goes by the items' own prices.
+    - **Totals** are worked out as the invoice will be (`SalesLines`, `SalesCalculator`), with the tax a sale takes for no customer: the subtotal as the store shows prices, then the tax - on its own line when prices are shown without it, said under the total when they include it - and the total. Shipping comes at checkout.
+    - A cart's changes are not business activity: none is logged.
+    - The API, without signing in: `GET /api/v1/stores/{code}/cart`, `POST .../cart/lines`, and `PUT` and `DELETE .../cart/lines/{line}`, the cart known by `X-Cart-Token`. Besides: the storefront's `price_list_id` and its options' `price_lists`, the settings' `cart_days`, and `php artisan ecommerce:expire-carts`, scheduled hourly.
+    - **Checked through the API** on the second PC, not in the browser, signed out. On a live store made for the check, Rahman Shop (`rahman-shop`), with Ceramic Mug ($8), Classic T-Shirt (S out of stock, M hidden, L with 3 left) and Custom Shelf (by quotation):
+      - The cart read empty without a token. Two mugs: "Added to your cart.", a 48-character token, $16.00, ready.
+      - The T-shirt in S: "Out of stock." - with no token sent, and no cart made. In M (hidden): "Choose its options."; four in L: "Only 3 left."; two in L: added, Size L, TS-L, $12.00. The shelf: "This product is not sold online at a price: ask the store about it."
+      - The mugs set to 3. Then, in the database, the mug's price to $9 and L's stock to 1: the cart read the mug at $9.00, "was 8.00", and L Limited with 1 left, outside the $27.00 total, not ready. L set to 2 again: "Only 1 left."; removed: ready.
+      - Another token: "Your cart has expired. Add the products again." (404).
+      - Settings → eCommerce: Keep Carts For 0, "Keep carts for a day at least."; 14 saved, and the cart's expiry moved to 14 days from its next use.
+      - Rendered on the server: the T-shirt's page with Add to Cart and the header's cart; the shelf's with "Ask us for a quotation" and no Add to Cart; the cart page, "Your Cart", loading in the browser, kept from search engines (noindex). The rest is left to the [testing checklist](#testing-checklist).
+      - A storefront's price list needs full Sales, which the dev business does not have: the tests check it.
+      - The store, items, listings, variants, cart, settings, token, item numbers, the app's state and the activity were then put back. The database matched its backup, but for migration 000223's changes.
+  - **Phase D4 is built** (migration 000224): checkout and the order (19.15 to 19.20).
+    - **Checkout** (`/store/{code}/checkout`, from the cart page) has its steps on one page:
+      1. the customer's details: name, e-mail, phone as Settings → eCommerce asks (required to start, optional, or not asked), and a company if they buy for one;
+      2. the billing address, in any country, and - with something to deliver - whether it is delivered there, else an address of its own in a country the store sells to;
+      3. delivery: the shipping methods of the zone the address is in (Phase D1), each at its price as the store shows prices, free, or quoted after the order - or a pickup point, free;
+      4. payment: the ways to pay offered for the order's currency, country, total and delivery (Phase D2), with the chosen one's instructions, and the customer's payment reference where the method takes one;
+      5. and 6. the review - products, delivery, tax and total - a note when the store asks for one, the terms and privacy policy to accept (linked once published), and marketing consent, optional and apart;
+      7. the confirmation: the order's number, how to pay it, how it reaches the customer, and what was ordered.
+    - What the cart comes to is worked out by the API again whenever a choice changes, and once more when the order is placed. A cart of digital products and services alone skips delivery, and is offered only the ways to pay for either delivery.
+    - **Placing an order** needs the store Live and taking guests; every line of the cart buyable; the delivery and payment chosen still offered; the shipping address in a country the store sells to; the payment's reference when the method requires it; the terms accepted; and the total the customer reviewed - else "The total is now USD 21.00: review your order, then place it again." (409). Signing in comes with Phase E, so a store with guest checkout off takes no orders until then. The team previewing a store not yet Live may try its checkout, but not place an order.
+    - **A cart becomes one order at most**: placed again, it answers with the same order. Nothing is reserved or counted down: confirming the order does that (Phase F).
+    - **The order** is numbered from Settings → eCommerce's prefix (EC-00001, its own sequence) and is Pending. Its payment is Unpaid - Pending once the customer gives a payment reference - and its fulfilment Unfulfilled, or Not Required when nothing is delivered. It keeps:
+      - the customer's details and addresses as given;
+      - each product's listing, variant, item, title, options and SKU, its price as the business keeps prices and as shown, where the price came from (the item or the storefront's price list), its tax and its weight;
+      - the shipping as a line of its own, with its tax;
+      - how it is delivered - the method's name, price and days, or the pickup point's name, address and instructions - and how it is paid: the method's name, type and instructions, and the reference;
+      - the customer's note, the terms' acceptance and the marketing consent, the customer's address and browser, and where the visit came from: the utm source, medium and campaign and the site that sent it, kept 30 days on the store;
+      - its location, currency and rate, and its totals.
+    - **Its contact** (19.17): a guest's e-mail is unverified, so the order is linked only to a contact an earlier guest order made for that e-mail - still active and with it, or the one it was merged into. Otherwise a new shared contact is made: a customer - an individual, or a business when a company is given, the buyer its contact person - with the e-mail, phone and addresses given, the store's language and a note naming the order. A contact of the business's own with that e-mail is never linked by it; the two are merged by hand if they are one.
+    - **Marketing consent**, given, is recorded as the contact's: Promotions and Offers, by e-mail, from the website form, the order its evidence. A business without Settings → CRM's consent purposes gets the starting list.
+    - **Kept for its orders**: a storefront with orders is archived, not deleted; a contact or an item on an online order is deactivated, not deleted; and a listing on one, taken out of the catalog, is archived instead.
+    - Each order placed, contact made and consent recorded is in the Activity Log as the customer's doing. The business's Orders page and confirming an order (its invoice) come with Phase F; the confirmation e-mail and the order's own page with D5.
+    - Settings → eCommerce gains Phone at Checkout (required, optional or not asked) and whether customers may leave a note.
+    - The API, without signing in: `POST /api/v1/stores/{code}/checkout/quote` and `POST /api/v1/stores/{code}/checkout`, the cart known by `X-Cart-Token`. The settings gain `checkout_phone` and `checkout_notes`.
+    - **Checked through the API** on the second PC, not in the browser, signed out. On Phase D3's dev store, with Bangladesh's Standard ($5, 2-4 days) and Freight (quoted after the order), pickup at Main Location, and Bank Transfer, bKash (reference required), Cash on Delivery and Pay at the Shop:
+      - Two mugs, then the quote with no address: pickup at Main Location, Bank Transfer and bKash, $16.00. With Dhaka and Standard: Standard $5.00 and Freight (no price), Cash on Delivery offered too, $21.00.
+      - The terms unticked: "Accept the terms and the privacy policy to place your order."; bKash without a reference: "Give your payment's reference (its transaction ID)."; the old total: "The total is now USD 21.00: review your order, then place it again." (409).
+      - Placed by bank transfer with reference TRX-1001, marketing consent and a note, from "facebook": "Order placed.", EC-00001, Pending, its payment Pending, Unfulfilled, $21.00. Placed again: the same order (200).
+      - Its contact C-00007, Karim Rahman, a customer in Dhaka, "Made by the online order EC-00001 on Rahman Shop."; consent given for Promotions and Offers by e-mail from the website form, after the business's 34 starting CRM options were added; the cart Converted.
+      - A T-shirt in L, collected at Main Location and paid at the shop, for KARIM@example.test: EC-00002, Unpaid, the same contact.
+      - The Activity Log: the contact, the consent and both orders, by no user.
+      - The checkout page, rendered on the server with a cart: "Checkout", loading in the browser, kept from search engines. Its steps are left to the [testing checklist](#testing-checklist).
+      - Found while checking: the delivery's snapshot had a `kind` of its own (the method's), which hid the order's delivery kind in what the customer sees. It is `method_kind` now.
+      - The store, its shipping, pickup and payment methods, the orders, carts, contact, consent, the CRM options started for it, accounts, items, sequences, token, the app's state and the activity were then put back. The database matched its backup, but for migration 000224's changes.
+  - **Phase D5 is built** (migration 000225), and with it Phase D: the order's confirmation (19.20, 19.35).
+    - **The order's own page** (`/store/{code}/orders/{key}`), for its customer without signing in: its link's key - 64 characters, only its hash kept - is given at checkout and in the e-mail, and is the same however often the cart is placed. It shows when the order was placed, its three statuses in words ("Received", "Payment: not paid yet", "Delivery: not sent yet"), how to pay it, how it reaches them, and what they ordered at what total - rendered on the server and kept from search engines. It shows while the store is there, open or not: the order is the customer's. A wrong key, or another store's, finds nothing. Signed-in customers' orders come with Phase E.
+    - **The confirmation** (checkout's last step) links to that page.
+    - **The order-received e-mail**, sent through the queue once the order is saved: from izSuite's address under the store's name, with replies to its support e-mail. It holds the order's number and day, what was ordered and its totals - in the business's formats - how it reaches them (the address, or the pickup point's instructions and when it is ready), how to pay it (the amount and reference to use, or the reference given), the method's instructions, a button to the order's page, and the store's phone.
+    - **The order's e-mail history**, kept with it: each e-mail's kind, to whom, and whether it was queued, sent, or failed after three tries - with why. One sent already is never sent again. The order's later news (confirmed, shipped and so on) come with Phases F, G and I.
+    - The API, without signing in: `GET /api/v1/stores/{code}/orders/{key}`.
+    - **Checked through the API** on the second PC, not in the browser, with Phase D4's dev store:
+      - An order placed by bank transfer: its e-mail row Sent within two seconds, by the queue worker. The dev log held the e-mail: to karim@example.test, Reply-To "Rahman Shop <help@rahman.test>", "Your order EC-00001 at Rahman Shop", "Dear Karim Rahman", "2 × Ceramic Mug: $16.00", "Delivery: Standard" with the address, "Pay $21.00, with your order number, EC-00001, as the payment's reference.", the button to its page, and "or call +8801700000000".
+      - Found while checking: the plain-text part escaped the apostrophe ("payment&#039;s"); it is printed as it is now, as other plain-text e-mails are.
+      - The order's page through the API: EC-00001, Pending, Unpaid, without its key; a made-up key: "There is no such order. Check the link you were sent." (404). Rendered on the server: "Order EC-00001", "Placed on November 21, 2026", Received, "Payment: not paid yet", "Delivery: not sent yet", what was ordered, noindex.
+      - The store, its order, e-mail and the rest were then put back. The database matched its backup, but for migration 000225's table.
+  - **Phase D in a headless browser** (2026-11-21, after D5): Chromium driven by Playwright in Docker (`../doc-19-phase-d-ui-check.py`; see [Things that catch you out](#things-that-catch-you-out)), on the dev store - 19 steps, all passing in the end:
+    - As a member with eCommerce's settings, Manage Shipping and Manage Payment Methods: Settings → eCommerce showed its four cards. Add Zone "Bangladesh"; a zone "Dhaka City" with the city and postal code 12* typed as tags ("cities Dhaka; postal codes 12*"); Standard (USD 5.00, 2-4 days); Courier by weight with two rates ("2 rates, from USD 6.00"); a method by quantity without a price refused in its dialog; pickup at Main Location, Offered; Bank Transfer and Cash on Delivery ("Shipped only"). At phone width the cards and the method's dialog fit.
+    - As a visitor: the T-shirt's Add to Cart greyed out in S (out of stock); two in L added, the header counting 2; two more refused, "Only 3 left."; a mug added (3); no Add to Cart for the shelf. The cart page: + on the mug, $40.00. Checkout: details, address, Standard and Bank Transfer, $45.00; Place Order refused without the terms; then "Order EC-00001 is placed", the header's cart empty; its own page, "Payment: not paid yet", "Delivery: not sent yet". At phone width the product, cart and checkout fit, the review last.
+    - **Found, and fixed**:
+      - Settings → eCommerce never loaded the countries, so a zone's and a payment method's country lists were empty, and zones showed country codes. SettingsEcommerce loads them now.
+      - Checkout: an answer to an address typed earlier came back after the customer chose a delivery, and undid the choice - Place Order was then refused, "Choose one of the delivery options offered for this address." An answer to choices since changed is now dropped, and Place Order waits for one still due.
+      - The line above the cart's Total broke at the summary's column gap; the confirmation's "see your order" looked like plain text. Both mended.
+    - The screenshots were read one by one. The dev data was then put back; the database matched its backup, but for migration 000225's table.
 - **Phase E: customer accounts** - signing up, verifying, signing in and resetting the password; profile, addresses, orders, invoices and receipts, tracking, guest orders linked once verified, consent, and closing the account.
 - **Phase F: orders in the business** - the Orders page, and an order's page with its three statuses and timeline; confirming it (its invoice), holding it for review and releasing it, cancelling it, editing it before payment, payments confirmed or failed, and payment links. Permissions View, Edit, Confirm, Place On Hold and Cancel Orders.
 - **Phase G: fulfilment** - fulfilments, partial ones too, with carrier and tracking; ready for pickup, shipped and delivered; the delivery document; digital delivery (secure downloads within limits, license keys, links, by hand) and services. Permission Manage Fulfilment.
@@ -3228,6 +3357,11 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 19: Phase C5b | 000219 |
 | Doc 19: Phase C6a | none |
 | Doc 19: Phase C6b | 000220 |
+| Doc 19: Phase D1 | 000221 |
+| Doc 19: Phase D2 | 000222 |
+| Doc 19: Phase D3 | 000223 |
+| Doc 19: Phase D4 | 000224 |
+| Doc 19: Phase D5 | 000225 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -4219,6 +4353,90 @@ On a fresh business, set the days in Settings → CRM to fit what you have, rath
 - [ ] Switch the notice off: a new visitor sees none.
 - [ ] At phone width the notice fits.
 
+**Phase D1: shipping zones and methods, and pickup**
+
+**Before you start:** eCommerce on; a member with Manage Shipping alone, and one with eCommerce Settings alone. Its main screens were driven in a headless browser after Phase D5; the rest are tested here.
+
+- [ ] Settings → eCommerce shows Shipping and Pickup under the general settings. Shipping says "No zones yet".
+- [ ] Add Zone "Inside Dhaka": Bangladesh, the city Dhaka, postal codes 12* and 1000. Add "Bangladesh" after it. Each row shows its place and where it covers.
+- [ ] A second zone of the same name is refused, and a postal code *12 is refused under its field.
+- [ ] Add Method to Inside Dhaka: Local Delivery at 2.50, delivered in 0 to 1 days. The row shows its price and "0-1 days".
+- [ ] Add a method by weight to Bangladesh with two rates, the higher one first: they are saved from the lowest. Edit it: the rates come back as saved.
+- [ ] A method by quantity with no rate, or a lightest weight above the heaviest, is refused under its field.
+- [ ] With taxes on, the Tax field lists the sales tax rates that are on.
+- [ ] Carries: choose a category. The row says "1 category".
+- [ ] Switch a method off: it shows Off. Delete a zone: its methods go with it.
+- [ ] Pickup: Edit Main Location, switch it on with instructions and "Ready in 2 hours": "Pickup saved." and Offered.
+- [ ] Make a location inactive: it leaves the list unless it is still offered, and switching it on is refused.
+- [ ] As the member with Manage Shipping alone: Shipping and Pickup, without the general settings.
+- [ ] As the member with eCommerce Settings alone: no Shipping or Pickup.
+- [ ] At phone width the cards and the method's dialog fit.
+- [ ] The Activity Log names each change.
+
+**Phase D2: payment methods without a gateway**
+
+**Before you start:** eCommerce on; two payment accounts taking customer payments, one in another currency; a member with Manage Payment Methods alone. Its dialog was driven in a headless browser after Phase D5; the rest is tested here.
+
+- [ ] Settings → eCommerce shows Payment Methods: "None yet".
+- [ ] Add a bank transfer without instructions: refused under Instructions. With them, for Bangladesh, up to 5,000: "Payment method added.". The row shows its account and currency, "Shipped or picked up · Bangladesh · up to …" and Optional.
+- [ ] Add bKash as mobile money: its reference turns Required.
+- [ ] Add Cash on Delivery: the form has no reference or delivery fields, and the row says Shipped only. Pay on pickup says Picked up only.
+- [ ] Two methods cannot share a name, and amounts from 50 to 10 are refused.
+- [ ] Switch a method's account off in Payment Accounts: the method says it cannot be used. Switch a method off: it shows Off.
+- [ ] Delete a method through its confirmation.
+- [ ] As the member with Manage Payment Methods alone: the Payment Methods card alone.
+- [ ] At phone width the card and its dialog fit. The Activity Log names each change.
+
+**Phase D3: the cart**
+
+**Before you start:** a live storefront with a product sold at its price, one with variants (one out of stock, one hidden, one Limited with 3 left), and one sold by quotation. Open the store in a private window.
+
+- [ ] The product's page has Add to Cart; the quotation's has "Ask us for a quotation" instead. The header shows a cart.
+- [ ] Add 2: "Added to your cart. View your cart", and the header counts 2. Add 2 more: the cart shows 4 on one line.
+- [ ] The product with variants: options with no variant say they are not sold; the one out of stock cannot be added; 4 of the Limited one: "Only 3 left."
+- [ ] The cart page: each line's picture, options, price and amount; − and + change the quantity; Remove takes it out. The totals change with them.
+- [ ] Change a product's price in Items, then reload the cart: the new price, "was" the old one; reload again: the "was" is gone.
+- [ ] Lower the Limited product's quantity in the catalog below the cart's: its line says how many are left, is left out of the total, and Checkout is greyed out until it is lowered.
+- [ ] Take a product out of the catalog: its line says it is no longer sold here.
+- [ ] With taxes on and prices shown with tax: "Includes … tax." under the total. Shown without tax: a Tax line.
+- [ ] Settings → eCommerce: Keep Carts For 0 is refused; save 14.
+- [ ] With full Sales: give the storefront a price list with a quantity break. The product's page shows the list's price, and the cart takes the break.
+- [ ] Close the private window and open the store again: the cart is still there. Another browser has its own.
+- [ ] At phone width the header, the product's Add to Cart and the cart page fit.
+
+**Phase D4: checkout and the order**
+
+**Before you start:** Phase D1's shipping (a zone with a flat rate and a quoted method), pickup at one location, and Phase D2's payment methods (a bank transfer, mobile money with its reference required, cash on delivery and pay on pickup); a live storefront with a physical product and a digital one. Open the store, through a link with `?utm_source=newsletter`, in a private window.
+
+- [ ] Cart → Checkout: Your Details, Addresses, Delivery, Payment, and Review and Place beside them. The store's single country is chosen for the addresses.
+- [ ] Before an address, Delivery offers only pickup. Give a city in the zone: its methods appear with their prices and days; the quoted one says "Quoted later".
+- [ ] Choose a method: the total gains it. Choose pickup: the delivery is free, and Pay on pickup replaces Cash on delivery.
+- [ ] Untick "Deliver to this address": an address of its own, among the store's countries. A billing address abroad, delivered there, is refused under its country.
+- [ ] Mobile money: Place Order without its reference is refused under it. A bank transfer: its instructions show, and the reference is optional.
+- [ ] Place Order without accepting the terms: refused under the box. With the terms and privacy pages published, the box links to them.
+- [ ] Place it, with marketing ticked and a note: "Thank you for your order", its number (EC-00001), how to pay, how it reaches you, what was ordered.
+- [ ] The header's cart is empty. Go back and press Place Order again in the browser's history: no second order.
+- [ ] In Contacts: a new customer with the details and address given, its note naming the order; its Marketing Consent card (with CRM on) shows Promotions and Offers by e-mail, from the website form.
+- [ ] A second order with the same e-mail in other letters: the same contact. A contact you add yourself with an e-mail is never taken by a guest's order.
+- [ ] A digital product alone: no Delivery step, and only the ways to pay for either delivery.
+- [ ] Change a product's price between the review and Place Order: "The total is now …: review your order, then place it again."
+- [ ] Settings → eCommerce: Phone at Checkout Optional, then Not asked; untick notes. The checkout follows. Guest checkout off: Place Order is greyed out, saying the store takes orders from signed-in customers only.
+- [ ] Deleting the storefront, the order's contact or its item is refused; Take Out of the Catalog archives the listing instead.
+- [ ] The Activity Log shows the order placed, the contact added and the consent, by no user.
+- [ ] At phone width the checkout's steps stack, the review last, and the confirmation fits.
+
+**Phase D5: the confirmation**
+
+**Before you start:** Phase D4's set-up, the queue worker running, and a support e-mail and phone on the storefront. Dev mail goes to `storage/logs/laravel.log`.
+
+- [ ] Place an order: the confirmation links to "see your order". Open it: Order EC-…, placed today, Received, "Payment: not paid yet", "Delivery: not sent yet", how to pay, and what was ordered.
+- [ ] The log holds the e-mail: from the store's name, replies to its support e-mail, "Your order … at …", what was ordered, the total, how to pay and the button to the order's page. Its plain-text part reads without HTML codes.
+- [ ] Open the order's link in another browser, signed out: it opens. Change one character of its key: "There is no such order."
+- [ ] Put the store in Maintenance: the order's page still opens.
+- [ ] Pay by mobile money with a reference: the page and the e-mail say the payment will be matched to it.
+- [ ] Pick up an order: the page and the e-mail name the location, its instructions and when it is ready.
+- [ ] At phone width the order's page fits.
+
 ## How we work
 
 Each document goes the same way:
@@ -4286,6 +4504,9 @@ Each document goes the same way:
 - In the Claude browser pane, `left_click_drag` does not start an HTML5 drag, so a dragged card never drops. Check a drop from a script instead: dispatch `dragstart` on the card, then `dragover` and `drop` on the column, with one `DataTransfer` (Doc 17 Phase D4's board).
 - `ActivityLogService::record()` puts an entry down to whoever is signed in, even in a test that acts as someone across requests. Something no one in the business did (a customer through a link) goes through `recordCustomer()`.
 - A page that loads on mount and again when another business is picked (`watch(() => navigation.value?.workspace?.id, …)`) also reloads when the navigation first arrives, a moment after the page. Skip a change from nothing: Doc 18 Phase C1's Open POS loaded, and priced its cart, twice.
+- Without a browser (Doc 19 Phase D was checked so): call the API with a token made in tinker (`$user->createToken('check')`), and a storefront's API as a visitor with its cart's `X-Cart-Token`. A page rendered on the server comes from `curl http://127.0.0.1:3000/...` with an `izsuite_token` cookie, or a store's `izsuite_cart_{code}` cookie. The first page after `docker restart izsuite-frontend` can take more than two minutes on the second PC - longer while the test suite runs - so fetch it in the background.
+- On the second PC the dev business has never finished its setup wizard (`setup_completed_at` is empty): its owner is sent to /setup from the app's pages. A member without Manage Business Settings is not.
+- A headless browser check, where no browser can be driven (Doc 19 Phase D): Playwright's image, `mcr.microsoft.com/playwright/python:v1.49.0-jammy` (3.3 GB, with the browsers but without the Python package: `pip install playwright==1.49.0` first), run on the `izsuite-public` network. Inside it, the script forwards 127.0.0.1:3000 to `izsuite-frontend:3000` and 127.0.0.1:8010 to `izsuite-api:8000`, so the pages - and their scripts' calls to `http://localhost:8010` - work as on the PC. Sign in with the `izsuite_token` and `izsuite_workspace` cookies. Wait for `networkidle` after each page loads: a click before hydration does nothing. Phase D's script is `../doc-19-phase-d-ui-check.py`; its screenshots can be read back to check the layout.
 
 ### Checking the app as a limited member
 
@@ -4515,21 +4736,26 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 18: Phase I1, the cashier's PIN and the register's lock | the commit after `8c8f380` | `7933c6d` | 000208 |
 | Doc 18: Phase I2, a manager's approval at the register | the commit after `8c8f380` | `7933c6d` | 000209 |
 | Doc 18: Phase I3, registered devices | the commit after `8c8f380` | `7933c6d` | 000210 |
-| Doc 19: Phase A1, eCommerce on, with its storefronts | not yet committed | not yet committed | 000211 |
-| Doc 19: Phase A2, the plans' storefronts | not yet committed | not yet committed | 000212 |
-| Doc 19: Phase A3, the storefronts' domains | not yet committed | not yet committed | 000213 |
-| Doc 19: Phase B1, items published online | not yet committed | not yet committed | 000214 |
-| Doc 19: Phase B2, categories, collections and attributes | not yet committed | not yet committed | 000215 |
-| Doc 19: Phase B3, options and variants | not yet committed | not yet committed | 000216 |
-| Doc 19: Phase C1, the storefront opens | not yet committed | not yet committed | none |
-| Doc 19: Phase C2, categories, collections and search suggestions | not yet committed | not yet committed | none |
-| Doc 19: Phase C3, filters by price, options and attributes | not yet committed | not yet committed | none |
-| Doc 19: Phase C4a, the storefront's theme and branding | not yet committed | not yet committed | 000217 |
-| Doc 19: Phase C4b, the home page's sections and banners | not yet committed | not yet committed | none |
-| Doc 19: Phase C5a, the storefront's contact and about pages and its policies | not yet committed | not yet committed | 000218 |
-| Doc 19: Phase C5b, pages of the business's own | not yet committed | not yet committed | 000219 |
-| Doc 19: Phase C6a, the storefront's SEO | not yet committed | not yet committed | none |
-| Doc 19: Phase C6b, the storefronts' cookie notice | not yet committed | not yet committed | 000220 |
+| Doc 19: Phase A1, eCommerce on, with its storefronts | `47257f3` | `e7782c7` | 000211 |
+| Doc 19: Phase A2, the plans' storefronts | `47257f3` | `e7782c7` | 000212 |
+| Doc 19: Phase A3, the storefronts' domains | `47257f3` | `e7782c7` | 000213 |
+| Doc 19: Phase B1, items published online | `47257f3` | `e7782c7` | 000214 |
+| Doc 19: Phase B2, categories, collections and attributes | `47257f3` | `e7782c7` | 000215 |
+| Doc 19: Phase B3, options and variants | `47257f3` | `e7782c7` | 000216 |
+| Doc 19: Phase C1, the storefront opens | `47257f3` | `e7782c7` | none |
+| Doc 19: Phase C2, categories, collections and search suggestions | `47257f3` | `e7782c7` | none |
+| Doc 19: Phase C3, filters by price, options and attributes | `47257f3` | `e7782c7` | none |
+| Doc 19: Phase C4a, the storefront's theme and branding | `47257f3` | `e7782c7` | 000217 |
+| Doc 19: Phase C4b, the home page's sections and banners | `47257f3` | `e7782c7` | none |
+| Doc 19: Phase C5a, the storefront's contact and about pages and its policies | `47257f3` | `e7782c7` | 000218 |
+| Doc 19: Phase C5b, pages of the business's own | `47257f3` | `e7782c7` | 000219 |
+| Doc 19: Phase C6a, the storefront's SEO | `47257f3` | `e7782c7` | none |
+| Doc 19: Phase C6b, the storefronts' cookie notice | `47257f3` | `e7782c7` | 000220 |
+| Doc 19: Phase D1, shipping zones and methods, and pickup | the commit after `47257f3` | `b4befbb` | 000221 |
+| Doc 19: Phase D2, payment methods without a gateway | the commit after `47257f3` | `b4befbb` | 000222 |
+| Doc 19: Phase D3, the cart | the commit after `47257f3` | `b4befbb` | 000223 |
+| Doc 19: Phase D4, checkout and the order | the commit after `47257f3` | `b4befbb` | 000224 |
+| Doc 19: Phase D5, the order's page and its confirmation e-mail | the commit after `47257f3` | `b4befbb` | 000225 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`). Between I1 and I2, shuvo added rich text for payment instructions and the Sales settings' notes and terms (`a5e46cb` and `9bf4525`, with no frontend commit yet).
 
@@ -5275,9 +5501,42 @@ These are easy to undo by mistake.
 - The cookie notice (Doc 19 Phase C6b, migration 000220):
   - `ecommerce_settings.cookie_notice` and `cookie_notice_text` (`EcommerceSetting`, `SaveEcommerceSettingsRequest`, `EcommerceSettingService`, `EcommerceSettingsResource`); the store's `cookie_notice` in `StoreResource`, from `StorefrontCatalogService::store()`.
   - Frontend: SettingsEcommerce's Cookie Notice; StoreCookieNotice in the storefront layout; `useStoreConsent()` and `DEFAULT_COOKIE_NOTICE` in `composables/useStoreConsent.ts`.
+- Shipping and pickup (Doc 19 Phase D1, migration 000221):
+  - Tables: `shipping_zones` (`countries`, `regions`, `cities`, `postal_codes`, `position`); `shipping_methods` (`kind`, `price`, `rates` - bands of `from` and `price` - `tax_rate_id`, `days_min` and `days_max`, `min_order` and `max_order`, `min_weight` and `max_weight` in kg, `category_ids`, `is_active`, `position`); `pickup_points` (`location_id` unique, `is_active`, `instructions`, `ready_within`).
+  - Models `ShippingZone`, `ShippingMethod` (its kinds, `BANDED`, `PRICED`) and `PickupPoint`; `Location::pickupPoint()`.
+  - `ShippingRepository` - and, for the checkout, `offeredZones()` and `offeredPickupPoints()`. `ShippingSettingService` with `ShippingMethodRules`. `ShippingRates::for()` (the zone and its methods with their prices), `zoneOf()` and `kilograms()`.
+  - `EcommerceShippingController` (`/business-settings/ecommerce/shipping`, `/shipping-zones`, `/shipping-methods`, `/pickup-points/{location}`); `SaveShippingZoneRequest`, `SaveShippingMethodRequest`, `SavePickupPointRequest`; `EcommerceShippingResource`, `ShippingZoneResource`, `ShippingMethodResource`, `PickupLocationResource`. Permission `ecommerce.shipping.manage`.
+  - Frontend: SettingsEcommerce is now the tab's cards, each by permission, its form moved to SettingsEcommerceGeneral. SettingsEcommerceShipping with ShippingZoneBlock, ShippingZoneModal, ShippingMethodModal, ShippingMethodRates and ShippingMethodLimits; SettingsEcommercePickup with PickupPointModal; useEcommerceShipping.
+- Payment methods without a gateway (Doc 19 Phase D2, migration 000222): `ecommerce_payment_methods` (`type`, `payment_account_id`, `instructions`, `reference`, `countries`, `min_order` and `max_order`, `delivery`, `is_active`, `position`); `EcommercePaymentMethod`; `EcommercePaymentMethodRepository` (and, for the checkout, `usableIn()`), `EcommercePaymentMethodService`, `EcommercePaymentOptions::for()`; `EcommercePaymentMethodController` (`/business-settings/ecommerce/payment-methods`), `SaveEcommercePaymentMethodRequest`, `EcommercePaymentMethodsResource` and `EcommercePaymentMethodResource`. Permission `ecommerce.payments.manage`.
+  - Frontend: SettingsEcommercePayments and EcommercePaymentMethodModal, useEcommercePaymentMethods.
+- The cart (Doc 19 Phase D3, migration 000223):
+  - Tables: `ecommerce_carts` (`token_hash`, `status`, `currency`, totals as last shown, `last_activity_at`, `expires_at`) and `ecommerce_cart_lines` (`catalog_product_id`, `catalog_product_variant_id`, `item_id`, `quantity`, `unit_price` as last shown); `storefronts.price_list_id`; `ecommerce_settings.cart_days`.
+  - Models `EcommerceCart` (its statuses, `MAX_LINES`, `MAX_QUANTITY`) and `EcommerceCartLine`; `Storefront::priceList()`.
+  - `StorefrontPricing` gains the storefront's price list (`terms()`' `list` and `date`), `unitPrice()` (as sold: the business's tax mode, the store's currency, with its source) and `taxIdOf()`; `PriceListPricing::listPrice()` prices one item from one list. `StorefrontCatalogRepository::shownAmong()`, and its items' `unit` and `purchase_price`.
+  - `EcommerceCartRepository`; `StorefrontCartLines::read()` (each line's state and prices, the invoice rows and totals); `StorefrontCartService` (`show()`, `add()`, `update()`, `remove()`, `expire()`); `StorefrontCatalogService::openStore()`. `StoreCartController` (`/stores/{code}/cart`, `/cart/lines`, `/cart/lines/{line}`), `AddStoreCartLineRequest`, `UpdateStoreCartLineRequest`, `StoreCartResource`. `ExpireEcommerceCarts` (`ecommerce:expire-carts`, hourly).
+  - `StorefrontService` checks the price list (`priceList()`), and its options give `price_lists` (`StorefrontOptionsResource`).
+  - Frontend: StoreAddToCart on a product's page; StoreHeader's cart and count; `pages/store/[code]/cart.vue` with StoreCartLine and StoreCartSummary; `useStoreCart()` and `storeCartProblem()` in `composables/useStoreCart.ts`; SettingsEcommerceGeneral's Keep Carts For; StorefrontFormReach's Price List.
+- Checkout and the order (Doc 19 Phase D4, migration 000224):
+  - Tables: `ecommerce_orders` - `number` unique in the business, `contact_id` and `contact_created`, its three statuses, `currency`, `exchange_rate`, the business's tax mode and rounding, the totals as shown and as calculated, `customer` and `customer_email` (in small letters), the addresses, `delivery` with `shipping_method_id`, `pickup_point_id` and `delivery_snapshot`, `ecommerce_payment_method_id` with `payment_snapshot` and `payment_reference`, `customer_note`, `source` and `campaign`, `consents`, the customer's address and browser, `access_token_hash` and `placed_at`. `ecommerce_order_lines` - `kind` (product or shipping), the listing, variant and item, the snapshot, prices, source, tax, amounts as calculated and shown, `weight` and `shipped`. `ecommerce_carts.converted_at`, and `ecommerce_settings.checkout_phone` and `checkout_notes`.
+  - Models `EcommerceOrder` (its statuses, deliveries and `NUMBER_SEQUENCE`) and `EcommerceOrderLine`; `Workspace::ecommerceOrders()`.
+  - `StorefrontCheckout::quote()` (the offers, the choice and the totals; `ships()`, `weightOf()`), `StorefrontOrderPlacement` (`review()`, `place()`: one order per cart, its key `hash_hmac` of the cart's token), `StorefrontCustomerContacts` (`contactFor()`, `recordConsent()`), `EcommerceOrderRepository` (and `contactMadeFor()`, `usesStorefront()`, `usesContact()`, `usesListing()`, `usesItem()`); `EcommerceCartRepository::findByToken()`; `StorefrontCatalogService::openStore()`' `open` and `policiesOf()`; `StorefrontPricing::shownAmount()`, `shownBase()` and `inCurrency()`.
+  - `StoreCheckoutController` (`/stores/{code}/checkout/quote`, `/checkout`), `QuoteStoreCheckoutRequest`, `PlaceStoreOrderRequest`, `StoreCheckoutResource`, `StoreOrderResource`.
+  - Kept for its orders: `StorefrontService::delete()`, `ContactService::delete()` and `ItemService::delete()` refuse; `CatalogService::remove()` archives a listing on an order.
+  - Frontend: `pages/store/[code]/checkout.vue` with StoreCheckoutCustomer, StoreCheckoutAddresses and StoreCheckoutAddress, StoreCheckoutDelivery, StoreCheckoutPayment, StoreCheckoutReview and StoreOrderPlaced; `useStoreCheckout()` and `useStoreCampaign()` (the storefront layout remembers a visit's campaign); the checkout's shared styles (`.store-step`, `.store-choice`) in `main.css`; SettingsEcommerceGeneral's Phone at Checkout and notes.
+- The order's page and its confirmation e-mail (Doc 19 Phase D5, migration 000225):
+  - `ecommerce_order_emails` (`kind`, `to`, `status`, `sent_at`, `error`); `EcommerceOrderEmail` and `EcommerceOrder::emails()`.
+  - `StoreOrderMailer` (`queue()`, `deliver()`, `failed()`; the order as its e-mail shows it, in the business's formats), the encrypted job `SendStoreOrderEmail` (three tries) and `StoreOrderMail`, with `emails/store-order-received` and its plain-text part; `StorefrontOrderPlacement` queues it and gives the link (`linkOf()`).
+  - The order's page: `StorefrontOrderPage::show()` and `EcommerceOrderRepository::forCustomer()`; `StoreOrderController` (`GET /stores/{code}/orders/{key}`).
+  - Frontend: `pages/store/[code]/orders/[key].vue`; StoreOrderPlaced shows a placed order (`fresh`, with its page's link) or the order's page, with its statuses in words.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
+
+- Doc 19 Phase D was checked through the API, its pages as the server renders them, and its main flows in a headless Chromium (19 steps, after D5). The testing checklist's other items - a storefront's price list on full Sales, guest checkout off, mobile money's reference, a digital product alone, the refusals to delete, the Activity Log - and a look in other browsers are still for a person (blocks D1 to D5).
+- Until Phase F's Orders page, the business sees its online orders only in the Activity Log, and nothing tells it of a new one. Until Phase E, a store with guest checkout off takes no orders, as no one can sign in (Doc 19 Phase D4).
+- A shipping zone is countries, regions, cities and postal codes: 19.26's "distance or service area" needs maps, and carriers' own rates their integrations. A method's categories are the items' categories (Doc 19 Phase D1).
+- A cart takes whole quantities, up to 999 of a product and 50 lines. The shop's sorting by price goes by the items' own prices, even where the storefront sells at a price list (Doc 19 Phase D3).
+- An order's link and e-mail use izSuite's address for the store (`FRONTEND_URL/store/{code}`), not its own domain, until the server serves the stores by their domains (Doc 19 Phase D5).
 
 - `SalesSettingsApiTest` fails since shuvo's `a5e46cb` (pulled 2026-11-19). The Sales settings' notes and terms are now kept as rich text, so plain text comes back wrapped in `<p>`, and the test still sends and expects plain text. Until a frontend editor for them is on `nuxt`, the settings form would show those tags too. Check it with shuvo.
 - A POS return without its receipt is not built: the Sales app credits only from an issued invoice, so it needs a credit note of its own first. Its permission, Return Without a Receipt, comes with it (Doc 18 Phase E2).
@@ -5478,4 +5737,9 @@ Each of these is yours to settle.
 - Doc 19 Phase C5b: migration 000219 adds `packages.storefront_page_limit` and `package_versions.storefront_page_limit` (Billing Starter 3, the others no limit). Deploy the frontend with it (pages of the business's own, and the plans' pages per storefront).
 - Doc 19 Phase C6a: no migration. Deploy the frontend with it (the storefront's head tags, product data and sitemap, and the Theme page's Search and Sharing). The sitemap's server route calls the API at `NUXT_API_BASE`, else `NUXT_PUBLIC_API_BASE`.
 - Doc 19 Phase C6b: migration 000220 adds `ecommerce_settings.cookie_notice` (on) and `cookie_notice_text`. Deploy the frontend with it (Settings → eCommerce's Cookie Notice, and the notice on the storefronts).
+- Doc 19 Phase D1: migration 000221 adds `shipping_zones`, `shipping_methods` and `pickup_points`. A new permission, eCommerce → Shipping → Manage Shipping, is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it (Settings → eCommerce's Shipping and Pickup).
+- Doc 19 Phase D2: migration 000222 adds `ecommerce_payment_methods`. A new permission, eCommerce → Payment Methods → Manage Payment Methods, is not given to custom roles: give it in Settings → Users & Roles. Deploy the frontend with it (Settings → eCommerce's Payment Methods).
+- Doc 19 Phase D3: migration 000223 adds `ecommerce_carts`, `ecommerce_cart_lines`, `storefronts.price_list_id` and `ecommerce_settings.cart_days` (30). Restart the scheduler: carts expire hourly (`ecommerce:expire-carts`). Deploy the frontend with it (Add to Cart, the cart page and the header's cart, Keep Carts For, and a storefront's Price List).
+- Doc 19 Phase D4: migration 000224 adds `ecommerce_orders`, `ecommerce_order_lines`, `ecommerce_carts.converted_at`, and `ecommerce_settings.checkout_phone` (required) and `checkout_notes` (on). Deploy the frontend with it (the checkout page, and Settings → eCommerce's Phone at Checkout and notes).
+- Doc 19 Phase D5: migration 000225 adds `ecommerce_order_emails`. Restart the queue workers (`php artisan queue:restart`): the order's e-mail is a new job, `SendStoreOrderEmail`. Its link is at `FRONTEND_URL`. Deploy the frontend with it (the order's page).
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

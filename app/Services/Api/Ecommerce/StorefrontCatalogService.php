@@ -216,6 +216,27 @@ class StorefrontCatalogService
         ];
     }
 
+    /**
+     * Phase D3: the store at $code while it is open - or previewed by
+     * $previewer - else not found; the business's day there; and (Phase D4)
+     * whether it is open to its customers, as an order needs.
+     */
+    public function openStore(string $code, ?User $previewer = null): array
+    {
+        $storefront = $this->open($code, $previewer);
+
+        return ['storefront' => $storefront, 'today' => $this->today($storefront), 'open' => $this->isOpen($storefront)];
+    }
+
+    /** Phase D4: the links of $storefront's terms and conditions and privacy policy, each while it is published. */
+    public function policiesOf(Storefront $storefront): array
+    {
+        return [
+            'terms'   => $this->pages->atLink($storefront, StorefrontPage::STANDARD['terms'][1], false)?->slug,
+            'privacy' => $this->pages->atLink($storefront, StorefrontPage::STANDARD['privacy'][1], false)?->slug,
+        ];
+    }
+
     /** The store at $code while it is open - or previewed: else not found, as a customer cannot tell which. */
     private function open(string $code, ?User $previewer): Storefront
     {

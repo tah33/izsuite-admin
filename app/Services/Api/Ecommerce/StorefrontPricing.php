@@ -2,6 +2,7 @@
 
 namespace App\Services\Api\Ecommerce;
 
+use App\Enums\Edition;
 use App\Models\User\CatalogProduct;
 use App\Models\User\CatalogProductVariant;
 use App\Models\User\EcommerceSetting;
@@ -10,37 +11,51 @@ use App\Models\User\Storefront;
 use App\Models\User\TaxRate;
 use App\Models\User\Workspace;
 use App\Repositories\User\EcommerceSettingRepository;
+use App\Repositories\User\PriceListRepository;
 use App\Repositories\User\TaxRateRepository;
 use App\Services\Api\BusinessSetup\ExchangeRateService;
+use App\Services\Api\Sales\PriceListPricing;
+use App\Services\User\Apps\WorkspaceApps;
 
 /**
- * What a storefront shows its products at (Doc 19 section 19.13 - Phase C1),
- * before a customer, a cart or a promotion comes into it: each item's sales
- * price - a combo priced as its components' sum, theirs - with its tax added
- * or taken out as Settings → eCommerce shows prices, and in the storefront's
- * currency at the day's rate (in the base currency while the business has no
- * rate for it).
+ * What a storefront sells its products at (Doc 19 section 19.13 - Phases C1
+ * and D3): with full Sales, its own price list's price - with the list's
+ * quantity breaks - else each item's sales price, a combo priced as its
+ * components' sum theirs, in the storefront's currency at the day's rate (in
+ * the base currency while the business has no rate for it).
+ *
+ * Shown, a price has its tax added or taken out as Settings → eCommerce shows
+ * prices; sold (the cart, Phase D3), it is kept as the business keeps prices,
+ * with or without tax, its tax on its own line.
  *
  * Its tax is the one a sale of it takes for no customer in particular, as
  * POS picks it: none while taxes are off; else the item's own sales tax while
- * it can be used, else the default one. Price lists and promotions come with
- * the cart (Phases D and H).
+ * it can be used, else the default one. A customer's own price list waits for
+ * signed-in customers (Phase E), and promotions for Phase H.
  */
 class StorefrontPricing
 {
+    public const ITEM = 'item';
+
+    public const PRICE_LIST = 'price_list';
+
     public function __construct(
         protected EcommerceSettingRepository $settings,
         protected TaxRateRepository $taxRates,
         protected ExchangeRateService $exchangeRates,
+        protected PriceListRepository $priceLists,
+        protected PriceListPricing $listPricing,
     ) {}
 
     /**
-     * How $storefront shows prices on $date: its currency and that
-     * currency's rate (the base currency per unit), whether its prices include
-     * tax - null while the business has taxes off - and the rate of each
-     * tax a price may take, by id, with the default one.
+     * How $storefront prices on $date: its currency and that currency's rate
+     * (the base currency per unit), whether its prices are shown with tax -
+     * null while the business has taxes off - the rate of each tax a price
+     * may take, by id, with the default one, and (Phase D3) the price list it
+     * sells at - with full Sales, while the list is active, in its currency
+     * and within its days.
      *
-     * @return array{currency: string, rate: string, with_tax: ?bool, inclusive: bool, rates: array<int, string>, default: ?int}
+     * @return array{currency: string, rate: string, with_tax: ?bool, inclusive: bool, rates: array<int, string>, default: ?int, date: string, list: ?\App\Models\User\PriceList}
      */
     public function terms(Workspace $workspace, Storefront $storefront, string $date): array
     {
@@ -49,6 +64,7 @@ class StorefrontPricing
         $taxed    = $workspace->usesTaxes();
         $usable   = $taxed ? $this->taxRates->getFor($workspace)->filter(fn (TaxRate $tax) => $this->usable($tax, $date)) : collect();
         $default  = $taxed ? $this->taxRates->defaultFor($workspace, TaxRate::SALES) : null;
+        $listed   = $storefront->price_list_id !== null && WorkspaceApps::for($workspace)->has('sales', Edition::Full);
 
         return [
             'currency'  => $currency,
@@ -57,31 +73,106 @@ class StorefrontPricing
             'inclusive' => $workspace->price_tax_mode === 'inclusive',
             'rates'     => $usable->mapWithKeys(fn (TaxRate $tax) => [(int) $tax->id => (string) $tax->rate])->all(),
             'default'   => $default && $usable->contains('id', $default->id) ? (int) $default->id : null,
+            'date'      => $date,
+            'list'      => $listed ? $this->priceLists->fallback($workspace, $storefront->price_list_id, $currency, $date) : null,
         ];
     }
 
-    /** $item's price as $terms show it, to the cent - null when it has none. A combo's components are to be loaded. */
-    public function priceOf(Item $item, array $terms): ?string
+    /** $quantity of $item's price as $terms show it, to the cent - null when it has none. A combo's components are to be loaded. */
+    public function priceOf(Item $item, array $terms, string $quantity = '1'): ?string
     {
-        $price = $item->isCombo() && $item->combo_pricing === 'sum' ? $item->componentTotal() : $item->sale_price;
+        $listed = $this->listed($item, $terms, $quantity);
+        $price  = $listed['unit_price'] ?? $this->ownPrice($item);
 
         if ($price === null) {
             return null;
         }
 
         $price = (string) $price;
-        $tax   = $terms['rates'][$item->sales_tax_id ?? 0] ?? ($terms['default'] !== null ? $terms['rates'][$terms['default']] ?? null : null);
+        $tax   = $this->taxRateOf($item, $terms);
 
         if ($tax !== null && $terms['with_tax'] !== null && $terms['with_tax'] !== $terms['inclusive']) {
             $factor = bcadd('1', bcdiv($tax, '100', 10), 10);
             $price  = $terms['with_tax'] ? bcmul($price, $factor, 10) : bcdiv($price, $factor, 10);
         }
 
-        if ($terms['rate'] !== '1') {
+        // A list's price is in the storefront's currency already.
+        if ($listed === null && $terms['rate'] !== '1') {
             $price = bcdiv($price, $terms['rate'], 10);
         }
 
         return $this->cents($price);
+    }
+
+    /**
+     * Phase D3: $quantity of $item's price as it is sold - as the business
+     * keeps prices, with or without tax, in the storefront's currency, to the
+     * cent - and where it came from: the storefront's price list (with its
+     * rule) or the item. Null price when it has none.
+     *
+     * @return array{price: ?string, source: string, price_list_id: ?int, price_list_rule_id: ?int}
+     */
+    public function unitPrice(Item $item, array $terms, string $quantity): array
+    {
+        if ($listed = $this->listed($item, $terms, $quantity)) {
+            return ['price' => $listed['unit_price'], 'source' => self::PRICE_LIST, 'price_list_id' => $terms['list']->id, 'price_list_rule_id' => $listed['price_list_rule_id']];
+        }
+
+        $own = $this->ownPrice($item);
+
+        return [
+            'price'              => $own === null ? null : $this->cents($terms['rate'] === '1' ? (string) $own : bcdiv((string) $own, $terms['rate'], 10)),
+            'source'             => self::ITEM,
+            'price_list_id'      => null,
+            'price_list_rule_id' => null,
+        ];
+    }
+
+    /**
+     * Phase D3: a calculated line's amount (SalesCalculator's) as $terms show
+     * prices - its tax put in, or taken out, when the store shows them
+     * otherwise than the business keeps them.
+     */
+    public function shownAmount(array $calculated, array $terms): string
+    {
+        if ($terms['with_tax'] === null || $terms['with_tax'] === $terms['inclusive']) {
+            return $calculated['amount'];
+        }
+
+        return $terms['with_tax'] ? bcadd($calculated['amount'], $calculated['tax_amount'], 2) : bcsub($calculated['amount'], $calculated['tax_amount'], 2);
+    }
+
+    /**
+     * Phase D4: $price, kept in the base currency as the business keeps
+     * prices, with the tax $taxId, as $terms show prices - its tax in or out,
+     * in the store's currency, to the cent.
+     */
+    public function shownBase(string $price, ?int $taxId, array $terms): string
+    {
+        $tax = $taxId !== null ? ($terms['rates'][$taxId] ?? null) : null;
+
+        if ($tax !== null && $terms['with_tax'] !== null && $terms['with_tax'] !== $terms['inclusive']) {
+            $factor = bcadd('1', bcdiv($tax, '100', 10), 10);
+            $price  = $terms['with_tax'] ? bcmul($price, $factor, 10) : bcdiv($price, $factor, 10);
+        }
+
+        return $this->inCurrency($price, $terms);
+    }
+
+    /** Phase D4: $price in the base currency, in the store's, to the cent. */
+    public function inCurrency(string $price, array $terms): string
+    {
+        return $this->cents($terms['rate'] === '1' ? $price : bcdiv($price, $terms['rate'], 10));
+    }
+
+    /** Phase D3: the tax rate $item's sale takes for no customer in particular, by id - null for none. */
+    public function taxIdOf(Item $item, array $terms): ?int
+    {
+        if (isset($terms['rates'][$item->sales_tax_id ?? 0])) {
+            return (int) $item->sales_tax_id;
+        }
+
+        return $terms['default'] !== null && isset($terms['rates'][$terms['default']]) ? $terms['default'] : null;
     }
 
     /**
@@ -103,6 +194,26 @@ class StorefrontPricing
             'price'  => $prices->reduce(fn (?string $lowest, string $price) => $lowest === null || bccomp($price, $lowest, 2) < 0 ? $price : $lowest),
             'varies' => $prices->unique()->count() > 1,
         ];
+    }
+
+    /** The storefront's price list's price of $quantity of $item, in its currency - null with no list, or no rule of it for the item. */
+    private function listed(Item $item, array $terms, string $quantity): ?array
+    {
+        return isset($terms['list']) ? $this->listPricing->listPrice($terms['list'], $item, $quantity, $terms['date'], $terms['rate']) : null;
+    }
+
+    /** The item's own sales price, in the base currency: a combo priced as its components' sum, theirs. */
+    private function ownPrice(Item $item): mixed
+    {
+        return $item->isCombo() && $item->combo_pricing === 'sum' ? $item->componentTotal() : $item->sale_price;
+    }
+
+    /** The rate of $item's tax, as a percentage - null for none. */
+    private function taxRateOf(Item $item, array $terms): ?string
+    {
+        $id = $this->taxIdOf($item, $terms);
+
+        return $id === null ? null : $terms['rates'][$id];
     }
 
     /** $value to the cent, half up. */

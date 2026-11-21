@@ -32,6 +32,7 @@ class ContactService
         protected \App\Repositories\User\CrmActivityRepository $crmActivityRepository,
         protected \App\Repositories\User\CrmEmailRepository $crmEmailRepository,
         protected \App\Repositories\User\MarketingConsentRepository $marketingConsentRepository,
+        protected \App\Repositories\User\EcommerceOrderRepository $ecommerceOrderRepository,
     ) {}
 
     /** The tax ID is searched only while the business uses taxes (Doc 03 section 3). */
@@ -198,6 +199,13 @@ class ContactService
         if ($this->marketingConsentRepository->usesContact($contact)) {
             throw new HttpResponseException(response()->json([
                 'message' => 'This contact has marketing consent records, so it cannot be deleted. Deactivate it instead.',
+            ], 409));
+        }
+
+        // Doc 19 Phase D4: an order placed online keeps its contact.
+        if ($this->ecommerceOrderRepository->usesContact($contact)) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'This contact has online orders, so it cannot be deleted. Deactivate it instead.',
             ], 409));
         }
 

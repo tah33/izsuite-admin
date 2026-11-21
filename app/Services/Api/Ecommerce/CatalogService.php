@@ -31,7 +31,7 @@ use Illuminate\Validation\ValidationException;
  * ends no earlier than it starts. A limited availability says how many are
  * left. It is on every storefront of the business, or on those chosen. Its
  * full description keeps the editor's formatting, nothing else. Each change
- * is logged. Until orders come (Phase D), a listing is taken out outright.
+ * is logged. One on an online order (Phase D4) is archived rather than taken out.
  */
 class CatalogService
 {
@@ -39,6 +39,7 @@ class CatalogService
         protected CatalogProductRepository $catalog,
         protected RecordFileService $recordFiles,
         protected BusinessCalendar $calendar,
+        protected \App\Repositories\User\EcommerceOrderRepository $orders,
     ) {}
 
     /**
@@ -97,15 +98,28 @@ class CatalogService
     }
 
     /** Taken out of the catalog, with its pictures; its item stays as it is. */
-    public function remove(Workspace $workspace, int $itemId): CatalogProduct
+    /**
+     * Its listing taken out of the catalog, with its pictures - or, once it
+     * is on an online order (Phase D4), archived instead, kept for the order:
+     * whether it was archived.
+     */
+    public function remove(Workspace $workspace, int $itemId): array
     {
         $product = $this->product($workspace, $itemId);
+
+        if ($this->orders->usesListing($product->id)) {
+            $this->catalog->update($product, ['status' => CatalogProduct::ARCHIVED], $product->storefronts->pluck('id')->all());
+
+            ActivityLogService::record('updated', "Archived {$this->quoted($product->title)}, as it is on online orders", $product, ['source' => 'api']);
+
+            return ['product' => $product, 'archived' => true];
+        }
 
         $this->catalog->delete($product);
 
         ActivityLogService::record('deleted', "Took {$this->quoted($product->title)} out of the catalog", $product, ['source' => 'api']);
 
-        return $product;
+        return ['product' => $product, 'archived' => false];
     }
 
     /**

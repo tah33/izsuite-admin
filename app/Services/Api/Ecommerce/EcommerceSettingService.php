@@ -20,7 +20,7 @@ use Illuminate\Support\Str;
 class EcommerceSettingService
 {
     /** What the settings form saves. */
-    private const SAVED = ['guest_checkout', 'verify_customer_email', 'price_display', 'order_prefix', 'cookie_notice', 'cookie_notice_text'];
+    private const SAVED = ['guest_checkout', 'verify_customer_email', 'price_display', 'order_prefix', 'cookie_notice', 'cookie_notice_text', 'cart_days', 'checkout_phone', 'checkout_notes'];
 
     public function __construct(
         protected EcommerceSettingRepository $settings,

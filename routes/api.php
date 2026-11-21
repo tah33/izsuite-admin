@@ -87,12 +87,17 @@ use App\Http\Controllers\Api\PaymentAccountController;
 use App\Http\Controllers\Api\CatalogCategoryController;
 use App\Http\Controllers\Api\CatalogCollectionController;
 use App\Http\Controllers\Api\CatalogVariantController;
+use App\Http\Controllers\Api\StoreCartController;
+use App\Http\Controllers\Api\StoreCheckoutController;
+use App\Http\Controllers\Api\StoreOrderController;
 use App\Http\Controllers\Api\StoreCatalogController;
 use App\Http\Controllers\Api\StorefrontPageController;
 use App\Http\Controllers\Api\StorefrontThemeController;
 use App\Http\Controllers\Api\CatalogPictureController;
 use App\Http\Controllers\Api\EcommerceCatalogController;
 use App\Http\Controllers\Api\EcommerceSettingController;
+use App\Http\Controllers\Api\EcommerceShippingController;
+use App\Http\Controllers\Api\EcommercePaymentMethodController;
 use App\Http\Controllers\Api\StorefrontController;
 use App\Http\Controllers\Api\StorefrontDomainController;
 use App\Http\Controllers\Api\StorefrontHostController;
@@ -210,6 +215,16 @@ Route::prefix('v1')->group(function () {
         Route::get('/pages/{slug}', [StoreCatalogController::class, 'page'])->where('slug', '[A-Za-z0-9-]+')->name('api.stores.page');
         // Phase C6a: what its sitemap lists.
         Route::get('/sitemap', [StoreCatalogController::class, 'sitemap'])->name('api.stores.sitemap');
+        // Phase D3: the visitor's cart, known by its token (X-Cart-Token).
+        Route::get('/cart', [StoreCartController::class, 'show'])->name('api.stores.cart.show');
+        Route::post('/cart/lines', [StoreCartController::class, 'addLine'])->name('api.stores.cart.lines.store');
+        Route::put('/cart/lines/{line}', [StoreCartController::class, 'updateLine'])->whereNumber('line')->name('api.stores.cart.lines.update');
+        Route::delete('/cart/lines/{line}', [StoreCartController::class, 'removeLine'])->whereNumber('line')->name('api.stores.cart.lines.destroy');
+        // Phase D4: checkout - what the cart comes to with the choices made so far, and the order placed.
+        Route::post('/checkout/quote', [StoreCheckoutController::class, 'quote'])->name('api.stores.checkout.quote');
+        Route::post('/checkout', [StoreCheckoutController::class, 'place'])->name('api.stores.checkout.place');
+        // Phase D5: an order's own page, by its link's key.
+        Route::get('/orders/{key}', [StoreOrderController::class, 'show'])->where('key', '[a-f0-9]{64}')->name('api.stores.orders.show');
     });
 
     // Stripe's notifications of finished checkouts, taken only with its signature (Doc 13 Phase D2).
@@ -375,6 +390,22 @@ Route::prefix('v1')->group(function () {
         Route::middleware('app:ecommerce')->prefix('ecommerce')->group(function () {
             Route::get('/', [EcommerceSettingController::class, 'show'])->name('api.business-settings.ecommerce.show');
             Route::put('/', [EcommerceSettingController::class, 'update'])->name('api.business-settings.ecommerce.update');
+
+            // Phase D1: shipping zones and their methods, and pickup at the business's locations.
+            Route::get('/shipping', [EcommerceShippingController::class, 'show'])->name('api.business-settings.ecommerce.shipping.show');
+            Route::post('/shipping-zones', [EcommerceShippingController::class, 'storeZone'])->middleware('idempotent')->name('api.business-settings.ecommerce.shipping-zones.store');
+            Route::put('/shipping-zones/{id}', [EcommerceShippingController::class, 'updateZone'])->whereNumber('id')->name('api.business-settings.ecommerce.shipping-zones.update');
+            Route::delete('/shipping-zones/{id}', [EcommerceShippingController::class, 'destroyZone'])->whereNumber('id')->name('api.business-settings.ecommerce.shipping-zones.destroy');
+            Route::post('/shipping-methods', [EcommerceShippingController::class, 'storeMethod'])->middleware('idempotent')->name('api.business-settings.ecommerce.shipping-methods.store');
+            Route::put('/shipping-methods/{id}', [EcommerceShippingController::class, 'updateMethod'])->whereNumber('id')->name('api.business-settings.ecommerce.shipping-methods.update');
+            Route::delete('/shipping-methods/{id}', [EcommerceShippingController::class, 'destroyMethod'])->whereNumber('id')->name('api.business-settings.ecommerce.shipping-methods.destroy');
+            Route::put('/pickup-points/{location}', [EcommerceShippingController::class, 'updatePickup'])->whereNumber('location')->name('api.business-settings.ecommerce.pickup-points.update');
+
+            // Phase D2: payment methods without a gateway.
+            Route::get('/payment-methods', [EcommercePaymentMethodController::class, 'index'])->name('api.business-settings.ecommerce.payment-methods.index');
+            Route::post('/payment-methods', [EcommercePaymentMethodController::class, 'store'])->middleware('idempotent')->name('api.business-settings.ecommerce.payment-methods.store');
+            Route::put('/payment-methods/{id}', [EcommercePaymentMethodController::class, 'update'])->whereNumber('id')->name('api.business-settings.ecommerce.payment-methods.update');
+            Route::delete('/payment-methods/{id}', [EcommercePaymentMethodController::class, 'destroy'])->whereNumber('id')->name('api.business-settings.ecommerce.payment-methods.destroy');
         });
 
         // Settings > CRM (Doc 17 Phase A1): the mode, and the lead sources,

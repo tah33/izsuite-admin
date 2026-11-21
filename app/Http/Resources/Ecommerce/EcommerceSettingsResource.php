@@ -17,6 +17,9 @@ class EcommerceSettingsResource extends JsonResource
             'order_prefix'          => $this->order_prefix,
             'cookie_notice'         => (bool) $this->cookie_notice,
             'cookie_notice_text'    => $this->cookie_notice_text,
+            'cart_days'             => (int) $this->cart_days,
+            'checkout_phone'        => $this->checkout_phone,
+            'checkout_notes'        => (bool) $this->checkout_notes,
         ];
     }
 }

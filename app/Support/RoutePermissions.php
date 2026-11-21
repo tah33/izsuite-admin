@@ -196,6 +196,20 @@ final class RoutePermissions
             // Doc 19 Phase A1: Settings → eCommerce.
             'api.business-settings.ecommerce.show'             => 'ecommerce.settings.manage',
             'api.business-settings.ecommerce.update'           => 'ecommerce.settings.manage',
+            // Doc 19 Phase D1: shipping and pickup.
+            'api.business-settings.ecommerce.shipping.show'            => 'ecommerce.shipping.manage',
+            'api.business-settings.ecommerce.shipping-zones.store'     => 'ecommerce.shipping.manage',
+            'api.business-settings.ecommerce.shipping-zones.update'    => 'ecommerce.shipping.manage',
+            'api.business-settings.ecommerce.shipping-zones.destroy'   => 'ecommerce.shipping.manage',
+            'api.business-settings.ecommerce.shipping-methods.store'   => 'ecommerce.shipping.manage',
+            'api.business-settings.ecommerce.shipping-methods.update'  => 'ecommerce.shipping.manage',
+            'api.business-settings.ecommerce.shipping-methods.destroy' => 'ecommerce.shipping.manage',
+            'api.business-settings.ecommerce.pickup-points.update'     => 'ecommerce.shipping.manage',
+            // Doc 19 Phase D2: payment methods without a gateway.
+            'api.business-settings.ecommerce.payment-methods.index'    => 'ecommerce.payments.manage',
+            'api.business-settings.ecommerce.payment-methods.store'    => 'ecommerce.payments.manage',
+            'api.business-settings.ecommerce.payment-methods.update'   => 'ecommerce.payments.manage',
+            'api.business-settings.ecommerce.payment-methods.destroy'  => 'ecommerce.payments.manage',
             'api.business-settings.crm.show'                   => 'settings.view',
             'api.business-settings.crm.update'                 => 'crm.settings.manage',
             'api.business-settings.crm.options.store'          => 'crm.settings.manage',

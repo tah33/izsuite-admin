@@ -2,16 +2,21 @@
 
 namespace App\Services\Api\Ecommerce;
 
+use App\Enums\Edition;
 use App\Models\User\Storefront;
 use App\Models\User\Workspace;
 use App\Repositories\User\BusinessSettingRepository;
+use App\Repositories\User\EcommerceOrderRepository;
 use App\Repositories\User\LocationRepository;
+use App\Repositories\User\PriceListRepository;
 use App\Repositories\User\StorefrontRepository;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\WorkspaceAccess;
+use App\Services\User\Apps\WorkspaceApps;
 use App\Services\User\Workspaces\PlanLimits;
 use App\Support\SettingChanges;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -38,6 +43,8 @@ class StorefrontService
         protected WorkspaceAccess $access,
         protected PlanLimits $planLimits,
         protected BusinessSettingRepository $businessSettings,
+        protected PriceListRepository $priceLists,
+        protected EcommerceOrderRepository $orders,
     ) {}
 
     /** The storefronts whose location the user may use, by name. */
@@ -49,11 +56,16 @@ class StorefrontService
     /**
      * What a storefront's form starts from that only the business knows: its
      * currencies, the base one first, and its own country - a new
-     * storefront's first, when the business profile has one.
+     * storefront's first, when the business profile has one. Phase D3: with
+     * full Sales, its active price lists - none without.
      */
     public function options(Workspace $workspace): array
     {
-        return ['currencies' => $workspace->currencyCodes(), 'country' => $this->businessSettings->findFor($workspace)?->country ?: null];
+        return [
+            'currencies'  => $workspace->currencyCodes(),
+            'country'     => $this->businessSettings->findFor($workspace)?->country ?: null,
+            'price_lists' => $this->sellsWithPriceLists($workspace) ? $this->priceLists->activeFor($workspace) : null,
+        ];
     }
 
     /** $data is validated (see SaveStorefrontRequest). One not archived needs room under the plan (Phase A2). */
@@ -89,10 +101,16 @@ class StorefrontService
         return $storefront;
     }
 
-    /** Until orders come (Phase D), a storefront is deleted outright. */
+    /** One with orders (Phase D4) is kept for them: it is archived instead. */
     public function delete(Workspace $workspace, int $id): void
     {
         $storefront = $this->find($workspace, $id);
+
+        if ($this->orders->usesStorefront($storefront)) {
+            throw new HttpResponseException(response()->json([
+                'message' => $storefront->name.' has orders, so it cannot be deleted. Archive it instead.',
+            ], 409));
+        }
 
         $this->storefronts->delete($storefront);
 
@@ -144,6 +162,8 @@ class StorefrontService
             throw ValidationException::withMessages(['currencies' => "Choose among the business's currencies."]);
         }
 
+        $priceListId = $this->priceList($workspace, $data, $storefront, $currency, $locationId);
+
         return [
             'name'             => $name,
             'code'             => $code,
@@ -156,9 +176,41 @@ class StorefrontService
             'currencies'       => array_values(array_intersect($businessCurrencies, $currencies)),
             'countries'        => array_values(array_unique($data['countries'])),
             'location_id'      => $locationId,
+            'price_list_id'    => $priceListId,
             'support_email'    => ($data['support_email'] ?? null) ?: null,
             'support_phone'    => trim((string) ($data['support_phone'] ?? '')) ?: null,
         ];
+    }
+
+    /**
+     * Phase D3: the price list it sells at - with full Sales, an active one
+     * in its currency, for its location; none without. Not sent, as by a form
+     * from before Phase D3, it keeps its own.
+     */
+    private function priceList(Workspace $workspace, array $data, ?Storefront $storefront, string $currency, int $locationId): ?int
+    {
+        if (! array_key_exists('price_list_id', $data)) {
+            return $storefront?->price_list_id;
+        }
+
+        $id = $data['price_list_id'] ? (int) $data['price_list_id'] : null;
+
+        if ($id === null) {
+            return null;
+        }
+
+        $list = $this->sellsWithPriceLists($workspace) ? $this->priceLists->activeFor($workspace)->firstWhere('id', $id) : null;
+
+        if (! $list || $list->currency !== $currency || (! $list->all_locations && ! $list->locations->contains('id', $locationId))) {
+            throw ValidationException::withMessages(['price_list_id' => "Choose an active price list in the storefront's currency, for its location."]);
+        }
+
+        return $id;
+    }
+
+    private function sellsWithPriceLists(Workspace $workspace): bool
+    {
+        return WorkspaceApps::for($workspace)->has('sales', Edition::Full);
     }
 
     /** $values, once each, with $default among them - first, when it was not. */

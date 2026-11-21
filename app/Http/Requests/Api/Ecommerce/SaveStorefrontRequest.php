@@ -38,6 +38,8 @@ class SaveStorefrontRequest extends FormRequest
             'countries'        => ['required', 'array', 'min:1', 'max:300'],
             'countries.*'      => ['string', Rule::in(Countries::codes())],
             'location_id'      => ['required', 'integer'],
+            // Phase D3: with full Sales, the price list it sells at.
+            'price_list_id'    => ['sometimes', 'nullable', 'integer'],
             'support_email'    => ['nullable', 'email', 'max:255'],
             'support_phone'    => ['nullable', 'string', 'max:40'],
         ];

@@ -409,6 +409,35 @@ class Workspace extends Model
         return $this->hasMany(Storefront::class);
     }
 
+    /** Where its storefronts ship, and how (Doc 19 Phase D1). */
+    public function shippingZones(): HasMany
+    {
+        return $this->hasMany(ShippingZone::class);
+    }
+
+    public function shippingMethods(): HasMany
+    {
+        return $this->hasMany(ShippingMethod::class);
+    }
+
+    /** Its locations its storefronts' customers may collect from (Doc 19 Phase D1). */
+    public function pickupPoints(): HasMany
+    {
+        return $this->hasMany(PickupPoint::class);
+    }
+
+    /** How its storefronts' customers pay without a gateway (Doc 19 Phase D2). */
+    public function ecommercePaymentMethods(): HasMany
+    {
+        return $this->hasMany(EcommercePaymentMethod::class);
+    }
+
+    /** The orders placed on its storefronts (Doc 19 Phase D4). */
+    public function ecommerceOrders(): HasMany
+    {
+        return $this->hasMany(EcommerceOrder::class);
+    }
+
     /** How each kind of document is numbered - a row only where a default was changed. */
     public function documentNumbering(): HasMany
     {

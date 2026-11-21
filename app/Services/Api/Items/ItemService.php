@@ -6,6 +6,7 @@ use App\Services\Shared\EditConflicts;
 use App\Models\User\Item;
 use App\Models\User\Workspace;
 use App\Repositories\Shared\RecordAuthorRepository;
+use App\Repositories\User\EcommerceOrderRepository;
 use App\Repositories\User\ItemRepository;
 use App\Repositories\User\PurchaseRepository;
 use App\Repositories\User\SalesDocumentRepository;
@@ -26,6 +27,7 @@ class ItemService
         protected PurchaseRepository $purchaseRepository,
         protected WorkspaceSequence $workspaceSequence,
         protected RecordAuthorRepository $recordAuthorRepository,
+        protected EcommerceOrderRepository $ecommerceOrderRepository,
     ) {}
 
     /** The brand is searched and filtered only while the business uses brands (Doc 04 section 7). */
@@ -175,6 +177,13 @@ class ItemService
         if ($this->purchaseRepository->usesItem($item)) {
             throw new HttpResponseException(response()->json([
                 'message' => 'This item is on purchases, so it cannot be deleted. Deactivate it instead.',
+            ], 409));
+        }
+
+        // Doc 19 Phase D4: an order placed online keeps what it bought.
+        if ($this->ecommerceOrderRepository->usesItem($item)) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'This item is on online orders, so it cannot be deleted. Deactivate it instead.',
             ], 409));
         }
 

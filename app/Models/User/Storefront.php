@@ -59,6 +59,8 @@ class Storefront extends Model
         'currencies',
         'countries',
         'location_id',
+        // Phase D3: with full Sales, the price list it sells at.
+        'price_list_id',
         'support_email',
         'support_phone',
     ];
@@ -68,6 +70,7 @@ class Storefront extends Model
         'currencies'  => 'array',
         'countries'   => 'array',
         'location_id' => 'integer',
+        'price_list_id' => 'integer',
         // Phase C4a: its theme as published, and as drafted (StorefrontTheme).
         'theme'              => 'array',
         'theme_draft'        => 'array',
@@ -88,6 +91,12 @@ class Storefront extends Model
     public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class);
+    }
+
+    /** Phase D3: with full Sales, the price list it sells at. */
+    public function priceList(): BelongsTo
+    {
+        return $this->belongsTo(PriceList::class);
     }
 
     /** Phase C4a: its own pictures - its theme's logo and favicon among them - oldest first. */

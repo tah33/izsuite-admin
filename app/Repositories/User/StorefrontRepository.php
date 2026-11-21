@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Collection;
 class StorefrontRepository
 {
     /** What a storefront's row shows. */
-    private const SHOWN_WITH = ['location:id,name'];
+    private const SHOWN_WITH = ['location:id,name', 'priceList:id,name'];
 
     /** Its storefronts at $locationIds - every one, for null - by name. */
     public function getFor(Workspace $workspace, ?array $locationIds): Collection

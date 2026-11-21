@@ -23,8 +23,8 @@ use Illuminate\Support\Str;
  */
 class StorefrontCatalogRepository
 {
-    /** What an item shows on a storefront: its prices are StorefrontPricing's to work out. */
-    private const ITEM = 'id,name,sku,barcode,sale_price,sales_tax_id,type,combo_pricing,brand_id,category_id,is_active';
+    /** What an item shows on a storefront: its prices are StorefrontPricing's to work out - its purchase price for a price list's markup (Phase D3), never shown. */
+    private const ITEM = 'id,name,sku,barcode,unit,sale_price,purchase_price,sales_tax_id,type,combo_pricing,brand_id,category_id,is_active';
 
     /** What a product card shows. */
     private const CARD_WITH = ['item:'.self::ITEM, 'item.image', 'item.brand:id,name', 'item.components.component:id,sale_price', 'cover'];
@@ -131,6 +131,23 @@ class StorefrontCatalogRepository
                 'variants' => $this->shownVariants(), 'variants.item:'.self::ITEM, 'variants.item.image', 'variants.item.components.component:id,sale_price',
             ])
             ->first();
+    }
+
+    /**
+     * Phase D3: of $ids, the listings $storefront shows on $today - to anyone
+     * or at their link - by id, with what a cart's line shows and prices:
+     * their items, pictures and the variants they show, with theirs.
+     */
+    public function shownAmong(Storefront $storefront, array $ids, string $today): Collection
+    {
+        return $this->shown($storefront, $today, ['public', 'link'])
+            ->whereKey($ids)
+            ->with([
+                'item:'.self::ITEM, 'item.image', 'item.components.component:id,sale_price', 'cover',
+                'variants' => $this->shownVariants(), 'variants.item:'.self::ITEM, 'variants.item.image', 'variants.item.components.component:id,sale_price',
+            ])
+            ->get()
+            ->keyBy('id');
     }
 
     /**

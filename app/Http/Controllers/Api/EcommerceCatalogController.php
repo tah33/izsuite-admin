@@ -62,9 +62,9 @@ class EcommerceCatalogController extends Controller
     public function destroy(Request $request, int $item): JsonResponse
     {
         try {
-            $product = $this->catalogService->remove($this->currentWorkspace($request), $item);
+            ['product' => $product, 'archived' => $archived] = $this->catalogService->remove($this->currentWorkspace($request), $item);
 
-            return response()->json(['message' => "\"{$product->title}\" taken out of the catalog."]);
+            return response()->json(['message' => $archived ? "\"{$product->title}\" is on online orders, so it was archived instead." : "\"{$product->title}\" taken out of the catalog."]);
 
         } catch (\Throwable $e) {
             report($e);

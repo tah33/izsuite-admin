@@ -21,11 +21,19 @@ class EcommerceSetting extends Model
 
     public const PRICE_DISPLAYS = [self::WITH_TAX, self::WITHOUT_TAX];
 
+    /** Phase D4: whether checkout asks for a phone number. */
+    public const PHONE_FIELDS = ['required', 'optional', 'hidden'];
+
     protected $fillable = [
         'guest_checkout',
         'verify_customer_email',
         'price_display',
         'order_prefix',
+        // Phase D3: how many days a cart is kept without activity.
+        'cart_days',
+        // Phase D4: whether checkout asks for a phone number - required, optional or hidden - and a note.
+        'checkout_phone',
+        'checkout_notes',
         'cookie_notice',
         'cookie_notice_text',
     ];
@@ -34,6 +42,8 @@ class EcommerceSetting extends Model
         'guest_checkout'        => 'boolean',
         'verify_customer_email' => 'boolean',
         'cookie_notice'         => 'boolean',
+        'cart_days'             => 'integer',
+        'checkout_notes'        => 'boolean',
     ];
 
     // The columns' defaults, so settings never saved read as they would be.
@@ -42,6 +52,9 @@ class EcommerceSetting extends Model
         'verify_customer_email' => true,
         'price_display'         => self::WITH_TAX,
         'order_prefix'          => 'EC-',
+        'cart_days'             => 30,
+        'checkout_phone'        => 'required',
+        'checkout_notes'        => true,
         'cookie_notice'         => true,
     ];
 

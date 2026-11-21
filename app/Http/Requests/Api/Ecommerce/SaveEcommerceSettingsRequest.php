@@ -28,6 +28,11 @@ class SaveEcommerceSettingsRequest extends FormRequest
             'order_prefix'          => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9\/-]+$/'],
             'cookie_notice'         => ['sometimes', 'boolean'],
             'cookie_notice_text'    => ['sometimes', 'nullable', 'string', 'max:300'],
+            // Phase D3: how many days a cart is kept without activity.
+            'cart_days'             => ['sometimes', 'integer', 'min:1', 'max:365'],
+            // Phase D4: whether checkout asks for a phone number, and for a note.
+            'checkout_phone'        => ['sometimes', Rule::in(EcommerceSetting::PHONE_FIELDS)],
+            'checkout_notes'        => ['sometimes', 'boolean'],
         ];
     }
 
@@ -37,6 +42,8 @@ class SaveEcommerceSettingsRequest extends FormRequest
             'order_prefix.required' => 'Give the prefix of its order numbers.',
             'order_prefix.regex'    => 'Use letters, digits, dashes and slashes.',
             'cookie_notice_text.max' => 'Keep the notice to 300 characters.',
+            'cart_days.min'          => 'Keep carts for a day at least.',
+            'cart_days.max'          => 'Keep carts for up to 365 days.',
         ];
     }
 }

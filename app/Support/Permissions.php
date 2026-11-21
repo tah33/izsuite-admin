@@ -160,6 +160,10 @@ final class Permissions
         'ecommerce.catalog'  => ['Catalog', 'ecommerce', ['view' => self::VIEW, 'publish' => 'Publish Products', 'manage' => 'Manage Categories and Collections']],
         // Phase C4a: a storefront's theme and branding - and, from Phase C5, its pages.
         'ecommerce.themes'   => ['Themes and Pages', 'ecommerce', ['manage' => 'Manage Themes and Pages']],
+        // Phase D1: shipping zones and methods, and pickup points, in Settings → eCommerce.
+        'ecommerce.shipping' => ['Shipping', 'ecommerce', ['manage' => 'Manage Shipping']],
+        // Phase D2: payment methods without a gateway, in Settings → eCommerce.
+        'ecommerce.payments' => ['Payment Methods', 'ecommerce', ['manage' => 'Manage Payment Methods']],
         'ecommerce.settings' => ['eCommerce Settings', 'ecommerce', self::APP_SETTINGS],
     ];
 
@@ -254,6 +258,10 @@ final class Permissions
         'ecommerce.catalog.view'     => ['ecommerce.store.view', 'items.view'],
         // Phase C4a: a storefront's theme, on the Storefronts page.
         'ecommerce.themes.manage'    => ['ecommerce.store.view'],
+        // Phase D1: shipping is in Settings → eCommerce.
+        'ecommerce.shipping.manage'  => ['settings.view', 'ecommerce.store.view'],
+        // Phase D2: and so are its payment methods.
+        'ecommerce.payments.manage'  => ['settings.view', 'ecommerce.store.view'],
         'purchases.purchases.create' => ['contacts.view', 'items.view'],
         'purchases.payments.record'  => ['purchases.purchases.view', 'payment_accounts.view'],
         'purchases.payments.reverse' => ['payment_accounts.view'],

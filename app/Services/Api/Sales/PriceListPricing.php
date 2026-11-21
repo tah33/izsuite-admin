@@ -85,6 +85,22 @@ class PriceListPricing
         return $out;
     }
 
+    /**
+     * What $list makes $quantity of $item cost on $date, in its currency at
+     * $rate (base per unit), with the rule that gave it - null when no rule
+     * of it prices the item. For one list and an item already loaded, with
+     * its sale and purchase prices: a storefront's prices (Doc 19 Phase D3).
+     *
+     * @return array{unit_price: string, price_list_rule_id: int}|null
+     */
+    public function listPrice(PriceList $list, Item $item, string $quantity, string $date, string $rate): ?array
+    {
+        $rule  = $this->ruleFor($list, $item, $quantity, $date);
+        $price = $rule ? $this->priceBy($rule, $item, Decimal::isZero($rate) ? '1' : $rate) : null;
+
+        return $price === null ? null : ['unit_price' => $price, 'price_list_rule_id' => $rule->id];
+    }
+
     /** The rule of $list that prices $quantity of $item on $date: the most specific, then from the highest quantity. */
     private function ruleFor(PriceList $list, Item $item, string $quantity, string $date): ?PriceListRule
     {

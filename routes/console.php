@@ -49,3 +49,6 @@ Schedule::command('support-sessions:close-expired')->everyFiveMinutes()->without
 
 // POS orders held past Settings → Point of Sale's hours, expired (Doc 18 Phase D1).
 Schedule::command('pos:expire-held-orders')->hourly()->withoutOverlapping();
+
+// Storefront carts unused past Settings → eCommerce's days, expired (Doc 19 Phase D3).
+Schedule::command('ecommerce:expire-carts')->hourly()->withoutOverlapping();

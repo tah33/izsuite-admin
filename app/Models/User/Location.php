@@ -56,6 +56,12 @@ class Location extends Model
     }
 
     /** The business it belongs to. */
+    /** Whether its storefronts' customers may collect from it (Doc 19 Phase D1). */
+    public function pickupPoint(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(PickupPoint::class);
+    }
+
     public function workspace(): BelongsTo
     {
         return $this->belongsTo(Workspace::class);

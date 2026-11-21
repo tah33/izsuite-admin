@@ -98,7 +98,7 @@ class EcommerceStorefrontsTest extends TestCase
         $this->postJson('/api/v1/apps/ecommerce/activate')->assertOk();
 
         $this->getJson(self::SETTINGS)->assertOk()
-            ->assertExactJson(['data' => ['guest_checkout' => true, 'verify_customer_email' => true, 'price_display' => 'with_tax', 'order_prefix' => 'EC-', 'cookie_notice' => true, 'cookie_notice_text' => null]]);
+            ->assertExactJson(['data' => ['guest_checkout' => true, 'verify_customer_email' => true, 'price_display' => 'with_tax', 'order_prefix' => 'EC-', 'cookie_notice' => true, 'cookie_notice_text' => null, 'cart_days' => 30, 'checkout_phone' => 'required', 'checkout_notes' => true]]);
 
         $this->putJson(self::SETTINGS, ['guest_checkout' => false, 'verify_customer_email' => true, 'price_display' => 'without_tax', 'order_prefix' => ' web/ '])->assertOk()
             ->assertJsonPath('message', 'eCommerce settings saved.')
@@ -120,7 +120,7 @@ class EcommerceStorefrontsTest extends TestCase
     {
         $this->postJson('/api/v1/apps/ecommerce/activate')->assertOk();
         $this->getJson(self::STOREFRONTS)->assertOk()->assertExactJson(['data' => []]);
-        $this->getJson(self::STOREFRONTS.'/options')->assertOk()->assertExactJson(['data' => ['currencies' => ['USD', 'EUR', 'BDT'], 'country' => null]]);
+        $this->getJson(self::STOREFRONTS.'/options')->assertOk()->assertExactJson(['data' => ['currencies' => ['USD', 'EUR', 'BDT'], 'country' => null, 'price_lists' => null]]);
         // A new storefront's first country is the business's own.
         $this->business->businessSetting()->create([
             'user_id' => $this->user->id, 'business_name' => 'Rahman Traders', 'language' => 'en', 'country' => 'BD', 'state' => 'Dhaka',
