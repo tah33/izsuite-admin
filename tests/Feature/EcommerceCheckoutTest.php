@@ -55,7 +55,7 @@ class EcommerceCheckoutTest extends TestCase
             ->assertJsonPath('data.pickup_points.0.name', 'Dhaka')
             ->assertJsonPath('data.pickup_points.0.ready_within', 'Ready in 2 hours')
             ->assertJsonPath('data.totals.grand_total', '16.00')
-            ->assertJsonPath('data.checkout', ['guests' => true, 'phone' => 'required', 'notes' => true, 'open' => true])
+            ->assertJsonPath('data.checkout', ['guests' => true, 'signed_in' => false, 'phone' => 'required', 'notes' => true, 'open' => true])
             ->assertJsonPath('data.policies', ['terms' => null, 'privacy' => null]);
 
         // An address in Bangladesh: its zone's methods; Standard chosen, its price in the total.

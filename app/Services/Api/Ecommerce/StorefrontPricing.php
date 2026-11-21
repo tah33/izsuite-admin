@@ -20,9 +20,11 @@ use App\Services\User\Apps\WorkspaceApps;
 /**
  * What a storefront sells its products at (Doc 19 section 19.13 - Phases C1
  * and D3): with full Sales, its own price list's price - with the list's
- * quantity breaks - else each item's sales price, a combo priced as its
- * components' sum theirs, in the storefront's currency at the day's rate (in
- * the base currency while the business has no rate for it).
+ * quantity breaks - and, before it, a signed-in customer's own lists (Phase
+ * E3: those naming their contact, by priority); else each item's sales
+ * price, a combo priced as its components' sum theirs, in the storefront's
+ * currency at the day's rate (in the base currency while the business has no
+ * rate for it).
  *
  * Shown, a price has its tax added or taken out as Settings → eCommerce shows
  * prices; sold (the cart, Phase D3), it is kept as the business keeps prices,
@@ -30,8 +32,7 @@ use App\Services\User\Apps\WorkspaceApps;
  *
  * Its tax is the one a sale of it takes for no customer in particular, as
  * POS picks it: none while taxes are off; else the item's own sales tax while
- * it can be used, else the default one. A customer's own price list waits for
- * signed-in customers (Phase E), and promotions for Phase H.
+ * it can be used, else the default one. Promotions come with Phase H.
  */
 class StorefrontPricing
 {
@@ -45,17 +46,19 @@ class StorefrontPricing
         protected ExchangeRateService $exchangeRates,
         protected PriceListRepository $priceLists,
         protected PriceListPricing $listPricing,
+        protected StoreVisitor $visitor,
     ) {}
 
     /**
      * How $storefront prices on $date: its currency and that currency's rate
      * (the base currency per unit), whether its prices are shown with tax -
      * null while the business has taxes off - the rate of each tax a price
-     * may take, by id, with the default one, and (Phase D3) the price list it
-     * sells at - with full Sales, while the list is active, in its currency
-     * and within its days.
+     * may take, by id, with the default one, and (Phase D3) the price lists it
+     * sells at, in their order - with full Sales, each while it is active, in
+     * its currency and within its days: the signed-in customer's own (Phase
+     * E3), for the store's location, then the store's.
      *
-     * @return array{currency: string, rate: string, with_tax: ?bool, inclusive: bool, rates: array<int, string>, default: ?int, date: string, list: ?\App\Models\User\PriceList}
+     * @return array{currency: string, rate: string, with_tax: ?bool, inclusive: bool, rates: array<int, string>, default: ?int, date: string, lists: list<\App\Models\User\PriceList>}
      */
     public function terms(Workspace $workspace, Storefront $storefront, string $date): array
     {
@@ -64,7 +67,10 @@ class StorefrontPricing
         $taxed    = $workspace->usesTaxes();
         $usable   = $taxed ? $this->taxRates->getFor($workspace)->filter(fn (TaxRate $tax) => $this->usable($tax, $date)) : collect();
         $default  = $taxed ? $this->taxRates->defaultFor($workspace, TaxRate::SALES) : null;
-        $listed   = $storefront->price_list_id !== null && WorkspaceApps::for($workspace)->has('sales', Edition::Full);
+        $full     = WorkspaceApps::for($workspace)->has('sales', Edition::Full);
+        $store    = $full && $storefront->price_list_id !== null ? $this->priceLists->fallback($workspace, $storefront->price_list_id, $currency, $date) : null;
+        $contact  = $full ? $this->visitor->customer()?->contact_id : null;
+        $own      = $contact ? $this->priceLists->eligible($workspace, $currency, $date, $contact, $storefront->location_id)->where('all_customers', false) : collect();
 
         return [
             'currency'  => $currency,
@@ -74,7 +80,7 @@ class StorefrontPricing
             'rates'     => $usable->mapWithKeys(fn (TaxRate $tax) => [(int) $tax->id => (string) $tax->rate])->all(),
             'default'   => $default && $usable->contains('id', $default->id) ? (int) $default->id : null,
             'date'      => $date,
-            'list'      => $listed ? $this->priceLists->fallback($workspace, $storefront->price_list_id, $currency, $date) : null,
+            'lists'     => $own->push($store)->filter()->unique('id')->values()->all(),
         ];
     }
 
@@ -115,7 +121,7 @@ class StorefrontPricing
     public function unitPrice(Item $item, array $terms, string $quantity): array
     {
         if ($listed = $this->listed($item, $terms, $quantity)) {
-            return ['price' => $listed['unit_price'], 'source' => self::PRICE_LIST, 'price_list_id' => $terms['list']->id, 'price_list_rule_id' => $listed['price_list_rule_id']];
+            return ['price' => $listed['unit_price'], 'source' => self::PRICE_LIST, 'price_list_id' => $listed['list']->id, 'price_list_rule_id' => $listed['price_list_rule_id']];
         }
 
         $own = $this->ownPrice($item);
@@ -196,10 +202,16 @@ class StorefrontPricing
         ];
     }
 
-    /** The storefront's price list's price of $quantity of $item, in its currency - null with no list, or no rule of it for the item. */
+    /** The first of $terms' lists that prices $quantity of $item: its price in its currency, its rule and the list - null when none does. */
     private function listed(Item $item, array $terms, string $quantity): ?array
     {
-        return isset($terms['list']) ? $this->listPricing->listPrice($terms['list'], $item, $quantity, $terms['date'], $terms['rate']) : null;
+        foreach ($terms['lists'] ?? [] as $list) {
+            if ($price = $this->listPricing->listPrice($list, $item, $quantity, $terms['date'], $terms['rate'])) {
+                return [...$price, 'list' => $list];
+            }
+        }
+
+        return null;
     }
 
     /** The item's own sales price, in the base currency: a combo priced as its components' sum, theirs. */

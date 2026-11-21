@@ -13,10 +13,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * A storefront's checkout, for its visitor without signing in (Doc 19 Phase
- * D4), their cart known by X-Cart-Token: what it comes to with the address,
- * delivery and payment chosen so far, and the order placed - once, however
- * often it is sent.
+ * A storefront's checkout (Doc 19 Phase D4), for its visitor - signed in by
+ * X-Customer-Token or not (Phase E2) - their cart known by X-Cart-Token: what
+ * it comes to with the address, delivery and payment chosen so far, and the
+ * order placed - once, however often it is sent.
  */
 class StoreCheckoutController extends Controller
 {
@@ -27,7 +27,7 @@ class StoreCheckoutController extends Controller
     public function quote(QuoteStoreCheckoutRequest $request, string $code): JsonResponse
     {
         try {
-            return response()->json(['data' => new StoreCheckoutResource($this->placement->review($code, $this->token($request), $request->validated(), $this->previewer($request)))]);
+            return response()->json(['data' => new StoreCheckoutResource($this->placement->review($code, $this->token($request), $request->validated(), $this->previewer($request), $request->attributes->get('storeCustomer')))]);
 
         } catch (\Throwable $e) {
             report($e);
@@ -40,7 +40,7 @@ class StoreCheckoutController extends Controller
         try {
             $placed = $this->placement->place($code, $this->token($request) ?? abort(404, 'Your cart has expired. Add the products again.'), $request->validated(), [
                 'ip' => $request->ip(), 'agent' => $request->userAgent(),
-            ]);
+            ], $request->attributes->get('storeCustomer'));
 
             return response()->json(['message' => 'Order placed.', 'data' => new StoreOrderResource($placed['order'], $placed['key'])], $placed['created'] ? 201 : 200);
 

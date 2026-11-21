@@ -41,8 +41,14 @@ class CatalogProduct extends Model
 
     public const STATUSES = [self::DRAFT, self::SCHEDULED, self::PUBLISHED, self::HIDDEN, self::ARCHIVED];
 
-    /** Anyone; signed-in customers; only those given its link. Chosen customer groups wait for Doc 21. */
-    public const VISIBILITIES = ['public', 'customers', 'link'];
+    /** Anyone; signed-in customers (Phase E3 shows them theirs); only those given its link. Chosen customer groups wait for Doc 21. */
+    public const VISIBLE_PUBLIC = 'public';
+
+    public const VISIBLE_CUSTOMERS = 'customers';
+
+    public const VISIBLE_LINK = 'link';
+
+    public const VISIBILITIES = [self::VISIBLE_PUBLIC, self::VISIBLE_CUSTOMERS, self::VISIBLE_LINK];
 
     public const FIXED_PRICE = 'fixed_price';
 

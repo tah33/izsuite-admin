@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Events\RecruiterNotificationRequested;
 use App\Listeners\QueueRecruiterNotification;
+use App\Services\Api\Ecommerce\StoreVisitor;
 use App\Services\Billing\Payments\CardGateway;
 use App\Services\Billing\Payments\StripeGateway;
 use App\Support\CountryDirectory;
@@ -25,6 +26,9 @@ class AppServiceProvider extends ServiceProvider
 
         // The countries, read once per request or queued job (Doc 15 Phase F3a).
         $this->app->scoped(CountryDirectory::class);
+
+        // Who a storefront's request is from - a visitor, or its signed-in customer (Doc 19 Phase E3).
+        $this->app->scoped(StoreVisitor::class);
     }
 
     public function boot(): void

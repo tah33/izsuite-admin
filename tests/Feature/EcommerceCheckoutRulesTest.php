@@ -64,7 +64,7 @@ class EcommerceCheckoutRulesTest extends TestCase
         $settings = ['guest_checkout' => false, 'verify_customer_email' => true, 'price_display' => 'with_tax', 'order_prefix' => 'web-', 'checkout_phone' => 'optional', 'checkout_notes' => false];
 
         $this->putJson('/api/v1/business-settings/ecommerce', $settings)->assertOk()->assertJsonPath('data.checkout_phone', 'optional')->assertJsonPath('data.checkout_notes', false);
-        $this->place($token, $this->order('13.00'))->assertForbidden()->assertJsonPath('message', 'This store takes orders from its signed-in customers only.');
+        $this->place($token, $this->order('13.00'))->assertForbidden()->assertJsonPath('message', 'Sign in to place your order: this store takes orders from its signed-in customers.');
 
         // Guests again: the phone may be left out, a note is not kept, and the order takes the prefix.
         $this->putJson('/api/v1/business-settings/ecommerce', [...$settings, 'guest_checkout' => true])->assertOk();

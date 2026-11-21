@@ -9,6 +9,7 @@ use App\Models\User\CatalogProductVariant;
 use App\Models\User\Item;
 use App\Models\User\ItemBrand;
 use App\Models\User\Storefront;
+use App\Services\Api\Ecommerce\StoreVisitor;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -20,6 +21,9 @@ use Illuminate\Support\Str;
  * A storefront as its customers see it (Doc 19 Phase C1): the store by its
  * code, the listings it shows - searched, narrowed and sorted - one listing
  * by its link, and its menu's categories and the brands of what it shows.
+ * From Phase E3, as the request's visitor sees it: listings kept for
+ * signed-in customers show to a customer signed in (StoreVisitor). Its
+ * sitemap lists those for everyone alone.
  */
 class StorefrontCatalogRepository
 {
@@ -31,6 +35,10 @@ class StorefrontCatalogRepository
 
     /** The storefronts' sorts: the newest first by default. */
     public const SORTS = ['newest', 'title', 'price_low', 'price_high'];
+
+    public function __construct(
+        protected StoreVisitor $visitor,
+    ) {}
 
     public function findStore(string $code): ?Storefront
     {
@@ -90,7 +98,7 @@ class StorefrontCatalogRepository
      */
     private function within(Storefront $storefront, array $filters, string $today, ?CatalogCollection $collection): Builder
     {
-        $query = $this->shown($storefront, $today, ['public']);
+        $query = $this->shown($storefront, $today, $this->visitor->listed());
 
         if ($collection?->kind === CatalogCollection::BRAND) {
             $query->whereHas('item', fn (Builder $item) => $item->where('brand_id', $collection->item_brand_id));
@@ -123,7 +131,7 @@ class StorefrontCatalogRepository
     /** The listing $storefront shows at $slug: for anyone, or for those with its link. */
     public function product(Storefront $storefront, string $slug, string $today): ?CatalogProduct
     {
-        return $this->shown($storefront, $today, ['public', 'link'])
+        return $this->shown($storefront, $today, $this->visitor->reachable())
             ->where('slug', Str::lower($slug))
             ->with([
                 'item:'.self::ITEM, 'item.image', 'item.brand:id,name', 'item.category:id,name', 'item.category.catalogCategory:id,item_category_id,slug',
@@ -140,7 +148,7 @@ class StorefrontCatalogRepository
      */
     public function shownAmong(Storefront $storefront, array $ids, string $today): Collection
     {
-        return $this->shown($storefront, $today, ['public', 'link'])
+        return $this->shown($storefront, $today, $this->visitor->reachable())
             ->whereKey($ids)
             ->with([
                 'item:'.self::ITEM, 'item.image', 'item.components.component:id,sale_price', 'cover',
@@ -156,7 +164,7 @@ class StorefrontCatalogRepository
      */
     public function sitemapProducts(Storefront $storefront, string $today, int $limit): Collection
     {
-        return $this->shown($storefront, $today, ['public'])->orderBy('catalog_products.id')->limit($limit)->get(['catalog_products.slug', 'catalog_products.updated_at']);
+        return $this->shown($storefront, $today, [CatalogProduct::VISIBLE_PUBLIC])->orderBy('catalog_products.id')->limit($limit)->get(['catalog_products.slug', 'catalog_products.updated_at']);
     }
 
     /** The online categories in the storefront's menu, in their places, with their names. */
@@ -176,7 +184,7 @@ class StorefrontCatalogRepository
     {
         return ItemBrand::query()
             ->where('workspace_id', $storefront->workspace_id)
-            ->whereHas('items', fn (Builder $item) => $item->whereHas('catalogProduct', fn (Builder $listing) => $this->showing($listing, $storefront, $today, ['public'])))
+            ->whereHas('items', fn (Builder $item) => $item->whereHas('catalogProduct', fn (Builder $listing) => $this->showing($listing, $storefront, $today, $this->visitor->listed())))
             ->orderBy('name')
             ->get(['id', 'name']);
     }

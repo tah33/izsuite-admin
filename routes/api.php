@@ -87,6 +87,10 @@ use App\Http\Controllers\Api\PaymentAccountController;
 use App\Http\Controllers\Api\CatalogCategoryController;
 use App\Http\Controllers\Api\CatalogCollectionController;
 use App\Http\Controllers\Api\CatalogVariantController;
+use App\Http\Controllers\Api\StoreAccountAddressController;
+use App\Http\Controllers\Api\StoreAccountAuthController;
+use App\Http\Controllers\Api\StoreAccountController;
+use App\Http\Controllers\Api\StoreAccountOrderController;
 use App\Http\Controllers\Api\StoreCartController;
 use App\Http\Controllers\Api\StoreCheckoutController;
 use App\Http\Controllers\Api\StoreOrderController;
@@ -199,32 +203,60 @@ Route::prefix('v1')->group(function () {
     // A storefront as its customers see it, by its code and without signing in: the store, its products and a
     // product by its link (Doc 19 Phase C1).
     Route::middleware('throttle:120,1')->prefix('stores/{code}')->where(['code' => '[A-Za-z0-9-]+'])->group(function () {
-        Route::get('/', [StoreCatalogController::class, 'show'])->name('api.stores.show');
-        // Phase C4b: its home page, as its theme lays it out.
-        Route::get('/home', [StoreCatalogController::class, 'home'])->name('api.stores.home');
-        Route::get('/products', [StoreCatalogController::class, 'products'])->name('api.stores.products');
-        Route::get('/products/{slug}', [StoreCatalogController::class, 'product'])->where('slug', '[A-Za-z0-9-]+')->name('api.stores.product');
-        // Phase C2: its categories' and collections' pages, and what its search suggests.
-        Route::get('/categories/{slug}', [StoreCatalogController::class, 'category'])->where('slug', '[A-Za-z0-9-]+')->name('api.stores.category');
-        Route::get('/collections', [StoreCatalogController::class, 'collections'])->name('api.stores.collections');
-        Route::get('/collections/{slug}', [StoreCatalogController::class, 'collection'])->where('slug', '[A-Za-z0-9-]+')->name('api.stores.collection');
-        Route::get('/suggestions', [StoreCatalogController::class, 'suggestions'])->name('api.stores.suggestions');
-        // Phase C3: what its products offer to filter by - price, options and attributes.
-        Route::get('/facets', [StoreCatalogController::class, 'facets'])->name('api.stores.facets');
+        // From Phase E3 the store, its products, cart and checkout are as its visitor sees them: its signed-in
+        // customer (X-Customer-Token) sees the listings kept for customers, at their own price lists.
+        Route::middleware('store.customer:optional')->group(function () {
+            Route::get('/', [StoreCatalogController::class, 'show'])->name('api.stores.show');
+            // Phase C4b: its home page, as its theme lays it out.
+            Route::get('/home', [StoreCatalogController::class, 'home'])->name('api.stores.home');
+            Route::get('/products', [StoreCatalogController::class, 'products'])->name('api.stores.products');
+            Route::get('/products/{slug}', [StoreCatalogController::class, 'product'])->where('slug', '[A-Za-z0-9-]+')->name('api.stores.product');
+            // Phase C2: its categories' and collections' pages, and what its search suggests.
+            Route::get('/categories/{slug}', [StoreCatalogController::class, 'category'])->where('slug', '[A-Za-z0-9-]+')->name('api.stores.category');
+            Route::get('/collections', [StoreCatalogController::class, 'collections'])->name('api.stores.collections');
+            Route::get('/collections/{slug}', [StoreCatalogController::class, 'collection'])->where('slug', '[A-Za-z0-9-]+')->name('api.stores.collection');
+            Route::get('/suggestions', [StoreCatalogController::class, 'suggestions'])->name('api.stores.suggestions');
+            // Phase C3: what its products offer to filter by - price, options and attributes.
+            Route::get('/facets', [StoreCatalogController::class, 'facets'])->name('api.stores.facets');
+            // Phase D3: the visitor's cart, known by its token (X-Cart-Token).
+            Route::get('/cart', [StoreCartController::class, 'show'])->name('api.stores.cart.show');
+            Route::post('/cart/lines', [StoreCartController::class, 'addLine'])->name('api.stores.cart.lines.store');
+            Route::put('/cart/lines/{line}', [StoreCartController::class, 'updateLine'])->whereNumber('line')->name('api.stores.cart.lines.update');
+            Route::delete('/cart/lines/{line}', [StoreCartController::class, 'removeLine'])->whereNumber('line')->name('api.stores.cart.lines.destroy');
+            // Phase D4: checkout - what the cart comes to with the choices made so far, and the order placed. From
+            // Phase E2 a signed-in customer's is their account's.
+            Route::post('/checkout/quote', [StoreCheckoutController::class, 'quote'])->name('api.stores.checkout.quote');
+            Route::post('/checkout', [StoreCheckoutController::class, 'place'])->name('api.stores.checkout.place');
+        });
         // Phase C5a: a page of the store's - its contact or about page, or a policy - by its link.
         Route::get('/pages/{slug}', [StoreCatalogController::class, 'page'])->where('slug', '[A-Za-z0-9-]+')->name('api.stores.page');
-        // Phase C6a: what its sitemap lists.
+        // Phase C6a: what its sitemap lists - for everyone alone.
         Route::get('/sitemap', [StoreCatalogController::class, 'sitemap'])->name('api.stores.sitemap');
-        // Phase D3: the visitor's cart, known by its token (X-Cart-Token).
-        Route::get('/cart', [StoreCartController::class, 'show'])->name('api.stores.cart.show');
-        Route::post('/cart/lines', [StoreCartController::class, 'addLine'])->name('api.stores.cart.lines.store');
-        Route::put('/cart/lines/{line}', [StoreCartController::class, 'updateLine'])->whereNumber('line')->name('api.stores.cart.lines.update');
-        Route::delete('/cart/lines/{line}', [StoreCartController::class, 'removeLine'])->whereNumber('line')->name('api.stores.cart.lines.destroy');
-        // Phase D4: checkout - what the cart comes to with the choices made so far, and the order placed.
-        Route::post('/checkout/quote', [StoreCheckoutController::class, 'quote'])->name('api.stores.checkout.quote');
-        Route::post('/checkout', [StoreCheckoutController::class, 'place'])->name('api.stores.checkout.place');
         // Phase D5: an order's own page, by its link's key.
         Route::get('/orders/{key}', [StoreOrderController::class, 'show'])->where('key', '[a-f0-9]{64}')->name('api.stores.orders.show');
+        // Phase E1: a customer's account - signing up, verifying the e-mail, signing in and a forgotten password -
+        // and, signed in by its own token (X-Customer-Token), the account itself. What sends an e-mail is held to
+        // ten a minute from one address, on a key of its own (the prefix), apart from the group's.
+        Route::post('/account', [StoreAccountAuthController::class, 'signUp'])->middleware('throttle:10,1,store-account-mail')->name('api.stores.account.sign-up');
+        Route::post('/account/verify', [StoreAccountAuthController::class, 'verify'])->name('api.stores.account.verify');
+        Route::post('/account/verify/resend', [StoreAccountAuthController::class, 'resend'])->middleware('throttle:10,1,store-account-mail')->name('api.stores.account.verify.resend');
+        Route::post('/account/sign-in', [StoreAccountAuthController::class, 'signIn'])->name('api.stores.account.sign-in');
+        Route::post('/account/password/forgot', [StoreAccountAuthController::class, 'forgot'])->middleware('throttle:10,1,store-account-mail')->name('api.stores.account.password.forgot');
+        Route::post('/account/password/reset', [StoreAccountAuthController::class, 'reset'])->name('api.stores.account.password.reset');
+        Route::middleware('store.customer')->group(function () {
+            Route::post('/account/sign-out', [StoreAccountAuthController::class, 'signOut'])->name('api.stores.account.sign-out');
+            Route::get('/account', [StoreAccountController::class, 'show'])->name('api.stores.account.show');
+            Route::put('/account', [StoreAccountController::class, 'update'])->name('api.stores.account.update');
+            Route::put('/account/password', [StoreAccountController::class, 'password'])->name('api.stores.account.password');
+            Route::delete('/account', [StoreAccountController::class, 'close'])->name('api.stores.account.close');
+            // Phase E2: the account's orders, and its saved addresses.
+            Route::get('/account/orders', [StoreAccountOrderController::class, 'index'])->name('api.stores.account.orders.index');
+            Route::get('/account/orders/{order}', [StoreAccountOrderController::class, 'show'])->whereNumber('order')->name('api.stores.account.orders.show');
+            Route::get('/account/addresses', [StoreAccountAddressController::class, 'index'])->name('api.stores.account.addresses.index');
+            Route::post('/account/addresses', [StoreAccountAddressController::class, 'store'])->name('api.stores.account.addresses.store');
+            Route::put('/account/addresses/{address}', [StoreAccountAddressController::class, 'update'])->whereNumber('address')->name('api.stores.account.addresses.update');
+            Route::delete('/account/addresses/{address}', [StoreAccountAddressController::class, 'destroy'])->whereNumber('address')->name('api.stores.account.addresses.destroy');
+        });
     });
 
     // Stripe's notifications of finished checkouts, taken only with its signature (Doc 13 Phase D2).

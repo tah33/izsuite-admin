@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-21
-- **Code:** Doc 19 Phase D - D1 (shipping zones and methods, and pickup), D2 (payment methods without a gateway), D3 (the cart), D4 (checkout and the order) and D5 (the order's page and its confirmation e-mail) - is built, checked on the second PC through the API and in a headless browser, and committed and pushed: frontend `b4befbb` on `nuxt`, and on `main` the admin commit right after `47257f3`. Doc 19's gap check and Phases A to C (eCommerce on with its storefronts, the catalog, and the storefront's pages) are committed and pushed: admin `47257f3`, frontend `e7782c7`. Doc 18 is done and pushed: admin `85d748a`, frontend `7933c6d`. Doc 17 is done and pushed: Phase I4, the last, is frontend `e20fa70` and admin `e5cd080`. Before Doc 18 Phase I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
-- **Tests:** 1205 backend tests, last full run 2026-11-21 on the second PC: 1204 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Docs 17 to 19 (see [Small things left](#small-things-left)).
-- **Next step:** Doc 19 (eCommerce) Phase E: customer accounts - signing up, verifying, signing in and resetting the password; profile, addresses, orders, invoices and tracking; guest orders linked once verified; consent; closing the account. Phase D's testing checklist (blocks D1 to D5) is still to be worked through by a person, beyond the flows a headless browser checked, and so is Doc 18's. Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 19 Phases E1 (the customer's account: signing up and verifying the e-mail, signing in and out, a forgotten password, the account page, a new password and closing the account) and E2 (the account's contact, its orders and saved addresses, and checkout signed in) are built and checked on the second PC through the API and in a headless browser; not committed yet. Doc 19 Phase D - D1 (shipping zones and methods, and pickup), D2 (payment methods without a gateway), D3 (the cart), D4 (checkout and the order) and D5 (the order's page and its confirmation e-mail) - is built, checked on the second PC through the API and in a headless browser, and committed and pushed: frontend `b4befbb` on `nuxt`, and on `main` the admin commit right after `47257f3`. Doc 19's gap check and Phases A to C (eCommerce on with its storefronts, the catalog, and the storefront's pages) are committed and pushed: admin `47257f3`, frontend `e7782c7`. Doc 18 is done and pushed: admin `85d748a`, frontend `7933c6d`. Doc 17 is done and pushed: Phase I4, the last, is frontend `e20fa70` and admin `e5cd080`. Before Doc 18 Phase I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
+- **Tests:** 1221 backend tests, last full run 2026-11-21 on the second PC (after Doc 19 Phase E2): 1220 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Docs 17 to 19 (see [Small things left](#small-things-left)).
+- **Next step:** Doc 19 (eCommerce) Phase E3: what a signed-in customer is offered - listings kept for signed-in customers, their own price lists (full Sales), their marketing consent and their language. Phase D's and E's testing checklists (blocks D1 to D5, E1 and E2) are still to be worked through by a person, beyond the flows a headless browser checked, and so is Doc 18's. Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 19 Phase D5 the latest is 000225. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 19 Phase E2 the latest is 000227. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 19 Phase E.
+   > Read PROJECT_STATUS.md, then start Doc 19 Phase E3.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -61,7 +61,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
 | **17** | **CRM** | **Done (2026-11-19): gap check and Phases A to I; Campaign-to-Opportunity Results waits for Doc 21** |
 | **18** | **Point of Sale** | **Done (2026-11-20): gap check and Phases A to I; offline mode (18.29) later, and what waits for Inventory and the integrations (see below)** |
-| **19** | **eCommerce** | **In progress: gap check, Phases A (A1 to A3), B (B1 to B3) and C (C1 to C6), done 2026-11-20; Phase D (D1 to D5) done 2026-11-21, Phase E next** |
+| **19** | **eCommerce** | **In progress: gap check, Phases A (A1 to A3), B (B1 to B3) and C (C1 to C6), done 2026-11-20; Phase D (D1 to D5) done 2026-11-21; Phase E: E1 and E2 done 2026-11-21, E3 next** |
 | 20 and 21 | Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -2817,7 +2817,7 @@ The gap check was done on 2026-11-19. Doc 18 is Point of Sale: fast selling over
       - Found while checking: the daily usage snapshot ran during the check, with POS on; it was deleted with the rest.
       - The devices, session, order, invoice, payment, account entries, accounts, register, settings, the app's and taxes' state, the sign-in and the activity were then put back. The database matched its backup, but for migration 000210's table.
 
-### 7. Doc 19: eCommerce (next: Phase E)
+### 7. Doc 19: eCommerce (next: Phase E3)
 
 The gap check was done on 2026-11-20. Doc 19 is eCommerce: the business's online storefront, where customers browse its items, order and pay, follow their orders, download what they bought and ask for returns. It sells through the shared Contacts, Items, Taxes, Payment Accounts and Sales records: an online order counts as a sale once, through its invoice.
 
@@ -3265,7 +3265,47 @@ The gap check was done on 2026-11-20. Doc 19 is eCommerce: the business's online
       - Checkout: an answer to an address typed earlier came back after the customer chose a delivery, and undid the choice - Place Order was then refused, "Choose one of the delivery options offered for this address." An answer to choices since changed is now dropped, and Place Order waits for one still due.
       - The line above the cart's Total broke at the summary's column gap; the confirmation's "see your order" looked like plain text. Both mended.
     - The screenshots were read one by one. The dev data was then put back; the database matched its backup, but for migration 000225's table.
-- **Phase E: customer accounts** - signing up, verifying, signing in and resetting the password; profile, addresses, orders, invoices and receipts, tracking, guest orders linked once verified, consent, and closing the account.
+- **Phase E: customer accounts** - signing up, verifying, signing in and resetting the password; profile, addresses, orders, invoices and receipts, tracking, guest orders linked once verified, consent, and closing the account. Split on starting it (2026-11-21), with these defaults:
+  - **E1, the account** (19.16):
+    - a customer signs up on a store - name, e-mail, password (izSuite's password rules) and, if they like, a phone. The account is the business's, signing them in on each of its storefronts; it is never a user of the business, nor counted as one;
+    - a 6-digit code by e-mail verifies the address (for 30 minutes; a new one after a minute). While Settings → eCommerce says so (on to start), an unverified account cannot sign in;
+    - signing in and out; a forgotten password reset by an e-mailed code, which verifies the address too; the profile (name and phone); a new password; and closing the account - kept, closed, with its orders, and signed out everywhere. Signing up again with its e-mail opens it again, to be verified again;
+    - the customer's sign-in is a token of its own (`X-Customer-Token`) on the store's calls: no business route reads it, and no customer route takes a business user's token.
+  - **E2, the account's contact, orders and addresses** (19.16, 19.17):
+    - a verified account is linked to its contact: the one its e-mail's guest orders made, else the business's one contact with that e-mail - two or more is not certain, so a new one is made - else a new customer contact. Its e-mail's guest orders become its own;
+    - signed in, checkout starts from the account's details and saved addresses, and the order is the account's. With guest checkout off, checkout asks the customer to sign in;
+    - the account's pages: its orders with their statuses (tracking), each order's page - with its invoice and receipts once Phase F issues them - and saved addresses, with a default for billing and one for delivery;
+    - an account opened again by signing up (E1 empties its verification) shows its earlier orders and addresses only once verified again: whoever signs up with a closed account's e-mail sets its password, and with Verify Customer E-mail off is signed in at once.
+  - **E3, what a signed-in customer is offered** (19.8, 19.13, 19.16): listings kept for signed-in customers, shown to them; with full Sales, their own price lists before the storefront's, with their quantity breaks, worked out by the API; their communication consent (marketing by e-mail, given or withdrawn, recorded as the contact's) and their language among the store's. The customer's credit as a payment waits for the order's invoice (Phase F).
+  - **Phase E1 is built** (migration 000226): the customer's account (19.16).
+    - **Signing up** on a store (`/store/{code}/account/sign-up`, from the header's Sign in beside the cart): name, e-mail, a password by izSuite's rules (8 characters at least, with capital and small letters, a number and a symbol) typed twice, and a phone if they like. Only an open store takes sign-ups. The account is the business's - one per e-mail, kept in small letters - and signs its customer in on each of the business's storefronts. It is never a user of the business, nor counted as one.
+    - **Its e-mail is verified** by a 6-digit code sent to it at once, from izSuite's address under the store's name, with replies to its support e-mail. A code holds 30 minutes; a new one may be asked for a minute after the last, and spends the one before; five wrong tries spend it too. While Settings → eCommerce's Verify Customer E-mail is on (as it starts), an account signs in only once verified: signing in before sends a code (unless one went in the last minute) and leads to verifying it. With it off, signing up signs in at once, and the code still verifies the e-mail.
+    - **Signing in** with the e-mail and password; five wrong tries in a minute for an e-mail from one address wait a minute. What is said never tells whether an e-mail has an account - "The e-mail or the password is not right."; a code "is on its way" if it has one - but on signing up with one in use.
+    - **A forgotten password**: a code e-mailed, then a new password with it. It verifies the e-mail too, signs every other sign-in out, and signs in.
+    - **The account page** (`/store/{code}/account`): the name, e-mail and "A customer since"; Sign out; the details (name and phone - the e-mail stays); a new password, given the current one, which signs the other sign-ins out; and closing the account with its password - kept, closed, with its orders (Phase E2), and signed out everywhere. Signing up again with its e-mail opens it again, to be verified again. Not signed in, the page asks to sign in first and comes back.
+    - **The sign-in** is a token of the account's own, kept by a cookie of the store's and sent as `X-Customer-Token`; only its hash is kept, for 60 days from its last use. No business route reads it, and a business user's token signs no customer in. Sign-ups, new codes and forgotten passwords are held to ten a minute from one address.
+    - Signing up, opening again and closing are in the Activity Log as the customer's doing; the rest is not.
+    - The API, on the store's calls: `POST /api/v1/stores/{code}/account` (signing up), `.../account/verify`, `.../account/verify/resend`, `.../account/sign-in`, `.../account/password/forgot` and `.../account/password/reset`; signed in, `POST .../account/sign-out`, `GET`, `PUT` and `DELETE .../account`, and `PUT .../account/password`.
+    - **Checked** on the second PC, through the API and in a headless Chromium (`../doc-19-phase-e1-ui-check.py`), on a live store made for the check, Rahman Shop:
+      - Through the API: signed up as Karim@Example.test - kept in small letters, "verify your e-mail with the code we sent", no token. Signing in before verifying: "Verify your e-mail first: we have sent you a code." (403), and no second code within the minute. The dev log held the e-mail: from "Rahman Shop <hello@izsuite.com>", Reply-To "Rahman Shop <help@rahman.test>", "Your code to verify your e-mail at Rahman Shop", the code and "It holds for 30 minutes." Verified with it: signed in, a 64-character token; the account read, and its phone cleared. The same token as a business user's: 401 on `/auth/me`. Five wrong passwords, then the right one: "Too many tries: try again in 58 seconds." Ten forgotten-password calls in a minute after the sign-up: the tenth refused (429).
+      - In the browser, 9 steps, all passing in the end: the header's Sign in; signing up - passwords that differ refused - then the verify page; a wrong code refused, the right one signing in to the account; the details saved; a new password refused with a wrong current one, then saved; signed out, the account page asking to sign in first, the old password refused and the new one signing in; a forgotten password reset by its code; the account closed - a wrong password refused - and no longer signing in; signing in unverified leading to the verify page, then into the account; and at phone width, the sign-up and account pages fitting.
+      - **Found, and fixed**: after a wrong code its six boxes stayed filled, so the next code's first digit sent a half-changed code and the right one was dropped - the boxes now empty after a wrong code. Closing the account emptied the page before its card could lead to the store's home, so it stayed on "Loading your account…" - the card leads there itself now. The account page sat in the middle, not lined up with the header as the cart is.
+      - The screenshots were read one by one. The store, the accounts, item, listing, the app's state and the activity were then put back; the database matched its backup, but for migration 000226's tables.
+  - **Phase E2 is built** (migration 000227): the account's contact, orders and addresses (19.16, 19.17).
+    - **A verified account is linked to its contact** - on verifying its e-mail, on a new password (which verifies it), and at each checkout signed in: its own contact while active (or the one it was merged into); else the contact its e-mail's guest orders made; else the business's one active customer (a customer or both) with that e-mail, whatever its case and spaces - two or more is not certain, and a supplier alone is not a customer, so neither is taken; else a new customer contact, an individual, with the account's name, e-mail and phone, the store's language and the note "Made by the store account of … on …". The link is in the Activity Log on the contact.
+    - **Its e-mail's orders become its own** then: guest orders, and those of the account before it was closed. An unverified account's orders are only those it placed signed in.
+    - **Signed in, checkout** starts from the account: its name, phone and e-mail - which cannot be changed there: the order goes to the account's e-mail - and its addresses for billing and delivery; each address step can be filled from any of its addresses. The order is the account's. Its contact is the account's once verified; an unverified account's order finds or makes its contact as a guest's does. A visitor not signed in is offered to sign in, and comes back to checkout.
+    - **With guest checkout off**, checkout asks a visitor to sign in or make an account, and Place Order waits; signed in, they order. Refused to a guest: "Sign in to place your order: this store takes orders from its signed-in customers." (403).
+    - **The account's pages** have tabs - Your details, Orders and Addresses:
+      - **Orders** (`/store/{code}/account/orders`): the newest first, 20 a page, each with its number, day, products, total and three statuses in words (tracking), opening its own page - as its link's page shows it. Its invoice and receipts join it with Phase F. An order of another account is not found.
+      - **Addresses** (`/store/{code}/account/addresses`): up to 20, added, changed and deleted - asked first - one used for billing and one for delivery. The first is both; ticking another takes it over; a default stays until another is ticked; one deleted passes its use to the newest left. Each order placed signed in keeps its billing address and the one it is shipped to, unless the account has it already (whatever its case and spaces), while there is room; the first become the defaults.
+    - **Closing the account** deletes its addresses. **Signing up again** with a closed account's e-mail lets its contact and orders go: they come back only once it is verified again, so whoever reopens it - signed in at once while the business does not ask to verify - sees none of them.
+    - The API, signed in (`X-Customer-Token`): `GET /api/v1/stores/{code}/account/orders` (`{ data, pagination }`), `GET .../account/orders/{id}`, and `GET`, `POST`, `PUT` and `DELETE .../account/addresses[/{id}]`. Checkout's calls take the sign-in too: its quote says `checkout.signed_in`.
+    - **Checked** on the second PC, through the API and in a headless Chromium (`../doc-19-phase-e2-ui-check.py`), on the dev store with Bangladesh's Standard ($5) and Bank Transfer:
+      - Through the API: a guest order EC-00001 for Karim@Example.test made the contact C-00007; Karim then signed up and verified: the account linked to C-00007, and its orders listed EC-00001 (2 products, $21.00, Received, unpaid, unfulfilled). Signed in, an order sent with someone@example.test: EC-00002 at karim@example.test, the account's, C-00007; its address kept, for billing and delivery. A second address added for delivery took that use over. Guest checkout off: the quote said `guests: false, signed_in: false`; the guest's order refused (403); the same cart signed in: EC-00003.
+      - In the browser, 7 steps, all passing in the end: signed up and verified, the account's tabs, "You have no orders yet."; three addresses added - one ticked for delivery - one changed and one deleted, asked first; checkout signed in, its name, e-mail (read-only) and both addresses filled from the account, placed; the orders list with its statuses, 1 product and $13.00, and the order's own page; guest checkout off - the visitor asked to sign in, Place Order waiting, signed in and back at checkout, placed; guests again, a visitor offered to sign in, the e-mail free to type; at phone width, the orders and addresses pages fitting.
+      - **Mended on the way**: the addresses' "For billing" and "For delivery" looked like the tabs, so like buttons - they are small labels now; the account's e-mail at checkout looked editable - it is greyed; the links in checkout's sign-in warning did not stand out - warnings' links are underlined. The dev API, PHP's built-in server, serves one request at a time: a save and the reload after it took more than Playwright's 5-second wait once, so the script waits 15.
+      - The screenshots were read one by one. The store, its shipping and payment method, the account, orders, carts, contacts, item, listing, the app's state and the activity were then put back; the database matched its backup, but for migration 000227's changes.
 - **Phase F: orders in the business** - the Orders page, and an order's page with its three statuses and timeline; confirming it (its invoice), holding it for review and releasing it, cancelling it, editing it before payment, payments confirmed or failed, and payment links. Permissions View, Edit, Confirm, Place On Hold and Cancel Orders.
 - **Phase G: fulfilment** - fulfilments, partial ones too, with carrier and tracking; ready for pickup, shipped and delivered; the delivery document; digital delivery (secure downloads within limits, license keys, links, by hand) and services. Permission Manage Fulfilment.
 - **Phase H: promotions, abandoned carts and quotations** - discount codes and automatic discounts with their rules; abandoned carts, recovered with consent; requests for a quotation, as CRM leads or draft quotations. Permission Manage Discounts.
@@ -3362,6 +3402,8 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 19: Phase D3 | 000223 |
 | Doc 19: Phase D4 | 000224 |
 | Doc 19: Phase D5 | 000225 |
+| Doc 19: Phase E1 | 000226 |
+| Doc 19: Phase E2 | 000227 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -4437,6 +4479,43 @@ On a fresh business, set the days in Settings → CRM to fit what you have, rath
 - [ ] Pick up an order: the page and the e-mail name the location, its instructions and when it is ready.
 - [ ] At phone width the order's page fits.
 
+**Phase E1: the customer's account**
+
+**Before you start:** a live storefront with a support e-mail, and Settings → eCommerce's Verify Customer E-mail on. Dev mail goes to `storage/logs/laravel.log`: the codes are there. Open the store in a private window. Its main flows were driven in a headless browser; the rest are to try.
+
+- [ ] The header shows Sign in beside the cart. Sign in → Make an account.
+- [ ] Sign up with the two passwords differing, then with a password without a symbol: each refused. Then your name, your e-mail in capitals and a phone: the verify page, "We sent a 6-digit code to …" in small letters, "A new code in 60s".
+- [ ] The log holds the e-mail: from the store's name, replies to its support e-mail, "Your code to verify your e-mail at …", the code, "It holds for 30 minutes." Its plain-text part reads without HTML codes.
+- [ ] A wrong code: "That code is not right." and the boxes empty. The right one: Your Account, with your name, e-mail and "A customer since" today. The header's icon is now Your account.
+- [ ] In another window, sign up with the same e-mail: "An account uses this e-mail already".
+- [ ] Change your name and clear the phone; Save: "Your details are saved." The e-mail cannot be changed.
+- [ ] A new password with a wrong current one: refused. With the right one: saved, and another browser signed in to the account is signed out.
+- [ ] Sign out: the store's home, the header says Sign in. Open the account page: it asks you to sign in, then brings you back.
+- [ ] A wrong password five times: the sixth try waits ("Too many tries: try again in … seconds.").
+- [ ] Forgot your password? → your e-mail → "Choose a new password": the code from the log and a new password sign you in. The old password no longer works.
+- [ ] A forgotten password for an e-mail with no account: the same answer, and no e-mail in the log.
+- [ ] Sign up a second account and leave before verifying. Sign in with it later: the verify page; its code signs you in.
+- [ ] Settings → eCommerce: Verify Customer E-mail off. A new sign-up signs in at once; its account page says the e-mail is not verified yet, with Verify it.
+- [ ] Close your account with a wrong password: refused. With the right one: the store's home, signed out, and signing in with it is refused. Sign up again with its e-mail: it opens again, to be verified.
+- [ ] A second storefront of the business signs the same account in; another business's store does not know it.
+- [ ] The Activity Log shows the sign-ups and the closing, by no user. Settings → Users & Roles has no new user.
+- [ ] At phone width the sign-in, sign-up, verify and account pages fit.
+
+**Phase E2: the account's contact, orders and addresses**
+
+**Before you start:** Phase E1's set-up, with Phase D4's shipping and payment methods. Its main flows were driven in a headless browser; the rest are to try.
+
+- [ ] As a guest, place an order with an e-mail. Then sign up with that e-mail and verify it: Orders lists the guest order, and in Contacts the account's link is in the order's contact's Activity.
+- [ ] A contact of your own (a customer) with another e-mail, then a sign-up with it, verified: linked to your contact. Two customers with one e-mail: a new contact instead. A supplier alone: a new contact too.
+- [ ] Signed in, Checkout: your name, phone and e-mail filled - the e-mail greyed - and your addresses for billing and delivery. "Your addresses" fills either address from another of yours.
+- [ ] Place it: the order is in Orders, with Received, "Payment: not paid yet", "Delivery: not sent yet", its products and total; open it.
+- [ ] Order to a new address: Addresses keeps it. The same address in other letters or spaces: not kept twice.
+- [ ] Addresses: add one, tick "Use it for delivery": it takes that over. Change one; delete one - asked first. The 21st cannot be added.
+- [ ] Settings → eCommerce, guest checkout off. Signed out, Checkout: "This store takes orders from its signed-in customers.", Place Order greyed. Sign in from it: back at checkout, and the order is placed.
+- [ ] Guests again, signed out: "Have an account? Sign in" at checkout.
+- [ ] Close the account: its addresses go. With Verify Customer E-mail off, sign up again with its e-mail: no orders until it is verified, then they come back.
+- [ ] At phone width the account's tabs, orders, an order and the addresses fit, and so does checkout signed in.
+
 ## How we work
 
 Each document goes the same way:
@@ -4507,6 +4586,11 @@ Each document goes the same way:
 - Without a browser (Doc 19 Phase D was checked so): call the API with a token made in tinker (`$user->createToken('check')`), and a storefront's API as a visitor with its cart's `X-Cart-Token`. A page rendered on the server comes from `curl http://127.0.0.1:3000/...` with an `izsuite_token` cookie, or a store's `izsuite_cart_{code}` cookie. The first page after `docker restart izsuite-frontend` can take more than two minutes on the second PC - longer while the test suite runs - so fetch it in the background.
 - On the second PC the dev business has never finished its setup wizard (`setup_completed_at` is empty): its owner is sent to /setup from the app's pages. A member without Manage Business Settings is not.
 - A headless browser check, where no browser can be driven (Doc 19 Phase D): Playwright's image, `mcr.microsoft.com/playwright/python:v1.49.0-jammy` (3.3 GB, with the browsers but without the Python package: `pip install playwright==1.49.0` first), run on the `izsuite-public` network. Inside it, the script forwards 127.0.0.1:3000 to `izsuite-frontend:3000` and 127.0.0.1:8010 to `izsuite-api:8000`, so the pages - and their scripts' calls to `http://localhost:8010` - work as on the PC. Sign in with the `izsuite_token` and `izsuite_workspace` cookies. Wait for `networkidle` after each page loads: a click before hydration does nothing. Phase D's script is `../doc-19-phase-d-ui-check.py`; its screenshots can be read back to check the layout.
+  - A code e-mailed during the check (Doc 19 Phase E1's script, `../doc-19-phase-e1-ui-check.py`): mount the API's logs into the container, read only (`-v D:/projects/izsuite/izsuite-backend/storage/logs:/logs:ro`). The log mailer writes the plain-text part, where the code is a line of its own; read only what was written after the step began.
+- OtpInput sends `complete` on every keystroke while all its boxes are filled. A page that submits on `complete` must empty the code after a wrong one, or the next code's first digit sends a half-changed one.
+- A Vue component's event sent after it is unmounted is dropped. When an action empties what the page shows (closing an account clears the customer), the component cannot tell its page afterwards: it acts itself (navigates), or the page does the action.
+- MySQL spends an id on an upsert that only updates: making an item, its number's sequence row is upserted, and `workspace_sequences`' AUTO_INCREMENT moves on with no new row. Put it back after a check that numbers something.
+- The dev API is `php artisan serve` - PHP's built-in server - which answers one request at a time, so a page's calls queue behind each other. In a headless check, a save and the reload after it can outlast Playwright's 5-second wait: Phase E2's script sets `expect.set_options(timeout=15000)`.
 
 ### Checking the app as a limited member
 
@@ -4756,6 +4840,8 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 19: Phase D3, the cart | the commit after `47257f3` | `b4befbb` | 000223 |
 | Doc 19: Phase D4, checkout and the order | the commit after `47257f3` | `b4befbb` | 000224 |
 | Doc 19: Phase D5, the order's page and its confirmation e-mail | the commit after `47257f3` | `b4befbb` | 000225 |
+| Doc 19: Phase E1, the customer's account | not committed yet | not committed yet | 000226 |
+| Doc 19: Phase E2, the account's contact, orders and addresses | not committed yet | not committed yet | 000227 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`). Between I1 and I2, shuvo added rich text for payment instructions and the Sales settings' notes and terms (`a5e46cb` and `9bf4525`, with no frontend commit yet).
 
@@ -5528,12 +5614,27 @@ These are easy to undo by mistake.
   - `StoreOrderMailer` (`queue()`, `deliver()`, `failed()`; the order as its e-mail shows it, in the business's formats), the encrypted job `SendStoreOrderEmail` (three tries) and `StoreOrderMail`, with `emails/store-order-received` and its plain-text part; `StorefrontOrderPlacement` queues it and gives the link (`linkOf()`).
   - The order's page: `StorefrontOrderPage::show()` and `EcommerceOrderRepository::forCustomer()`; `StoreOrderController` (`GET /stores/{code}/orders/{key}`).
   - Frontend: `pages/store/[code]/orders/[key].vue`; StoreOrderPlaced shows a placed order (`fresh`, with its page's link) or the order's page, with its statuses in words.
+- The customer's account (Doc 19 Phase E1, migration 000226):
+  - Tables: `storefront_customers` (`workspace_id`, `contact_id` for Phase E2, `storefront_id` it signed up on, `name`, `email` in small letters and unique in the business, `phone`, `password`, `email_verified_at`, `status` active or closed, `closed_at`, `last_signed_in_at`), `storefront_customer_tokens` (`token_hash`, `last_used_at`, `expires_at`) and `storefront_customer_codes` (`purpose` verify or reset, `code_hash`, `attempts`, `expires_at`, `used_at`).
+  - Models `StorefrontCustomer`, `StorefrontCustomerToken` and `StorefrontCustomerCode`; `StorefrontCustomerRepository`.
+  - `StorefrontCustomerAuth` (signing up, verifying, a new code, signing in and out, a forgotten password, `fromToken()` and `signIn()`), `StorefrontCustomerCodes` (`issue()`, `cooldown()`, `check()`) with `StoreCustomerCodeMail` (`emails/store-customer-code` and its plain-text part, sent at once, not queued), and `StorefrontCustomerAccount` (the details, a new password, closing).
+  - The `store.customer` middleware (`EnsureStoreCustomer`) reads `X-Customer-Token` and gives the request `storeCustomerToken` and `storeCustomer`; `store.customer:optional` lets a visitor not signed in through (for Phase E2's checkout). Signing in's tries are counted by `RateLimiter` in the service; the routes that send e-mails have `throttle:10,1,store-account-mail`, whose prefix keeps their count apart from the store group's.
+  - `StoreAccountAuthController` and `StoreAccountController` (`/stores/{code}/account...`); eight form requests in `Requests/Api/Ecommerce`; `StoreCustomerResource` and `StoreSignInResource` (the token once, `verify` while there is none).
+  - Frontend: `useStoreAccount()` and `useStoreCodeWait()` in `composables/useStoreAccount.ts` (the token in the `izsuite_customer_{code}` cookie; the e-mail being verified or reset, and when its code was sent, shared by the pages); `pages/store/[code]/account/` - `index`, `sign-in`, `sign-up`, `verify`, `forgot` and `reset`; StoreAccountCard, StoreAccountProfile, StoreAccountPassword and StoreAccountClose; StoreHeader's account link beside the cart.
+- The account's contact, orders and addresses (Doc 19 Phase E2, migration 000227):
+  - `ecommerce_orders.storefront_customer_id` (`EcommerceOrder::customerAccount()`, `StorefrontCustomer::orders()`), and `storefront_customer_addresses` (`StorefrontCustomerAddress`, its `MAX` and `FIELDS`; `StorefrontCustomer::addresses()`).
+  - `StorefrontCustomerContacts::linkAccount()` and `unlinkAccount()`; `ContactRepository::customersWithEmail()` and `findCurrent()`; `EcommerceOrderRepository::ofAccount()`, `findOfAccount()`, `adoptFor()` and `releaseFrom()`. `StorefrontCustomerAuth` links on verifying and on a new password, and unlinks on opening an account again; `StorefrontCustomerAccount::close()` deletes the addresses.
+  - `StorefrontOrderPlacement::review()` and `place()` take the signed-in account (`store.customer:optional` on checkout's routes); `StoreCheckoutResource`'s `checkout.signed_in`.
+  - `StorefrontCustomerOrders` and `StorefrontCustomerAddresses` (`keepFromOrder()` too); `StoreAccountOrderController` and `StoreAccountAddressController`; `SaveStoreAddressRequest`; `StoreAccountOrderResource` and `StoreAddressResource`. Tests: `Tests\Concerns\SignsInStoreCustomers`.
+  - Frontend: `composables/useStoreAccountRecords.ts` (`useStoreAccountOrders()`, `useStoreAddresses()`, `storeAddressFields()`, `storeAddressLine()`); `utils/storeOrders.ts` (an order's statuses in words, shared with StoreOrderPlaced); `pages/store/[code]/account/orders/` (`index`, `[id]`) and `addresses.vue`; StoreAccountNav, StoreAddressForm and StoreSavedAddressPicker; `useStoreCheckout()`'s `fillFromAccount()` and the sign-in sent with checkout's calls; the account pages' shared styles (`.store-account-page`, `.store-account-back`) and warnings' links in `main.css`.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
 
 - Doc 19 Phase D was checked through the API, its pages as the server renders them, and its main flows in a headless Chromium (19 steps, after D5). The testing checklist's other items - a storefront's price list on full Sales, guest checkout off, mobile money's reference, a digital product alone, the refusals to delete, the Activity Log - and a look in other browsers are still for a person (blocks D1 to D5).
-- Until Phase F's Orders page, the business sees its online orders only in the Activity Log, and nothing tells it of a new one. Until Phase E, a store with guest checkout off takes no orders, as no one can sign in (Doc 19 Phase D4).
+- Doc 19 Phases E1 and E2 were checked through the API and their main flows in a headless Chromium (9 and 7 steps). Their checklists' other items - E1's Verify Customer E-mail off, a second storefront and another business's, the Activity Log; E2's contact linking in Contacts, the 21st address, reopening - and a look in other browsers are still for a person (blocks E1 and E2).
+- Until Phase F's Orders page, the business sees its online orders only in the Activity Log, and nothing tells it of a new one (Doc 19 Phase D4). An account's link to its contact shows only in the contact's Activity, until Phase F's customer views.
+- A storefront customer's sign-in is kept per store, by a cookie of each store's: an account of the business signs in on each storefront, but on each one apart. Customers' codes go out at once, not through the queue, as izSuite's own do, so a mail server away loses that code (reported); the customer asks for another (Doc 19 Phase E1).
 - A shipping zone is countries, regions, cities and postal codes: 19.26's "distance or service area" needs maps, and carriers' own rates their integrations. A method's categories are the items' categories (Doc 19 Phase D1).
 - A cart takes whole quantities, up to 999 of a product and 50 lines. The shop's sorting by price goes by the items' own prices, even where the storefront sells at a price list (Doc 19 Phase D3).
 - An order's link and e-mail use izSuite's address for the store (`FRONTEND_URL/store/{code}`), not its own domain, until the server serves the stores by their domains (Doc 19 Phase D5).
@@ -5742,4 +5843,6 @@ Each of these is yours to settle.
 - Doc 19 Phase D3: migration 000223 adds `ecommerce_carts`, `ecommerce_cart_lines`, `storefronts.price_list_id` and `ecommerce_settings.cart_days` (30). Restart the scheduler: carts expire hourly (`ecommerce:expire-carts`). Deploy the frontend with it (Add to Cart, the cart page and the header's cart, Keep Carts For, and a storefront's Price List).
 - Doc 19 Phase D4: migration 000224 adds `ecommerce_orders`, `ecommerce_order_lines`, `ecommerce_carts.converted_at`, and `ecommerce_settings.checkout_phone` (required) and `checkout_notes` (on). Deploy the frontend with it (the checkout page, and Settings → eCommerce's Phone at Checkout and notes).
 - Doc 19 Phase D5: migration 000225 adds `ecommerce_order_emails`. Restart the queue workers (`php artisan queue:restart`): the order's e-mail is a new job, `SendStoreOrderEmail`. Its link is at `FRONTEND_URL`. Deploy the frontend with it (the order's page).
+- Doc 19 Phase E1: migration 000226 adds `storefront_customers`, `storefront_customer_tokens` and `storefront_customer_codes`. The customers' codes are sent at once by the API, so its mail settings must work. The API must let browsers send the `X-Customer-Token` header (Laravel's CORS default allows any). Deploy the frontend with it (the header's Sign in and the store's account pages).
+- Doc 19 Phase E2: migration 000227 adds `ecommerce_orders.storefront_customer_id` and `storefront_customer_addresses`. Accounts verified before it are linked to their contacts at their next checkout signed in, or their next new password. Deploy the frontend with it (the account's Orders and Addresses, and checkout signed in).
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

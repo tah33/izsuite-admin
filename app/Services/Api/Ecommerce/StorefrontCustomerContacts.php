@@ -7,11 +7,16 @@ use App\Models\User\CrmOption;
 use App\Models\User\EcommerceOrder;
 use App\Models\User\MarketingConsent;
 use App\Models\User\Storefront;
+use App\Models\User\StorefrontCustomer;
+use App\Models\User\Workspace;
 use App\Repositories\User\ContactRepository;
 use App\Repositories\User\CrmOptionRepository;
 use App\Repositories\User\EcommerceOrderRepository;
 use App\Repositories\User\MarketingConsentRepository;
+use App\Repositories\User\StorefrontCustomerRepository;
 use App\Services\Shared\ActivityLogService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * An online order's contact, found or made (Doc 19 section 19.17 - Phase
@@ -23,7 +28,10 @@ use App\Services\Shared\ActivityLogService;
  *   contact is made, a customer, with the details and addresses given: a
  *   contact of the business's own with that e-mail is never linked on an
  *   unverified e-mail, and the two are merged by hand if they are one
- *   (Contacts' duplicates). Verified customers come with Phase E;
+ *   (Contacts' duplicates);
+ * - Phase E2: a customer account, once its e-mail is verified, is linked to
+ *   its contact - linkAccount() - and its e-mail's guest orders become its
+ *   own;
  * - marketing consent, given apart from the terms, is recorded as the
  *   contact's: Promotions and Offers by e-mail, from the website form - with
  *   the order as its evidence. Settings → CRM's consent purposes are started
@@ -39,7 +47,62 @@ class StorefrontCustomerContacts
         protected ContactRepository $contacts,
         protected CrmOptionRepository $options,
         protected MarketingConsentRepository $consents,
+        protected StorefrontCustomerRepository $accounts,
     ) {}
+
+    /**
+     * Phase E2: the contact of $customer's account, its e-mail verified: its
+     * own while active (or the one it was merged into); else the one its
+     * e-mail's guest orders made; else the business's one customer with that
+     * e-mail - two or more is not certain, so none of them; else a new
+     * customer contact. Linked to the account, whose e-mail's orders of no
+     * account become its own. Whether the contact was made now comes with it.
+     *
+     * @return array{contact: Contact, created: bool}
+     */
+    public function linkAccount(Storefront $storefront, StorefrontCustomer $customer): array
+    {
+        $workspace = $storefront->workspace;
+        $only      = fn () => ($found = $this->contacts->customersWithEmail($workspace, $customer->email))->count() === 1 ? $found->first() : null;
+        $contact   = ($customer->contact_id ? $this->contacts->findCurrent($workspace, $customer->contact_id) : null)
+            ?? $this->orders->contactMadeFor($workspace, $customer->email)
+            ?? $only();
+        $created   = $contact === null;
+
+        $contact ??= $this->contacts->create($workspace, [
+            'contact_type'       => Contact::TYPE_INDIVIDUAL,
+            'role'               => Contact::ROLE_CUSTOMER,
+            'name'               => $customer->name,
+            'email'              => $customer->email,
+            'phone'              => $customer->phone,
+            'preferred_language' => $storefront->default_language,
+            'notes'              => "Made by the store account of {$customer->name} on {$storefront->name}.",
+            'is_active'          => true,
+        ]);
+
+        if ($created) {
+            ActivityLogService::recordCustomer($workspace, 'created', "Added the contact {$contact->name} from a store account on {$storefront->name}", $contact);
+        }
+
+        if ($customer->contact_id !== $contact->id) {
+            $this->accounts->update($customer, ['contact_id' => $contact->id]);
+
+            if (! $created) {
+                ActivityLogService::recordCustomer($workspace, 'updated', "Linked the store account of {$customer->name} ({$customer->email}) to the contact {$contact->name}", $contact);
+            }
+        }
+
+        $this->orders->adoptFor($customer);
+
+        return ['contact' => $contact, 'created' => $created];
+    }
+
+    /** Phase E2: $customer's account opened again - its contact and orders let go until it is verified again. */
+    public function unlinkAccount(StorefrontCustomer $customer): void
+    {
+        $this->orders->releaseFrom($customer);
+        $this->accounts->update($customer, ['contact_id' => null]);
+    }
 
     /**
      * The contact for an order numbered $number with $data's customer and
@@ -85,15 +148,9 @@ class StorefrontCustomerContacts
     public function recordConsent(Storefront $storefront, Contact $contact, EcommerceOrder $order): void
     {
         $workspace = $storefront->workspace;
+        $purpose   = $this->purposeOf($workspace, true);
 
-        if (! $this->options->existsFor($workspace)) {
-            $this->options->addStarter($workspace);
-        }
-
-        $purposes = $this->options->getFor($workspace)->where('kind', 'consent_purpose')->where('is_active', true);
-        $purpose  = $purposes->firstWhere('key', self::PURPOSE) ?? $purposes->first();
-
-        if (! $purpose instanceof CrmOption) {
+        if (! $purpose) {
             return;
         }
 
@@ -109,6 +166,89 @@ class StorefrontCustomerContacts
         ]);
 
         ActivityLogService::recordCustomer($workspace, 'updated', "Recorded marketing consent given for {$purpose->name} by e-mail, at the online order {$order->number}", $contact);
+    }
+
+    /**
+     * Phase E3: whether $customer's contact takes marketing by e-mail - the
+     * standing answer for Promotions and Offers, given and not lapsed - or
+     * null while the account has no contact (its e-mail not verified).
+     */
+    public function marketingOf(Storefront $storefront, StorefrontCustomer $customer): ?bool
+    {
+        $contact = $customer->contact_id ? $this->contacts->findCurrent($storefront->workspace, $customer->contact_id) : null;
+
+        if (! $contact) {
+            return null;
+        }
+
+        $purpose = $this->purposeOf($storefront->workspace, false);
+
+        return $purpose !== null && $this->gives($this->consents->standing($storefront->workspace, 'contact_id', $contact->id, $purpose->id, 'email'));
+    }
+
+    /**
+     * Phase E3: marketing by e-mail given - or withdrawn - by $customer from
+     * their account, as their contact's: Promotions and Offers, from the
+     * website form. Nothing is recorded when it stands as asked already.
+     */
+    public function setMarketing(Storefront $storefront, StorefrontCustomer $customer, bool $given): void
+    {
+        $workspace = $storefront->workspace;
+        $contact   = ($customer->contact_id ? $this->contacts->findCurrent($workspace, $customer->contact_id) : null)
+            ?? throw ValidationException::withMessages(['marketing' => 'Verify your e-mail first: then choose what we send you.']);
+        $purpose   = $this->purposeOf($workspace, true);
+
+        if (! $purpose) {
+            return;
+        }
+
+        DB::transaction(function () use ($workspace, $storefront, $contact, $purpose, $given) {
+            $standing = $this->consents->standing($workspace, 'contact_id', $contact->id, $purpose->id, 'email');
+
+            if ($given === $this->gives($standing)) {
+                return;
+            }
+
+            if ($given) {
+                $this->consents->create($workspace, [
+                    'contact_id' => $contact->id, 'purpose_id' => $purpose->id, 'channel' => 'email', 'status' => MarketingConsent::GIVEN,
+                    'source' => 'web_form', 'recorded_at' => now(), 'recorded_by' => null, 'evidence' => "Store account on {$storefront->name}",
+                ]);
+            } else {
+                $this->consents->update($standing, ['status' => MarketingConsent::WITHDRAWN, 'withdrawn_at' => now(), 'withdrawn_by' => null, 'withdrawal_note' => "Withdrawn by the customer from their store account on {$storefront->name}."]);
+            }
+
+            ActivityLogService::recordCustomer($workspace, 'updated', ($given ? 'Recorded marketing consent given' : 'Recorded marketing consent withdrawn')." for {$purpose->name} by e-mail, from the store account on {$storefront->name}", $contact);
+        });
+    }
+
+    /** Phase E3: the language $customer chose, as their contact's too. */
+    public function languageChosen(StorefrontCustomer $customer, string $language): void
+    {
+        $contact = $customer->contact_id ? $this->contacts->findCurrent($customer->workspace, $customer->contact_id) : null;
+
+        if ($contact && $contact->preferred_language !== $language) {
+            $this->contacts->update($contact, ['preferred_language' => $language]);
+        }
+    }
+
+    /** The consent purpose an order's or an account's marketing is for: Promotions and Offers, else the first - Settings → CRM's started when $start and it has none. */
+    private function purposeOf(Workspace $workspace, bool $start): ?CrmOption
+    {
+        if ($start && ! $this->options->existsFor($workspace)) {
+            $this->options->addStarter($workspace);
+        }
+
+        $purposes = $this->options->getFor($workspace)->where('kind', 'consent_purpose')->where('is_active', true);
+        $purpose  = $purposes->firstWhere('key', self::PURPOSE) ?? $purposes->first();
+
+        return $purpose instanceof CrmOption ? $purpose : null;
+    }
+
+    /** Whether $standing answer gives consent now: given, and not lapsed. */
+    private function gives(?MarketingConsent $standing): bool
+    {
+        return $standing?->status === MarketingConsent::GIVEN && ($standing->expires_on === null || $standing->expires_on->gte(today()));
     }
 
     /** $address as a contact keeps it, under $side (billing or shipping). */

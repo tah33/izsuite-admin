@@ -9,6 +9,7 @@ use App\Models\User\EcommerceOrderLine;
 use App\Models\User\EcommercePaymentMethod;
 use App\Models\User\EcommerceSetting;
 use App\Models\User\Storefront;
+use App\Models\User\StorefrontCustomer;
 use App\Repositories\User\EcommerceCartRepository;
 use App\Repositories\User\EcommerceOrderRepository;
 use App\Repositories\User\EcommerceSettingRepository;
@@ -21,7 +22,7 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * An order placed from a cart (Doc 19 sections 19.15 to 19.20 - Phase D4),
- * by a guest - signing in comes with Phase E - on a Live store:
+ * by a guest or - from Phase E2 - a signed-in customer, on a Live store:
  *
  * - the cart read again: every line buyable, the delivery and payment
  *   chosen still offered (StorefrontCheckout), the shipping address in a
@@ -29,7 +30,10 @@ use Illuminate\Validation\ValidationException;
  *   asks for one, and the terms accepted;
  * - its total the one the customer reviewed: otherwise refused, to be
  *   reviewed again;
- * - its contact found or made (StorefrontCustomerContacts);
+ * - its contact found or made (StorefrontCustomerContacts): signed in with
+ *   a verified e-mail, the account's (Phase E2);
+ * - signed in, the account's order, at the account's e-mail, its addresses
+ *   kept on the account; with guest checkout off, only signed in;
  * - numbered from Settings → eCommerce's prefix (EC-00001);
  * - kept with its lines - the products and the shipping - and the cart
  *   converted, linked to it.
@@ -52,6 +56,7 @@ class StorefrontOrderPlacement
         protected StorefrontCustomerContacts $customers,
         protected WorkspaceSequence $sequence,
         protected StoreOrderMailer $mailer,
+        protected StorefrontCustomerAddresses $addresses,
     ) {}
 
     /**
@@ -60,9 +65,9 @@ class StorefrontOrderPlacement
      * takes orders now: its team previewing it may try the checkout before it
      * is Live, but not place an order.
      *
-     * @return array{quote: array, storefront: Storefront, settings: EcommerceSetting, policies: array, open: bool}
+     * @return array{quote: array, storefront: Storefront, settings: EcommerceSetting, policies: array, open: bool, signed_in: bool}
      */
-    public function review(string $code, ?string $token, array $choices, ?\App\Models\User\User $previewer = null): array
+    public function review(string $code, ?string $token, array $choices, ?\App\Models\User\User $previewer = null, ?StorefrontCustomer $account = null): array
     {
         ['storefront' => $storefront, 'today' => $today, 'open' => $open] = $this->stores->openStore($code, $previewer);
         $cart = ($token ? $this->carts->findActive($storefront, hash('sha256', $token)) : null) ?? abort(404, 'Your cart has expired. Add the products again.');
@@ -75,28 +80,36 @@ class StorefrontOrderPlacement
             'settings'   => $this->settings->forWorkspace($storefront->workspace),
             'policies'   => $this->stores->policiesOf($storefront),
             'open'       => $open,
+            // Phase E2: whether its customer is signed in, so a store without guest checkout takes their order.
+            'signed_in'  => $account !== null,
         ];
     }
 
     /**
      * $data as PlaceStoreOrderRequest takes it; $meta: the customer's
-     * address (ip) and browser (agent). The order and its own link's key
-     * (Phase D5) - the same for a cart placed again.
+     * address (ip) and browser (agent); $account: the customer signed in, if
+     * they are (Phase E2). The order and its own link's key (Phase D5) - the
+     * same for a cart placed again.
      *
      * @return array{order: EcommerceOrder, key: string, created: bool}
      */
-    public function place(string $code, string $token, array $data, array $meta): array
+    public function place(string $code, string $token, array $data, array $meta, ?StorefrontCustomer $account = null): array
     {
         ['storefront' => $storefront, 'today' => $today] = $this->stores->openStore($code);
         $settings = $this->settings->forWorkspace($storefront->workspace);
         $cart     = $this->carts->findByToken($storefront, hash('sha256', $token)) ?? abort(404, 'Your cart has expired. Add the products again.');
         $key      = hash_hmac('sha256', 'order|'.$token, (string) config('app.key'));
 
-        if (! $settings->guest_checkout) {
-            abort(403, 'This store takes orders from its signed-in customers only.');
+        if (! $settings->guest_checkout && ! $account) {
+            abort(403, 'Sign in to place your order: this store takes orders from its signed-in customers.');
         }
 
-        return DB::transaction(function () use ($storefront, $today, $settings, $cart, $data, $meta, $key): array {
+        // Signed in, the order is sent to the account's e-mail, and is the account's.
+        if ($account) {
+            $data['customer']['email'] = $account->email;
+        }
+
+        return DB::transaction(function () use ($storefront, $today, $settings, $cart, $data, $meta, $key, $account): array {
             $cart = $this->orders->lockCart($cart);
 
             if ($cart->status === EcommerceCart::CONVERTED) {
@@ -113,13 +126,16 @@ class StorefrontOrderPlacement
             $this->check($storefront, $settings, $quote, $data);
 
             $number = $this->number($storefront);
-            ['contact' => $contact, 'created' => $created] = $this->customers->contactFor($storefront, $data, $number);
+            ['contact' => $contact, 'created' => $created] = $account?->isVerified()
+                ? $this->customers->linkAccount($storefront, $account)
+                : $this->customers->contactFor($storefront, $data, $number);
 
             $order = $this->orders->create($storefront, [
                 'ecommerce_cart_id'  => $cart->id,
                 'number'             => $number,
                 'contact_id'         => $contact->id,
                 'contact_created'    => $created,
+                'storefront_customer_id' => $account?->id,
                 'location_id'        => $storefront->location_id,
                 'status'             => EcommerceOrder::PENDING,
                 'payment_status'     => trim((string) ($data['payment_reference'] ?? '')) !== '' ? EcommerceOrder::PAYMENT_PENDING : EcommerceOrder::UNPAID,
@@ -151,6 +167,10 @@ class StorefrontOrderPlacement
             ], $this->lines($quote));
 
             $this->carts->update($cart, ['status' => EcommerceCart::CONVERTED, 'converted_at' => now()]);
+
+            if ($account) {
+                $this->addresses->keepFromOrder($account, $order->billing_address, $order->shipping_address);
+            }
 
             if ($data['marketing'] ?? false) {
                 $this->customers->recordConsent($storefront, $contact, $order);

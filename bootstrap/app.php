@@ -10,6 +10,7 @@ use App\Http\Middleware\EnsureIdempotent;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\EnsureSalesKindEdition;
+use App\Http\Middleware\EnsureStoreCustomer;
 use App\Http\Middleware\LogApiWriteActivity;
 use App\Http\Middleware\PermissionCheckMiddleware;
 use App\Http\Middleware\ResolveWorkspace;
@@ -62,6 +63,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'idempotent' => EnsureIdempotent::class,
             // Leads change only while Settings > CRM works with them (Doc 17 Phase B1).
             'crm.leads'  => EnsureCrmUsesLeads::class,
+            // A storefront customer's own routes, by their own sign-in (Doc 19 Phase E1).
+            'store.customer' => EnsureStoreCustomer::class,
         ]);
 
         $middleware->web(append: [

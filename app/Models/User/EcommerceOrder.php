@@ -58,6 +58,8 @@ class EcommerceOrder extends Model
         'number',
         'contact_id',
         'contact_created',
+        // Phase E2: the customer's account it is, when it is one's.
+        'storefront_customer_id',
         'location_id',
         'status',
         'payment_status',
@@ -101,6 +103,7 @@ class EcommerceOrder extends Model
         'ecommerce_cart_id'           => 'integer',
         'contact_id'                  => 'integer',
         'contact_created'             => 'boolean',
+        'storefront_customer_id'      => 'integer',
         'location_id'                 => 'integer',
         'exchange_rate'               => 'decimal:10',
         'prices_include_tax'          => 'boolean',
@@ -145,6 +148,12 @@ class EcommerceOrder extends Model
     public function cart(): BelongsTo
     {
         return $this->belongsTo(EcommerceCart::class, 'ecommerce_cart_id');
+    }
+
+    /** Phase E2: the customer's account it is - placed signed in, or its e-mail's guest order once the account is verified. */
+    public function customerAccount(): BelongsTo
+    {
+        return $this->belongsTo(StorefrontCustomer::class, 'storefront_customer_id');
     }
 
     /** Its lines in their order: the products, then the shipping. */

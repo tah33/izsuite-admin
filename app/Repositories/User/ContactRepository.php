@@ -186,6 +186,35 @@ class ContactRepository
             ->get(['id', 'contact_number', 'name', 'trading_name', 'email', 'phone', 'alt_phone']);
     }
 
+    /**
+     * Doc 19 Phase E2: up to $limit of $workspace's active customers - not
+     * merged away, a customer or both - whose e-mail is $email, whatever its
+     * case and spaces.
+     */
+    public function customersWithEmail(Workspace $workspace, string $email, int $limit = 2): Collection
+    {
+        return Contact::where('workspace_id', $workspace->id)
+            ->whereNull('merged_into_id')
+            ->where('is_active', true)
+            ->whereIn('role', [Contact::ROLE_CUSTOMER, Contact::ROLE_BOTH])
+            ->whereRaw('LOWER(TRIM(email)) = ?', [mb_strtolower(trim($email))])
+            ->orderBy('id')
+            ->limit($limit)
+            ->get();
+    }
+
+    /** Doc 19 Phase E2: $workspace's contact $id - or the one it was merged into - while active; else none. */
+    public function findCurrent(Workspace $workspace, int $id): ?Contact
+    {
+        $contact = Contact::where('workspace_id', $workspace->id)->find($id);
+
+        while ($contact && $contact->merged_into_id) {
+            $contact = Contact::where('workspace_id', $workspace->id)->find($contact->merged_into_id);
+        }
+
+        return $contact?->is_active ? $contact : null;
+    }
+
     /** Of $ids, the business's contacts, by id: those a decision names that no longer match. */
     public function findManyFor(Workspace $workspace, array $ids): Collection
     {

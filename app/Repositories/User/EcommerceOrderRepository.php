@@ -9,13 +9,16 @@ use App\Models\User\EcommerceOrderEmail;
 use App\Models\User\EcommerceOrderLine;
 use App\Models\User\Item;
 use App\Models\User\Storefront;
+use App\Models\User\StorefrontCustomer;
 use App\Models\User\Workspace;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
  * Online orders (Doc 19 Phase D4): one placed from a cart - with its lines -
  * the order a cart became, the contact an earlier guest order made for an
  * e-mail, whether a number is taken, and whether a storefront, contact,
- * listing or item is on any order.
+ * listing or item is on any order - and, from Phase E2, a customer
+ * account's orders.
  */
 class EcommerceOrderRepository
 {
@@ -74,6 +77,40 @@ class EcommerceOrderRepository
             ->where('access_token_hash', $keyHash)
             ->with('lines')
             ->first();
+    }
+
+    /** Phase E2: $customer's orders, the newest first, each with how many products it holds. */
+    public function ofAccount(StorefrontCustomer $customer, int $perPage): LengthAwarePaginator
+    {
+        return EcommerceOrder::query()
+            ->select(['id', 'number', 'placed_at', 'status', 'payment_status', 'fulfilment_status', 'currency', 'grand_total'])
+            ->where('storefront_customer_id', $customer->id)
+            ->withSum(['lines as products' => fn ($query) => $query->reorder()->where('kind', EcommerceOrderLine::PRODUCT)], 'quantity')
+            ->orderByDesc('placed_at')
+            ->orderByDesc('id')
+            ->paginate($perPage);
+    }
+
+    /** Phase E2: $customer's order $id, with its lines - or none. */
+    public function findOfAccount(StorefrontCustomer $customer, int $id): ?EcommerceOrder
+    {
+        return EcommerceOrder::query()->where('storefront_customer_id', $customer->id)->whereKey($id)->with('lines')->first();
+    }
+
+    /** Phase E2: the orders of $customer's e-mail that are no account's - guest orders, or a closed account's - made its own. */
+    public function adoptFor(StorefrontCustomer $customer): void
+    {
+        EcommerceOrder::query()
+            ->where('workspace_id', $customer->workspace_id)
+            ->whereNull('storefront_customer_id')
+            ->where('customer_email', $customer->email)
+            ->update(['storefront_customer_id' => $customer->id]);
+    }
+
+    /** Phase E2: $customer's orders let go - the account opened again, to be verified again. */
+    public function releaseFrom(StorefrontCustomer $customer): void
+    {
+        EcommerceOrder::query()->where('storefront_customer_id', $customer->id)->update(['storefront_customer_id' => null]);
     }
 
     /** Phase D5: an e-mail kept with $order. */
