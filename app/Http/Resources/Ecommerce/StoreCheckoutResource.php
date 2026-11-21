@@ -16,8 +16,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * address - each at its price as the store shows prices, none when quoted
  * after the order - the pickup points, and the ways to pay offered; what is
  * chosen among them; the totals; what checkout asks (guests, phone, note) -
- * and, from Phase E2, whether its customer is signed in; and the store's
- * terms and privacy policy, when published.
+ * and, from Phase E2, whether its customer is signed in, from Phase E3
+ * whether they take marketing by e-mail already; and the store's terms and
+ * privacy policy, when published.
  */
 class StoreCheckoutResource extends JsonResource
 {
@@ -62,7 +63,10 @@ class StoreCheckoutResource extends JsonResource
                 'payment_method_id'  => $quote['payment']?->id,
             ],
             'totals'           => [...$quote['shown'], 'currency' => $terms['currency'], 'prices_include_tax' => $terms['with_tax'], 'quoted_shipping' => $quote['method'] !== null && $quote['method']['price'] === null],
-            'checkout'         => ['guests' => (bool) $settings->guest_checkout, 'signed_in' => $this->resource['signed_in'] ?? false, 'phone' => $settings->checkout_phone, 'notes' => (bool) $settings->checkout_notes, 'open' => $this->resource['open']],
+            'checkout'         => [
+                'guests' => (bool) $settings->guest_checkout, 'signed_in' => $this->resource['signed_in'] ?? false, 'phone' => $settings->checkout_phone, 'notes' => (bool) $settings->checkout_notes, 'open' => $this->resource['open'],
+                'marketing' => $this->resource['marketing'] ?? null,
+            ],
             'policies'         => $policies,
         ];
     }

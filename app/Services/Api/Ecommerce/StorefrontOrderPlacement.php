@@ -63,9 +63,11 @@ class StorefrontOrderPlacement
      * The visitor's cart at checkout, with $choices (StorefrontCheckout) - and
      * the store, Settings → eCommerce, its published policies, and whether it
      * takes orders now: its team previewing it may try the checkout before it
-     * is Live, but not place an order.
+     * is Live, but not place an order. From Phase E3, whether its signed-in
+     * customer takes marketing by e-mail already (null for a guest, or while
+     * their e-mail is not verified).
      *
-     * @return array{quote: array, storefront: Storefront, settings: EcommerceSetting, policies: array, open: bool, signed_in: bool}
+     * @return array{quote: array, storefront: Storefront, settings: EcommerceSetting, policies: array, open: bool, signed_in: bool, marketing: ?bool}
      */
     public function review(string $code, ?string $token, array $choices, ?\App\Models\User\User $previewer = null, ?StorefrontCustomer $account = null): array
     {
@@ -82,6 +84,7 @@ class StorefrontOrderPlacement
             'open'       => $open,
             // Phase E2: whether its customer is signed in, so a store without guest checkout takes their order.
             'signed_in'  => $account !== null,
+            'marketing'  => $account ? $this->customers->marketingOf($storefront, $account) : null,
         ];
     }
 

@@ -56,7 +56,8 @@ class StorefrontCustomerContacts
      * e-mail's guest orders made; else the business's one customer with that
      * e-mail - two or more is not certain, so none of them; else a new
      * customer contact. Linked to the account, whose e-mail's orders of no
-     * account become its own. Whether the contact was made now comes with it.
+     * account become its own - and, from Phase E3, given the language the
+     * account chose. Whether the contact was made now comes with it.
      *
      * @return array{contact: Contact, created: bool}
      */
@@ -75,7 +76,7 @@ class StorefrontCustomerContacts
             'name'               => $customer->name,
             'email'              => $customer->email,
             'phone'              => $customer->phone,
-            'preferred_language' => $storefront->default_language,
+            'preferred_language' => $customer->language ?: $storefront->default_language,
             'notes'              => "Made by the store account of {$customer->name} on {$storefront->name}.",
             'is_active'          => true,
         ]);
@@ -89,6 +90,11 @@ class StorefrontCustomerContacts
 
             if (! $created) {
                 ActivityLogService::recordCustomer($workspace, 'updated', "Linked the store account of {$customer->name} ({$customer->email}) to the contact {$contact->name}", $contact);
+
+                // Phase E3: a language the account chose - before its e-mail was verified, say - is its contact's once linked.
+                if ($customer->language && $contact->preferred_language !== $customer->language) {
+                    $this->contacts->update($contact, ['preferred_language' => $customer->language]);
+                }
             }
         }
 
@@ -144,13 +150,17 @@ class StorefrontCustomerContacts
         return ['contact' => $contact, 'created' => true];
     }
 
-    /** The customer's marketing consent, given at checkout: Promotions and Offers by e-mail, from the website form. */
+    /**
+     * The customer's marketing consent, given at checkout: Promotions and
+     * Offers by e-mail, from the website form. From Phase E3, as an account's
+     * is, nothing is recorded while it stands given already.
+     */
     public function recordConsent(Storefront $storefront, Contact $contact, EcommerceOrder $order): void
     {
         $workspace = $storefront->workspace;
         $purpose   = $this->purposeOf($workspace, true);
 
-        if (! $purpose) {
+        if (! $purpose || $this->gives($this->consents->standing($workspace, 'contact_id', $contact->id, $purpose->id, 'email'))) {
             return;
         }
 

@@ -3,9 +3,9 @@
 What is done, what comes next, and how to carry on from another PC.
 
 - **Last updated:** 2026-11-21
-- **Code:** Doc 19 Phases E1 (the customer's account: signing up and verifying the e-mail, signing in and out, a forgotten password, the account page, a new password and closing the account) and E2 (the account's contact, its orders and saved addresses, and checkout signed in) are built and checked on the second PC through the API and in a headless browser; not committed yet. Doc 19 Phase D - D1 (shipping zones and methods, and pickup), D2 (payment methods without a gateway), D3 (the cart), D4 (checkout and the order) and D5 (the order's page and its confirmation e-mail) - is built, checked on the second PC through the API and in a headless browser, and committed and pushed: frontend `b4befbb` on `nuxt`, and on `main` the admin commit right after `47257f3`. Doc 19's gap check and Phases A to C (eCommerce on with its storefronts, the catalog, and the storefront's pages) are committed and pushed: admin `47257f3`, frontend `e7782c7`. Doc 18 is done and pushed: admin `85d748a`, frontend `7933c6d`. Doc 17 is done and pushed: Phase I4, the last, is frontend `e20fa70` and admin `e5cd080`. Before Doc 18 Phase I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
-- **Tests:** 1221 backend tests, last full run 2026-11-21 on the second PC (after Doc 19 Phase E2): 1220 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Docs 17 to 19 (see [Small things left](#small-things-left)).
-- **Next step:** Doc 19 (eCommerce) Phase E3: what a signed-in customer is offered - listings kept for signed-in customers, their own price lists (full Sales), their marketing consent and their language. Phase D's and E's testing checklists (blocks D1 to D5, E1 and E2) are still to be worked through by a person, beyond the flows a headless browser checked, and so is Doc 18's. Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
+- **Code:** Doc 19 Phase E3 (what a signed-in customer is offered: the listings kept for signed-in customers, their own price lists, marketing by e-mail and their language) is built and checked on the second PC through the API and in a headless browser, and with it Phase E. Its backend was begun before E1 and E2 were committed, so part of it is in admin `569d679` ("doc 19"): migration 000228, `StoreVisitor`, the customer's price lists, the account's language and marketing, and most of its tests. The rest - the language kept across stores, checkout's `marketing`, consent recorded once, and the frontend - is not committed yet. Doc 19 Phases E1 (the customer's account) and E2 (the account's contact, orders and addresses, and checkout signed in) are committed and pushed: admin `569d679`, frontend `a4df0be`. Doc 19 Phase D - D1 (shipping zones and methods, and pickup), D2 (payment methods without a gateway), D3 (the cart), D4 (checkout and the order) and D5 (the order's page and its confirmation e-mail) - is built, checked on the second PC through the API and in a headless browser, and committed and pushed: frontend `b4befbb` on `nuxt`, and on `main` the admin commit right after `47257f3`. Doc 19's gap check and Phases A to C (eCommerce on with its storefronts, the catalog, and the storefront's pages) are committed and pushed: admin `47257f3`, frontend `e7782c7`. Doc 18 is done and pushed: admin `85d748a`, frontend `7933c6d`. Doc 17 is done and pushed: Phase I4, the last, is frontend `e20fa70` and admin `e5cd080`. Before Doc 18 Phase I2, shuvo's `a5e46cb` and `9bf4525` (rich text for payment instructions and the Sales settings' notes and terms) were pulled on 2026-11-19; `nuxt` has no frontend change from shuvo to go with them yet.
+- **Tests:** 1229 backend tests, last full run 2026-11-21 on the second PC (after Doc 19 Phase E3): 1228 pass. `SalesSettingsApiTest` fails since shuvo's `a5e46cb`, not because of Docs 17 to 19 (see [Small things left](#small-things-left)).
+- **Next step:** Doc 19 (eCommerce) Phase F: orders in the business - the Orders page, and an order's page with its three statuses and timeline; confirming it (its invoice), holding it for review and releasing it, cancelling it, editing it before payment, payments confirmed or failed, and payment links - to be split on starting it. Phase D's and E's testing checklists (blocks D1 to D5 and E1 to E3) are still to be worked through by a person, beyond the flows a headless browser checked, and so is Doc 18's. Trying card payments with a Stripe test account (Doc 13 Phase D2) is still worth doing: Phase C1's Retry Card and Phase C2a's card refunds have only met a faked Stripe.
 - **Since A1, every admin signs in with an authenticator app as well.** `admin@izsuite.io` is asked to set it up at its next sign-in.
 
 Update this file at the end of every phase and commit it with that phase.
@@ -29,10 +29,10 @@ Update this file at the end of every phase and commit it with that phase.
    docker compose restart
    ```
 
-   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 19 Phase E2 the latest is 000227. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
+   Each phase's migration is in the table under [What is done](#what-is-done), and its deploy note under [Deploying to a server](#deploying-to-a-server). Up to Doc 19 Phase E3 the latest is 000228. A new permission is not given to existing custom roles: give it in Settings → Users & Roles.
 2. Open `izsuite-admin` in Claude Code and say:
 
-   > Read PROJECT_STATUS.md, then start Doc 19 Phase E3.
+   > Read PROJECT_STATUS.md, then start Doc 19 Phase F.
 
 A new Claude session does not read this file by itself, so ask it to. It reads `CLAUDE.md` (the code rules) on its own.
 
@@ -61,7 +61,7 @@ The requirements are numbered documents. Doc 00 sets the order: Docs 01 to 15 fi
 | **16** | **Sales** | **Done (2026-11-15): gap check and Phases A to H; some parts wait for other apps (see below)** |
 | **17** | **CRM** | **Done (2026-11-19): gap check and Phases A to I; Campaign-to-Opportunity Results waits for Doc 21** |
 | **18** | **Point of Sale** | **Done (2026-11-20): gap check and Phases A to I; offline mode (18.29) later, and what waits for Inventory and the integrations (see below)** |
-| **19** | **eCommerce** | **In progress: gap check, Phases A (A1 to A3), B (B1 to B3) and C (C1 to C6), done 2026-11-20; Phase D (D1 to D5) done 2026-11-21; Phase E: E1 and E2 done 2026-11-21, E3 next** |
+| **19** | **eCommerce** | **In progress: gap check, Phases A (A1 to A3), B (B1 to B3) and C (C1 to C6), done 2026-11-20; Phase D (D1 to D5) and Phase E (E1 to E3) done 2026-11-21; Phase F next** |
 | 20 and 21 | Customer Subscriptions, Marketing and Loyalty | Written, not started |
 | 22 to 52 | Planned in Doc 00 | Not written yet |
 
@@ -2817,7 +2817,7 @@ The gap check was done on 2026-11-19. Doc 18 is Point of Sale: fast selling over
       - Found while checking: the daily usage snapshot ran during the check, with POS on; it was deleted with the rest.
       - The devices, session, order, invoice, payment, account entries, accounts, register, settings, the app's and taxes' state, the sign-in and the activity were then put back. The database matched its backup, but for migration 000210's table.
 
-### 7. Doc 19: eCommerce (next: Phase E3)
+### 7. Doc 19: eCommerce (next: Phase F)
 
 The gap check was done on 2026-11-20. Doc 19 is eCommerce: the business's online storefront, where customers browse its items, order and pay, follow their orders, download what they bought and ask for returns. It sells through the shared Contacts, Items, Taxes, Payment Accounts and Sales records: an online order counts as a sale once, through its invoice.
 
@@ -3306,6 +3306,30 @@ The gap check was done on 2026-11-20. Doc 19 is eCommerce: the business's online
       - In the browser, 7 steps, all passing in the end: signed up and verified, the account's tabs, "You have no orders yet."; three addresses added - one ticked for delivery - one changed and one deleted, asked first; checkout signed in, its name, e-mail (read-only) and both addresses filled from the account, placed; the orders list with its statuses, 1 product and $13.00, and the order's own page; guest checkout off - the visitor asked to sign in, Place Order waiting, signed in and back at checkout, placed; guests again, a visitor offered to sign in, the e-mail free to type; at phone width, the orders and addresses pages fitting.
       - **Mended on the way**: the addresses' "For billing" and "For delivery" looked like the tabs, so like buttons - they are small labels now; the account's e-mail at checkout looked editable - it is greyed; the links in checkout's sign-in warning did not stand out - warnings' links are underlined. The dev API, PHP's built-in server, serves one request at a time: a save and the reload after it took more than Playwright's 5-second wait once, so the script waits 15.
       - The screenshots were read one by one. The store, its shipping and payment method, the account, orders, carts, contacts, item, listing, the app's state and the activity were then put back; the database matched its backup, but for migration 000227's changes.
+  - **Phase E3 is built** (migration 000228), and with it Phase E: what a signed-in customer is offered (19.8, 19.13, 19.16).
+    - **Listings kept for signed-in customers** (B1's "Signed-in customers") show to a customer signed in: in the shop, its search and suggestions, its filters, categories, collections and home, and the brands to filter by - and at their link. To anyone else they are not there: their page answers 404, Add to Cart refuses them ("This product is not sold in this store."), and a cart holding one reads it as Unavailable once signed out. The sitemap lists those for everyone alone, and their pages are kept from search engines.
+    - **A customer's own price lists** (full Sales): the active lists in the store's currency that name their contact - at the store's location, within their days, lowest priority number first - come before the storefront's own list (D3), with their quantity breaks. They price the store's pages, the filters by price, the cart and checkout, and each order line keeps the list and rule it was priced by. A list for every customer is not one's own: it is the storefront's to choose. An account not yet verified has no contact, so it pays the store's prices.
+    - **Who a store call is for** (`StoreVisitor`): every call of the store's takes the customer's sign-in, `X-Customer-Token` - none, or one that has ended, is a visitor's - and the frontend sends it on each, so the store's pages are rendered on the server for the customer too. What it loads is kept apart by whom it was loaded for, so signing in or out loads the store again, without a reload.
+    - **The account's details** gain:
+      - a language, shown when the store has two or more: one of the store's, and the contact's preferred language too. One chosen before the e-mail is verified becomes the contact's once linked. The account is the business's, so a language another of its stores offers is kept where this one does not;
+      - "Send me news and offers by e-mail", once the e-mail is verified (before, the card says it waits for that): given or withdrawn as the contact's consent - Promotions and Offers, by e-mail, from the website form, its evidence "Store account on …" - and in the contact's Activity. Nothing is recorded while it stands as asked.
+    - **At checkout** a customer signed in who takes marketing already is not asked again: "You get our news and offers by e-mail. Change it in your account." Consent ticked at checkout - a guest's too - is recorded only when it does not stand given already.
+    - The customer's credit as a payment waits for the order's invoice (Phase F).
+    - The API: `GET` and `PUT /api/v1/stores/{code}/account` gain `language`, `languages` and `marketing`; checkout's quote gains `checkout.marketing`. Every store call takes `X-Customer-Token`.
+    - **Checked** on the second PC, through the API and in a headless Chromium (`../doc-19-phase-e3-ui-check.py`). Set up: eCommerce on and full Sales by hand; the live store Rahman Shop in English and Arabic; Ceramic Mug ($8, for everyone) and Gold Mug ($30, for signed-in customers); Bangladesh's Standard ($5) and Bank Transfer; and Karim Rahman, a customer contact of the business, with his own price list - the mug at $6, and from 3 at $5.50:
+      - Through the API: a visitor's products, the mug alone, and the Gold Mug not found (404). A made-up customer token: a visitor's.
+      - In the browser, 10 steps, all passing:
+        - signed out, the shop showed the mug at $8.00, and the Gold Mug's address "There is no such product in this store.";
+        - Karim signed up with his contact's e-mail and verified it: his details offered Not chosen, English and Arabic, and the marketing box unticked. Arabic and the box saved: "Your details are saved.", and kept on reloading;
+        - Shop all: the Gold Mug at $30.00 and the mug at his $6.00, the price filter from 6 to 30. The Gold Mug's page was kept from search engines (noindex);
+        - rendered on the server: the shop with his sign-in's cookie showed the Gold Mug and $6.00; without it, neither;
+        - three mugs in the cart at his list's break, "$5.50 each", $16.50;
+        - checkout: "You get our news and offers by e-mail." instead of the box; placed, EC-00001, $21.50;
+        - signed out, then Shop all without a reload: the mug alone, at $8.00. Signed in again: the Gold Mug back. The marketing box unticked and saved;
+        - at phone width, the account page fit.
+      - In the database: the account linked to Karim's contact, both in Arabic; one consent, withdrawn, "Withdrawn by the customer from their store account on Rahman Shop."; the order's line 3 × $5.50, priced by Karim's Prices; and the link and the consent given and withdrawn in the Activity Log.
+      - **Mended on the way**: checkout's "Change it in your account" looked like plain text - it is a link in the accent colour now. The whole check was run again on the final code, all 10 steps passing. After one last change to how the server reads the sign-in's cookie, Karim's shop was rendered on the server once more: with his cookie, the Gold Mug and $6.00; without it, the mug alone at $8.00.
+      - The screenshots were read one by one. The dev data was then put back from the dump taken before the check (`../izsuite-dev-before-doc-19-phase-e3-check.sql`), with the API, queue and scheduler stopped meanwhile; the database matched it (see [Things that catch you out](#things-that-catch-you-out) on comparing after a restore).
 - **Phase F: orders in the business** - the Orders page, and an order's page with its three statuses and timeline; confirming it (its invoice), holding it for review and releasing it, cancelling it, editing it before payment, payments confirmed or failed, and payment links. Permissions View, Edit, Confirm, Place On Hold and Cancel Orders.
 - **Phase G: fulfilment** - fulfilments, partial ones too, with carrier and tracking; ready for pickup, shipped and delivered; the delivery document; digital delivery (secure downloads within limits, license keys, links, by hand) and services. Permission Manage Fulfilment.
 - **Phase H: promotions, abandoned carts and quotations** - discount codes and automatic discounts with their rules; abandoned carts, recovered with consent; requests for a quotation, as CRM leads or draft quotations. Permission Manage Discounts.
@@ -3404,6 +3428,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 19: Phase D5 | 000225 |
 | Doc 19: Phase E1 | 000226 |
 | Doc 19: Phase E2 | 000227 |
+| Doc 19: Phase E3 | 000228 |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -4516,6 +4541,22 @@ On a fresh business, set the days in Settings → CRM to fit what you have, rath
 - [ ] Close the account: its addresses go. With Verify Customer E-mail off, sign up again with its e-mail: no orders until it is verified, then they come back.
 - [ ] At phone width the account's tabs, orders, an order and the addresses fit, and so does checkout signed in.
 
+**Phase E3: what a signed-in customer is offered**
+
+**Before you start:** Phase E2's set-up, with the store in two languages and a second product whose catalog page says Who Sees It: Signed-in customers. For the price lists, the full Sales app and a price list (Sales → Price Lists) for one customer contact only, with a quantity break. Its main flows were driven in a headless browser; the rest are to try.
+
+- [ ] Signed out: the product kept for customers is not in the shop, the search's suggestions, a category's page or the filters, and its link says "There is no such product in this store." The sitemap does not list it.
+- [ ] Sign up with the e-mail of the contact with the price list and verify it: the shop shows the product kept for customers, and the contact's prices on the shop, the product's page and the price filter. Its page's source says noindex.
+- [ ] Add the quantity of the list's break: the cart prices each at the break, and so does checkout. Place the order.
+- [ ] Add the product kept for customers to the cart, then sign out: the cart says it is no longer sold here, and checkout waits until it is removed.
+- [ ] Sign out and in again from the header, without reloading the page: the shop changes with it.
+- [ ] Your details: Language lists the store's languages; choose one and save. In Contacts, the contact's Preferred Language is it.
+- [ ] Tick "Send me news and offers by e-mail" and save: the contact's Marketing Consent shows Promotions and Offers given by e-mail, from the website form, "Store account on …", and its Activity says so. Untick it: withdrawn, with its note. Save again unchanged: nothing new is recorded.
+- [ ] Checkout while it is given: "You get our news and offers by e-mail. Change it in your account." instead of the box, its link opening the account.
+- [ ] Settings → eCommerce, Verify Customer E-mail off: a new account's details say marketing waits for the e-mail to be verified. Choose a language, then verify the e-mail with its code: the contact made has that language.
+- [ ] A second storefront of the business without that language: the account's details still show it, and save.
+- [ ] At phone width the account's details fit.
+
 ## How we work
 
 Each document goes the same way:
@@ -4591,6 +4632,7 @@ Each document goes the same way:
 - A Vue component's event sent after it is unmounted is dropped. When an action empties what the page shows (closing an account clears the customer), the component cannot tell its page afterwards: it acts itself (navigates), or the page does the action.
 - MySQL spends an id on an upsert that only updates: making an item, its number's sequence row is upserted, and `workspace_sequences`' AUTO_INCREMENT moves on with no new row. Put it back after a check that numbers something.
 - The dev API is `php artisan serve` - PHP's built-in server - which answers one request at a time, so a page's calls queue behind each other. In a headless check, a save and the reload after it can outlast Playwright's 5-second wait: Phase E2's script sets `expect.set_options(timeout=15000)`.
+- Putting the dev data back after a check from a dump taken just before it (Doc 19 Phase E3): stop `izsuite-api`, `izsuite-queue` and `izsuite-scheduler`, load the dump, forget business 1's cached sidebars (`redis-cli --scan --pattern "*nav:1:*"`), then `docker compose up -d --wait`. The dump re-creates every table, and from then on mysqldump prints their text columns with `CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci` where it printed `COLLATE utf8mb4_unicode_ci` alone - the same character set, so nothing changes but the words. Compare a dump from before such a restore with one after it only once that is evened out (`sed -E 's/ CHARACTER SET utf8mb4 COLLATE/ COLLATE/g'`).
 
 ### Checking the app as a limited member
 
@@ -4840,8 +4882,9 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 19: Phase D3, the cart | the commit after `47257f3` | `b4befbb` | 000223 |
 | Doc 19: Phase D4, checkout and the order | the commit after `47257f3` | `b4befbb` | 000224 |
 | Doc 19: Phase D5, the order's page and its confirmation e-mail | the commit after `47257f3` | `b4befbb` | 000225 |
-| Doc 19: Phase E1, the customer's account | not committed yet | not committed yet | 000226 |
-| Doc 19: Phase E2, the account's contact, orders and addresses | not committed yet | not committed yet | 000227 |
+| Doc 19: Phase E1, the customer's account | `569d679` | `a4df0be` | 000226 |
+| Doc 19: Phase E2, the account's contact, orders and addresses | `569d679` | `a4df0be` | 000227 |
+| Doc 19: Phase E3, what a signed-in customer is offered | begun in `569d679`, the rest not committed yet | not committed yet | 000228 |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`). Between I1 and I2, shuvo added rich text for payment instructions and the Sales settings' notes and terms (`a5e46cb` and `9bf4525`, with no frontend commit yet).
 
@@ -5627,17 +5670,23 @@ These are easy to undo by mistake.
   - `StorefrontOrderPlacement::review()` and `place()` take the signed-in account (`store.customer:optional` on checkout's routes); `StoreCheckoutResource`'s `checkout.signed_in`.
   - `StorefrontCustomerOrders` and `StorefrontCustomerAddresses` (`keepFromOrder()` too); `StoreAccountOrderController` and `StoreAccountAddressController`; `SaveStoreAddressRequest`; `StoreAccountOrderResource` and `StoreAddressResource`. Tests: `Tests\Concerns\SignsInStoreCustomers`.
   - Frontend: `composables/useStoreAccountRecords.ts` (`useStoreAccountOrders()`, `useStoreAddresses()`, `storeAddressFields()`, `storeAddressLine()`); `utils/storeOrders.ts` (an order's statuses in words, shared with StoreOrderPlaced); `pages/store/[code]/account/orders/` (`index`, `[id]`) and `addresses.vue`; StoreAccountNav, StoreAddressForm and StoreSavedAddressPicker; `useStoreCheckout()`'s `fillFromAccount()` and the sign-in sent with checkout's calls; the account pages' shared styles (`.store-account-page`, `.store-account-back`) and warnings' links in `main.css`.
+- What a signed-in customer is offered (Doc 19 Phase E3, migration 000228):
+  - `storefront_customers.language`; `CatalogProduct::VISIBLE_PUBLIC`, `VISIBLE_CUSTOMERS` and `VISIBLE_LINK`.
+  - `StoreVisitor`: the request's customer, set and let go by `EnsureStoreCustomer` - `store.customer:optional` is on every store call of the catalog, cart and checkout - with `listed()` and `reachable()`. `StorefrontCatalogRepository` shows the listings by it (but the sitemap's, for everyone alone), and `StorefrontPricing::terms()` gives `lists`: the customer's own (`PriceListRepository::eligible()`, less those for every customer), then the storefront's.
+  - `StorefrontCustomerAccount::view()` and `update()` - the language among `languagesFor()`, marketing by `StorefrontCustomerContacts::marketingOf()`, `setMarketing()` and `languageChosen()` - with `SaveStoreAccountRequest`'s `language` and `marketing`, and `StoreAccountResource`. `linkAccount()` gives the contact the account's language; `recordConsent()` records nothing while consent stands given; `StorefrontOrderPlacement::review()`'s `marketing` is `StoreCheckoutResource`'s `checkout.marketing`.
+  - Frontend: `useStoreSignIn()` in `composables/useStoreAccount.ts` - the token read as it is now (`headers()`), and whom data was loaded for (`who()`, in the keys) - used by `useStoreCalls()` in `useStore.ts`, `useStoreCart()` and `useStoreAccount()`. StoreAccountProfile's language and marketing; StoreCheckoutReview's line for a customer who takes marketing already. Tests: `EcommerceSignedInCustomersTest`.
 - New Nuxt components may need `docker restart izsuite-frontend` before a running dev server renders them.
 
 ## Small things left
 
 - Doc 19 Phase D was checked through the API, its pages as the server renders them, and its main flows in a headless Chromium (19 steps, after D5). The testing checklist's other items - a storefront's price list on full Sales, guest checkout off, mobile money's reference, a digital product alone, the refusals to delete, the Activity Log - and a look in other browsers are still for a person (blocks D1 to D5).
-- Doc 19 Phases E1 and E2 were checked through the API and their main flows in a headless Chromium (9 and 7 steps). Their checklists' other items - E1's Verify Customer E-mail off, a second storefront and another business's, the Activity Log; E2's contact linking in Contacts, the 21st address, reopening - and a look in other browsers are still for a person (blocks E1 and E2).
+- Doc 19 Phases E1 to E3 were checked through the API and their main flows in a headless Chromium (9, 7 and 10 steps). Their checklists' other items - E1's Verify Customer E-mail off, a second storefront and another business's, the Activity Log; E2's contact linking in Contacts, the 21st address, reopening; E3's category pages and suggestions signed in, Contacts' view of the language and consent, Verify Customer E-mail off, a second storefront - and a look in other browsers are still for a person (blocks E1 to E3). In browsers without `cookieStore` (Firefox), Nuxt keeps the sign-in's cookie in step by a BroadcastChannel instead: signing in or out there is worth a look.
 - Until Phase F's Orders page, the business sees its online orders only in the Activity Log, and nothing tells it of a new one (Doc 19 Phase D4). An account's link to its contact shows only in the contact's Activity, until Phase F's customer views.
 - A storefront customer's sign-in is kept per store, by a cookie of each store's: an account of the business signs in on each storefront, but on each one apart. Customers' codes go out at once, not through the queue, as izSuite's own do, so a mail server away loses that code (reported); the customer asks for another (Doc 19 Phase E1).
 - A shipping zone is countries, regions, cities and postal codes: 19.26's "distance or service area" needs maps, and carriers' own rates their integrations. A method's categories are the items' categories (Doc 19 Phase D1).
 - A cart takes whole quantities, up to 999 of a product and 50 lines. The shop's sorting by price goes by the items' own prices, even where the storefront sells at a price list (Doc 19 Phase D3).
 - An order's link and e-mail use izSuite's address for the store (`FRONTEND_URL/store/{code}`), not its own domain, until the server serves the stores by their domains (Doc 19 Phase D5).
+- A storefront customer's language is kept on their account and their contact, and nothing is translated yet: the store's pages and its e-mails stay in the business's own words (Doc 19 Phase E3). Listings for chosen customer groups wait for Doc 21, as 19.8 says.
 
 - `SalesSettingsApiTest` fails since shuvo's `a5e46cb` (pulled 2026-11-19). The Sales settings' notes and terms are now kept as rich text, so plain text comes back wrapped in `<p>`, and the test still sends and expects plain text. Until a frontend editor for them is on `nuxt`, the settings form would show those tags too. Check it with shuvo.
 - A POS return without its receipt is not built: the Sales app credits only from an issued invoice, so it needs a credit note of its own first. Its permission, Return Without a Receipt, comes with it (Doc 18 Phase E2).
@@ -5845,4 +5894,5 @@ Each of these is yours to settle.
 - Doc 19 Phase D5: migration 000225 adds `ecommerce_order_emails`. Restart the queue workers (`php artisan queue:restart`): the order's e-mail is a new job, `SendStoreOrderEmail`. Its link is at `FRONTEND_URL`. Deploy the frontend with it (the order's page).
 - Doc 19 Phase E1: migration 000226 adds `storefront_customers`, `storefront_customer_tokens` and `storefront_customer_codes`. The customers' codes are sent at once by the API, so its mail settings must work. The API must let browsers send the `X-Customer-Token` header (Laravel's CORS default allows any). Deploy the frontend with it (the header's Sign in and the store's account pages).
 - Doc 19 Phase E2: migration 000227 adds `ecommerce_orders.storefront_customer_id` and `storefront_customer_addresses`. Accounts verified before it are linked to their contacts at their next checkout signed in, or their next new password. Deploy the frontend with it (the account's Orders and Addresses, and checkout signed in).
+- Doc 19 Phase E3: migration 000228 adds `storefront_customers.language`. Every store call now reads `X-Customer-Token`, and the storefront's pages rendered on the server send it, so a signed-in customer's pages are their own: nothing in front of the frontend may cache the store's pages across visitors. Deploy the frontend with it (the store as its customer sees it, the account's language and marketing, and checkout's marketing line).
 - Subscription billing (Doc 13 Phase C) needs the queue worker running for its e-mails, Gotenberg for its PDFs, an active Bank Transfer payment method with the bank details (Admin > Payment Methods), and izSuite's details in Admin > Settings > Billing. Renewals and grace need the scheduler running (`php artisan schedule:work`, or a cron entry for `schedule:run` every minute), which runs `subscriptions:advance` hourly.

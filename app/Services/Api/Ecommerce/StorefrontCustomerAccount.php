@@ -19,9 +19,9 @@ use Illuminate\Validation\ValidationException;
  * its orders (Phase E2) and every sign-in signed out. Signing up again with
  * its e-mail opens it again (StorefrontCustomerAuth).
  *
- * Phase E3: its language, one of the store's - its contact's too - and,
- * once its e-mail is verified, its marketing by e-mail, given or withdrawn,
- * as its contact's consent (StorefrontCustomerContacts).
+ * Phase E3: its language, one of the store's (or the one it has) - its
+ * contact's too - and, once its e-mail is verified, its marketing by e-mail,
+ * given or withdrawn, as its contact's consent (StorefrontCustomerContacts).
  */
 class StorefrontCustomerAccount
 {
@@ -34,13 +34,13 @@ class StorefrontCustomerAccount
     /**
      * $customer's account as its page shows it, on the store it is signed in
      * at: whether its contact takes marketing by e-mail (null until its e-mail
-     * is verified), and the store's languages to choose from.
+     * is verified), and the languages to choose from (languagesFor()).
      *
      * @return array{customer: StorefrontCustomer, marketing: ?bool, languages: list<array{code: string, name: string}>}
      */
     public function view(StorefrontCustomer $customer): array
     {
-        $codes = $this->storeLanguages($customer);
+        $codes = $this->languagesFor($customer);
         $names = $this->languages->getActive()->whereIn('code', $codes)->mapWithKeys(fn (Language $language) => [$language->code => $language->name]);
 
         return [
@@ -60,7 +60,7 @@ class StorefrontCustomerAccount
         ActivityLogService::skipForThisRequest();
         $language = array_key_exists('language', $data) ? ($data['language'] ?: null) : $customer->language;
 
-        if ($language !== null && ! in_array($language, $this->storeLanguages($customer), true)) {
+        if ($language !== null && ! in_array($language, $this->languagesFor($customer), true)) {
             throw ValidationException::withMessages(['language' => 'Choose one of the languages of '.$customer->storefront->name.'.']);
         }
 
@@ -108,11 +108,16 @@ class StorefrontCustomerAccount
         ActivityLogService::recordCustomer($customer->workspace, 'updated', "{$customer->name} closed their account", $customer);
     }
 
-    /** The languages of the store $customer is signed in at, its default first. */
-    private function storeLanguages(StorefrontCustomer $customer): array
+    /**
+     * The languages $customer may choose: those of the store it is signed in
+     * at, its default first - and its own, kept when this store does not
+     * offer it: the account is the business's, so it may have been chosen on
+     * another of its stores, or before this one stopped offering it.
+     */
+    private function languagesFor(StorefrontCustomer $customer): array
     {
         $storefront = $customer->storefront;
 
-        return array_values(array_unique(array_filter([$storefront->default_language, ...($storefront->languages ?? [])])));
+        return array_values(array_unique(array_filter([$storefront->default_language, ...($storefront->languages ?? []), $customer->language])));
     }
 }

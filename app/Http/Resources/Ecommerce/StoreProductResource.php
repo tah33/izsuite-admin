@@ -59,8 +59,9 @@ class StoreProductResource extends JsonResource
                 'image'          => $variant->item->image ? $this->image($variant->item->image) : null,
             ])->values(),
             'seo'               => ['title' => $this->seo_title ?? $this->title, 'description' => $this->seo_description ?? $this->short_description],
-            // Phase C6a: in its lists and search for anyone - else kept for its link, and for no search engine.
-            'listed'            => $this->visibility === 'public',
+            // Phase C6a: in its lists and search for anyone - else kept for its link, or (Phase E3) for signed-in
+            // customers, and for no search engine.
+            'listed'            => $this->visibility === CatalogProduct::VISIBLE_PUBLIC,
         ];
     }
 

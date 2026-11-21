@@ -46,7 +46,7 @@ class StorefrontCatalogRepository
     }
 
     /**
-     * The listings $storefront shows anyone, as $filters ask - within() - and
+     * The listings $storefront shows its visitor, as $filters ask - within() - and
      * among $ids when given (Phase C3: those passing the filters by price,
      * options and attributes), sorted. In a collection of products chosen by
      * hand, in its order unless sorted. Each with what its card shows - and
@@ -91,7 +91,7 @@ class StorefrontCatalogRepository
     }
 
     /**
-     * The listings $storefront shows anyone, as $filters ask: searched by
+     * The listings $storefront shows its visitor, as $filters ask: searched by
      * title, keywords, descriptions, SKU, brand or category, narrowed to a
      * category (by its link) or a brand and to those in stock. Within
      * $collection (Phase C2) when given: those it holds, or a brand's.
@@ -128,7 +128,7 @@ class StorefrontCatalogRepository
         return $query;
     }
 
-    /** The listing $storefront shows at $slug: for anyone, or for those with its link. */
+    /** The listing $storefront shows at $slug: in its visitor's lists, or kept for those with its link. */
     public function product(Storefront $storefront, string $slug, string $today): ?CatalogProduct
     {
         return $this->shown($storefront, $today, $this->visitor->reachable())
@@ -142,8 +142,8 @@ class StorefrontCatalogRepository
     }
 
     /**
-     * Phase D3: of $ids, the listings $storefront shows on $today - to anyone
-     * or at their link - by id, with what a cart's line shows and prices:
+     * Phase D3: of $ids, the listings $storefront shows on $today - to its
+     * visitor or at their link - by id, with what a cart's line shows and prices:
      * their items, pictures and the variants they show, with theirs.
      */
     public function shownAmong(Storefront $storefront, array $ids, string $today): Collection
@@ -179,7 +179,7 @@ class StorefrontCatalogRepository
             ->get(['id', 'item_category_id', 'slug', 'position']);
     }
 
-    /** The brands of the listings the storefront shows anyone, by name. */
+    /** The brands of the listings the storefront shows its visitor, by name. */
     public function brandsOf(Storefront $storefront, string $today): Collection
     {
         return ItemBrand::query()

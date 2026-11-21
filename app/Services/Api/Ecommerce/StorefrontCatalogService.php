@@ -30,9 +30,10 @@ use Illuminate\Database\Eloquent\Collection;
  * open - its products are not found. Open, it shows the listings published
  * (or scheduled and begun) and not over, of active items it sells, on every
  * storefront or on this one: for anyone in its lists and search, and those
- * kept for their link at their link too. Listings for signed-in customers
- * wait for customer accounts (Phase E). A listing's variants are those shown,
- * of active items. Prices are StorefrontPricing's, on the business's day.
+ * kept for their link at their link too. From Phase E3, those kept for
+ * signed-in customers show to a customer signed in (StoreVisitor). A
+ * listing's variants are those shown, of active items. Prices are
+ * StorefrontPricing's, on the business's day.
  *
  * Phase C4a: it wears its published theme. A $previewer - signed in, who may
  * manage its themes and pages - sees it in its draft theme, and sees it open

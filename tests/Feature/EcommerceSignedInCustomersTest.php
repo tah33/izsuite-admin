@@ -52,7 +52,7 @@ class EcommerceSignedInCustomersTest extends TestCase
         $this->asCustomer(null);
         $this->assertSame(['Ceramic Mug'], $this->shown());
         $this->getJson(self::STORE.'/products/gold-mug')->assertNotFound();
-        $this->postJson(self::STORE.'/cart/lines', ['product' => 'gold-mug', 'quantity' => 1])->assertNotFound();
+        $this->postJson(self::STORE.'/cart/lines', ['product' => 'gold-mug', 'quantity' => 1])->assertJsonValidationErrors(['product' => 'This product is not sold in this store.']);
         $this->getJson(self::STORE.'/suggestions?search=mug')->assertOk()->assertJsonMissing(['title' => 'Gold Mug']);
 
         $token = $this->verifiedCustomer();
@@ -67,6 +67,32 @@ class EcommerceSignedInCustomersTest extends TestCase
         $this->asCustomer(null)->withHeaders(['X-Cart-Token' => $later])->getJson(self::STORE.'/cart')->assertOk()
             ->assertJsonPath('data.lines.0.problem', 'unavailable')->assertJsonPath('data.ready', false);
         $this->asCustomer(null)->getJson(self::STORE.'/sitemap')->assertOk()->assertJsonMissing(['slug' => 'gold-mug']);
+    }
+
+    public function test_what_the_shop_offers_to_filter_by_follows_its_visitor(): void
+    {
+        $this->asCustomer(null)->getJson(self::STORE.'/facets')->assertOk()->assertJsonPath('data.price', ['min' => '8.00', 'max' => '8.00']);
+
+        $token = $this->verifiedCustomer();
+        $this->asCustomer($token)->getJson(self::STORE.'/facets')->assertOk()->assertJsonPath('data.price', ['min' => '8.00', 'max' => '30.00']);
+        $this->asCustomer($token)->getJson(self::STORE.'/products?price_min=20')->assertOk()->assertJsonPath('data.0.title', 'Gold Mug');
+    }
+
+    public function test_checkout_says_whether_a_signed_in_customer_takes_marketing_already_and_records_it_once(): void
+    {
+        $guest = $this->asCustomer(null)->cartWith(['ceramic-mug' => 1]);
+        $this->asCustomer(null)->quote($guest)->assertOk()->assertJsonPath('data.checkout.marketing', null);
+
+        $token = $this->verifiedCustomer();
+        $cart  = $this->asCustomer($token)->cartWith(['ceramic-mug' => 1]);
+        $this->asCustomer($token)->quote($cart)->assertOk()->assertJsonPath('data.checkout.marketing', false);
+
+        $this->asCustomer($token)->putJson(self::STORE.'/account', ['name' => 'Karim Rahman', 'marketing' => true])->assertOk();
+        $this->asCustomer($token)->quote($cart)->assertJsonPath('data.checkout.marketing', true);
+
+        // Ticked at checkout as well, it stands already: nothing more is recorded.
+        $this->asCustomer($token)->place($cart, $this->order('13.00', ['marketing' => true]))->assertCreated();
+        $this->assertSame(1, MarketingConsent::count());
     }
 
     public function test_a_customer_s_own_price_list_comes_before_the_store_s(): void
@@ -147,6 +173,44 @@ class EcommerceSignedInCustomersTest extends TestCase
 
         // Saved again without it, it stays.
         $this->asCustomer($token)->putJson(self::STORE.'/account', ['name' => 'Karim R.'])->assertOk()->assertJsonPath('data.language', 'bn');
+    }
+
+    public function test_an_account_keeps_its_language_where_the_store_does_not_offer_it(): void
+    {
+        Language::create(['name' => 'Bangla', 'code' => 'bn', 'native_name' => 'বাংলা', 'is_default' => false, 'is_active' => true]);
+        $this->store->update(['languages' => ['en', 'bn']]);
+        $token = $this->verifiedCustomer();
+        $this->asCustomer($token)->putJson(self::STORE.'/account', ['name' => 'Karim Rahman', 'language' => 'bn'])->assertOk();
+
+        // The account is the business's: another of its stores - or this one, later - may not offer Bangla.
+        $this->store->update(['languages' => ['en']]);
+        $this->asCustomer($token)->getJson(self::STORE.'/account')->assertJsonPath('data.language', 'bn')
+            ->assertJsonPath('data.languages', [['code' => 'en', 'name' => 'English'], ['code' => 'bn', 'name' => 'Bangla']]);
+        $this->asCustomer($token)->putJson(self::STORE.'/account', ['name' => 'Karim R.', 'language' => 'bn'])->assertOk()->assertJsonPath('data.language', 'bn');
+
+        // Changed to English, Bangla is no longer offered.
+        $this->asCustomer($token)->putJson(self::STORE.'/account', ['name' => 'Karim R.', 'language' => 'en'])->assertOk()->assertJsonPath('data.languages', [['code' => 'en', 'name' => 'English']]);
+        $this->asCustomer($token)->putJson(self::STORE.'/account', ['name' => 'Karim R.', 'language' => 'bn'])->assertUnprocessable()
+            ->assertJsonPath('errors.language.0', 'Choose one of the languages of Rahman Shop.');
+    }
+
+    public function test_a_language_chosen_before_the_e_mail_is_verified_is_the_contact_s_once_linked(): void
+    {
+        Language::create(['name' => 'Bangla', 'code' => 'bn', 'native_name' => 'বাংলা', 'is_default' => false, 'is_active' => true]);
+        $this->store->update(['languages' => ['en', 'bn']]);
+        app(EcommerceSettingRepository::class)->save($this->business, ['verify_customer_email' => false]);
+        $karim = Contact::query()->forceCreate(['workspace_id' => $this->business->id, 'contact_type' => 'individual', 'role' => 'customer', 'name' => 'Karim', 'email' => 'karim@example.test', 'preferred_language' => 'en', 'is_active' => true]);
+
+        // Karim's e-mail is a contact's of the business already; Nadia's is no one's.
+        foreach (['karim@example.test' => 'Karim Rahman', 'nadia@example.test' => 'Nadia Islam'] as $email => $name) {
+            $token = $this->signUpCustomer($email, $name)->json('data.token');
+            $this->asCustomer($token)->putJson(self::STORE.'/account', ['name' => $name, 'language' => 'bn'])->assertOk()->assertJsonPath('data.marketing', null);
+            $this->asCustomer(null)->postJson(self::STORE.'/account/verify', ['email' => $email, 'code' => $this->codeSentTo($email)])->assertOk();
+        }
+
+        $this->assertSame([$karim->id, 'bn'], [StorefrontCustomer::where('email', 'karim@example.test')->sole()->contact_id, $karim->fresh()->preferred_language]);
+        $made = Contact::find(StorefrontCustomer::where('email', 'nadia@example.test')->sole()->contact_id);
+        $this->assertSame(['nadia@example.test', 'bn'], [$made->email, $made->preferred_language]);
     }
 
     /** A USD list of the business's - for every customer, or for those it names - with rules of [item, from quantity, price]. */
