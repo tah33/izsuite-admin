@@ -102,6 +102,7 @@ use App\Http\Controllers\Api\EcommerceCatalogController;
 use App\Http\Controllers\Api\EcommerceSettingController;
 use App\Http\Controllers\Api\EcommerceShippingController;
 use App\Http\Controllers\Api\EcommercePaymentMethodController;
+use App\Http\Controllers\Api\EcommerceOrderController;
 use App\Http\Controllers\Api\StorefrontController;
 use App\Http\Controllers\Api\StorefrontDomainController;
 use App\Http\Controllers\Api\StorefrontHostController;
@@ -1247,6 +1248,13 @@ Route::prefix('v1')->group(function () {
         Route::delete('/collections/{id}', [CatalogCollectionController::class, 'destroy'])->whereNumber('id')->name('api.ecommerce.collections.destroy');
         Route::post('/collections/{id}/image', [CatalogCollectionController::class, 'storeImage'])->whereNumber('id')->name('api.ecommerce.collections.image.store');
         Route::delete('/collections/{id}/image', [CatalogCollectionController::class, 'destroyImage'])->whereNumber('id')->name('api.ecommerce.collections.image.destroy');
+    });
+
+    // Phase F1: the business's online orders - the Orders page, one order, and its timeline.
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:ecommerce', 'access'])->prefix('ecommerce/orders')->group(function () {
+        Route::get('/', [EcommerceOrderController::class, 'index'])->name('api.ecommerce.orders.index');
+        Route::get('/{id}', [EcommerceOrderController::class, 'show'])->whereNumber('id')->name('api.ecommerce.orders.show');
+        Route::get('/{id}/activity', RecordActivityController::class)->whereNumber('id')->defaults('family', 'ecommerce_orders')->name('api.ecommerce.orders.activity');
     });
 
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm')->group(function () {

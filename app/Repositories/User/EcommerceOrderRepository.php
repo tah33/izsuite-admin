@@ -12,6 +12,7 @@ use App\Models\User\Storefront;
 use App\Models\User\StorefrontCustomer;
 use App\Models\User\Workspace;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Online orders (Doc 19 Phase D4): one placed from a cart - with its lines -
@@ -113,6 +114,41 @@ class EcommerceOrderRepository
         EcommerceOrder::query()->where('storefront_customer_id', $customer->id)->update(['storefront_customer_id' => null]);
     }
 
+    /**
+     * Phase F1: the Orders page - the business's orders at $locationIds (any,
+     * when null), the newest first, by storefront and each of the three
+     * statuses, or a number, name or e-mail searched for - each with its
+     * storefront and how many products it holds.
+     */
+    public function paginateFor(Workspace $workspace, ?array $locationIds, array $filters, int $perPage): LengthAwarePaginator
+    {
+        $search = trim((string) ($filters['search'] ?? ''));
+
+        return $this->at($workspace, $locationIds)
+            ->select(['id', 'storefront_id', 'number', 'placed_at', 'status', 'payment_status', 'fulfilment_status', 'currency', 'grand_total', 'customer', 'delivery'])
+            ->when($filters['storefront_id'] ?? null, fn (Builder $query, int|string $id) => $query->where('storefront_id', (int) $id))
+            ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
+            ->when($filters['payment_status'] ?? null, fn (Builder $query, string $status) => $query->where('payment_status', $status))
+            ->when($filters['fulfilment_status'] ?? null, fn (Builder $query, string $status) => $query->where('fulfilment_status', $status))
+            ->when($search !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
+                ->where('number', 'like', "%{$search}%")
+                ->orWhere('customer_email', 'like', '%'.mb_strtolower($search).'%')
+                ->orWhere('customer->name', 'like', "%{$search}%")))
+            ->withSum(['lines as products' => fn ($query) => $query->reorder()->where('kind', EcommerceOrderLine::PRODUCT)], 'quantity')
+            ->with('storefront:id,name')
+            ->orderByDesc('placed_at')
+            ->orderByDesc('id')
+            ->paginate($perPage);
+    }
+
+    /** Phase F1: the business's order $id at $locationIds (any, when null), with what its page shows - or none. */
+    public function findFor(Workspace $workspace, int $id, ?array $locationIds): ?EcommerceOrder
+    {
+        return $this->at($workspace, $locationIds)
+            ->with(['lines.priceList:id,name', 'storefront:id,name,code', 'location:id,name', 'contact:id,contact_number,name,is_active', 'customerAccount:id,email', 'emails'])
+            ->find($id);
+    }
+
     /** Phase D5: an e-mail kept with $order. */
     public function addEmail(EcommerceOrder $order, array $data): EcommerceOrderEmail
     {
@@ -154,5 +190,13 @@ class EcommerceOrderRepository
     public function usesItem(Item $item): bool
     {
         return EcommerceOrderLine::query()->where('item_id', $item->id)->exists();
+    }
+
+    /** The business's orders, kept to those at $locationIds when given. */
+    private function at(Workspace $workspace, ?array $locationIds): Builder
+    {
+        return EcommerceOrder::query()
+            ->where('workspace_id', $workspace->id)
+            ->when($locationIds !== null, fn (Builder $query) => $query->whereIn('location_id', $locationIds));
     }
 }

@@ -227,6 +227,8 @@ class AppCatalogSeeder extends Seeder
         ['apps', 'ecommerce', 'Storefronts', 'store', '/ecommerce/storefronts', 'lite', null],
         // Phase B1: the catalog.
         ['apps', 'ecommerce', 'Catalog', 'library', '/ecommerce/catalog', 'lite', null],
+        // Phase F1: its orders.
+        ['apps', 'ecommerce', 'Orders', 'receipt', '/ecommerce/orders', 'lite', null],
         ['apps', 'inventory', 'Stock', 'boxes', '/inventory/stock', 'lite', null],
         ['apps', 'inventory', 'Adjustments', 'sliders-horizontal', '/inventory/adjustments', 'lite', null],
 
@@ -269,6 +271,7 @@ class AppCatalogSeeder extends Seeder
         '/pos/cash-movements' => 'pos.cash.view',
         '/ecommerce/storefronts' => 'ecommerce.store.view',
         '/ecommerce/catalog'     => 'ecommerce.catalog.view',
+        '/ecommerce/orders'      => 'ecommerce.orders.view',
         '/purchases'          => 'purchases.purchases.view',
         '/purchases/payments' => 'purchases.payments.view',
         '/expenses'           => 'expenses.expenses.view',

@@ -5,6 +5,7 @@ namespace App\Repositories\Shared;
 use App\Models\Shared\ActivityLog;
 use App\Models\User\CrmLead;
 use App\Models\User\CrmOpportunity;
+use App\Models\User\EcommerceOrder;
 use App\Models\User\Expense;
 use App\Models\User\ExpensePayment;
 use App\Models\User\Purchase;
@@ -59,6 +60,15 @@ class RecordActivityRepository
     public function forOpportunity(CrmOpportunity $opportunity, int $limit): Collection
     {
         return $this->entries($opportunity->workspace_id, fn (Builder $query) => $this->about($query, CrmOpportunity::class, [$opportunity->id]), $limit);
+    }
+
+    /**
+     * An online order's own entries (Doc 19 Phase F1): placed, and what the
+     * business does to it from Phase F2 on.
+     */
+    public function forEcommerceOrder(EcommerceOrder $order, int $limit): Collection
+    {
+        return $this->entries($order->workspace_id, fn (Builder $query) => $this->about($query, EcommerceOrder::class, [$order->id]), $limit);
     }
 
     /** @param  list<int>|Builder  $ids */

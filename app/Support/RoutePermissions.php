@@ -481,6 +481,10 @@ final class RoutePermissions
             'api.ecommerce.collections.destroy'       => 'ecommerce.catalog.manage',
             'api.ecommerce.collections.image.store'   => 'ecommerce.catalog.manage',
             'api.ecommerce.collections.image.destroy' => 'ecommerce.catalog.manage',
+            // Phase F1: the business's online orders.
+            'api.ecommerce.orders.index'              => 'ecommerce.orders.view',
+            'api.ecommerce.orders.show'               => 'ecommerce.orders.view',
+            'api.ecommerce.orders.activity'           => 'ecommerce.orders.view',
             // Doc 18 Phase A2: POS registers.
             'api.pos.registers.index'   => 'pos.registers.view',
             'api.pos.registers.options' => 'pos.registers.manage',

@@ -35,7 +35,8 @@ class RecordActivityService
     {
         $record = $this->records->find($workspace, $family, $kind, $id);
         // A lead's or an opportunity's estimates are for whoever sees it: CRM has no values permission (Doc 17 section 17.30).
-        $values = in_array($family, ['crm', 'opportunities'], true) || $this->access->seesValues($family);
+        // Likewise an online order's (Doc 19 Phase F1): eCommerce has none either.
+        $values = in_array($family, ['crm', 'opportunities', 'ecommerce_orders'], true) || $this->access->seesValues($family);
 
         $entries = match ($family) {
             'sales'         => $this->recordActivityRepository->forSalesDocument($record->model, self::SHOWN),
@@ -43,6 +44,7 @@ class RecordActivityService
             'expenses'      => $this->recordActivityRepository->forExpense($record->model, self::SHOWN),
             'crm'           => $this->recordActivityRepository->forLead($record->model, self::SHOWN),
             'opportunities' => $this->recordActivityRepository->forOpportunity($record->model, self::SHOWN),
+            'ecommerce_orders' => $this->recordActivityRepository->forEcommerceOrder($record->model, self::SHOWN),
         };
 
         return $entries->each(function (ActivityLog $entry) use ($values) {

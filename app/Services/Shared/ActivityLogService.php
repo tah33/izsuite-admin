@@ -132,7 +132,8 @@ class ActivityLogService
             'model_type'   => get_class($subject),
             'model_id'     => $subject->getKey(),
             'description'  => $description,
-            'properties'   => [...$properties, ...($subject->getAttribute('location_id') ? ['location_id' => (int) $subject->getAttribute('location_id')] : [])],
+            // Doc 19 Phase F1: the customer's doing, so a record's timeline names them rather than izSuite.
+            'properties'   => [...$properties, 'customer' => true, ...($subject->getAttribute('location_id') ? ['location_id' => (int) $subject->getAttribute('location_id')] : [])],
             'ip_address'   => app()->bound('request') ? app(Request::class)->ip() : null,
         ]);
     }

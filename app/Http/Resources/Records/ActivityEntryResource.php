@@ -20,11 +20,17 @@ class ActivityEntryResource extends JsonResource
             'id'          => $this->id,
             'at'          => $this->created_at?->toIso8601String(),
             // A support session's work names izSuite support and who (Doc 15 section 15.22).
-            'by'          => SupportAccess::doneBy($this->properties) ?? $this->user?->name ?? 'izSuite',
-            'system'      => $this->user_id === null && SupportAccess::doneBy($this->properties) === null,
+            // Doc 19 Phase F1: an online customer's doing (ActivityLogService::recordCustomer) names them as the customer.
+            'by'          => SupportAccess::doneBy($this->properties) ?? $this->user?->name ?? ($this->byCustomer() ? 'The customer' : 'izSuite'),
+            'system'      => $this->user_id === null && SupportAccess::doneBy($this->properties) === null && ! $this->byCustomer(),
             'action'      => $this->action,
             'description' => $this->shown_description,
             'changes'     => $this->shown_changes,
         ];
+    }
+
+    private function byCustomer(): bool
+    {
+        return $this->user_id === null && (bool) ($this->properties['customer'] ?? false);
     }
 }

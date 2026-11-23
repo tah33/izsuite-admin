@@ -164,6 +164,8 @@ final class Permissions
         'ecommerce.shipping' => ['Shipping', 'ecommerce', ['manage' => 'Manage Shipping']],
         // Phase D2: payment methods without a gateway, in Settings → eCommerce.
         'ecommerce.payments' => ['Payment Methods', 'ecommerce', ['manage' => 'Manage Payment Methods']],
+        // Phase F1: the business's online orders - the Orders page and each order's page.
+        'ecommerce.orders'   => ['Orders', 'ecommerce', ['view' => 'View Orders']],
         'ecommerce.settings' => ['eCommerce Settings', 'ecommerce', self::APP_SETTINGS],
     ];
 
@@ -262,6 +264,8 @@ final class Permissions
         'ecommerce.shipping.manage'  => ['settings.view', 'ecommerce.store.view'],
         // Phase D2: and so are its payment methods.
         'ecommerce.payments.manage'  => ['settings.view', 'ecommerce.store.view'],
+        // Phase F1: the Orders page filters by storefront.
+        'ecommerce.orders.view'      => ['ecommerce.store.view'],
         'purchases.purchases.create' => ['contacts.view', 'items.view'],
         'purchases.payments.record'  => ['purchases.purchases.view', 'payment_accounts.view'],
         'purchases.payments.reverse' => ['payment_accounts.view'],

@@ -145,6 +145,12 @@ class EcommerceOrder extends Model
         return $this->belongsTo(Contact::class);
     }
 
+    /** Phase F1: the location it sells from, as its storefront did when it was placed. */
+    public function location(): BelongsTo
+    {
+        return $this->belongsTo(Location::class);
+    }
+
     public function cart(): BelongsTo
     {
         return $this->belongsTo(EcommerceCart::class, 'ecommerce_cart_id');

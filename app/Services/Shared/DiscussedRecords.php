@@ -7,6 +7,7 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Services\Api\Crm\CrmLeadService;
 use App\Services\Api\Crm\CrmOpportunityService;
+use App\Services\Api\Ecommerce\EcommerceOrderService;
 use App\Services\Api\Expenses\ExpenseService;
 use App\Services\Api\Purchases\PurchaseService;
 use App\Services\Api\Sales\SalesDocumentService;
@@ -32,6 +33,7 @@ class DiscussedRecords
         protected LeadVisibility $leadVisibility,
         protected CrmOpportunityService $crmOpportunityService,
         protected OpportunityVisibility $opportunityVisibility,
+        protected EcommerceOrderService $ecommerceOrderService,
     ) {}
 
     /** $family is the route's: "sales", "purchases", "expenses", "crm" (leads) or "opportunities". $kind is a sales route's {kind}. */
@@ -43,7 +45,16 @@ class DiscussedRecords
             'expenses'      => $this->expense($workspace, $id),
             'crm'           => $this->lead($workspace, $id),
             'opportunities' => $this->opportunity($workspace, $id),
+            'ecommerce_orders' => $this->ecommerceOrder($workspace, $id),
         };
+    }
+
+    /** Doc 19 Phase F1: an online order at a location the user may use - its timeline only. */
+    private function ecommerceOrder(Workspace $workspace, int $id): DiscussedRecord
+    {
+        $order = $this->ecommerceOrderService->find($workspace, $id);
+
+        return new DiscussedRecord($order, 'ecommerce_orders', 'ecommerce.orders.view', $this->ecommerceOrderService->describe($order), "/ecommerce/orders/{$order->id}");
     }
 
     /** A lead the signed-in user sees; who else sees it decides who a comment may mention. */

@@ -78,6 +78,12 @@ class EcommerceOrderLine extends Model
         return $this->belongsTo(CatalogProduct::class, 'catalog_product_id');
     }
 
+    /** Phase F1: the price list its price came from, when it came from one. */
+    public function priceList(): BelongsTo
+    {
+        return $this->belongsTo(PriceList::class);
+    }
+
     public function item(): BelongsTo
     {
         return $this->belongsTo(Item::class);
