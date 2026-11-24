@@ -25,6 +25,9 @@ class EcommerceOrderEmail extends Model
     /** Phase F4: the order cancelled - never why. */
     public const ORDER_CANCELLED = 'order_cancelled';
 
+    /** Phase F6a: a payment link - what it asks, until when, and its page. */
+    public const PAYMENT_LINK = 'payment_link';
+
     public const QUEUED = 'queued';
 
     public const SENT = 'sent';

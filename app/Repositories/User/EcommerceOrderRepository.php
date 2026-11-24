@@ -160,6 +160,8 @@ class EcommerceOrderRepository
                 'lines.priceList:id,name', 'storefront:id,name,code', 'location:id,name', 'contact:id,contact_number,name,is_active', 'customerAccount:id,email', 'emails',
                 // Phase F3: what its invoice still owes, and the payments recorded against it.
                 'invoice:id,number,document_date,balance_due', 'invoice.payments.account:id,name,currency', 'confirmer:id,first_name,last_name',
+                // Phase F6a: its payment links, by whom each was sent.
+                'paymentLinks.creator:id,first_name,last_name',
             ])
             ->find($id);
     }

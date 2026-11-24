@@ -36,6 +36,9 @@ class SaveEcommerceSettingsRequest extends FormRequest
             // Phase F4: Review Orders Above, in the base currency - empty for none - and whether such orders are held as placed.
             'review_above'          => ['sometimes', 'nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999999.99'],
             'hold_for_review'       => ['sometimes', 'boolean'],
+            // Phase F6a: payment links.
+            'payment_link_days'     => ['sometimes', 'integer', 'min:1', 'max:90'],
+            'partial_payments'      => ['sometimes', 'boolean'],
         ];
     }
 

@@ -6,6 +6,7 @@ use App\Enums\DocumentType;
 use App\Enums\SalesDocumentStatus;
 use App\Models\User\EcommerceOrder;
 use App\Models\User\EcommerceOrderEmail;
+use App\Models\User\EcommercePaymentLink;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\CatalogProductRepository;
@@ -45,6 +46,7 @@ class EcommerceOrderCancellation
         protected CatalogProductRepository $catalog,
         protected SalesDocumentFlow $salesFlow,
         protected StoreOrderMailer $mailer,
+        protected EcommercePaymentLinks $paymentLinks,
     ) {}
 
     public function cancel(Workspace $workspace, User $user, int $id, string $reason): EcommerceOrder
@@ -79,6 +81,9 @@ class EcommerceOrderCancellation
             if ($invoice && $invoice->status === SalesDocumentStatus::Issued) {
                 $this->salesFlow->void($workspace, DocumentType::Invoice, $invoice->id, $user, "Online order {$order->number} cancelled: {$reason}");
             }
+
+            // Phase F6a: its payment links still active ask no more.
+            $this->paymentLinks->closeActive($order, $user, EcommercePaymentLink::CANCELLED);
 
             $this->orders->update($order, ['status' => EcommerceOrder::CANCELLED, 'held_status' => null, 'status_reason' => $reason]);
 

@@ -39,6 +39,9 @@ class EcommerceSetting extends Model
         // Phase F4: Review Orders Above (base currency; none to start), and whether such orders are held as placed.
         'review_above',
         'hold_for_review',
+        // Phase F6a: how many days a payment link works (7 to start), and whether one may ask less than is owed (off).
+        'payment_link_days',
+        'partial_payments',
     ];
 
     protected $casts = [
@@ -49,6 +52,8 @@ class EcommerceSetting extends Model
         'checkout_notes'        => 'boolean',
         'review_above'          => 'decimal:2',
         'hold_for_review'       => 'boolean',
+        'payment_link_days'     => 'integer',
+        'partial_payments'      => 'boolean',
     ];
 
     // The columns' defaults, so settings never saved read as they would be.
@@ -62,6 +67,8 @@ class EcommerceSetting extends Model
         'checkout_notes'        => true,
         'cookie_notice'         => true,
         'hold_for_review'       => false,
+        'payment_link_days'     => 7,
+        'partial_payments'      => false,
     ];
 
     public function workspace(): BelongsTo

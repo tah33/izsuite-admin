@@ -3,8 +3,10 @@
 namespace App\Services\Api\Ecommerce;
 
 use App\Models\User\EcommerceOrder;
+use App\Models\User\EcommercePaymentLink;
 use App\Models\User\SalesDocument;
 use App\Repositories\User\EcommerceOrderRepository;
+use App\Repositories\User\EcommercePaymentLinkRepository;
 
 /**
  * An online order's payment status following its invoice (Doc 19 section
@@ -13,7 +15,8 @@ use App\Repositories\User\EcommerceOrderRepository;
  * or in Sales, or reversed in Sales: Partially Paid, Paid or Refunded as the
  * invoice is. Owing all of it again - its payments reversed - it is Unpaid;
  * while nothing was paid, a payment waiting to be confirmed (Pending) or
- * marked failed stays so.
+ * marked failed stays so. Paid in full, its payment links still active are
+ * Paid too (Phase F6a): they have nothing left to ask.
  */
 class EcommerceOrderPaymentStatus
 {
@@ -21,6 +24,7 @@ class EcommerceOrderPaymentStatus
 
     public function __construct(
         protected EcommerceOrderRepository $orders,
+        protected EcommercePaymentLinkRepository $links,
     ) {}
 
     public function follow(SalesDocument $invoice): void
@@ -39,6 +43,13 @@ class EcommerceOrderPaymentStatus
 
         if ($status !== $order->payment_status) {
             $this->orders->update($order, ['payment_status' => $status]);
+        }
+
+        // Phase F6a: paid in full, however it came in, its links still active have nothing left to ask.
+        if ($status === EcommerceOrder::PAID) {
+            foreach ($this->links->activeFor($order, true) as $link) {
+                $this->links->update($link, ['status' => EcommercePaymentLink::PAID]);
+            }
         }
     }
 }

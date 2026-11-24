@@ -5,6 +5,7 @@ namespace App\Http\Resources\Ecommerce;
 use App\Models\User\EcommerceOrder;
 use App\Models\User\EcommerceOrderEmail;
 use App\Models\User\EcommerceOrderLine;
+use App\Models\User\EcommercePaymentLink;
 use App\Models\User\SalesPayment;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -105,6 +106,20 @@ class EcommerceOrderResource extends JsonResource
                 'grand_total' => (string) $order->grand_total,
                 'taxes'       => array_map(fn (array $tax) => ['name' => $tax['name'] ?? null, 'rate' => isset($tax['rate']) ? (string) $tax['rate'] : null, 'amount' => (string) ($tax['tax_amount'] ?? '0')], $order->taxes ?? []),
             ],
+            // Phase F6a: its payment links, the newest first - what each asks, the methods it offers, to whom and by whom it
+            // was sent, until when, and whether active, expired, revoked (and why) or paid.
+            'payment_links'      => $order->paymentLinks->map(fn (EcommercePaymentLink $link) => [
+                'id'          => $link->id,
+                'amount'      => (string) $link->amount,
+                'currency'    => $link->currency,
+                'methods'     => array_column($link->payment_methods ?? [], 'name'),
+                'sent_to'     => $link->sent_to,
+                'sent_by'     => $link->creator?->name ?? 'A former member',
+                'sent_at'     => $link->created_at?->toIso8601String(),
+                'expires_at'  => $link->expires_at->toIso8601String(),
+                'state'       => $link->state(),
+                'revoked_why' => $link->revoked_why,
+            ])->values(),
             // Phase F5b: the discount given - a percentage of its products, or an amount - and why.
             'discount'           => $order->discount_type ? [
                 'type'   => $order->discount_type,

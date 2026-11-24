@@ -23,6 +23,9 @@ class EcommerceSettingsResource extends JsonResource
             // Phase F4: Review Orders Above, in the base currency, and holding such orders as they are placed.
             'review_above'          => $this->review_above === null ? null : (string) $this->review_above,
             'hold_for_review'       => (bool) $this->hold_for_review,
+            // Phase F6a: how many days a payment link works, and whether one may ask less than an order owes.
+            'payment_link_days'     => (int) $this->payment_link_days,
+            'partial_payments'      => (bool) $this->partial_payments,
         ];
     }
 }

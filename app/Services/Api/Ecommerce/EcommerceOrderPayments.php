@@ -167,8 +167,8 @@ class EcommerceOrderPayments
         return $this->orderService->page($workspace, $id);
     }
 
-    /** An order that takes a payment: open, and owing something. */
-    private function checkPayable(EcommerceOrder $order): void
+    /** An order that takes a payment: open, and owing something - a payment link's too (Phase F6a). */
+    public function checkPayable(EcommerceOrder $order): void
     {
         $this->checkOpen($order);
 
@@ -188,7 +188,7 @@ class EcommerceOrderPayments
     }
 
     /** What the order owes: its invoice's balance - or, before it has one, its total. */
-    private function owed(EcommerceOrder $order): string
+    public function owed(EcommerceOrder $order): string
     {
         return (string) ($order->invoice ? $order->invoice->balance_due : $order->grand_total);
     }

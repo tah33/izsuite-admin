@@ -232,4 +232,10 @@ class EcommerceOrder extends Model
     {
         return $this->hasMany(EcommerceOrderEmail::class)->orderBy('id');
     }
+
+    /** Phase F6a: its payment links, the newest first. */
+    public function paymentLinks(): HasMany
+    {
+        return $this->hasMany(EcommercePaymentLink::class)->orderByDesc('id');
+    }
 }

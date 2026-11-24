@@ -17,12 +17,13 @@ use Illuminate\Support\Str;
  * numbers (in capitals). Settings never saved read as their defaults. Each
  * save is logged with what it changed. Phase F4 adds Review Orders Above
  * (a total in the base currency, none to start) and holding orders that may
- * want a look as they are placed (off).
+ * want a look as they are placed (off); Phase F6a how many days a payment
+ * link works (7) and whether one may ask less than an order owes (off).
  */
 class EcommerceSettingService
 {
     /** What the settings form saves. */
-    private const SAVED = ['guest_checkout', 'verify_customer_email', 'price_display', 'order_prefix', 'cookie_notice', 'cookie_notice_text', 'cart_days', 'checkout_phone', 'checkout_notes', 'review_above', 'hold_for_review'];
+    private const SAVED = ['guest_checkout', 'verify_customer_email', 'price_display', 'order_prefix', 'cookie_notice', 'cookie_notice_text', 'cart_days', 'checkout_phone', 'checkout_notes', 'review_above', 'hold_for_review', 'payment_link_days', 'partial_payments'];
 
     public function __construct(
         protected EcommerceSettingRepository $settings,
