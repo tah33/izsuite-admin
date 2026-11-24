@@ -1,7 +1,8 @@
 {{-- An online order's e-mail to its customer (Doc 19 section 19.35): the
      store's name, the order's number, what was ordered and its totals, how it
      reaches them and how to pay it - received (Phase D5), with the order's
-     own page, or confirmed (Phase F2), with its invoice's. --}}
+     own page; confirmed (Phase F2), with its invoice's; its payment received
+     or not (Phase F3), with the invoice's once it has one. --}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -20,11 +21,19 @@
                     <tr>
                         <td style="padding:28px 32px 8px; color:#33354a; font-size:15px; line-height:1.6;">
                             <p style="margin:0 0 12px;">Dear {{ $order['customer'] }},</p>
-                            @if ($order['kind'] === 'order_confirmed')
-                                <p style="margin:0 0 12px;">Your order <strong>{{ $order['number'] }}</strong>, placed on {{ $order['placed_on'] }}, is confirmed. Its invoice is <strong>{{ $order['invoice'] }}</strong>. Here is what you ordered:</p>
-                            @else
-                                <p style="margin:0 0 12px;">Thank you for your order <strong>{{ $order['number'] }}</strong>, placed on {{ $order['placed_on'] }}. Here is what we have:</p>
-                            @endif
+                            @switch ($order['kind'])
+                                @case ('order_confirmed')
+                                    <p style="margin:0 0 12px;">Your order <strong>{{ $order['number'] }}</strong>, placed on {{ $order['placed_on'] }}, is confirmed. Its invoice is <strong>{{ $order['invoice'] }}</strong>. Here is what you ordered:</p>
+                                    @break
+                                @case ('payment_received')
+                                    <p style="margin:0 0 12px;">We have received your payment of <strong>{{ $order['paid'] }}</strong> for your order <strong>{{ $order['number'] }}</strong>{{ $order['reference'] ? ', reference '.$order['reference'] : '' }}. Thank you! Here is your order:</p>
+                                    @break
+                                @case ('payment_failed')
+                                    <p style="margin:0 0 12px;">We could not confirm your payment for your order <strong>{{ $order['number'] }}</strong>, placed on {{ $order['placed_on'] }}: it is still waiting to be paid. Here is your order:</p>
+                                    @break
+                                @default
+                                    <p style="margin:0 0 12px;">Thank you for your order <strong>{{ $order['number'] }}</strong>, placed on {{ $order['placed_on'] }}. Here is what we have:</p>
+                            @endswitch
                         </td>
                     </tr>
                     <tr>
@@ -56,7 +65,9 @@
                     </tr>
                     <tr>
                         <td style="padding:16px 32px 28px;">
-                            <a href="{{ $order['link'] }}" style="display:inline-block; padding:10px 18px; background-color:#1d4ed8; color:#ffffff; border-radius:6px; text-decoration:none; font-size:14px; font-weight:600;">{{ $order['kind'] === 'order_confirmed' ? 'See your invoice' : 'See your order' }}</a>
+                            @if ($order['link'])
+                                <a href="{{ $order['link'] }}" style="display:inline-block; padding:10px 18px; background-color:#1d4ed8; color:#ffffff; border-radius:6px; text-decoration:none; font-size:14px; font-weight:600;">{{ $order['kind'] === 'order_received' ? 'See your order' : 'See your invoice' }}</a>
+                            @endif
                             <p style="margin:12px 0 0; color:#6b6f80; font-size:13px;">Questions? Reply to this e-mail{{ $supportPhone ? ' or call '.$supportPhone : '' }}.</p>
                         </td>
                     </tr>

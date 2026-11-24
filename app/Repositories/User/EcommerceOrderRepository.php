@@ -8,6 +8,7 @@ use App\Models\User\EcommerceOrder;
 use App\Models\User\EcommerceOrderEmail;
 use App\Models\User\EcommerceOrderLine;
 use App\Models\User\Item;
+use App\Models\User\SalesDocument;
 use App\Models\User\Storefront;
 use App\Models\User\StorefrontCustomer;
 use App\Models\User\Workspace;
@@ -155,21 +156,32 @@ class EcommerceOrderRepository
     public function findFor(Workspace $workspace, int $id, ?array $locationIds): ?EcommerceOrder
     {
         return $this->at($workspace, $locationIds)
-            ->with(['lines.priceList:id,name', 'storefront:id,name,code', 'location:id,name', 'contact:id,contact_number,name,is_active', 'customerAccount:id,email', 'emails', 'invoice:id,number', 'confirmer:id,first_name,last_name'])
+            ->with([
+                'lines.priceList:id,name', 'storefront:id,name,code', 'location:id,name', 'contact:id,contact_number,name,is_active', 'customerAccount:id,email', 'emails',
+                // Phase F3: what its invoice still owes, and the payments recorded against it.
+                'invoice:id,number,document_date,balance_due', 'invoice.payments.account:id,name,currency', 'confirmer:id,first_name,last_name',
+            ])
             ->find($id);
+    }
+
+    /** Phase F3: the online order whose invoice $invoice is, if one is. */
+    public function ofInvoice(SalesDocument $invoice): ?EcommerceOrder
+    {
+        return EcommerceOrder::query()->where('sales_document_id', $invoice->id)->first();
     }
 
     /**
      * Phase F2: $order read again to be confirmed - locked, when $lock, so it
      * is confirmed once - with its storefront, contact and customer's account
-     * whole, as pricing and its invoice read them, and its lines.
+     * whole, as pricing and its invoice read them, its lines, and (Phase F3,
+     * whose payments lock it so too) its invoice.
      */
     public function forConfirming(EcommerceOrder $order, bool $lock): EcommerceOrder
     {
         return EcommerceOrder::query()
             ->whereKey($order->id)
             ->when($lock, fn (Builder $query) => $query->lockForUpdate())
-            ->with(['storefront', 'contact', 'customerAccount', 'lines'])
+            ->with(['storefront', 'contact', 'customerAccount', 'lines', 'invoice'])
             ->firstOrFail();
     }
 

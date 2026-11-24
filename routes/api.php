@@ -103,6 +103,7 @@ use App\Http\Controllers\Api\EcommerceSettingController;
 use App\Http\Controllers\Api\EcommerceShippingController;
 use App\Http\Controllers\Api\EcommercePaymentMethodController;
 use App\Http\Controllers\Api\EcommerceOrderController;
+use App\Http\Controllers\Api\EcommerceOrderPaymentController;
 use App\Http\Controllers\Api\StorefrontController;
 use App\Http\Controllers\Api\StorefrontDomainController;
 use App\Http\Controllers\Api\StorefrontHostController;
@@ -1258,6 +1259,10 @@ Route::prefix('v1')->group(function () {
         // Phase F2: confirming it - what confirming would do, then confirming it, its invoice issued.
         Route::get('/{id}/confirmation', [EcommerceOrderController::class, 'confirmation'])->whereNumber('id')->name('api.ecommerce.orders.confirmation');
         Route::post('/{id}/confirm', [EcommerceOrderController::class, 'confirm'])->whereNumber('id')->middleware('idempotent')->name('api.ecommerce.orders.confirm');
+        // Phase F3: its payment - what recording one would do, recording it, and marking it failed.
+        Route::get('/{id}/payment', [EcommerceOrderPaymentController::class, 'show'])->whereNumber('id')->name('api.ecommerce.orders.payment');
+        Route::post('/{id}/payments', [EcommerceOrderPaymentController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.ecommerce.orders.payments.store');
+        Route::post('/{id}/payment-failed', [EcommerceOrderPaymentController::class, 'fail'])->whereNumber('id')->middleware('idempotent')->name('api.ecommerce.orders.payment-failed');
     });
 
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm')->group(function () {

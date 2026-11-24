@@ -19,8 +19,9 @@ use Illuminate\Support\Facades\Mail;
  * D5): each kept with the order - its kind, to whom, and whether it was sent
  * or failed, so its history stays with it - and sent through the queue once
  * the order is saved. D5 sends the first, Order Received, with the order's
- * own page; F2 Order Confirmed, with its invoice's secure link. The order's
- * later news come with the phases that make it (F, G and I).
+ * own page; F2 Order Confirmed, with its invoice's secure link; F3 Payment
+ * Received and Payment Failed, with the invoice's link once it has one. The
+ * order's later news come with the phases that make it (F, G and I).
  */
 class StoreOrderMailer
 {
@@ -29,18 +30,23 @@ class StoreOrderMailer
         protected BusinessCalendar $calendar,
     ) {}
 
-    /** $order's e-mail of $kind, kept as queued and sent once the order is saved - with $link: its own page, or (confirmed) its invoice. */
-    public function queue(EcommerceOrder $order, string $kind, string $link): EcommerceOrderEmail
+    /**
+     * $order's e-mail of $kind, kept as queued and sent once the order is
+     * saved - with $link: its own page, or its invoice once it has one (none
+     * for a payment failed before) - and, for a payment's (Phase F3), its
+     * $details: the amount and reference received, and what is left to pay.
+     */
+    public function queue(EcommerceOrder $order, string $kind, ?string $link, array $details = []): EcommerceOrderEmail
     {
         $email = $this->orders->addEmail($order, ['kind' => $kind, 'to' => $order->customer['email'], 'status' => EcommerceOrderEmail::QUEUED]);
 
-        SendStoreOrderEmail::dispatch($email->id, $link)->afterCommit();
+        SendStoreOrderEmail::dispatch($email->id, $link, $details)->afterCommit();
 
         return $email;
     }
 
     /** Sends the e-mail $emailId, the queue job's work, and marks it sent. */
-    public function deliver(int $emailId, string $link): void
+    public function deliver(int $emailId, ?string $link, array $details = []): void
     {
         $email = $this->orders->findEmail($emailId);
 
@@ -50,13 +56,19 @@ class StoreOrderMailer
 
         $order      = $email->order;
         $storefront = $order->storefront;
+        $about      = "order {$order->number} at {$storefront->name}";
 
         Mail::to($email->to)->send(new StoreOrderMail(
-            $email->kind === EcommerceOrderEmail::ORDER_CONFIRMED ? "Your order {$order->number} at {$storefront->name} is confirmed" : "Your order {$order->number} at {$storefront->name}",
+            match ($email->kind) {
+                EcommerceOrderEmail::ORDER_CONFIRMED  => "Your {$about} is confirmed",
+                EcommerceOrderEmail::PAYMENT_RECEIVED => "Payment received for your {$about}",
+                EcommerceOrderEmail::PAYMENT_FAILED   => "Your payment for {$about} was not received",
+                default                               => "Your {$about}",
+            },
             $storefront->name,
             $storefront->support_email,
             $storefront->support_phone,
-            [...$this->shown($order, $link), 'kind' => $email->kind, 'invoice' => $order->invoice?->number],
+            [...$this->shown($order, $link, $email->kind, $details), 'kind' => $email->kind, 'invoice' => $order->invoice?->number],
         ));
 
         $this->orders->updateEmail($email, ['status' => EcommerceOrderEmail::SENT, 'sent_at' => now(), 'error' => null]);
@@ -72,17 +84,20 @@ class StoreOrderMailer
         }
     }
 
-    /** $order as its e-mail shows it, in its business's formats. */
-    private function shown(EcommerceOrder $order, string $link): array
+    /** $order as its e-mail of $kind shows it, in its business's formats. */
+    private function shown(EcommerceOrder $order, ?string $link, string $kind, array $details): array
     {
         $workspace = $order->workspace;
         $format    = new DocumentFormat($workspace->date_format ?? 'd M Y', $workspace->number_format ?? 'comma_dot');
         $money     = fn ($amount) => $format->money((string) $amount, $order->currency);
         $delivery  = $order->delivery_snapshot ?? [];
         $payment   = $order->payment_snapshot ?? [];
-        $paysAhead = in_array($payment['type'] ?? null, ['bank_transfer', 'mobile_money'], true);
+        $settled   = $kind === EcommerceOrderEmail::PAYMENT_RECEIVED && bccomp((string) ($details['balance'] ?? '0'), '0', 2) <= 0;
 
         return [
+            // Phase F3: a payment received - how much, and its reference.
+            'paid'           => isset($details['amount']) ? $money($details['amount']) : null,
+            'reference'      => $details['reference'] ?? null,
             'number'         => $order->number,
             'customer'       => $order->customer['name'],
             'placed_on'      => $format->date($order->placed_at?->setTimezone($this->calendar->timezone($workspace))->toDateString()),
@@ -109,15 +124,28 @@ class StoreOrderMailer
                 default                  => 'There is nothing to deliver.',
             },
             'payment'        => $payment['name'] ?? '',
-            'payment_note'   => match (true) {
-                $paysAhead && $order->payment_reference !== null => "We will match your payment, reference {$order->payment_reference}, and confirm it.",
-                $paysAhead                                       => "Pay {$money($order->grand_total)}, with your order number, {$order->number}, as the payment's reference.",
-                ($payment['type'] ?? null) === 'pay_on_pickup'   => "You pay {$money($order->grand_total)} when you collect it.",
-                default                                          => "You pay {$money($order->grand_total)} on delivery.",
+            'payment_note'   => match ($kind) {
+                EcommerceOrderEmail::PAYMENT_RECEIVED => $settled ? 'Nothing is left to pay.' : "{$money($details['balance'])} is still to pay.",
+                // Failed: what is owed, to pay again - not the reference that did not match.
+                EcommerceOrderEmail::PAYMENT_FAILED   => $this->howToPay($order, $money($details['balance'] ?? $order->grand_total), null),
+                default                               => $this->howToPay($order, $money($order->grand_total), $order->payment_reference),
             },
-            'instructions'   => $payment['instructions'] ?? null,
+            'instructions'   => $settled ? null : ($payment['instructions'] ?? null),
             'link'           => $link,
         ];
+    }
+
+    /** How the order is paid: matched by $reference when the customer gave one, else $owed paid ahead, on pickup or on delivery. */
+    private function howToPay(EcommerceOrder $order, string $owed, ?string $reference): string
+    {
+        $type = $order->payment_snapshot['type'] ?? null;
+
+        return match (true) {
+            in_array($type, ['bank_transfer', 'mobile_money'], true) && $reference !== null => "We will match your payment, reference {$reference}, and confirm it.",
+            in_array($type, ['bank_transfer', 'mobile_money'], true)                       => "Pay {$owed}, with your order number, {$order->number}, as the payment's reference.",
+            $type === 'pay_on_pickup'                                                       => "You pay {$owed} when you collect it.",
+            default                                                                         => "You pay {$owed} on delivery.",
+        };
     }
 
     /** An address on one line per part, as its country writes it. */

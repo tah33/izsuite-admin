@@ -7,6 +7,7 @@ use App\Models\User\SalesPayment;
 use App\Repositories\User\SalesAllocationRepository;
 use App\Repositories\User\SalesDocumentRepository;
 use App\Repositories\User\SalesPaymentRepository;
+use App\Services\Api\Ecommerce\EcommerceOrderPaymentStatus;
 use App\Support\Decimal;
 
 /**
@@ -29,7 +30,8 @@ use App\Support\Decimal;
  * Balance due is never below zero: an invoice paid and then credited shows
  * the credit as available on its credit note instead. Payment status follows
  * (Doc 08 section 7): paid once nothing is owed - refunded when all its cash
- * went back - and partly paid once anything settled it.
+ * went back - and partly paid once anything settled it. The online order an
+ * invoice is for follows it in turn (Doc 19 Phase F3).
  */
 class InvoiceSettlement
 {
@@ -37,6 +39,7 @@ class InvoiceSettlement
         protected SalesDocumentRepository $salesDocumentRepository,
         protected SalesPaymentRepository $salesPaymentRepository,
         protected SalesAllocationRepository $salesAllocationRepository,
+        protected EcommerceOrderPaymentStatus $ecommerceOrders,
     ) {}
 
     public function settle(SalesDocument $invoice): void
@@ -84,6 +87,8 @@ class InvoiceSettlement
             'balance_due'        => $balance,
             'payment_status'     => $this->paymentStatus($balance, $paid, Decimal::sum([$withheld, $applied, $allocated]), $refunded),
         ]);
+
+        $this->ecommerceOrders->follow($invoice);
     }
 
     /** unpaid, partially_paid, paid or refunded. */

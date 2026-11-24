@@ -5,6 +5,7 @@ namespace App\Http\Resources\Ecommerce;
 use App\Models\User\EcommerceOrder;
 use App\Models\User\EcommerceOrderEmail;
 use App\Models\User\EcommerceOrderLine;
+use App\Models\User\SalesPayment;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -17,7 +18,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * with where its price came from - and its totals as the store showed them,
  * with its taxes; the customer's note, where the visit came from and the
  * consents given; and its e-mails to the customer. From Phase F2, its
- * invoice once it is confirmed, and when and by whom it was.
+ * invoice once it is confirmed, and when and by whom it was; from Phase F3,
+ * what the invoice still owes, its payments, and its payment's failures.
  *
  * @property EcommerceOrder $resource
  */
@@ -38,9 +40,22 @@ class EcommerceOrderResource extends JsonResource
             'payment_status'     => $order->payment_status,
             'fulfilment_status'  => $order->fulfilment_status,
             // Phase F2: its invoice, once confirmed - and when, and by whom.
-            'invoice'            => $order->invoice ? ['id' => $order->invoice->id, 'number' => $order->invoice->number] : null,
+            'invoice'            => $order->invoice ? ['id' => $order->invoice->id, 'number' => $order->invoice->number, 'balance_due' => (string) $order->invoice->balance_due] : null,
             'confirmed_at'       => $order->confirmed_at?->toIso8601String(),
             'confirmed_by'       => $order->confirmed_at ? ($order->confirmer?->name ?? 'A former member') : null,
+            // Phase F3: the payments recorded against its invoice - reversed ones too, as Sales keeps them - and its failed ones.
+            'payments'           => $order->invoice ? $order->invoice->payments->where('kind', SalesPayment::PAYMENT)->map(fn (SalesPayment $payment) => [
+                'id'        => $payment->id,
+                'number'    => $payment->number,
+                'date'      => $payment->payment_date,
+                'amount'    => (string) $payment->amount,
+                'currency'  => $payment->account?->currency ?? $order->currency,
+                'account'   => $payment->account?->name,
+                'reference' => $payment->reference,
+                'reversed'  => ! $payment->isCompleted(),
+            ])->values() : [],
+            'payment_failures'   => $order->payment_failures,
+            'payment_failure'    => $order->payment_failure_reason,
             'currency'           => $order->currency,
             'exchange_rate'      => (string) $order->exchange_rate,
             'prices_include_tax' => $order->prices_include_tax,

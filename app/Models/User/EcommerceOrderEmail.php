@@ -17,6 +17,11 @@ class EcommerceOrderEmail extends Model
     /** Phase F2: the order confirmed, with its invoice's link. */
     public const ORDER_CONFIRMED = 'order_confirmed';
 
+    /** Phase F3: a payment recorded, or marked failed - with the invoice's link, once there is an invoice. */
+    public const PAYMENT_RECEIVED = 'payment_received';
+
+    public const PAYMENT_FAILED = 'payment_failed';
+
     public const QUEUED = 'queued';
 
     public const SENT = 'sent';

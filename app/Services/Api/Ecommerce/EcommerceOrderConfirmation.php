@@ -4,6 +4,7 @@ namespace App\Services\Api\Ecommerce;
 
 use App\Models\User\EcommerceOrder;
 use App\Models\User\EcommerceOrderEmail;
+use App\Models\User\SalesDocument;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\CatalogProductRepository;
@@ -67,34 +68,44 @@ class EcommerceOrderConfirmation
         $found = $this->orderService->find($workspace, $id);
         $today = $this->calendar->today($workspace)->toDateString();
 
-        DB::transaction(function () use ($workspace, $user, $found, $today) {
-            $order  = $this->orders->forConfirming($found, true);
-            $checks = $this->checks->run($workspace, $order, $today, true);
-
-            if ($checks['problems'] !== []) {
-                $this->refuse($checks['problems'][0]);
-            }
-
-            $invoice = $this->invoicing->issue($workspace, $user, $order, $checks['contact'], $today);
-
-            foreach ($checks['stock'] as $stock) {
-                $this->catalog->setLeft($stock['stock'], $stock['after']);
-            }
-
-            $this->orders->update($order, [
-                'status'            => EcommerceOrder::CONFIRMED,
-                'sales_document_id' => $invoice->id,
-                'confirmed_at'      => now(),
-                'confirmed_by'      => $user->id,
-            ]);
-
-            $this->mailer->queue($order, EcommerceOrderEmail::ORDER_CONFIRMED, $this->links->url($this->links->ensure($workspace, $invoice, $user)));
-
-            // Logged here, by what happened, so LogApiWriteActivity does not add its own vaguer entry.
-            ActivityLogService::record('updated', 'Confirmed '.$this->orderService->describe($order)." and issued invoice {$invoice->number}", $order, ['source' => 'api', 'status' => EcommerceOrder::CONFIRMED]);
-            ActivityLogService::record('created', "Issued invoice {$invoice->number} for online order {$order->number}", $invoice, ['source' => 'api']);
-        });
+        DB::transaction(fn () => $this->confirmLocked($workspace, $user, $this->orders->forConfirming($found, true), $today));
 
         return $this->orderService->find($workspace, $id);
+    }
+
+    /**
+     * $order - read again and locked (EcommerceOrderRepository::forConfirming),
+     * inside the caller's transaction - confirmed on $today: its checks
+     * passed, its invoice issued and returned. Phase F3 confirms a pending
+     * order so before recording its payment.
+     */
+    public function confirmLocked(Workspace $workspace, User $user, EcommerceOrder $order, string $today): SalesDocument
+    {
+        $checks = $this->checks->run($workspace, $order, $today, true);
+
+        if ($checks['problems'] !== []) {
+            $this->refuse($checks['problems'][0]);
+        }
+
+        $invoice = $this->invoicing->issue($workspace, $user, $order, $checks['contact'], $today);
+
+        foreach ($checks['stock'] as $stock) {
+            $this->catalog->setLeft($stock['stock'], $stock['after']);
+        }
+
+        $this->orders->update($order, [
+            'status'            => EcommerceOrder::CONFIRMED,
+            'sales_document_id' => $invoice->id,
+            'confirmed_at'      => now(),
+            'confirmed_by'      => $user->id,
+        ]);
+
+        $this->mailer->queue($order, EcommerceOrderEmail::ORDER_CONFIRMED, $this->links->url($this->links->ensure($workspace, $invoice, $user)));
+
+        // Logged here, by what happened, so LogApiWriteActivity does not add its own vaguer entry.
+        ActivityLogService::record('updated', 'Confirmed '.$this->orderService->describe($order)." and issued invoice {$invoice->number}", $order, ['source' => 'api', 'status' => EcommerceOrder::CONFIRMED]);
+        ActivityLogService::record('created', "Issued invoice {$invoice->number} for online order {$order->number}", $invoice, ['source' => 'api']);
+
+        return $invoice;
     }
 }

@@ -36,6 +36,13 @@ class EcommerceOrder extends Model
 
     public const PAYMENT_PENDING = 'pending';
 
+    /** Phase F3: following its invoice once a payment is recorded, or marked failed. */
+    public const PARTIALLY_PAID = 'partially_paid';
+
+    public const PAID = 'paid';
+
+    public const PAYMENT_FAILED = 'failed';
+
     public const PAYMENT_STATUSES = ['unpaid', 'pending', 'authorised', 'partially_paid', 'paid', 'failed', 'partially_refunded', 'refunded'];
 
     public const NOT_REQUIRED = 'not_required';
@@ -102,6 +109,9 @@ class EcommerceOrder extends Model
         'sales_document_id',
         'confirmed_at',
         'confirmed_by',
+        // Phase F3: how often its payment was marked failed, and why the last time.
+        'payment_failures',
+        'payment_failure_reason',
     ];
 
     protected $casts = [
@@ -135,6 +145,7 @@ class EcommerceOrder extends Model
         'sales_document_id'           => 'integer',
         'confirmed_at'                => 'datetime',
         'confirmed_by'                => 'integer',
+        'payment_failures'            => 'integer',
     ];
 
     protected $hidden = ['access_token_hash'];

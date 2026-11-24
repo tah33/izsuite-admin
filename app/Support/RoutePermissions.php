@@ -488,6 +488,10 @@ final class RoutePermissions
             // Phase F2: confirming an order - what it would do, then doing it.
             'api.ecommerce.orders.confirmation'       => 'ecommerce.orders.confirm',
             'api.ecommerce.orders.confirm'            => 'ecommerce.orders.confirm',
+            // Phase F3: its payment, received or failed - under Confirm Orders too.
+            'api.ecommerce.orders.payment'            => 'ecommerce.orders.confirm',
+            'api.ecommerce.orders.payments.store'     => 'ecommerce.orders.confirm',
+            'api.ecommerce.orders.payment-failed'     => 'ecommerce.orders.confirm',
             // Doc 18 Phase A2: POS registers.
             'api.pos.registers.index'   => 'pos.registers.view',
             'api.pos.registers.options' => 'pos.registers.manage',

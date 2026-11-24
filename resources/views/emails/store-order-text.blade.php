@@ -2,11 +2,19 @@
 
 Dear {!! $order['customer'] !!},
 
-@if ($order['kind'] === 'order_confirmed')
+@switch ($order['kind'])
+@case ('order_confirmed')
 Your order {!! $order['number'] !!}, placed on {!! $order['placed_on'] !!}, is confirmed. Its invoice is {!! $order['invoice'] !!}. Here is what you ordered:
-@else
+@break
+@case ('payment_received')
+We have received your payment of {!! $order['paid'] !!} for your order {!! $order['number'] !!}{!! $order['reference'] ? ', reference '.$order['reference'] : '' !!}. Thank you! Here is your order:
+@break
+@case ('payment_failed')
+We could not confirm your payment for your order {!! $order['number'] !!}, placed on {!! $order['placed_on'] !!}: it is still waiting to be paid. Here is your order:
+@break
+@default
 Thank you for your order {!! $order['number'] !!}, placed on {!! $order['placed_on'] !!}. Here is what we have:
-@endif
+@endswitch
 
 @foreach ($order['lines'] as $line)
 - {!! $line['quantity'] !!} × {!! $line['title'] !!}{!! $line['options'] ? ' ('.$line['options'].')' : '' !!}: {!! $line['amount'] !!}
@@ -25,8 +33,10 @@ Payment: {!! $order['payment'] !!}
 
 {!! $order['instructions'] !!}
 @endif
+@if ($order['link'])
 
-{!! $order['kind'] === 'order_confirmed' ? 'See your invoice' : 'See your order' !!}: {!! $order['link'] !!}
+{!! $order['kind'] === 'order_received' ? 'See your order' : 'See your invoice' !!}: {!! $order['link'] !!}
+@endif
 
 Questions? Reply to this e-mail{!! $supportPhone ? ' or call '.$supportPhone : '' !!}.
 
