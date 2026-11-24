@@ -184,6 +184,23 @@ class SalesDocument extends Model
         return $this->status === SalesDocumentStatus::Draft;
     }
 
+    /**
+     * Whether anything settles part of it: a payment, tax withheld, a credit
+     * note or an allocation (as InvoiceSettlement keeps them). An online
+     * order whose invoice is settled is neither cancelled nor edited (Doc 19
+     * Phases F4 and F5).
+     */
+    public function isSettledAtAll(): bool
+    {
+        foreach (['amount_paid', 'withholding_amount', 'credited_amount', 'allocated_amount'] as $field) {
+            if (bccomp((string) ($this->{$field} ?? '0'), '0', 2) > 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // ── Relationships ──
 
     public function workspace(): BelongsTo

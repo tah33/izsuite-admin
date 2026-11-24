@@ -200,6 +200,26 @@ class EcommerceOrderRepository
         $order->update($data);
     }
 
+    /** Phase F5: one of an order's lines changed - its amounts worked out again. */
+    public function updateLine(EcommerceOrderLine $line, array $data): void
+    {
+        $line->update($data);
+    }
+
+    /** Phase F5: $order's shipping line replaced by $row, last of its lines - or removed, with none. Its lines are read again after. */
+    public function replaceShipping(EcommerceOrder $order, ?array $row): void
+    {
+        $lines = fn () => EcommerceOrderLine::query()->where('ecommerce_order_id', $order->id);
+
+        $lines()->where('kind', EcommerceOrderLine::SHIPPING)->delete();
+
+        if ($row !== null) {
+            $order->lines()->create([...$row, 'kind' => EcommerceOrderLine::SHIPPING, 'position' => (int) $lines()->max('position') + 1]);
+        }
+
+        $order->unsetRelation('lines');
+    }
+
     /** Phase D5: an e-mail kept with $order. */
     public function addEmail(EcommerceOrder $order, array $data): EcommerceOrderEmail
     {

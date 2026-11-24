@@ -496,6 +496,10 @@ final class RoutePermissions
             'api.ecommerce.orders.hold'               => 'ecommerce.orders.hold',
             'api.ecommerce.orders.release'            => 'ecommerce.orders.hold',
             'api.ecommerce.orders.cancel'             => 'ecommerce.orders.cancel',
+            // Phase F5a: edited before payment, under Edit Orders.
+            'api.ecommerce.orders.customer'           => 'ecommerce.orders.edit',
+            'api.ecommerce.orders.delivery.quote'     => 'ecommerce.orders.edit',
+            'api.ecommerce.orders.delivery'           => 'ecommerce.orders.edit',
             // Doc 18 Phase A2: POS registers.
             'api.pos.registers.index'   => 'pos.registers.view',
             'api.pos.registers.options' => 'pos.registers.manage',

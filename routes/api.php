@@ -103,6 +103,7 @@ use App\Http\Controllers\Api\EcommerceSettingController;
 use App\Http\Controllers\Api\EcommerceShippingController;
 use App\Http\Controllers\Api\EcommercePaymentMethodController;
 use App\Http\Controllers\Api\EcommerceOrderController;
+use App\Http\Controllers\Api\EcommerceOrderEditController;
 use App\Http\Controllers\Api\EcommerceOrderPaymentController;
 use App\Http\Controllers\Api\EcommerceOrderStatusController;
 use App\Http\Controllers\Api\StorefrontController;
@@ -1268,6 +1269,10 @@ Route::prefix('v1')->group(function () {
         Route::post('/{id}/hold', [EcommerceOrderStatusController::class, 'hold'])->whereNumber('id')->middleware('idempotent')->name('api.ecommerce.orders.hold');
         Route::post('/{id}/release', [EcommerceOrderStatusController::class, 'release'])->whereNumber('id')->middleware('idempotent')->name('api.ecommerce.orders.release');
         Route::post('/{id}/cancel', [EcommerceOrderStatusController::class, 'cancel'])->whereNumber('id')->middleware('idempotent')->name('api.ecommerce.orders.cancel');
+        // Phase F5a: edited before payment - its customer's details, and its addresses and delivery (with what an address would offer).
+        Route::put('/{id}/customer', [EcommerceOrderEditController::class, 'customer'])->whereNumber('id')->name('api.ecommerce.orders.customer');
+        Route::post('/{id}/delivery/quote', [EcommerceOrderEditController::class, 'quote'])->whereNumber('id')->name('api.ecommerce.orders.delivery.quote');
+        Route::put('/{id}/delivery', [EcommerceOrderEditController::class, 'delivery'])->whereNumber('id')->name('api.ecommerce.orders.delivery');
     });
 
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm')->group(function () {

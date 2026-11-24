@@ -15,6 +15,9 @@ use Illuminate\Http\Request;
 
 class ActivityLogService
 {
+    /** What activity_logs.description holds. */
+    private const DESCRIPTION_LENGTH = 255;
+
     public function __construct(
         protected ActivityLogRepository $repo,
     ) {}
@@ -47,6 +50,13 @@ class ActivityLogService
     public function log(string $action, string $description, ?Model $subject = null, ?array $properties = null, ?User $actor = null): ?ActivityLog
     {
         $actor ??= auth()->user();
+
+        // The description holds 255 characters (MySQL refuses more; the tests' SQLite does not mind): a longer one -
+        // a reason given at length - is cut, and kept whole in the properties (Doc 19 Phase F5a).
+        if (mb_strlen($description) > self::DESCRIPTION_LENGTH) {
+            $properties  = [...($properties ?? []), 'description' => $description];
+            $description = mb_substr($description, 0, self::DESCRIPTION_LENGTH - 1).'…';
+        }
 
         $changes = $action === 'updated' && $subject && ! isset($properties['changes']) ? SettingChanges::of($subject) : [];
 

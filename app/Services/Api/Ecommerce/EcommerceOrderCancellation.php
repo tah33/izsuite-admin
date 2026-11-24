@@ -6,7 +6,6 @@ use App\Enums\DocumentType;
 use App\Enums\SalesDocumentStatus;
 use App\Models\User\EcommerceOrder;
 use App\Models\User\EcommerceOrderEmail;
-use App\Models\User\SalesDocument;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\CatalogProductRepository;
@@ -66,7 +65,7 @@ class EcommerceOrderCancellation
                 $this->refuse("Order {$order->number} is on its way or with its customer: it is returned, not cancelled.");
             }
 
-            if ($invoice && $invoice->status === SalesDocumentStatus::Issued && $this->settled($invoice)) {
+            if ($invoice && $invoice->status === SalesDocumentStatus::Issued && $invoice->isSettledAtAll()) {
                 $this->refuse("Payments settle part of order {$order->number}'s invoice, {$invoice->number}: refund them through a credit note, or reverse them in Sales, then cancel the order.");
             }
 
@@ -89,17 +88,5 @@ class EcommerceOrderCancellation
         });
 
         return $this->orderService->page($workspace, $id);
-    }
-
-    /** Whether anything settles part of $invoice: a payment, withholding, a credit note or an allocation. */
-    private function settled(SalesDocument $invoice): bool
-    {
-        foreach (['amount_paid', 'withholding_amount', 'credited_amount', 'allocated_amount'] as $field) {
-            if (bccomp((string) ($invoice->{$field} ?? '0'), '0', 2) > 0) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

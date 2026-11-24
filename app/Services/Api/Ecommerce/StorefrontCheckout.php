@@ -135,7 +135,7 @@ class StorefrontCheckout
     }
 
     /** The methods of the zone $address is in that take $parcel, each with its price as the store shows it - none when quoted after the order. */
-    private function offers(Workspace $workspace, array $address, array $parcel, array $terms): array
+    public function offers(Workspace $workspace, array $address, array $parcel, array $terms): array
     {
         return array_map(fn (array $offer) => [
             ...$offer,
@@ -150,7 +150,7 @@ class StorefrontCheckout
     }
 
     /** The shipping as an invoice line: "Shipping: " and its method's name, one of it at its price in the store's currency, with its tax. */
-    private function shippingRow(Workspace $workspace, array $offer, array $terms): array
+    public function shippingRow(Workspace $workspace, array $offer, array $terms): array
     {
         return [
             ...$this->salesLines->rows($workspace, [[

@@ -165,10 +165,16 @@ final class Permissions
         // Phase D2: payment methods without a gateway, in Settings → eCommerce.
         'ecommerce.payments' => ['Payment Methods', 'ecommerce', ['manage' => 'Manage Payment Methods']],
         // Phase F1: the business's online orders - the Orders page and each order's page; F2: confirming one, its invoice issued;
-        // F4: holding one for review and releasing it, and cancelling one.
-        'ecommerce.orders'   => ['Orders', 'ecommerce', ['view' => 'View Orders', 'confirm' => 'Confirm Orders', 'hold' => 'Place Orders On Hold', 'cancel' => 'Cancel Orders']],
+        // F4: holding one for review and releasing it, and cancelling one; F5: editing one before payment.
+        'ecommerce.orders'   => ['Orders', 'ecommerce', ['view' => 'View Orders', 'edit' => 'Edit Orders', 'confirm' => 'Confirm Orders', 'hold' => 'Place Orders On Hold', 'cancel' => 'Cancel Orders']],
         'ecommerce.settings' => ['eCommerce Settings', 'ecommerce', self::APP_SETTINGS],
     ];
+
+    /**
+     * Groups whose Confirm does not need their Edit: online orders (Doc 19
+     * section 19.42 lists Confirm Orders and Edit Orders apart - Phase F5).
+     */
+    private const CONFIRMED_ALONE = ['ecommerce.orders'];
 
     /** The groups whose records carry their app's values: anything but viewing one needs them. */
     private const VALUED = [
@@ -511,7 +517,7 @@ final class Permissions
             $needs[] = "{$group}.view";
         }
 
-        if (in_array($action, ['issue', 'record', 'confirm', 'deliver'], true) && isset($actions['edit'])) {
+        if (in_array($action, ['issue', 'record', 'confirm', 'deliver'], true) && isset($actions['edit']) && ! in_array($group, self::CONFIRMED_ALONE, true)) {
             $needs[] = "{$group}.edit";
         }
 

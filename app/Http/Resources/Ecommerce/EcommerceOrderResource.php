@@ -70,7 +70,8 @@ class EcommerceOrderResource extends JsonResource
             'contact'            => $contact ? ['id' => $contact->id, 'number' => $contact->contact_number, 'name' => $contact->name, 'is_active' => (bool) $contact->is_active, 'created' => $order->contact_created] : null,
             'billing_address'    => $order->billing_address,
             'shipping_address'   => $order->shipping_address,
-            'delivery'           => ['kind' => $order->delivery, ...($order->delivery_snapshot ?? [])],
+            // Phase F5a: with the method's or point's id, for its edit to start from.
+            'delivery'           => ['kind' => $order->delivery, 'shipping_method_id' => $order->shipping_method_id, 'pickup_point_id' => $order->pickup_point_id, ...($order->delivery_snapshot ?? [])],
             'payment'            => [
                 'name'      => $order->payment_snapshot['name'] ?? null,
                 'type'      => $order->payment_snapshot['type'] ?? null,

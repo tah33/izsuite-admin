@@ -105,6 +105,28 @@ class EcommerceOrderInvoicing
     }
 
     /**
+     * Phase F5: $order's issued invoice changed with the order - edited while
+     * nothing settles it - inside the transaction that edits it: its lines and
+     * totals the order's again, owing all of it, and the customer's addresses
+     * as the order gives them now. Its number, day and contact stay.
+     */
+    public function refresh(Workspace $workspace, User $user, EcommerceOrder $order, SalesDocument $invoice, ?Contact $contact): void
+    {
+        $rows   = $this->rows($workspace, $order);
+        $result = $this->calculator->calculate(array_map(fn (array $row) => $this->salesLines->forCalculation($row), $rows), null, null, $order->price_tax_mode, $order->tax_rounding, (string) $order->exchange_rate);
+
+        $this->salesDocuments->replaceLines($invoice, array_map(fn (array $row, array $calculated) => [...$row, ...$calculated], $rows, $result['lines']));
+        $this->salesDocuments->update($invoice, [
+            ...Arr::only($result, self::TOTALS),
+            'payment_status'    => bccomp($result['grand_total'], '0', 2) > 0 ? SalesDocument::PAYMENT_UNPAID : 'paid',
+            'balance_due'       => $result['grand_total'],
+            // Its contact gone from Contacts: its customer kept as it was issued.
+            'customer_snapshot' => $contact ? $this->customer($contact, $order) : $invoice->customer_snapshot,
+            'updated_by'        => $user->id,
+        ]);
+    }
+
+    /**
      * The order's lines as invoice rows, in their order: each product as
      * SalesLines keeps an item's line (its combo's components, its warranty),
      * its variant's options as its description - and the shipping - each with

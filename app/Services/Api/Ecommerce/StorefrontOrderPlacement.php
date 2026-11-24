@@ -292,7 +292,7 @@ class StorefrontOrderPlacement
     }
 
     /** How it is delivered, kept as it was: the method's name, price and days - quoted after the order or not - or the pickup point's. */
-    private function delivery(array $quote): array
+    public function delivery(array $quote): array
     {
         $method = $quote['method'];
         $point  = $quote['point'];
