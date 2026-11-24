@@ -319,6 +319,25 @@ docker compose down -v
 docker compose up -d --build
 ```
 
+`PDFs cannot be made right now. Please try again in a moment.`
+
+The API makes every PDF through Gotenberg, at `GOTENBERG_URL`. Under Docker
+that is the `gotenberg` container. On a PC without Docker (Laragon, for
+example), start the stand-in that prints with the installed Chrome or Edge:
+
+```bash
+npm run pdf
+```
+
+Then set this in `.env`:
+
+```env
+GOTENBERG_URL=http://127.0.0.1:3100
+```
+
+Keep it running while you work, like the frontend's dev server. Admin >
+Service Health shows whether the PDF maker answers.
+
 `getaddrinfo for mysql failed`
 
 Start the database container first, or run commands against the already-running
