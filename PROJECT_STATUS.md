@@ -3541,6 +3541,7 @@ Use a test business. Some tests need a second person with a limited role: in Set
 | Doc 19: Phase F4 | 000232 |
 | Doc 19: Phase F5a | none |
 | Doc 19: Phase F5b | 000233 |
+| Items: an item's attachments | none |
 
 ### Doc 16: Sales (the fix of 2026-11-16)
 
@@ -4760,6 +4761,18 @@ On a fresh business, set the days in Settings → CRM to fit what you have, rath
 - [ ] A payment method's most: products or a discount that would take the total past it are refused, saying so.
 - [ ] At phone width both dialogs fit.
 
+**Items: an item's attachments**
+
+**Before you start:** a physical product, a digital one and a service, and a member whose role has View Items but not Edit Items. Its main flows were checked in the browser; the rest are to try.
+
+- [ ] Add Item: the Attachments card at the foot of the form takes files picked or dropped on it - PDFs, pictures, Office documents, CSV or text files and ZIP archives, up to 10 MB each and ten at a time - and lists them with their sizes; Remove takes one off before saving.
+- [ ] Saved: the item's page says it was added, and its Attachments card lists the files; each downloads, and Remove deletes it after asking.
+- [ ] A file attachments do not take (an .exe dropped on the card, say): the item is still added, and its page says "The attachments were not uploaded: …" - they can be added from there.
+- [ ] Edit Item: the Attachments card uploads and removes files at once, and Save Changes leaves them as they are.
+- [ ] A digital product: its Digital Files and its Attachments are kept apart, neither listing the other's.
+- [ ] The member without Edit Items sees and downloads the files, with no Upload or Remove.
+- [ ] Deleting an item never used deletes its attachments, and Settings → Storage & Usage goes down by their size.
+
 ## How we work
 
 Each document goes the same way:
@@ -5096,6 +5109,7 @@ The full detail of each phase is in its commit message: `git log -1 --format=%B 
 | Doc 19: Phase F4, holding, releasing and cancelling an order | `ecfd145` | `52a0d1c` | 000232 |
 | Doc 19: Phase F5a, editing an order's customer, addresses and delivery | `dfbffc3` | `18b9bfe` | none |
 | Doc 19: Phase F5b, an order's products and discount | `430cb30` | `316c273` | 000233 |
+| Items: an item's attachments | the commit after `7d6d2f8` | `61188d1` | none |
 
 Admin Clients and Login as came from shuvo (`1c91dbc`, frontend `b4abf92` and `04ebe7b`). Between I1 and I2, shuvo added rich text for payment instructions and the Sales settings' notes and terms (`a5e46cb` and `9bf4525`, with no frontend commit yet).
 

@@ -70,6 +70,7 @@ use App\Http\Controllers\Api\FileController;
 use App\Http\Controllers\Api\GlobalSearchController;
 use App\Http\Controllers\Api\ImportController;
 use App\Http\Controllers\Api\InvitationController;
+use App\Http\Controllers\Api\ItemAttachmentController;
 use App\Http\Controllers\Api\ItemController;
 use App\Http\Controllers\Api\ItemFileController;
 use App\Http\Controllers\Api\ItemImageController;
@@ -720,6 +721,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/items/{id}/files', [ItemFileController::class, 'index'])->whereNumber('id')->name('api.items.files.index');
         Route::post('/items/{id}/files', [ItemFileController::class, 'store'])->whereNumber('id')->name('api.items.files.store');
         Route::delete('/items/{id}/files/{fileId}', [ItemFileController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.items.files.destroy');
+        // An item's attachments, whatever its type: documents kept with it.
+        Route::get('/items/{id}/attachments', [ItemAttachmentController::class, 'index'])->whereNumber('id')->name('api.items.attachments.index');
+        Route::post('/items/{id}/attachments', [ItemAttachmentController::class, 'store'])->whereNumber('id')->name('api.items.attachments.store');
+        Route::delete('/items/{id}/attachments/{fileId}', [ItemAttachmentController::class, 'destroy'])->whereNumber(['id', 'fileId'])->name('api.items.attachments.destroy');
         Route::get('/items/{id}/transactions', [ItemTransactionController::class, 'index'])->whereNumber('id')->name('api.items.transactions.index');
 
         // A link that downloads one of the business's files (see FileController).

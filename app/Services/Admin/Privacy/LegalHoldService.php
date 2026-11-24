@@ -37,7 +37,7 @@ class LegalHoldService
     /** The API's permanent deletions of a business's records, by route, which a hold refuses. */
     private const DELETIONS = [
         'api.contacts.destroy', 'api.contacts.attachments.destroy',
-        'api.items.destroy', 'api.items.image.destroy', 'api.items.files.destroy',
+        'api.items.destroy', 'api.items.image.destroy', 'api.items.files.destroy', 'api.items.attachments.destroy',
         'api.payment-accounts.destroy', 'api.account-transfers.destroy',
         'api.sales.destroy', 'api.sales.attachments.destroy', 'api.sales.comments.destroy', 'api.sales.payments.attachments.destroy',
         'api.purchases.destroy', 'api.purchases.attachments.destroy', 'api.purchases.comments.destroy', 'api.purchases.payments.attachments.destroy',
