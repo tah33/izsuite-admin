@@ -22,11 +22,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * Placed, it is Pending, its payment Unpaid (Pending once the customer gives
  * a payment's reference) and its fulfilment Unfulfilled - Not Required when
  * nothing is delivered. It is not a sale: its invoice is issued when it is
- * confirmed (Phase F), and then it counts once.
+ * confirmed (Phase F2), and then it counts once.
  */
 class EcommerceOrder extends Model
 {
     public const PENDING = 'pending';
+
+    public const CONFIRMED = 'confirmed';
 
     public const STATUSES = ['pending', 'confirmed', 'on_hold', 'processing', 'completed', 'cancelled'];
 
@@ -96,6 +98,10 @@ class EcommerceOrder extends Model
         'user_agent',
         'access_token_hash',
         'placed_at',
+        // Phase F2: its invoice, issued as it was confirmed - when, and by whom.
+        'sales_document_id',
+        'confirmed_at',
+        'confirmed_by',
     ];
 
     protected $casts = [
@@ -126,6 +132,9 @@ class EcommerceOrder extends Model
         'campaign'                    => 'array',
         'consents'                    => 'array',
         'placed_at'                   => 'datetime',
+        'sales_document_id'           => 'integer',
+        'confirmed_at'                => 'datetime',
+        'confirmed_by'                => 'integer',
     ];
 
     protected $hidden = ['access_token_hash'];
@@ -166,6 +175,18 @@ class EcommerceOrder extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(EcommerceOrderLine::class)->orderBy('position')->orderBy('id');
+    }
+
+    /** Phase F2: the invoice its confirmation issued - through which it counts as a sale. */
+    public function invoice(): BelongsTo
+    {
+        return $this->belongsTo(SalesDocument::class, 'sales_document_id');
+    }
+
+    /** Phase F2: who confirmed it. */
+    public function confirmer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'confirmed_by');
     }
 
     /** Phase D5: its e-mails to its customer, the oldest first - its notification history. */

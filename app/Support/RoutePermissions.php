@@ -485,6 +485,9 @@ final class RoutePermissions
             'api.ecommerce.orders.index'              => 'ecommerce.orders.view',
             'api.ecommerce.orders.show'               => 'ecommerce.orders.view',
             'api.ecommerce.orders.activity'           => 'ecommerce.orders.view',
+            // Phase F2: confirming an order - what it would do, then doing it.
+            'api.ecommerce.orders.confirmation'       => 'ecommerce.orders.confirm',
+            'api.ecommerce.orders.confirm'            => 'ecommerce.orders.confirm',
             // Doc 18 Phase A2: POS registers.
             'api.pos.registers.index'   => 'pos.registers.view',
             'api.pos.registers.options' => 'pos.registers.manage',

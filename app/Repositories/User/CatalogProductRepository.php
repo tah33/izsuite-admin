@@ -3,6 +3,7 @@
 namespace App\Repositories\User;
 
 use App\Models\User\CatalogProduct;
+use App\Models\User\CatalogProductVariant;
 use App\Models\User\Item;
 use App\Models\User\Workspace;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -110,6 +111,29 @@ class CatalogProductRepository
     public function storefrontsOf(Workspace $workspace): Collection
     {
         return $workspace->storefronts()->orderBy('name')->get(['id', 'name', 'code', 'status']);
+    }
+
+    /**
+     * Doc 19 Phase F2: $workspace's listings $productIds and the variants
+     * $variantIds, each with its availability and what is left of it - locked,
+     * when $lock, to be counted down - keyed by id.
+     *
+     * @return array{products: Collection<int, CatalogProduct>, variants: Collection<int, CatalogProductVariant>}
+     */
+    public function stockOf(Workspace $workspace, array $productIds, array $variantIds, bool $lock): array
+    {
+        $products = CatalogProduct::query()->where('workspace_id', $workspace->id)->whereIn('id', $productIds)->when($lock, fn (Builder $query) => $query->lockForUpdate())->get()->keyBy('id');
+
+        return [
+            'products' => $products,
+            'variants' => CatalogProductVariant::query()->whereIn('catalog_product_id', $products->keys())->whereIn('id', $variantIds)->when($lock, fn (Builder $query) => $query->lockForUpdate())->get()->keyBy('id'),
+        ];
+    }
+
+    /** Doc 19 Phase F2: what is left of a Limited listing or variant, after an order confirmed took its share. */
+    public function setLeft(CatalogProduct|CatalogProductVariant $stock, string $left): void
+    {
+        $stock->update(['stock_quantity' => $left]);
     }
 
     /** Sold, or sold and bought. */

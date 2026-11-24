@@ -4,6 +4,7 @@ namespace App\Http\Resources\Ecommerce;
 
 use App\Models\User\EcommerceOrder;
 use App\Models\User\EcommerceOrderLine;
+use App\Services\Documents\DocumentLinks;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -14,7 +15,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * quoted after the order or not, or a pickup point with its instructions)
  * and paid (the method's instructions, and the reference given), its
  * products as the store showed them, and its totals. Its own link's key
- * comes only once, when it is placed.
+ * comes only once, when it is placed. From Phase F2, its invoice once the
+ * order is confirmed - its number and secure link, while the link works.
  *
  * @property EcommerceOrder $resource
  */
@@ -36,6 +38,7 @@ class StoreOrderResource extends JsonResource
             'status'             => $order->status,
             'payment_status'     => $order->payment_status,
             'fulfilment_status'  => $order->fulfilment_status,
+            'invoice'            => ($link = $order->invoice?->activeLink) ? ['number' => $order->invoice->number, 'url' => app(DocumentLinks::class)->url($link)] : null,
             'currency'           => $order->currency,
             'prices_include_tax' => $order->prices_include_tax,
             'customer'           => $order->customer,

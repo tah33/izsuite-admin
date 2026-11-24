@@ -36,8 +36,8 @@ class StoreOrderMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'emails.store-order-received',
-            text: 'emails.store-order-received-text',
+            view: 'emails.store-order',
+            text: 'emails.store-order-text',
             with: ['storeName' => $this->storeName, 'supportPhone' => $this->supportPhone, 'order' => $this->order],
         );
     }

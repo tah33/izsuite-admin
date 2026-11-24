@@ -14,6 +14,9 @@ class EcommerceOrderEmail extends Model
 {
     public const ORDER_RECEIVED = 'order_received';
 
+    /** Phase F2: the order confirmed, with its invoice's link. */
+    public const ORDER_CONFIRMED = 'order_confirmed';
+
     public const QUEUED = 'queued';
 
     public const SENT = 'sent';

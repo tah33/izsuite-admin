@@ -1255,6 +1255,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/', [EcommerceOrderController::class, 'index'])->name('api.ecommerce.orders.index');
         Route::get('/{id}', [EcommerceOrderController::class, 'show'])->whereNumber('id')->name('api.ecommerce.orders.show');
         Route::get('/{id}/activity', RecordActivityController::class)->whereNumber('id')->defaults('family', 'ecommerce_orders')->name('api.ecommerce.orders.activity');
+        // Phase F2: confirming it - what confirming would do, then confirming it, its invoice issued.
+        Route::get('/{id}/confirmation', [EcommerceOrderController::class, 'confirmation'])->whereNumber('id')->name('api.ecommerce.orders.confirmation');
+        Route::post('/{id}/confirm', [EcommerceOrderController::class, 'confirm'])->whereNumber('id')->middleware('idempotent')->name('api.ecommerce.orders.confirm');
     });
 
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm')->group(function () {

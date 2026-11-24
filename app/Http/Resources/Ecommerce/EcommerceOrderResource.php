@@ -16,7 +16,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * delivered and paid, with the customer's reference; its products - each
  * with where its price came from - and its totals as the store showed them,
  * with its taxes; the customer's note, where the visit came from and the
- * consents given; and its e-mails to the customer.
+ * consents given; and its e-mails to the customer. From Phase F2, its
+ * invoice once it is confirmed, and when and by whom it was.
  *
  * @property EcommerceOrder $resource
  */
@@ -36,6 +37,10 @@ class EcommerceOrderResource extends JsonResource
             'status'             => $order->status,
             'payment_status'     => $order->payment_status,
             'fulfilment_status'  => $order->fulfilment_status,
+            // Phase F2: its invoice, once confirmed - and when, and by whom.
+            'invoice'            => $order->invoice ? ['id' => $order->invoice->id, 'number' => $order->invoice->number] : null,
+            'confirmed_at'       => $order->confirmed_at?->toIso8601String(),
+            'confirmed_by'       => $order->confirmed_at ? ($order->confirmer?->name ?? 'A former member') : null,
             'currency'           => $order->currency,
             'exchange_rate'      => (string) $order->exchange_rate,
             'prices_include_tax' => $order->prices_include_tax,

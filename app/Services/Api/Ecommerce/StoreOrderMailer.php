@@ -18,8 +18,9 @@ use Illuminate\Support\Facades\Mail;
  * An online order's e-mails to its customer (Doc 19 section 19.35 - Phase
  * D5): each kept with the order - its kind, to whom, and whether it was sent
  * or failed, so its history stays with it - and sent through the queue once
- * the order is saved. D5 sends the first, Order Received; the order's later
- * news come with the phases that make it (F, G and I).
+ * the order is saved. D5 sends the first, Order Received, with the order's
+ * own page; F2 Order Confirmed, with its invoice's secure link. The order's
+ * later news come with the phases that make it (F, G and I).
  */
 class StoreOrderMailer
 {
@@ -28,7 +29,7 @@ class StoreOrderMailer
         protected BusinessCalendar $calendar,
     ) {}
 
-    /** $order's e-mail of $kind, kept as queued and sent once the order is saved - with $link, its own page. */
+    /** $order's e-mail of $kind, kept as queued and sent once the order is saved - with $link: its own page, or (confirmed) its invoice. */
     public function queue(EcommerceOrder $order, string $kind, string $link): EcommerceOrderEmail
     {
         $email = $this->orders->addEmail($order, ['kind' => $kind, 'to' => $order->customer['email'], 'status' => EcommerceOrderEmail::QUEUED]);
@@ -51,11 +52,11 @@ class StoreOrderMailer
         $storefront = $order->storefront;
 
         Mail::to($email->to)->send(new StoreOrderMail(
-            "Your order {$order->number} at {$storefront->name}",
+            $email->kind === EcommerceOrderEmail::ORDER_CONFIRMED ? "Your order {$order->number} at {$storefront->name} is confirmed" : "Your order {$order->number} at {$storefront->name}",
             $storefront->name,
             $storefront->support_email,
             $storefront->support_phone,
-            $this->shown($order, $link),
+            [...$this->shown($order, $link), 'kind' => $email->kind, 'invoice' => $order->invoice?->number],
         ));
 
         $this->orders->updateEmail($email, ['status' => EcommerceOrderEmail::SENT, 'sent_at' => now(), 'error' => null]);

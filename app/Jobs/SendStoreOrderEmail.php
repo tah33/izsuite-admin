@@ -9,9 +9,10 @@ use Illuminate\Foundation\Queue\Queueable;
 
 /**
  * Sends one e-mail of an online order to its customer (Doc 19 Phase D5) -
- * the order received, with its own page's link, which the job carries
- * encrypted: only its hash is kept. Tried three times, a few minutes apart;
- * after that its row says it failed.
+ * the order received, with its own page's link, or (Phase F2) confirmed, with
+ * its invoice's secure link - which the job carries encrypted: only the order
+ * link's hash is kept. Tried three times, a few minutes apart; after that its
+ * row says it failed.
  */
 class SendStoreOrderEmail implements ShouldBeEncrypted, ShouldQueue
 {

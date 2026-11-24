@@ -36,10 +36,14 @@ class DocumentLinks
             ?? $this->documentLinkRepository->create($workspace, $document, ['token' => $this->token(), 'created_by' => $user->id, 'expires_at' => $this->expiry($workspace)]);
     }
 
-    /** Where the customer opens it. */
+    /**
+     * Where the customer opens it: at the API's own address (APP_URL), as
+     * public files are, whoever asks - a store's page rendered on the server
+     * asks from inside, by an address no customer can reach (Doc 19 Phase F2).
+     */
     public function url(DocumentLink $link): string
     {
-        return route('documents.public', $link->token);
+        return rtrim((string) config('app.url'), '/').route('documents.public', $link->token, false);
     }
 
     /** Whether $link still opens its document. Expects linkable loaded. */

@@ -19,10 +19,14 @@ use Illuminate\Database\Eloquent\Builder;
  * the order a cart became, the contact an earlier guest order made for an
  * e-mail, whether a number is taken, and whether a storefront, contact,
  * listing or item is on any order - and, from Phase E2, a customer
- * account's orders.
+ * account's orders; from Phase F1, the business's Orders page and an
+ * order's; from Phase F2, an order read again, locked, to be confirmed.
  */
 class EcommerceOrderRepository
 {
+    /** Phase F2: an order's invoice as its customer is shown it - its number, and its secure link while one works. */
+    private const CUSTOMER_INVOICE = ['invoice:id,number', 'invoice.activeLink'];
+
     /** Made through the storefront, so its business is never read from $data; its lines with it. */
     public function create(Storefront $storefront, array $data, array $lines): EcommerceOrder
     {
@@ -61,22 +65,28 @@ class EcommerceOrderRepository
             ->with('contact')
             ->first();
 
-        $contact = $order?->contact;
-
-        while ($contact && $contact->merged_into_id) {
-            $contact = Contact::query()->find($contact->merged_into_id);
-        }
+        $contact = $order?->contact ? $this->survivingContact($order->contact) : null;
 
         return $contact && $contact->is_active && mb_strtolower((string) $contact->email) === mb_strtolower($email) ? $contact : null;
     }
 
-    /** Phase D5: $storefront's order whose own link's key hashes to $keyHash - with its lines - or none. */
+    /** $contact - or, merged since, the one it was merged into (Doc 17 Phase C3), as far as the merges go. */
+    public function survivingContact(Contact $contact): Contact
+    {
+        while ($contact->merged_into_id && ($into = Contact::query()->find($contact->merged_into_id))) {
+            $contact = $into;
+        }
+
+        return $contact;
+    }
+
+    /** Phase D5: $storefront's order whose own link's key hashes to $keyHash - with its lines, and (Phase F2) its invoice's working link - or none. */
     public function forCustomer(Storefront $storefront, string $keyHash): ?EcommerceOrder
     {
         return EcommerceOrder::query()
             ->where('storefront_id', $storefront->id)
             ->where('access_token_hash', $keyHash)
-            ->with('lines')
+            ->with(['lines', ...self::CUSTOMER_INVOICE])
             ->first();
     }
 
@@ -92,10 +102,10 @@ class EcommerceOrderRepository
             ->paginate($perPage);
     }
 
-    /** Phase E2: $customer's order $id, with its lines - or none. */
+    /** Phase E2: $customer's order $id, with its lines, and (Phase F2) its invoice's working link - or none. */
     public function findOfAccount(StorefrontCustomer $customer, int $id): ?EcommerceOrder
     {
-        return EcommerceOrder::query()->where('storefront_customer_id', $customer->id)->whereKey($id)->with('lines')->first();
+        return EcommerceOrder::query()->where('storefront_customer_id', $customer->id)->whereKey($id)->with(['lines', ...self::CUSTOMER_INVOICE])->first();
     }
 
     /** Phase E2: the orders of $customer's e-mail that are no account's - guest orders, or a closed account's - made its own. */
@@ -141,12 +151,31 @@ class EcommerceOrderRepository
             ->paginate($perPage);
     }
 
-    /** Phase F1: the business's order $id at $locationIds (any, when null), with what its page shows - or none. */
+    /** Phase F1: the business's order $id at $locationIds (any, when null), with what its page shows - from Phase F2 its invoice and who confirmed it - or none. */
     public function findFor(Workspace $workspace, int $id, ?array $locationIds): ?EcommerceOrder
     {
         return $this->at($workspace, $locationIds)
-            ->with(['lines.priceList:id,name', 'storefront:id,name,code', 'location:id,name', 'contact:id,contact_number,name,is_active', 'customerAccount:id,email', 'emails'])
+            ->with(['lines.priceList:id,name', 'storefront:id,name,code', 'location:id,name', 'contact:id,contact_number,name,is_active', 'customerAccount:id,email', 'emails', 'invoice:id,number', 'confirmer:id,first_name,last_name'])
             ->find($id);
+    }
+
+    /**
+     * Phase F2: $order read again to be confirmed - locked, when $lock, so it
+     * is confirmed once - with its storefront, contact and customer's account
+     * whole, as pricing and its invoice read them, and its lines.
+     */
+    public function forConfirming(EcommerceOrder $order, bool $lock): EcommerceOrder
+    {
+        return EcommerceOrder::query()
+            ->whereKey($order->id)
+            ->when($lock, fn (Builder $query) => $query->lockForUpdate())
+            ->with(['storefront', 'contact', 'customerAccount', 'lines'])
+            ->firstOrFail();
+    }
+
+    public function update(EcommerceOrder $order, array $data): void
+    {
+        $order->update($data);
     }
 
     /** Phase D5: an e-mail kept with $order. */
@@ -157,7 +186,7 @@ class EcommerceOrderRepository
 
     public function findEmail(int $id): ?EcommerceOrderEmail
     {
-        return EcommerceOrderEmail::query()->with(['order.lines', 'order.storefront', 'order.workspace'])->find($id);
+        return EcommerceOrderEmail::query()->with(['order.lines', 'order.storefront', 'order.workspace', 'order.invoice:id,number'])->find($id);
     }
 
     public function updateEmail(EcommerceOrderEmail $email, array $data): void
