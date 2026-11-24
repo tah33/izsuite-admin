@@ -40,7 +40,7 @@ class EcommerceOrderController extends Controller
     public function show(Request $request, int $id): JsonResponse
     {
         try {
-            $order = $this->orderService->find($this->currentWorkspace($request), $id);
+            $order = $this->orderService->page($this->currentWorkspace($request), $id);
 
             return response()->json(['data' => new EcommerceOrderResource($order)]);
 

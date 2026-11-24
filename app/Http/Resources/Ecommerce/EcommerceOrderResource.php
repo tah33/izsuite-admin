@@ -19,7 +19,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * with its taxes; the customer's note, where the visit came from and the
  * consents given; and its e-mails to the customer. From Phase F2, its
  * invoice once it is confirmed, and when and by whom it was; from Phase F3,
- * what the invoice still owes, its payments, and its payment's failures.
+ * what the invoice still owes, its payments, and its payment's failures;
+ * from Phase F4, why it is on hold or cancelled, the status a hold goes back
+ * to, and - on its page - what may want a look (never its customer's).
  *
  * @property EcommerceOrder $resource
  */
@@ -39,6 +41,10 @@ class EcommerceOrderResource extends JsonResource
             'status'             => $order->status,
             'payment_status'     => $order->payment_status,
             'fulfilment_status'  => $order->fulfilment_status,
+            // Phase F4: on hold, the status it goes back to; why it is on hold, or was cancelled; what may want a look.
+            'held_status'        => $order->held_status,
+            'status_reason'      => $order->status_reason,
+            'review'             => $order->reviewNotes ?? [],
             // Phase F2: its invoice, once confirmed - and when, and by whom.
             'invoice'            => $order->invoice ? ['id' => $order->invoice->id, 'number' => $order->invoice->number, 'balance_due' => (string) $order->invoice->balance_due] : null,
             'confirmed_at'       => $order->confirmed_at?->toIso8601String(),

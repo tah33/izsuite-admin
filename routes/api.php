@@ -104,6 +104,7 @@ use App\Http\Controllers\Api\EcommerceShippingController;
 use App\Http\Controllers\Api\EcommercePaymentMethodController;
 use App\Http\Controllers\Api\EcommerceOrderController;
 use App\Http\Controllers\Api\EcommerceOrderPaymentController;
+use App\Http\Controllers\Api\EcommerceOrderStatusController;
 use App\Http\Controllers\Api\StorefrontController;
 use App\Http\Controllers\Api\StorefrontDomainController;
 use App\Http\Controllers\Api\StorefrontHostController;
@@ -1263,6 +1264,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/{id}/payment', [EcommerceOrderPaymentController::class, 'show'])->whereNumber('id')->name('api.ecommerce.orders.payment');
         Route::post('/{id}/payments', [EcommerceOrderPaymentController::class, 'store'])->whereNumber('id')->middleware('idempotent')->name('api.ecommerce.orders.payments.store');
         Route::post('/{id}/payment-failed', [EcommerceOrderPaymentController::class, 'fail'])->whereNumber('id')->middleware('idempotent')->name('api.ecommerce.orders.payment-failed');
+        // Phase F4: held for review, released, and cancelled - each with a reason.
+        Route::post('/{id}/hold', [EcommerceOrderStatusController::class, 'hold'])->whereNumber('id')->middleware('idempotent')->name('api.ecommerce.orders.hold');
+        Route::post('/{id}/release', [EcommerceOrderStatusController::class, 'release'])->whereNumber('id')->middleware('idempotent')->name('api.ecommerce.orders.release');
+        Route::post('/{id}/cancel', [EcommerceOrderStatusController::class, 'cancel'])->whereNumber('id')->middleware('idempotent')->name('api.ecommerce.orders.cancel');
     });
 
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm')->group(function () {

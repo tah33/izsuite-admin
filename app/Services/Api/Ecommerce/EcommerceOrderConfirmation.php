@@ -70,7 +70,7 @@ class EcommerceOrderConfirmation
 
         DB::transaction(fn () => $this->confirmLocked($workspace, $user, $this->orders->forConfirming($found, true), $today));
 
-        return $this->orderService->find($workspace, $id);
+        return $this->orderService->page($workspace, $id);
     }
 
     /**

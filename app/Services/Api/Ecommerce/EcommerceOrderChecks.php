@@ -68,7 +68,7 @@ class EcommerceOrderChecks
             }
         }
 
-        ['problems' => $short, 'stock' => $stock] = $this->stock($workspace, $products, $lock);
+        ['problems' => $short, 'stock' => $stock] = $this->stock($workspace, $order, $lock);
 
         return [
             'problems' => [...$problems, ...$short, ...$this->contactProblems($contact)],
@@ -86,13 +86,18 @@ class EcommerceOrderChecks
     }
 
     /**
-     * What the order takes of each Limited listing or variant - all its lines
-     * of it together - and those it takes more of than is left. A line whose
-     * variant is gone since counts toward none.
+     * What $order takes of each listing or variant that is Limited now - all
+     * its product lines of it together, by the first one's title - locked
+     * when $lock. A line whose variant is gone since counts toward none.
+     * Confirming counts these down; cancelling a confirmed order gives them
+     * back (Phase F4).
+     *
+     * @return list<array{stock: CatalogProduct|CatalogProductVariant, title: string, quantity: string}>
      */
-    private function stock(Workspace $workspace, Collection $products, bool $lock): array
+    public function taken(Workspace $workspace, EcommerceOrder $order, bool $lock): array
     {
-        $wanted = [];
+        $products = $order->lines->where('kind', EcommerceOrderLine::PRODUCT)->values();
+        $wanted   = [];
 
         foreach ($products as $line) {
             $key = match (true) {
@@ -107,23 +112,33 @@ class EcommerceOrderChecks
             }
         }
 
-        $held     = $this->catalog->stockOf($workspace, $products->pluck('catalog_product_id')->filter()->unique()->values()->all(), $products->pluck('catalog_product_variant_id')->filter()->unique()->values()->all(), $lock);
-        $problems = [];
-        $stock    = [];
+        $held  = $this->catalog->stockOf($workspace, $products->pluck('catalog_product_id')->filter()->unique()->values()->all(), $products->pluck('catalog_product_variant_id')->filter()->unique()->values()->all(), $lock);
+        $taken = [];
 
         foreach ($wanted as $key => $want) {
             $holder = $key[0] === 'v' ? $held['variants']->get((int) substr($key, 1)) : $held['products']->get((int) substr($key, 1));
 
-            if (! $holder || $holder->availability !== CatalogProduct::LIMITED) {
-                continue;
+            if ($holder && $holder->availability === CatalogProduct::LIMITED) {
+                $taken[] = ['stock' => $holder, 'title' => $want['title'], 'quantity' => $want['quantity']];
             }
+        }
 
-            $left = (string) ($holder->stock_quantity ?? '0');
+        return $taken;
+    }
 
-            if (bccomp($want['quantity'], $left, 3) > 0) {
-                $problems[] = "Only {$this->plain($left)} of {$want['title']} left, and the order has {$this->plain($want['quantity'])}: change what is left in the Catalog, then confirm the order.";
+    /** What confirming $order counts down, and what it takes more of than is left. */
+    private function stock(Workspace $workspace, EcommerceOrder $order, bool $lock): array
+    {
+        $problems = [];
+        $stock    = [];
+
+        foreach ($this->taken($workspace, $order, $lock) as $taken) {
+            $left = (string) ($taken['stock']->stock_quantity ?? '0');
+
+            if (bccomp($taken['quantity'], $left, 3) > 0) {
+                $problems[] = "Only {$this->plain($left)} of {$taken['title']} left, and the order has {$this->plain($taken['quantity'])}: change what is left in the Catalog, then confirm the order.";
             } else {
-                $stock[] = ['stock' => $holder, 'title' => $want['title'], 'left' => $left, 'after' => bcsub($left, $want['quantity'], 3)];
+                $stock[] = ['stock' => $taken['stock'], 'title' => $taken['title'], 'left' => $left, 'after' => bcsub($left, $taken['quantity'], 3)];
             }
         }
 

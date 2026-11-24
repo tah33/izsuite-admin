@@ -12,6 +12,9 @@ We have received your payment of {!! $order['paid'] !!} for your order {!! $orde
 @case ('payment_failed')
 We could not confirm your payment for your order {!! $order['number'] !!}, placed on {!! $order['placed_on'] !!}: it is still waiting to be paid. Here is your order:
 @break
+@case ('order_cancelled')
+Your order {!! $order['number'] !!}, placed on {!! $order['placed_on'] !!}, is cancelled. Here is what it was:
+@break
 @default
 Thank you for your order {!! $order['number'] !!}, placed on {!! $order['placed_on'] !!}. Here is what we have:
 @endswitch

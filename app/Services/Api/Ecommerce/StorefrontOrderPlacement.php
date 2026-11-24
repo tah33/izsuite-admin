@@ -40,7 +40,8 @@ use Illuminate\Validation\ValidationException;
  *
  * A cart becomes one order at most: placing it again answers with the order
  * it became. Nothing is reserved or counted down until the order is
- * confirmed (Phase F).
+ * confirmed (Phase F). From Phase F4, an order that may want a look is held
+ * as it is placed while Settings → eCommerce says so (EcommerceOrderHolds).
  */
 class StorefrontOrderPlacement
 {
@@ -57,6 +58,7 @@ class StorefrontOrderPlacement
         protected WorkspaceSequence $sequence,
         protected StoreOrderMailer $mailer,
         protected StorefrontCustomerAddresses $addresses,
+        protected EcommerceOrderHolds $holds,
     ) {}
 
     /**
@@ -180,6 +182,9 @@ class StorefrontOrderPlacement
             }
 
             ActivityLogService::recordCustomer($storefront->workspace, 'created', "Online order {$order->number} placed on {$storefront->name} by {$order->customer['name']}", $order);
+
+            // Phase F4: held as it is placed, with Hold Orders for Review on, when something wants a look.
+            $this->holds->holdAsPlaced($storefront->workspace, $order, $settings);
 
             // Phase D5: the order received, e-mailed once the order is saved, with its own page's link.
             $this->mailer->queue($order, EcommerceOrderEmail::ORDER_RECEIVED, self::linkOf($storefront, $key));

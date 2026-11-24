@@ -31,6 +31,9 @@
                                 @case ('payment_failed')
                                     <p style="margin:0 0 12px;">We could not confirm your payment for your order <strong>{{ $order['number'] }}</strong>, placed on {{ $order['placed_on'] }}: it is still waiting to be paid. Here is your order:</p>
                                     @break
+                                @case ('order_cancelled')
+                                    <p style="margin:0 0 12px;">Your order <strong>{{ $order['number'] }}</strong>, placed on {{ $order['placed_on'] }}, is cancelled. Here is what it was:</p>
+                                    @break
                                 @default
                                     <p style="margin:0 0 12px;">Thank you for your order <strong>{{ $order['number'] }}</strong>, placed on {{ $order['placed_on'] }}. Here is what we have:</p>
                             @endswitch

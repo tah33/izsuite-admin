@@ -36,6 +36,9 @@ class EcommerceSetting extends Model
         'checkout_notes',
         'cookie_notice',
         'cookie_notice_text',
+        // Phase F4: Review Orders Above (base currency; none to start), and whether such orders are held as placed.
+        'review_above',
+        'hold_for_review',
     ];
 
     protected $casts = [
@@ -44,6 +47,8 @@ class EcommerceSetting extends Model
         'cookie_notice'         => 'boolean',
         'cart_days'             => 'integer',
         'checkout_notes'        => 'boolean',
+        'review_above'          => 'decimal:2',
+        'hold_for_review'       => 'boolean',
     ];
 
     // The columns' defaults, so settings never saved read as they would be.
@@ -56,6 +61,7 @@ class EcommerceSetting extends Model
         'checkout_phone'        => 'required',
         'checkout_notes'        => true,
         'cookie_notice'         => true,
+        'hold_for_review'       => false,
     ];
 
     public function workspace(): BelongsTo

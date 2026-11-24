@@ -22,6 +22,9 @@ class EcommerceOrderEmail extends Model
 
     public const PAYMENT_FAILED = 'payment_failed';
 
+    /** Phase F4: the order cancelled - never why. */
+    public const ORDER_CANCELLED = 'order_cancelled';
+
     public const QUEUED = 'queued';
 
     public const SENT = 'sent';

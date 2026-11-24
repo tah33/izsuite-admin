@@ -20,8 +20,9 @@ use Illuminate\Support\Facades\Mail;
  * or failed, so its history stays with it - and sent through the queue once
  * the order is saved. D5 sends the first, Order Received, with the order's
  * own page; F2 Order Confirmed, with its invoice's secure link; F3 Payment
- * Received and Payment Failed, with the invoice's link once it has one. The
- * order's later news come with the phases that make it (F, G and I).
+ * Received and Payment Failed, with the invoice's link once it has one; F4
+ * Order Cancelled, with none, and never why. The order's later news come
+ * with the phases that make it (G and I).
  */
 class StoreOrderMailer
 {
@@ -63,6 +64,7 @@ class StoreOrderMailer
                 EcommerceOrderEmail::ORDER_CONFIRMED  => "Your {$about} is confirmed",
                 EcommerceOrderEmail::PAYMENT_RECEIVED => "Payment received for your {$about}",
                 EcommerceOrderEmail::PAYMENT_FAILED   => "Your payment for {$about} was not received",
+                EcommerceOrderEmail::ORDER_CANCELLED  => "Your {$about} is cancelled",
                 default                               => "Your {$about}",
             },
             $storefront->name,
@@ -93,6 +95,8 @@ class StoreOrderMailer
         $delivery  = $order->delivery_snapshot ?? [];
         $payment   = $order->payment_snapshot ?? [];
         $settled   = $kind === EcommerceOrderEmail::PAYMENT_RECEIVED && bccomp((string) ($details['balance'] ?? '0'), '0', 2) <= 0;
+        // Phase F4: a cancelled order is neither sent nor paid.
+        $cancelled = $kind === EcommerceOrderEmail::ORDER_CANCELLED;
 
         return [
             // Phase F3: a payment received - how much, and its reference.
@@ -118,19 +122,25 @@ class StoreOrderMailer
                 EcommerceOrder::PICKUP   => 'Collect it at '.($delivery['name'] ?? 'the shop'),
                 default                  => 'Delivery',
             },
-            'delivery'       => match ($order->delivery) {
-                EcommerceOrder::SHIPPING => implode("\n", array_filter([$this->address($order->shipping_address), ($delivery['quoted'] ?? false) ? 'We tell you its price before it ships.' : null])),
-                EcommerceOrder::PICKUP   => implode("\n", array_filter([$delivery['ready_within'] ?? 'We tell you when it is ready.', $delivery['instructions'] ?? null])),
-                default                  => 'There is nothing to deliver.',
+            'delivery'       => match (true) {
+                $cancelled && $order->delivery === EcommerceOrder::SHIPPING => 'It will not be sent.',
+                $cancelled && $order->delivery === EcommerceOrder::PICKUP   => 'It will not be ready to collect.',
+                $order->delivery === EcommerceOrder::SHIPPING               => implode("\n", array_filter([$this->address($order->shipping_address), ($delivery['quoted'] ?? false) ? 'We tell you its price before it ships.' : null])),
+                $order->delivery === EcommerceOrder::PICKUP                 => implode("\n", array_filter([$delivery['ready_within'] ?? 'We tell you when it is ready.', $delivery['instructions'] ?? null])),
+                default                                                     => 'There is nothing to deliver.',
             },
             'payment'        => $payment['name'] ?? '',
             'payment_note'   => match ($kind) {
                 EcommerceOrderEmail::PAYMENT_RECEIVED => $settled ? 'Nothing is left to pay.' : "{$money($details['balance'])} is still to pay.",
                 // Failed: what is owed, to pay again - not the reference that did not match.
                 EcommerceOrderEmail::PAYMENT_FAILED   => $this->howToPay($order, $money($details['balance'] ?? $order->grand_total), null),
+                // Cancelled: nothing to pay - and, the customer saying they paid, the business is in touch.
+                EcommerceOrderEmail::ORDER_CANCELLED  => in_array($order->payment_status, [EcommerceOrder::PAYMENT_PENDING, EcommerceOrder::PAYMENT_FAILED], true)
+                    ? 'If you have paid for it, we will be in touch about your money.'
+                    : 'There is nothing to pay for it.',
                 default                               => $this->howToPay($order, $money($order->grand_total), $order->payment_reference),
             },
-            'instructions'   => $settled ? null : ($payment['instructions'] ?? null),
+            'instructions'   => $settled || $cancelled ? null : ($payment['instructions'] ?? null),
             'link'           => $link,
         ];
     }

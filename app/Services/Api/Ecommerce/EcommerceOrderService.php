@@ -20,6 +20,7 @@ class EcommerceOrderService
     public function __construct(
         protected EcommerceOrderRepository $orders,
         protected WorkspaceAccess $access,
+        protected EcommerceOrderReview $review,
     ) {}
 
     /** $filters: storefront_id, status, payment_status, fulfilment_status and search. */
@@ -31,6 +32,15 @@ class EcommerceOrderService
     public function find(Workspace $workspace, int $id): EcommerceOrder
     {
         return $this->orders->findFor($workspace, $id, $this->access->locations()) ?? abort(404, 'There is no such order.');
+    }
+
+    /** Phase F4: order $id as its page shows it - with what may want a look at it (EcommerceOrderReview). */
+    public function page(Workspace $workspace, int $id): EcommerceOrder
+    {
+        $order = $this->find($workspace, $id);
+        $order->reviewNotes = $this->review->notes($workspace, $order);
+
+        return $order;
     }
 
     /** What the Activity Log calls it. */

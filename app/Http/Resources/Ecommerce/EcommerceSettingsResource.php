@@ -20,6 +20,9 @@ class EcommerceSettingsResource extends JsonResource
             'cart_days'             => (int) $this->cart_days,
             'checkout_phone'        => $this->checkout_phone,
             'checkout_notes'        => (bool) $this->checkout_notes,
+            // Phase F4: Review Orders Above, in the base currency, and holding such orders as they are placed.
+            'review_above'          => $this->review_above === null ? null : (string) $this->review_above,
+            'hold_for_review'       => (bool) $this->hold_for_review,
         ];
     }
 }

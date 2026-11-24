@@ -164,6 +164,16 @@ class EcommerceOrderRepository
             ->find($id);
     }
 
+    /** Phase F4: how many orders of the business $email placed from $from to $to, both included. */
+    public function placedFromEmail(Workspace $workspace, string $email, \DateTimeInterface $from, \DateTimeInterface $to): int
+    {
+        return EcommerceOrder::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('customer_email', mb_strtolower($email))
+            ->whereBetween('placed_at', [$from, $to])
+            ->count();
+    }
+
     /** Phase F3: the online order whose invoice $invoice is, if one is. */
     public function ofInvoice(SalesDocument $invoice): ?EcommerceOrder
     {

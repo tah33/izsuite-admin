@@ -492,6 +492,10 @@ final class RoutePermissions
             'api.ecommerce.orders.payment'            => 'ecommerce.orders.confirm',
             'api.ecommerce.orders.payments.store'     => 'ecommerce.orders.confirm',
             'api.ecommerce.orders.payment-failed'     => 'ecommerce.orders.confirm',
+            // Phase F4: held and released under Place Orders On Hold; cancelled under Cancel Orders.
+            'api.ecommerce.orders.hold'               => 'ecommerce.orders.hold',
+            'api.ecommerce.orders.release'            => 'ecommerce.orders.hold',
+            'api.ecommerce.orders.cancel'             => 'ecommerce.orders.cancel',
             // Doc 18 Phase A2: POS registers.
             'api.pos.registers.index'   => 'pos.registers.view',
             'api.pos.registers.options' => 'pos.registers.manage',

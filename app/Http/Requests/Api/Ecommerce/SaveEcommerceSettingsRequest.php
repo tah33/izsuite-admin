@@ -33,6 +33,9 @@ class SaveEcommerceSettingsRequest extends FormRequest
             // Phase D4: whether checkout asks for a phone number, and for a note.
             'checkout_phone'        => ['sometimes', Rule::in(EcommerceSetting::PHONE_FIELDS)],
             'checkout_notes'        => ['sometimes', 'boolean'],
+            // Phase F4: Review Orders Above, in the base currency - empty for none - and whether such orders are held as placed.
+            'review_above'          => ['sometimes', 'nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999999.99'],
+            'hold_for_review'       => ['sometimes', 'boolean'],
         ];
     }
 

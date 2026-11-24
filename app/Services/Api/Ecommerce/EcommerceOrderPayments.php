@@ -131,7 +131,7 @@ class EcommerceOrderPayments
             return $payment;
         });
 
-        return ['order' => $this->orderService->find($workspace, $id), 'payment' => $payment];
+        return ['order' => $this->orderService->page($workspace, $id), 'payment' => $payment];
     }
 
     /** Order $id's payment marked failed by $user, with $reason. The order, as its page shows it. */
@@ -164,7 +164,7 @@ class EcommerceOrderPayments
             ActivityLogService::record('updated', 'Marked the payment of '.$this->orderService->describe($order)." as failed: {$reason}", $order, ['source' => 'api', 'payment_status' => EcommerceOrder::PAYMENT_FAILED]);
         });
 
-        return $this->orderService->find($workspace, $id);
+        return $this->orderService->page($workspace, $id);
     }
 
     /** An order that takes a payment: open, and owing something. */

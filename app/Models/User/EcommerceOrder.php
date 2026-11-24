@@ -30,6 +30,11 @@ class EcommerceOrder extends Model
 
     public const CONFIRMED = 'confirmed';
 
+    /** Phase F4: held for review, released back to where it was; or cancelled. */
+    public const ON_HOLD = 'on_hold';
+
+    public const CANCELLED = 'cancelled';
+
     public const STATUSES = ['pending', 'confirmed', 'on_hold', 'processing', 'completed', 'cancelled'];
 
     public const UNPAID = 'unpaid';
@@ -112,7 +117,19 @@ class EcommerceOrder extends Model
         // Phase F3: how often its payment was marked failed, and why the last time.
         'payment_failures',
         'payment_failure_reason',
+        // Phase F4: on hold, the status it goes back to; why it is on hold, or was cancelled.
+        'held_status',
+        'status_reason',
     ];
+
+    /**
+     * Phase F4: what may want a look at it - for its page in the business,
+     * never its customer - worked out by EcommerceOrderReview. Not a column:
+     * never saved.
+     *
+     * @var list<string>|null
+     */
+    public ?array $reviewNotes = null;
 
     protected $casts = [
         'storefront_id'               => 'integer',
