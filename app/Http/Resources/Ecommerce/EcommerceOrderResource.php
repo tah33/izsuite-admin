@@ -65,6 +65,8 @@ class EcommerceOrderResource extends JsonResource
             'currency'           => $order->currency,
             'exchange_rate'      => (string) $order->exchange_rate,
             'prices_include_tax' => $order->prices_include_tax,
+            // Phase F5b: as the business kept prices - what a discount's amount is taken as.
+            'price_tax_mode'     => $order->price_tax_mode,
             'customer'           => $order->customer,
             'account'            => $order->customerAccount !== null,
             'contact'            => $contact ? ['id' => $contact->id, 'number' => $contact->contact_number, 'name' => $contact->name, 'is_active' => (bool) $contact->is_active, 'created' => $order->contact_created] : null,
@@ -82,6 +84,9 @@ class EcommerceOrderResource extends JsonResource
             'consents'           => ['terms_accepted_at' => $order->consents['terms']['accepted_at'] ?? null, 'marketing' => (bool) ($order->consents['marketing'] ?? false)],
             'lines'              => $order->lines->where('kind', EcommerceOrderLine::PRODUCT)->map(fn (EcommerceOrderLine $line) => [
                 'id'         => $line->id,
+                // Phase F5b: its listing and variant, so its edit knows a product on the order already.
+                'catalog_product_id'         => $line->catalog_product_id,
+                'catalog_product_variant_id' => $line->catalog_product_variant_id,
                 'title'      => $line->title,
                 'options'    => $line->options ?? [],
                 'sku'        => $line->sku,
@@ -100,6 +105,12 @@ class EcommerceOrderResource extends JsonResource
                 'grand_total' => (string) $order->grand_total,
                 'taxes'       => array_map(fn (array $tax) => ['name' => $tax['name'] ?? null, 'rate' => isset($tax['rate']) ? (string) $tax['rate'] : null, 'amount' => (string) ($tax['tax_amount'] ?? '0')], $order->taxes ?? []),
             ],
+            // Phase F5b: the discount given - a percentage of its products, or an amount - and why.
+            'discount'           => $order->discount_type ? [
+                'type'   => $order->discount_type,
+                'value'  => (string) $order->discount_value,
+                'reason' => $order->discount_reason,
+            ] : null,
             'emails'             => $order->emails->map(fn (EcommerceOrderEmail $email) => [
                 'kind'    => $email->kind,
                 'to'      => $email->to,

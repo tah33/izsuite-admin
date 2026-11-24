@@ -63,6 +63,11 @@ class EcommerceOrder extends Model
 
     public const NONE = 'none';
 
+    /** Phase F5b: its discount - a percentage of its products, or an amount - in Sales' words. */
+    public const PERCENT = 'percent';
+
+    public const AMOUNT = 'amount';
+
     /** The workspace_sequences counter its numbers come from. */
     public const NUMBER_SEQUENCE = 'ecommerce_order';
 
@@ -120,6 +125,10 @@ class EcommerceOrder extends Model
         // Phase F4: on hold, the status it goes back to; why it is on hold, or was cancelled.
         'held_status',
         'status_reason',
+        // Phase F5b: its discount - a percentage of its products or an amount - and why it was given.
+        'discount_type',
+        'discount_value',
+        'discount_reason',
     ];
 
     /**
@@ -142,6 +151,7 @@ class EcommerceOrder extends Model
         'prices_include_tax'          => 'boolean',
         'subtotal'                    => 'decimal:2',
         'shipping_total'              => 'decimal:2',
+        'discount_value'              => 'decimal:4',
         'discount_total'              => 'decimal:2',
         'tax_total'                   => 'decimal:2',
         'grand_total'                 => 'decimal:2',

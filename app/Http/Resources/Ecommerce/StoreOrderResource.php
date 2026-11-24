@@ -63,6 +63,8 @@ class StoreOrderResource extends JsonResource
             'totals'             => [
                 'subtotal'    => $order->subtotal,
                 'shipping'    => $order->shipping_total,
+                // Phase F5b: what a discount given by the business takes off - never why.
+                'discount'    => $order->discount_total,
                 'tax_total'   => $order->tax_total,
                 'grand_total' => $order->grand_total,
             ],

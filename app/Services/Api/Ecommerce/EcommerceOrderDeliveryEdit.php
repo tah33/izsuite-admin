@@ -115,6 +115,7 @@ class EcommerceOrderDeliveryEdit
             }
 
             $before = ['billing' => $this->line($order->billing_address), 'shipping' => $this->line($order->shipping_address), 'delivery' => $this->deliveryWords($order), 'total' => "{$order->currency} {$order->grand_total}"];
+            $total  = (string) $order->grand_total;
             $kind   = $order->delivery;
             $place  = $order->delivery === EcommerceOrder::SHIPPING ? ($order->shipping_address['country'] ?? null) : ($order->billing_address['country'] ?? null);
 
@@ -130,6 +131,9 @@ class EcommerceOrderDeliveryEdit
                 $this->refuse(($order->payment_snapshot['name'] ?? 'Its payment method').' is not offered for this delivery or country: keep them, or cancel the order for the customer to place it again.');
             }
 
+            // Phase F5b: its shipping re-priced, the total is still one its payment method takes.
+            $this->edits->checkPaymentLimits($workspace, $order, $total);
+
             $after   = ['billing' => $this->line($order->billing_address), 'shipping' => $this->line($order->shipping_address), 'delivery' => $this->deliveryWords($order), 'total' => "{$order->currency} {$order->grand_total}"];
             $changes = $this->edits->changes($before, $after, ['billing' => 'billing_address', 'shipping' => 'shipping_address', 'delivery' => 'delivery', 'total' => 'total']);
 
@@ -140,6 +144,31 @@ class EcommerceOrderDeliveryEdit
         });
 
         return $this->orderService->page($workspace, $id);
+    }
+
+    /**
+     * Phase F5b: inside an edit's transaction, a shipped order's shipping
+     * re-priced for its products as they are now - $order read with them - by
+     * its own method at its price now, as checkout prices it; refused when the
+     * method takes them no more. A method quoted after the order stays so;
+     * a pickup, or nothing to deliver, has no shipping to re-price.
+     */
+    public function reprice(Workspace $workspace, EcommerceOrder $order): void
+    {
+        if ($order->delivery !== EcommerceOrder::SHIPPING) {
+            return;
+        }
+
+        $terms  = $this->terms($workspace, $order);
+        $offers = $this->checkout->offers($workspace, Arr::only($order->shipping_address ?? [], ['country', 'region', 'city', 'postal_code']), $this->parcel($workspace, $order, $terms), $terms);
+        $method = collect($offers)->first(fn (array $offer) => $offer['method']->id === $order->shipping_method_id);
+
+        if (! $method) {
+            $this->refuse(($order->delivery_snapshot['name'] ?? 'Its shipping method')." would not take order {$order->number}'s products: change its delivery first.");
+        }
+
+        $this->orders->replaceShipping($order, $method['price'] !== null ? $this->shippingLine($workspace, $method, $terms) : null);
+        $this->orders->update($order, $this->placement->delivery(['delivery' => EcommerceOrder::SHIPPING, 'method' => $method, 'point' => null]));
     }
 
     /** How the order prices delivery: the store's terms now, at the order's own currency, rate and way of showing prices. */

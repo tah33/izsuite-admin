@@ -206,6 +206,24 @@ class EcommerceOrderRepository
         $line->update($data);
     }
 
+    /** Phase F5b: one of an order's products taken off it. */
+    public function deleteLine(EcommerceOrderLine $line): void
+    {
+        $line->delete();
+    }
+
+    /** Phase F5b: $rows added to $order's products, after its last line. Its lines are read again after. */
+    public function addLines(EcommerceOrder $order, array $rows): void
+    {
+        $position = (int) EcommerceOrderLine::query()->where('ecommerce_order_id', $order->id)->max('position');
+
+        foreach ($rows as $row) {
+            $order->lines()->create([...$row, 'position' => ++$position]);
+        }
+
+        $order->unsetRelation('lines');
+    }
+
     /** Phase F5: $order's shipping line replaced by $row, last of its lines - or removed, with none. Its lines are read again after. */
     public function replaceShipping(EcommerceOrder $order, ?array $row): void
     {

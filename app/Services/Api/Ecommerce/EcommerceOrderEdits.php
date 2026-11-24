@@ -8,9 +8,11 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\ContactRepository;
 use App\Repositories\User\EcommerceOrderRepository;
+use App\Repositories\User\EcommercePaymentMethodRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Shared\ActivityLogService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Editing an online order before payment (Doc 19 section 19.21 - Phase F5),
@@ -20,11 +22,16 @@ use Illuminate\Support\Facades\DB;
  *
  * - customer(): the customer's details as given (Phase F5a) - its contact
  *   stays the order's, changed in Contacts if at all;
+ * - discount(): a percentage of its products or an amount, with why (Phase
+ *   F5b) - "an authorised discount", by whoever may edit orders;
  * - retotal(): after any edit, inside its transaction - the totals worked
  *   out again (EcommerceOrderTotals), and a confirmed order's invoice
- *   changed with them (EcommerceOrderInvoicing::refresh()).
+ *   changed with them (EcommerceOrderInvoicing::refresh());
+ * - checkPaymentLimits(): a total changed by an edit, still within what its
+ *   payment method takes (19.22).
  *
- * Its addresses and delivery are EcommerceOrderDeliveryEdit's.
+ * Its addresses and delivery are EcommerceOrderDeliveryEdit's; its products
+ * EcommerceOrderProductEdit's.
  */
 class EcommerceOrderEdits
 {
@@ -36,6 +43,7 @@ class EcommerceOrderEdits
         protected EcommerceOrderTotals $totals,
         protected EcommerceOrderInvoicing $invoicing,
         protected ContactRepository $contacts,
+        protected EcommercePaymentMethodRepository $paymentMethods,
     ) {}
 
     /** $order read again, locked, once it may be edited - else refused, saying why. */
@@ -90,6 +98,90 @@ class EcommerceOrderEdits
         });
 
         return $this->orderService->page($workspace, $id);
+    }
+
+    /**
+     * Phase F5b: order $id's discount as $data gives it (UpdateEcommerceOrderDiscountRequest):
+     * a percentage of its products, an amount no more than they come to, or
+     * none - with why, in its timeline. The order, as its page shows it.
+     */
+    public function discount(Workspace $workspace, User $user, int $id, array $data): EcommerceOrder
+    {
+        $found = $this->orderService->find($workspace, $id);
+
+        DB::transaction(function () use ($workspace, $user, $found, $data) {
+            $order  = $this->locked($found);
+            $type   = $data['type'] ?? null;
+            $value  = $type === null ? null : bcadd((string) $data['value'], '0', 2);
+            $reason = trim($data['reason']);
+            $base   = $this->totals->productsBase($order);
+
+            if ($type === EcommerceOrder::AMOUNT && bccomp($value, $base, 2) > 0) {
+                throw ValidationException::withMessages(['value' => "The order's products come to {$order->currency} {$base}: give a discount of that much at most."]);
+            }
+
+            $before = ['discount' => $this->discountWords($order), 'total' => "{$order->currency} {$order->grand_total}"];
+            $total  = (string) $order->grand_total;
+            $same   = $type === $order->discount_type && ($type === null || bccomp($value, (string) $order->discount_value, 4) === 0);
+
+            if ($same && ($type === null || $reason === $order->discount_reason)) {
+                return;
+            }
+
+            $this->orders->update($order, ['discount_type' => $type, 'discount_value' => $value, 'discount_reason' => $type === null ? null : $reason]);
+
+            $order = $this->retotal($workspace, $user, $order);
+
+            $this->checkPaymentLimits($workspace, $order, $total);
+
+            $now         = $this->discountWords($order);
+            $description = match (true) {
+                $type === null          => 'Took the discount off '.$this->orderService->describe($order),
+                $before['discount'] === null => 'Gave '.$this->orderService->describe($order)." a discount of {$now}",
+                default                 => 'Changed the discount of '.$this->orderService->describe($order)." to {$now}",
+            };
+
+            // Logged here, by what happened, so LogApiWriteActivity does not add its own vaguer entry.
+            ActivityLogService::record('updated', "{$description}: {$reason}", $order, ['source' => 'api', 'changes' => $this->changes($before, ['discount' => $now, 'total' => "{$order->currency} {$order->grand_total}"], ['discount' => 'discount', 'total' => 'total'])]);
+        });
+
+        return $this->orderService->page($workspace, $id);
+    }
+
+    /** Phase F5b: $order's discount in words - "10%", "USD 3.00" - none for none. */
+    public function discountWords(EcommerceOrder $order): ?string
+    {
+        return match ($order->discount_type) {
+            EcommerceOrder::PERCENT => rtrim(rtrim((string) $order->discount_value, '0'), '.').'%',
+            EcommerceOrder::AMOUNT  => $order->currency.' '.bcadd((string) $order->discount_value, '0', 2),
+            default                 => null,
+        };
+    }
+
+    /**
+     * Inside an edit's transaction, once its totals are worked out again:
+     * refused when $order's total - $before the edit - has changed past what
+     * its payment method takes, its least or its most (19.22). A method gone
+     * since, or one changed since in another way, stops nothing.
+     */
+    public function checkPaymentLimits(Workspace $workspace, EcommerceOrder $order, string $before): void
+    {
+        $total  = (string) $order->grand_total;
+        $method = $order->ecommerce_payment_method_id ? $this->paymentMethods->find($workspace, $order->ecommerce_payment_method_id) : null;
+
+        if (! $method || bccomp($total, $before, 2) === 0) {
+            return;
+        }
+
+        $limit = match (true) {
+            $method->min_order !== null && bccomp($total, (string) $method->min_order, 2) < 0 => "orders of {$order->currency} {$method->min_order} or more",
+            $method->max_order !== null && bccomp($total, (string) $method->max_order, 2) > 0 => "orders of up to {$order->currency} {$method->max_order}",
+            default                                                                           => null,
+        };
+
+        if ($limit !== null) {
+            $this->refuse("{$method->name} takes {$limit}, and the order would come to {$order->currency} {$total}: keep it as it was, or cancel the order for the customer to place it again.");
+        }
     }
 
     /** Inside an edit's transaction: $order's totals worked out again, and its issued invoice changed with them. */

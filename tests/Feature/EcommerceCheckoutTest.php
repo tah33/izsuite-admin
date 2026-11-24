@@ -97,7 +97,7 @@ class EcommerceCheckoutTest extends TestCase
             ->assertJsonPath('data.delivery', ['kind' => 'shipping', 'name' => 'Standard', 'method_kind' => 'flat', 'price' => '5.00', 'quoted' => false, 'days_min' => 2, 'days_max' => 4])
             ->assertJsonPath('data.payment', ['name' => 'Bank Transfer', 'type' => 'bank_transfer', 'instructions' => 'Pay into City Bank 0123456789.', 'reference' => 'TRX-1001'])
             ->assertJsonPath('data.lines', [['title' => 'Ceramic Mug', 'options' => [], 'sku' => 'MUG-1', 'quantity' => 2, 'unit_price' => '8.00', 'amount' => '16.00']])
-            ->assertJsonPath('data.totals', ['subtotal' => '16.00', 'shipping' => '5.00', 'tax_total' => '0.00', 'grand_total' => '21.00']);
+            ->assertJsonPath('data.totals', ['subtotal' => '16.00', 'shipping' => '5.00', 'discount' => '0.00', 'tax_total' => '0.00', 'grand_total' => '21.00']);
         $this->assertSame(64, strlen($placed->json('data.key')));
 
         $order = EcommerceOrder::sole();
@@ -163,7 +163,7 @@ class EcommerceCheckoutTest extends TestCase
             ->assertJsonPath('data.prices_include_tax', true)
             ->assertJsonPath('data.lines.0.unit_price', '8.80')
             ->assertJsonPath('data.lines.0.amount', '17.60')
-            ->assertJsonPath('data.totals', ['subtotal' => '17.60', 'shipping' => '5.50', 'tax_total' => '2.10', 'grand_total' => '23.10']);
+            ->assertJsonPath('data.totals', ['subtotal' => '17.60', 'shipping' => '5.50', 'discount' => '0.00', 'tax_total' => '2.10', 'grand_total' => '23.10']);
         $this->assertSame(['8.00', '5.00'], EcommerceOrder::sole()->lines->pluck('unit_price')->all());
 
         // Quoted after the order: no shipping yet, and the order says so.

@@ -1273,6 +1273,10 @@ Route::prefix('v1')->group(function () {
         Route::put('/{id}/customer', [EcommerceOrderEditController::class, 'customer'])->whereNumber('id')->name('api.ecommerce.orders.customer');
         Route::post('/{id}/delivery/quote', [EcommerceOrderEditController::class, 'quote'])->whereNumber('id')->name('api.ecommerce.orders.delivery.quote');
         Route::put('/{id}/delivery', [EcommerceOrderEditController::class, 'delivery'])->whereNumber('id')->name('api.ecommerce.orders.delivery');
+        // Phase F5b: its products - with what its customer could be sold - and its discount.
+        Route::get('/{id}/products/offered', [EcommerceOrderEditController::class, 'offered'])->whereNumber('id')->name('api.ecommerce.orders.products.offered');
+        Route::put('/{id}/products', [EcommerceOrderEditController::class, 'products'])->whereNumber('id')->name('api.ecommerce.orders.products');
+        Route::put('/{id}/discount', [EcommerceOrderEditController::class, 'discount'])->whereNumber('id')->name('api.ecommerce.orders.discount');
     });
 
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm')->group(function () {

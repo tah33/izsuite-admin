@@ -500,6 +500,10 @@ final class RoutePermissions
             'api.ecommerce.orders.customer'           => 'ecommerce.orders.edit',
             'api.ecommerce.orders.delivery.quote'     => 'ecommerce.orders.edit',
             'api.ecommerce.orders.delivery'           => 'ecommerce.orders.edit',
+            // Phase F5b: its products and its discount, under Edit Orders too.
+            'api.ecommerce.orders.products.offered'   => 'ecommerce.orders.edit',
+            'api.ecommerce.orders.products'           => 'ecommerce.orders.edit',
+            'api.ecommerce.orders.discount'           => 'ecommerce.orders.edit',
             // Doc 18 Phase A2: POS registers.
             'api.pos.registers.index'   => 'pos.registers.view',
             'api.pos.registers.options' => 'pos.registers.manage',

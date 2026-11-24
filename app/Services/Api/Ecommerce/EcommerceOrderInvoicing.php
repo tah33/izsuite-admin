@@ -33,6 +33,7 @@ use Illuminate\Support\Arr;
  * - its lines the order's - its products, then its shipping - each at the
  *   price, and with the tax, the order has, totalled as checkout totalled
  *   them (SalesLines, SalesCalculator): a tax changed since is not applied;
+ *   less the order's discount (Phase F5b), as the amount it takes off;
  * - the business, customer and template kept as issuing keeps them, the
  *   customer's billing and shipping addresses as the order gives them, the
  *   order's number as the customer's reference, and Settings → Sales's notes
@@ -55,13 +56,14 @@ class EcommerceOrderInvoicing
         protected DocumentTemplates $templates,
         protected DocumentNumbers $documentNumbers,
         protected ExchangeRateService $exchangeRates,
+        protected EcommerceOrderTotals $totals,
     ) {}
 
     /** $order's invoice, issued on $today by $user to $contact - inside the transaction that confirms the order. */
     public function issue(Workspace $workspace, User $user, EcommerceOrder $order, Contact $contact, string $today): SalesDocument
     {
         $rows     = $this->rows($workspace, $order);
-        $result   = $this->calculator->calculate(array_map(fn (array $row) => $this->salesLines->forCalculation($row), $rows), null, null, $order->price_tax_mode, $order->tax_rounding, (string) $order->exchange_rate);
+        $result   = $this->calculate($order, $rows);
         $location = $order->location_id ? $this->locations->findFor($workspace, $order->location_id) : null;
         $settings = $this->salesSettings->forWorkspace($workspace);
 
@@ -87,6 +89,7 @@ class EcommerceOrderInvoicing
             'price_tax_mode'     => $order->price_tax_mode,
             'tax_rounding'       => $order->tax_rounding,
             'customer_reference' => $order->number,
+            ...$this->discount($order),
             'notes'              => $settings->notes,
             'terms'              => $settings->terms,
             ...Arr::only($result, self::TOTALS),
@@ -113,17 +116,34 @@ class EcommerceOrderInvoicing
     public function refresh(Workspace $workspace, User $user, EcommerceOrder $order, SalesDocument $invoice, ?Contact $contact): void
     {
         $rows   = $this->rows($workspace, $order);
-        $result = $this->calculator->calculate(array_map(fn (array $row) => $this->salesLines->forCalculation($row), $rows), null, null, $order->price_tax_mode, $order->tax_rounding, (string) $order->exchange_rate);
+        $result = $this->calculate($order, $rows);
 
         $this->salesDocuments->replaceLines($invoice, array_map(fn (array $row, array $calculated) => [...$row, ...$calculated], $rows, $result['lines']));
         $this->salesDocuments->update($invoice, [
             ...Arr::only($result, self::TOTALS),
+            ...$this->discount($order),
             'payment_status'    => bccomp($result['grand_total'], '0', 2) > 0 ? SalesDocument::PAYMENT_UNPAID : 'paid',
             'balance_due'       => $result['grand_total'],
             // Its contact gone from Contacts: its customer kept as it was issued.
             'customer_snapshot' => $contact ? $this->customer($contact, $order) : $invoice->customer_snapshot,
             'updated_by'        => $user->id,
         ]);
+    }
+
+    /** $rows totalled as the order is: its discount (Phase F5b) an amount, shared over them as Sales shares an invoice's. */
+    private function calculate(EcommerceOrder $order, array $rows): array
+    {
+        $off = $this->totals->discountOff($order);
+
+        return $this->calculator->calculate(array_map(fn (array $row) => $this->salesLines->forCalculation($row), $rows), $off === null ? null : EcommerceOrder::AMOUNT, $off, $order->price_tax_mode, $order->tax_rounding, (string) $order->exchange_rate);
+    }
+
+    /** Phase F5b: the invoice's discount - the order's, as the amount it takes off - so Sales works its total out alike. */
+    private function discount(EcommerceOrder $order): array
+    {
+        $off = $this->totals->discountOff($order);
+
+        return ['discount_type' => $off === null ? null : EcommerceOrder::AMOUNT, 'discount_value' => $off];
     }
 
     /**

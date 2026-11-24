@@ -194,7 +194,7 @@ class EcommerceOrderChecks
     }
 
     /** A quantity without the zeros after its point: 2.000 is 2, 1.500 is 1.5. */
-    private function plain(string $quantity): string
+    public function plain(string $quantity): string
     {
         return str_contains($quantity, '.') ? rtrim(rtrim($quantity, '0'), '.') : $quantity;
     }

@@ -114,6 +114,8 @@ class StoreOrderMailer
             'totals'         => array_filter([
                 'Products'                                                    => $money($order->subtotal),
                 'Delivery'                                                    => $order->delivery === EcommerceOrder::SHIPPING ? (($delivery['quoted'] ?? false) ? 'Quoted later' : $money($order->shipping_total)) : null,
+                // Phase F5b: a discount the business gave - never why.
+                'Discount'                                                    => bccomp((string) $order->discount_total, '0', 2) > 0 ? '−'.$money($order->discount_total) : null,
                 ($order->prices_include_tax ? 'Of which tax' : 'Tax')         => $order->prices_include_tax === null ? null : $money($order->tax_total),
                 'Total'                                                       => $money($order->grand_total),
             ]),
