@@ -8,6 +8,7 @@ use App\Repositories\Admin\AdminSignInRepository;
 use App\Repositories\Admin\RoleRepository;
 use App\Repositories\Admin\StaffRepository;
 use App\Services\Shared\ActivityLogService;
+use App\Services\Shared\ProfileImages;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -23,6 +24,7 @@ class StaffService
         protected AdminSessionService $sessions,
         protected AdminSignInRepository $signIns,
         protected AdminTwoFactorService $twoFactor,
+        protected ProfileImages $profileImages,
     ) {}
 
     /**
@@ -60,7 +62,8 @@ class StaffService
     }
 
     /**
-     * Create a new staff user.
+     * Create a new staff user. An uploaded $data['avatar'] becomes their
+     * profile image (ProfileImages).
      */
     public function create(array $data): User
     {
@@ -70,7 +73,7 @@ class StaffService
         // password is auto-hashed by the User model's 'hashed' cast
         $data['status'] = 'active';
 
-        $staff = $this->staffRepo->create($data);
+        $staff = $this->staffRepo->create($this->profileImages->fill($data));
 
         // $staff->name is the composed accessor, so it reflects whatever
         // first/last name actually landed on the row.
@@ -80,7 +83,9 @@ class StaffService
     }
 
     /**
-     * Update a staff user.
+     * Update a staff user. An uploaded $data['avatar'] replaces their profile
+     * image; $data['remove_avatar'] takes it away. Neither, and it stays
+     * (ProfileImages).
      */
     public function update(User $user, array $data): User
     {
@@ -96,7 +101,11 @@ class StaffService
         // A new role or password counts from now: their sessions end.
         $endSessions = (int) $data['role_id'] !== (int) $user->role_id || isset($data['password']);
 
-        $updated = $this->staffRepo->update($user, $data);
+        $oldAvatar   = $user->avatar;
+        $data        = $this->profileImages->fill($data);
+        $updated     = $this->staffRepo->update($user, $data);
+
+        $this->profileImages->discardOld($oldAvatar, $data);
 
         if ($endSessions) {
             $this->sessions->endAll($updated);
@@ -149,12 +158,16 @@ class StaffService
     }
 
     /**
-     * Delete a staff user.
+     * Delete a staff user, and their profile image.
      */
     public function delete(User $user): ?bool
     {
         $name    = $user->name;
         $deleted = $this->staffRepo->delete($user);
+
+        if ($deleted) {
+            $this->profileImages->delete($user->avatar);
+        }
 
         ActivityLogService::record('deleted', "Deleted staff member \"{$name}\"");
 

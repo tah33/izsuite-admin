@@ -3,6 +3,11 @@
     $isEdit = isset($staffUser);
 @endphp
 
+{{-- Profile image: none, and the first letter of the name shows instead --}}
+<div class="mb-4">
+    @include('admin.partials.avatar-picker', ['user' => $staffUser ?? null])
+</div>
+
 {{-- Name --}}
 <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
     <div>

@@ -6,11 +6,15 @@
 <div class="max-w-3xl mx-auto space-y-6">
     <div class="card p-6">
         <h2 class="text-lg font-semibold text-[var(--text-primary)] mb-1">{{ __('Profile Information') }}</h2>
-        <p class="text-sm text-[var(--text-muted)] mb-6">{{ __('Update your account name and email address.') }}</p>
+        <p class="text-sm text-[var(--text-muted)] mb-6">{{ __('Update your profile image, name and email address.') }}</p>
 
-        <form method="POST" action="{{ route('admin.profile.update') }}">
+        <form method="POST" action="{{ route('admin.profile.update') }}" enctype="multipart/form-data">
             @csrf
             @method('PUT')
+
+            <div class="mb-5">
+                @include('admin.partials.avatar-picker', ['user' => $user])
+            </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div class="form-group flex flex-col gap-1.5">

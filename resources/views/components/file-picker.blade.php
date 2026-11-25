@@ -84,8 +84,9 @@
             </button>
 
             @if($isImage)
+                {{-- !hidden, not hidden: .btn's display would win over a plain utility. --}}
                 <button type="button" data-fp-clear
-                    class="btn btn-sm text-[var(--danger)] {{ $hasFile ? '' : 'hidden' }}">
+                    class="btn btn-sm text-[var(--danger)] {{ $hasFile ? '' : '!hidden' }}">
                     <i data-lucide="trash-2" class="w-4 h-4"></i> {{ __('Remove') }}
                 </button>
             @endif
@@ -176,7 +177,7 @@
             if (emptyEl) emptyEl.classList.add('hidden');
         }
 
-        if (clearBtn) clearBtn.classList.remove('hidden');
+        if (clearBtn) clearBtn.classList.remove('!hidden');
     });
 
     if (clearBtn) {
@@ -184,7 +185,7 @@
             input.value = '';
             nameEl.textContent = EMPTY;
             pickLabel.textContent = CHOOSE;
-            clearBtn.classList.add('hidden');
+            clearBtn.classList.add('!hidden');
             if (removeFlag) removeFlag.value = '1';
             if (imgEl) { imgEl.src = ''; imgEl.classList.add('hidden'); }
             if (emptyEl) emptyEl.classList.remove('hidden');

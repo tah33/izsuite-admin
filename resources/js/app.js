@@ -113,13 +113,20 @@ import './bootstrap';
     }
 
     // A <select> that Select2 has taken over is hidden; what the user sees -
-    // and what an error belongs under - is the control drawn after it.
+    // and what an error belongs under - is the control drawn after it. An
+    // x-file-picker's file input is hidden too: its error goes under the
+    // picker's buttons, not at the far end of the picker's row.
     function visibleField($input) {
         if ($input.hasClass('select2-hidden-accessible')) {
             var $control = $input.next('.select2-container');
             if ($control.length) {
                 return $control;
             }
+        }
+
+        var $pickerButtons = $input.closest('[data-fp]').find('[data-fp-pick]').parent();
+        if ($pickerButtons.length) {
+            return $pickerButtons;
         }
 
         return $input;

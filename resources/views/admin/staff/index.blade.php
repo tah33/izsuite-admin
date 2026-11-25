@@ -43,8 +43,12 @@
                             <td class="text-sm text-[var(--text-muted)]">{{ $staff->firstItem() + $loop->index }}</td>
                             <td>
                                 <div class="flex items-center gap-3">
-                                    <div class="user-avatar w-9 h-9">
-                                        {{ strtoupper(substr($member->name, 0, 1)) }}
+                                    <div class="user-avatar w-9 h-9 shrink-0 overflow-hidden">
+                                        @if($member->avatar)
+                                            <img src="{{ asset('storage/'.$member->avatar) }}" alt="" class="w-full h-full object-cover">
+                                        @else
+                                            {{ strtoupper(substr($member->name, 0, 1)) }}
+                                        @endif
                                     </div>
                                     <div>
                                         <span class="font-semibold text-[var(--text-primary)]">{{ $member->name }}</span>

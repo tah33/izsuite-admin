@@ -23,6 +23,13 @@ class StoreStaffRequest extends FormRequest
             'password'   => ['required', 'string', 'confirmed', AdminPassword::rule()],
             // A staff role only: never a client's, or another non-staff account's.
             'role_id'    => ['required', Rule::exists('roles', 'id')->whereNotIn('slug', Role::FRONTEND_SLUGS)],
+            // No SVG: it can carry script, and it would be served from this site.
+            'avatar'     => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ];
+    }
+
+    public function attributes(): array
+    {
+        return ['avatar' => 'profile image'];
     }
 }

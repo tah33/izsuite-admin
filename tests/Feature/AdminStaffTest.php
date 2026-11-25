@@ -6,6 +6,8 @@ use App\Models\Admin\Role;
 use App\Models\User\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -75,5 +77,67 @@ class AdminStaffTest extends TestCase
 
         $store('user')->assertJsonValidationErrors('role_id');
         $store('staff')->assertOk();
+    }
+
+    public function test_a_staff_member_has_a_profile_image_that_can_be_kept_replaced_and_removed(): void
+    {
+        Storage::fake('public');
+        $this->actingAs($this->admin);
+
+        $this->postJson(route('admin.staff.store'), [
+            'first_name'            => 'Nadia',
+            'email'                 => 'nadia@example.com',
+            'password'              => 'Secret#123456',
+            'password_confirmation' => 'Secret#123456',
+            'role_id'               => $this->roleId('staff'),
+            'avatar'                => UploadedFile::fake()->image('nadia.png', 200, 200),
+        ])->assertOk();
+
+        $staff  = User::where('email', 'nadia@example.com')->firstOrFail();
+        $first  = $staff->avatar;
+        $this->assertStringStartsWith('avatars/', $first);
+        Storage::disk('public')->assertExists($first);
+
+        $this->get(route('admin.staff.edit', $staff->id))->assertOk()->assertSee('storage/'.$first);
+        $this->get(route('admin.staff.index'))->assertOk()->assertSee('storage/'.$first);
+
+        $update = fn (array $extra = []) => $this->putJson(route('admin.staff.update', $staff->id), [
+            'first_name' => 'Nadia',
+            'email'      => 'nadia@example.com',
+            'role_id'    => $this->roleId('staff'),
+            ...$extra,
+        ]);
+
+        // Saved without a new image - an empty file input arrives as null - the old one stays.
+        $update(['avatar' => null, 'remove_avatar' => '0'])->assertOk();
+        $this->assertSame($first, $staff->fresh()->avatar);
+        Storage::disk('public')->assertExists($first);
+
+        // A new one takes the old one's place, which goes.
+        $update(['avatar' => UploadedFile::fake()->image('new.jpg')])->assertOk();
+        $second = $staff->fresh()->avatar;
+        $this->assertNotSame($first, $second);
+        Storage::disk('public')->assertExists($second);
+        Storage::disk('public')->assertMissing($first);
+
+        $update(['avatar' => UploadedFile::fake()->create('cv.pdf', 10, 'application/pdf')])->assertJsonValidationErrors('avatar');
+        $update(['avatar' => UploadedFile::fake()->create('logo.svg', 1, 'image/svg+xml')])->assertJsonValidationErrors('avatar');
+        $this->assertSame($second, $staff->fresh()->avatar);
+
+        $update(['avatar' => null, 'remove_avatar' => '1'])->assertOk();
+        $this->assertNull($staff->fresh()->avatar);
+        Storage::disk('public')->assertMissing($second);
+    }
+
+    public function test_deleting_a_staff_member_deletes_their_profile_image(): void
+    {
+        Storage::fake('public');
+        $path  = UploadedFile::fake()->image('karim.png')->store('avatars', 'public');
+        $staff = User::factory()->create(['role_id' => $this->roleId('staff'), 'avatar' => $path]);
+
+        $this->actingAs($this->admin)->deleteJson(route('admin.staff.destroy', $staff->id))->assertOk();
+
+        $this->assertNull(User::find($staff->id));
+        Storage::disk('public')->assertMissing($path);
     }
 }

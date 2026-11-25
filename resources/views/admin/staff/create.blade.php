@@ -13,7 +13,7 @@
         <p class="page-subtitle">{{ __('Create a new admin or staff account') }}</p>
     </div>
 
-    <form action="{{ route('admin.staff.store') }}" method="POST">
+    <form action="{{ route('admin.staff.store') }}" method="POST" enctype="multipart/form-data">
         @csrf
         <div class="card mb-6">
             @include('admin.staff._form')

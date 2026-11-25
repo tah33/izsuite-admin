@@ -80,8 +80,12 @@
         </div>
 
         <div class="relative">
-            <button id="user-dropdown-toggle" class="user-avatar">
-                {{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}
+            <button id="user-dropdown-toggle" class="user-avatar overflow-hidden">
+                @if(auth()->user()?->avatar)
+                    <img src="{{ asset('storage/'.auth()->user()->avatar) }}" alt="{{ auth()->user()->name }}" class="w-full h-full object-cover">
+                @else
+                    {{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}
+                @endif
             </button>
 
             <div id="user-dropdown-menu" class="hidden absolute end-0 mt-2 w-48 bg-white rounded-lg shadow-lg border py-1 z-50 border-[var(--card-border)]">

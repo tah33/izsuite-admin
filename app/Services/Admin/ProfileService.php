@@ -6,6 +6,7 @@ use App\Models\User\User;
 use App\Repositories\Admin\AdminSignInRepository;
 use App\Repositories\User\UserRepository;
 use App\Services\Shared\ActivityLogService;
+use App\Services\Shared\ProfileImages;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Support\Facades\Hash;
 
@@ -21,6 +22,7 @@ class ProfileService
         protected AdminSignInRepository $signIns,
         protected AdminSessionService $sessions,
         protected AdminTwoFactorService $twoFactor,
+        protected ProfileImages $profileImages,
     ) {}
 
     /** What the profile page shows besides the account itself. */
@@ -34,9 +36,18 @@ class ProfileService
         ];
     }
 
+    /**
+     * Their name and email, and their profile image: an uploaded
+     * $data['avatar'] replaces it, $data['remove_avatar'] takes it away, and
+     * with neither it stays (ProfileImages).
+     */
     public function update(User $user, array $data): void
     {
+        $oldAvatar = $user->avatar;
+        $data      = $this->profileImages->fill($data);
+
         $this->userRepository->update($user, $data);
+        $this->profileImages->discardOld($oldAvatar, $data);
 
         ActivityLogService::record('updated', 'Updated their own profile', $user);
     }
@@ -59,10 +70,13 @@ class ProfileService
         return $user->isSuperAdmin() ? __('The super admin account cannot be deleted.') : null;
     }
 
+    /** Deletes their account, and their profile image with it. */
     public function delete(User $user): void
     {
         ActivityLogService::record('deleted', 'Deleted their own admin account', $user, null, $user);
 
-        $this->userRepository->delete($user);
+        if ($this->userRepository->delete($user)) {
+            $this->profileImages->delete($user->avatar);
+        }
     }
 }

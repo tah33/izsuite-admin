@@ -13,7 +13,7 @@
         <p class="page-subtitle">{{ __('Update staff details and role') }}</p>
     </div>
 
-    <form action="{{ route('admin.staff.update', $staffUser->id) }}" method="POST">
+    <form action="{{ route('admin.staff.update', $staffUser->id) }}" method="POST" enctype="multipart/form-data">
         @csrf
         @method('PUT')
         <div class="card mb-6">
