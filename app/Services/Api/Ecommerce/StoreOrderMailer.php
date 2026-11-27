@@ -12,6 +12,7 @@ use App\Services\Documents\DocumentFormat;
 use App\Services\Shared\BusinessCalendar;
 use App\Support\AddressFormat;
 use App\Support\Countries;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Mail;
 
 /**
@@ -21,8 +22,9 @@ use Illuminate\Support\Facades\Mail;
  * the order is saved. D5 sends the first, Order Received, with the order's
  * own page; F2 Order Confirmed, with its invoice's secure link; F3 Payment
  * Received and Payment Failed, with the invoice's link once it has one; F4
- * Order Cancelled, with none, and never why. The order's later news come
- * with the phases that make it (G and I).
+ * Order Cancelled, with none, and never why; F6a a Payment Link, with the
+ * link's own page. The order's later news come with the phases that make it
+ * (G and I).
  */
 class StoreOrderMailer
 {
@@ -34,8 +36,10 @@ class StoreOrderMailer
     /**
      * $order's e-mail of $kind, kept as queued and sent once the order is
      * saved - with $link: its own page, or its invoice once it has one (none
-     * for a payment failed before) - and, for a payment's (Phase F3), its
-     * $details: the amount and reference received, and what is left to pay.
+     * for a payment failed before), or a payment link's page - and, for a
+     * payment's (Phase F3), its $details: the amount and reference received,
+     * and what is left to pay; for a payment link's (Phase F6a), the amount it
+     * asks, when it expires and its methods' names.
      */
     public function queue(EcommerceOrder $order, string $kind, ?string $link, array $details = []): EcommerceOrderEmail
     {
@@ -65,6 +69,7 @@ class StoreOrderMailer
                 EcommerceOrderEmail::PAYMENT_RECEIVED => "Payment received for your {$about}",
                 EcommerceOrderEmail::PAYMENT_FAILED   => "Your payment for {$about} was not received",
                 EcommerceOrderEmail::ORDER_CANCELLED  => "Your {$about} is cancelled",
+                EcommerceOrderEmail::PAYMENT_LINK     => "Pay for your {$about}",
                 default                               => "Your {$about}",
             },
             $storefront->name,
@@ -97,11 +102,16 @@ class StoreOrderMailer
         $settled   = $kind === EcommerceOrderEmail::PAYMENT_RECEIVED && bccomp((string) ($details['balance'] ?? '0'), '0', 2) <= 0;
         // Phase F4: a cancelled order is neither sent nor paid.
         $cancelled = $kind === EcommerceOrderEmail::ORDER_CANCELLED;
+        // Phase F6a: a payment link - what it asks, the business's last day it works, and its methods.
+        $linked    = $kind === EcommerceOrderEmail::PAYMENT_LINK;
+        $until     = $linked ? $format->date(CarbonImmutable::parse($details['expires'])->setTimezone($this->calendar->timezone($workspace))->toDateString()) : null;
 
         return [
-            // Phase F3: a payment received - how much, and its reference.
-            'paid'           => isset($details['amount']) ? $money($details['amount']) : null,
+            // Phase F3: a payment received - how much, and its reference. Phase F6a: what a link asks, and until when.
+            'paid'           => ! $linked && isset($details['amount']) ? $money($details['amount']) : null,
             'reference'      => $details['reference'] ?? null,
+            'asked'          => $linked ? $money($details['amount']) : null,
+            'until'          => $until,
             'number'         => $order->number,
             'customer'       => $order->customer['name'],
             'placed_on'      => $format->date($order->placed_at?->setTimezone($this->calendar->timezone($workspace))->toDateString()),
@@ -131,8 +141,10 @@ class StoreOrderMailer
                 $order->delivery === EcommerceOrder::PICKUP                 => implode("\n", array_filter([$delivery['ready_within'] ?? 'We tell you when it is ready.', $delivery['instructions'] ?? null])),
                 default                                                     => 'There is nothing to deliver.',
             },
-            'payment'        => $payment['name'] ?? '',
+            'payment'        => $linked ? implode(' or ', $details['methods'] ?? []) : ($payment['name'] ?? ''),
             'payment_note'   => match ($kind) {
+                // A link: each method's instructions are on its page.
+                EcommerceOrderEmail::PAYMENT_LINK     => "Pay {$money($details['amount'])} by {$until}, with your order number, {$order->number}, as the payment's reference: the link below shows how.",
                 EcommerceOrderEmail::PAYMENT_RECEIVED => $settled ? 'Nothing is left to pay.' : "{$money($details['balance'])} is still to pay.",
                 // Failed: what is owed, to pay again - not the reference that did not match.
                 EcommerceOrderEmail::PAYMENT_FAILED   => $this->howToPay($order, $money($details['balance'] ?? $order->grand_total), null),
@@ -142,7 +154,7 @@ class StoreOrderMailer
                     : 'There is nothing to pay for it.',
                 default                               => $this->howToPay($order, $money($order->grand_total), $order->payment_reference),
             },
-            'instructions'   => $settled || $cancelled ? null : ($payment['instructions'] ?? null),
+            'instructions'   => $settled || $cancelled || $linked ? null : ($payment['instructions'] ?? null),
             'link'           => $link,
         ];
     }

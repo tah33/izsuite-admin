@@ -10,9 +10,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * 19.23 - Phase F6a): the amount it asks, in the order's currency, the
  * store's payment methods it offers, until when it works, and to whom it was
  * e-mailed and by whom. Kept active, paid or revoked - revoked by hand,
- * replaced by a newer link, or with its order cancelled; expired is an active
- * link past its day (state()). Its token is kept only hashed. It is never a
- * sale of its own: the order's invoice is.
+ * replaced by a newer link, with its order cancelled, or with its total
+ * changed by an edit; expired is an active link past its day (state()). Its
+ * token is kept only hashed. It is never a sale of its own: the order's
+ * invoice is.
  */
 class EcommercePaymentLink extends Model
 {
@@ -25,12 +26,14 @@ class EcommercePaymentLink extends Model
     /** Shown, not kept: an active link past its day. */
     public const EXPIRED = 'expired';
 
-    /** Why a link was revoked: by hand, replaced by a newer one, or its order cancelled. */
+    /** Why a link was revoked: by hand, replaced by a newer one, its order cancelled, or its total changed by an edit (Phase F5). */
     public const BY_HAND = 'revoked';
 
     public const REPLACED = 'replaced';
 
     public const CANCELLED = 'cancelled';
+
+    public const CHANGED = 'changed';
 
     /** Its methods' types - those paid from afar, before the order reaches the customer. */
     public const METHOD_TYPES = [EcommercePaymentMethod::BANK_TRANSFER, EcommercePaymentMethod::MOBILE_MONEY];

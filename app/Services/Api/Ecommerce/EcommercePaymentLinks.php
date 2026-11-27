@@ -14,6 +14,7 @@ use App\Repositories\User\EcommercePaymentLinkRepository;
 use App\Repositories\User\EcommerceSettingRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Shared\ActivityLogService;
+use App\Services\Shared\BusinessCalendar;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -26,13 +27,15 @@ use Illuminate\Validation\ValidationException;
  * - review(): what sending one would ask - what the order owes (the amount,
  *   or with Settings → eCommerce's paying in part on, the most), the store's
  *   methods it may offer, the days it works, and to whom it goes;
- * - send(): the link - its amount, methods and days as given - made with a
- *   token of 64 random characters, kept only hashed, replacing one still
- *   active; e-mailed to the customer with its page on the store; in the
- *   order's timeline;
- * - revoke(): an active link closed by hand. Cancelling the order closes its
- *   links (closeActive()); paying it in full marks them Paid
- *   (EcommerceOrderPaymentStatus).
+ * - send(): the link - its amount, methods and days as given, working to
+ *   the end of its last day in the business's time zone - made with a token
+ *   of 64 random characters, kept only hashed, replacing one still active;
+ *   e-mailed to the customer with its page on the store; in the order's
+ *   timeline;
+ * - revoke(): an active link closed by hand. Cancelling the order revokes
+ *   its links (EcommerceOrderCancellation), and so does an edit that changes
+ *   its total (EcommerceOrderEdits::retotal()); paying it in full marks them
+ *   Paid (EcommerceOrderPaymentStatus).
  *
  * A link may offer the methods paid from afar - bank transfer and mobile
  * money - as checkout offers them for this order. It is never a sale of its
@@ -50,12 +53,14 @@ class EcommercePaymentLinks
         protected EcommercePaymentOptions $paymentOptions,
         protected EcommerceSettingRepository $settings,
         protected StoreOrderMailer $mailer,
+        protected BusinessCalendar $calendar,
     ) {}
 
     /**
-     * What sending order $id a payment link would ask.
+     * What sending order $id a payment link would ask - and the business's
+     * today, the day its days count from.
      *
-     * @return array{order: EcommerceOrder, owed: string, partial: bool, days: int, methods: Collection, to: string}
+     * @return array{order: EcommerceOrder, owed: string, partial: bool, days: int, today: string, methods: Collection, to: string}
      */
     public function review(Workspace $workspace, int $id): array
     {
@@ -69,6 +74,7 @@ class EcommercePaymentLinks
             'owed'    => $this->payments->owed($order),
             'partial' => (bool) $settings->partial_payments,
             'days'    => (int) $settings->payment_link_days,
+            'today'   => $this->calendar->today($workspace)->toDateString(),
             'methods' => $this->methods($workspace, $order),
             'to'      => $order->customer['email'],
         ];
@@ -89,9 +95,9 @@ class EcommercePaymentLinks
             $amount = bcadd((string) $data['amount'], '0', 2);
 
             match (true) {
-                bccomp($amount, $owed, 2) > 0                                         => throw ValidationException::withMessages(['amount' => "Order {$order->number} owes {$order->currency} {$owed}: ask that much at most."]),
-                ! $settings->partial_payments && bccomp($amount, $owed, 2) !== 0     => throw ValidationException::withMessages(['amount' => "A link asks all that order {$order->number} owes, {$order->currency} {$owed}, while paying in part is off in Settings → eCommerce."]),
-                default                                                               => null,
+                bccomp($amount, $owed, 2) > 0                                     => throw ValidationException::withMessages(['amount' => "Order {$order->number} owes {$order->currency} {$owed}: ask that much at most."]),
+                ! $settings->partial_payments && bccomp($amount, $owed, 2) !== 0 => throw ValidationException::withMessages(['amount' => "A link asks all that order {$order->number} owes, {$order->currency} {$owed}, while paying in part is off in Settings → eCommerce."]),
+                default                                                           => null,
             };
 
             $wanted = array_values(array_unique(array_map('intval', $data['payment_method_ids'])));
@@ -102,7 +108,7 @@ class EcommercePaymentLinks
             }
 
             // One link at a time: a newer one replaces the one still active.
-            $this->closeActive($order, $user, EcommercePaymentLink::REPLACED);
+            $this->links->revokeActive($order, $user->id, EcommercePaymentLink::REPLACED);
 
             $token = bin2hex(random_bytes(32));
             $link  = $this->links->create($order, [
@@ -110,7 +116,8 @@ class EcommercePaymentLinks
                 'amount'          => $amount,
                 'currency'        => $order->currency,
                 'payment_methods' => $chosen->map(fn (EcommercePaymentMethod $method) => ['id' => $method->id, 'name' => $method->name])->all(),
-                'expires_at'      => now()->addDays((int) $data['days']),
+                // To the end of its last day where the business is, kept in the app's time zone as every moment is.
+                'expires_at'      => $this->calendar->today($workspace)->addDays((int) $data['days'])->endOfDay()->setTimezone(config('app.timezone')),
                 'status'          => EcommercePaymentLink::ACTIVE,
                 'sent_to'         => $order->customer['email'],
                 'created_by'      => $user->id,
@@ -148,14 +155,6 @@ class EcommercePaymentLinks
         });
 
         return $this->orderService->page($workspace, $id);
-    }
-
-    /** Inside a transaction: $order's links still active, revoked - replaced by a newer one, or the order cancelled. */
-    public function closeActive(EcommerceOrder $order, ?User $user, string $why): void
-    {
-        foreach ($this->links->activeFor($order, true) as $link) {
-            $this->links->update($link, ['status' => EcommercePaymentLink::REVOKED, 'revoked_at' => now(), 'revoked_by' => $user?->id, 'revoked_why' => $why]);
-        }
     }
 
     /**

@@ -3,7 +3,6 @@
 namespace App\Services\Api\Ecommerce;
 
 use App\Models\User\EcommerceOrder;
-use App\Models\User\EcommercePaymentLink;
 use App\Models\User\SalesDocument;
 use App\Repositories\User\EcommerceOrderRepository;
 use App\Repositories\User\EcommercePaymentLinkRepository;
@@ -47,9 +46,7 @@ class EcommerceOrderPaymentStatus
 
         // Phase F6a: paid in full, however it came in, its links still active have nothing left to ask.
         if ($status === EcommerceOrder::PAID) {
-            foreach ($this->links->activeFor($order, true) as $link) {
-                $this->links->update($link, ['status' => EcommercePaymentLink::PAID]);
-            }
+            $this->links->markActivePaid($order);
         }
     }
 }

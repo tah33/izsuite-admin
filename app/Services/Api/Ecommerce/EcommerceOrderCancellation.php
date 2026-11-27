@@ -11,6 +11,7 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\CatalogProductRepository;
 use App\Repositories\User\EcommerceOrderRepository;
+use App\Repositories\User\EcommercePaymentLinkRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Api\Sales\SalesDocumentFlow;
 use App\Services\Shared\ActivityLogService;
@@ -28,7 +29,8 @@ use Illuminate\Support\Facades\DB;
  * - confirmed once, its Limited quantities are given back, to the listings
  *   and variants still Limited, and its invoice is voided as Sales voids one
  *   (its secure links stop working with it);
- * - the order is Cancelled, and its customer e-mailed that it is - never why.
+ * - the order is Cancelled, and its customer e-mailed that it is - never why;
+ * - its payment links still active are revoked (Phase F6a).
  */
 class EcommerceOrderCancellation
 {
@@ -46,7 +48,7 @@ class EcommerceOrderCancellation
         protected CatalogProductRepository $catalog,
         protected SalesDocumentFlow $salesFlow,
         protected StoreOrderMailer $mailer,
-        protected EcommercePaymentLinks $paymentLinks,
+        protected EcommercePaymentLinkRepository $paymentLinks,
     ) {}
 
     public function cancel(Workspace $workspace, User $user, int $id, string $reason): EcommerceOrder
@@ -83,7 +85,7 @@ class EcommerceOrderCancellation
             }
 
             // Phase F6a: its payment links still active ask no more.
-            $this->paymentLinks->closeActive($order, $user, EcommercePaymentLink::CANCELLED);
+            $this->paymentLinks->revokeActive($order, $user->id, EcommercePaymentLink::CANCELLED);
 
             $this->orders->update($order, ['status' => EcommerceOrder::CANCELLED, 'held_status' => null, 'status_reason' => $reason]);
 

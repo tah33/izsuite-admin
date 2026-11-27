@@ -11,8 +11,8 @@ use Illuminate\Support\Facades\Schema;
  *   paid - the amount it asks, in the order's currency, the store's payment
  *   methods it offers, until when it works, to whom it was e-mailed and by
  *   whom - active, paid or revoked (and why: by hand, replaced by a newer
- *   link, or the order cancelled). Its token is kept only hashed. A link is
- *   never a sale of its own: the order's invoice is;
+ *   link, the order cancelled, or its total changed). Its token is kept only
+ *   hashed. A link is never a sale of its own: the order's invoice is;
  * - ecommerce_settings.payment_link_days: how long a new link works (7 to
  *   start);
  * - ecommerce_settings.partial_payments: whether a link may ask less than
@@ -36,7 +36,7 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('revoked_at')->nullable();
             $table->foreignId('revoked_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->string('revoked_why', 20)->nullable();                                  // revoked | replaced | cancelled
+            $table->string('revoked_why', 20)->nullable();                                  // revoked | replaced | cancelled | changed
             $table->timestamps();
 
             $table->index(['ecommerce_order_id', 'status']);

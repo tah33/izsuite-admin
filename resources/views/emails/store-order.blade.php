@@ -2,7 +2,8 @@
      store's name, the order's number, what was ordered and its totals, how it
      reaches them and how to pay it - received (Phase D5), with the order's
      own page; confirmed (Phase F2), with its invoice's; its payment received
-     or not (Phase F3), with the invoice's once it has one. --}}
+     or not (Phase F3), with the invoice's once it has one; cancelled (Phase
+     F4); a payment link (Phase F6a), with the link's own page. --}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -33,6 +34,9 @@
                                     @break
                                 @case ('order_cancelled')
                                     <p style="margin:0 0 12px;">Your order <strong>{{ $order['number'] }}</strong>, placed on {{ $order['placed_on'] }}, is cancelled. Here is what it was:</p>
+                                    @break
+                                @case ('payment_link')
+                                    <p style="margin:0 0 12px;">You can pay <strong>{{ $order['asked'] }}</strong> for your order <strong>{{ $order['number'] }}</strong>, placed on {{ $order['placed_on'] }}, through the link below until {{ $order['until'] }}. Here is your order:</p>
                                     @break
                                 @default
                                     <p style="margin:0 0 12px;">Thank you for your order <strong>{{ $order['number'] }}</strong>, placed on {{ $order['placed_on'] }}. Here is what we have:</p>
@@ -69,7 +73,7 @@
                     <tr>
                         <td style="padding:16px 32px 28px;">
                             @if ($order['link'])
-                                <a href="{{ $order['link'] }}" style="display:inline-block; padding:10px 18px; background-color:#1d4ed8; color:#ffffff; border-radius:6px; text-decoration:none; font-size:14px; font-weight:600;">{{ $order['kind'] === 'order_received' ? 'See your order' : 'See your invoice' }}</a>
+                                <a href="{{ $order['link'] }}" style="display:inline-block; padding:10px 18px; background-color:#1d4ed8; color:#ffffff; border-radius:6px; text-decoration:none; font-size:14px; font-weight:600;">{{ ['order_received' => 'See your order', 'payment_link' => 'Pay for your order'][$order['kind']] ?? 'See your invoice' }}</a>
                             @endif
                             <p style="margin:12px 0 0; color:#6b6f80; font-size:13px;">Questions? Reply to this e-mail{{ $supportPhone ? ' or call '.$supportPhone : '' }}.</p>
                         </td>

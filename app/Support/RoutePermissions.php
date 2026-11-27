@@ -507,6 +507,10 @@ final class RoutePermissions
             'api.ecommerce.orders.products.offered'   => 'ecommerce.orders.edit',
             'api.ecommerce.orders.products'           => 'ecommerce.orders.edit',
             'api.ecommerce.orders.discount'           => 'ecommerce.orders.edit',
+            // Phase F6a: payment links, under Confirm Orders - as the payments they ask for are.
+            'api.ecommerce.orders.payment-link'         => 'ecommerce.orders.confirm',
+            'api.ecommerce.orders.payment-links.store'  => 'ecommerce.orders.confirm',
+            'api.ecommerce.orders.payment-links.revoke' => 'ecommerce.orders.confirm',
             // Doc 18 Phase A2: POS registers.
             'api.pos.registers.index'   => 'pos.registers.view',
             'api.pos.registers.options' => 'pos.registers.manage',

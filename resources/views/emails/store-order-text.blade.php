@@ -15,6 +15,9 @@ We could not confirm your payment for your order {!! $order['number'] !!}, place
 @case ('order_cancelled')
 Your order {!! $order['number'] !!}, placed on {!! $order['placed_on'] !!}, is cancelled. Here is what it was:
 @break
+@case ('payment_link')
+You can pay {!! $order['asked'] !!} for your order {!! $order['number'] !!}, placed on {!! $order['placed_on'] !!}, through the link below until {!! $order['until'] !!}. Here is your order:
+@break
 @default
 Thank you for your order {!! $order['number'] !!}, placed on {!! $order['placed_on'] !!}. Here is what we have:
 @endswitch
@@ -38,7 +41,7 @@ Payment: {!! $order['payment'] !!}
 @endif
 @if ($order['link'])
 
-{!! $order['kind'] === 'order_received' ? 'See your order' : 'See your invoice' !!}: {!! $order['link'] !!}
+{!! ['order_received' => 'See your order', 'payment_link' => 'Pay for your order'][$order['kind']] ?? 'See your invoice' !!}: {!! $order['link'] !!}
 @endif
 
 Questions? Reply to this e-mail{!! $supportPhone ? ' or call '.$supportPhone : '' !!}.

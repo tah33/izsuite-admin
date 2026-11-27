@@ -4,10 +4,12 @@ namespace App\Services\Api\Ecommerce;
 
 use App\Enums\SalesDocumentStatus;
 use App\Models\User\EcommerceOrder;
+use App\Models\User\EcommercePaymentLink;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\ContactRepository;
 use App\Repositories\User\EcommerceOrderRepository;
+use App\Repositories\User\EcommercePaymentLinkRepository;
 use App\Repositories\User\EcommercePaymentMethodRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Shared\ActivityLogService;
@@ -26,7 +28,8 @@ use Illuminate\Validation\ValidationException;
  *   F5b) - "an authorised discount", by whoever may edit orders;
  * - retotal(): after any edit, inside its transaction - the totals worked
  *   out again (EcommerceOrderTotals), and a confirmed order's invoice
- *   changed with them (EcommerceOrderInvoicing::refresh());
+ *   changed with them (EcommerceOrderInvoicing::refresh()); a changed total
+ *   revokes its payment links still active (Phase F6a);
  * - checkPaymentLimits(): a total changed by an edit, still within what its
  *   payment method takes (19.22).
  *
@@ -44,6 +47,7 @@ class EcommerceOrderEdits
         protected EcommerceOrderInvoicing $invoicing,
         protected ContactRepository $contacts,
         protected EcommercePaymentMethodRepository $paymentMethods,
+        protected EcommercePaymentLinkRepository $paymentLinks,
     ) {}
 
     /** $order read again, locked, once it may be edited - else refused, saying why. */
@@ -184,15 +188,25 @@ class EcommerceOrderEdits
         }
     }
 
-    /** Inside an edit's transaction: $order's totals worked out again, and its issued invoice changed with them. */
+    /**
+     * Inside an edit's transaction: $order's totals worked out again, and its
+     * issued invoice changed with them. A total changed revokes its payment
+     * links still active (Phase F6a): each asked what the order came to.
+     */
     public function retotal(Workspace $workspace, User $user, EcommerceOrder $order): EcommerceOrder
     {
+        $before = (string) $order->grand_total;
+
         $this->totals->recalculate($order);
 
         $order = $this->orders->forConfirming($order, false);
 
         if ($order->invoice && $order->invoice->status === SalesDocumentStatus::Issued) {
             $this->invoicing->refresh($workspace, $user, $order, $order->invoice, $this->contacts->findFor($workspace, $order->invoice->contact_id));
+        }
+
+        if (bccomp((string) $order->grand_total, $before, 2) !== 0) {
+            $this->paymentLinks->revokeActive($order, $user->id, EcommercePaymentLink::CHANGED);
         }
 
         return $order;

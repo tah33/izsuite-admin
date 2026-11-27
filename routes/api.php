@@ -95,6 +95,7 @@ use App\Http\Controllers\Api\StoreAccountOrderController;
 use App\Http\Controllers\Api\StoreCartController;
 use App\Http\Controllers\Api\StoreCheckoutController;
 use App\Http\Controllers\Api\StoreOrderController;
+use App\Http\Controllers\Api\StorePaymentLinkController;
 use App\Http\Controllers\Api\StoreCatalogController;
 use App\Http\Controllers\Api\StorefrontPageController;
 use App\Http\Controllers\Api\StorefrontThemeController;
@@ -107,6 +108,7 @@ use App\Http\Controllers\Api\EcommerceOrderController;
 use App\Http\Controllers\Api\EcommerceOrderEditController;
 use App\Http\Controllers\Api\EcommerceOrderPaymentController;
 use App\Http\Controllers\Api\EcommerceOrderStatusController;
+use App\Http\Controllers\Api\EcommercePaymentLinkController;
 use App\Http\Controllers\Api\StorefrontController;
 use App\Http\Controllers\Api\StorefrontDomainController;
 use App\Http\Controllers\Api\StorefrontHostController;
@@ -239,6 +241,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/sitemap', [StoreCatalogController::class, 'sitemap'])->name('api.stores.sitemap');
         // Phase D5: an order's own page, by its link's key.
         Route::get('/orders/{key}', [StoreOrderController::class, 'show'])->where('key', '[a-f0-9]{64}')->name('api.stores.orders.show');
+        // Phase F6a: a payment link's page, by the token it carries.
+        Route::get('/pay/{token}', [StorePaymentLinkController::class, 'show'])->where('token', '[a-f0-9]{64}')->name('api.stores.pay.show');
         // Phase E1: a customer's account - signing up, verifying the e-mail, signing in and a forgotten password -
         // and, signed in by its own token (X-Customer-Token), the account itself. What sends an e-mail is held to
         // ten a minute from one address, on a key of its own (the prefix), apart from the group's.
@@ -1282,6 +1286,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/{id}/products/offered', [EcommerceOrderEditController::class, 'offered'])->whereNumber('id')->name('api.ecommerce.orders.products.offered');
         Route::put('/{id}/products', [EcommerceOrderEditController::class, 'products'])->whereNumber('id')->name('api.ecommerce.orders.products');
         Route::put('/{id}/discount', [EcommerceOrderEditController::class, 'discount'])->whereNumber('id')->name('api.ecommerce.orders.discount');
+        // Phase F6a: its payment links - what sending one would ask, sending it, and revoking one still active.
+        Route::get('/{id}/payment-link', [EcommercePaymentLinkController::class, 'review'])->whereNumber('id')->name('api.ecommerce.orders.payment-link');
+        Route::post('/{id}/payment-links', [EcommercePaymentLinkController::class, 'send'])->whereNumber('id')->middleware('idempotent')->name('api.ecommerce.orders.payment-links.store');
+        Route::post('/{id}/payment-links/{link}/revoke', [EcommercePaymentLinkController::class, 'revoke'])->whereNumber(['id', 'link'])->name('api.ecommerce.orders.payment-links.revoke');
     });
 
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm')->group(function () {
