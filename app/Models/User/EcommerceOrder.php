@@ -158,6 +158,13 @@ class EcommerceOrder extends Model
      */
     public ?array $reviewNotes = null;
 
+    /**
+     * Phase G3b: whether its customer must be signed in to their account to
+     * download its digital products (Settings → eCommerce) - for its own page
+     * in the store, as the page's service sets it. Not a column: never saved.
+     */
+    public bool $downloadsNeedAccount = false;
+
     protected $casts = [
         'storefront_id'               => 'integer',
         'ecommerce_cart_id'           => 'integer',

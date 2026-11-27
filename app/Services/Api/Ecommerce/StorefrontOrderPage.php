@@ -4,6 +4,7 @@ namespace App\Services\Api\Ecommerce;
 
 use App\Models\User\EcommerceOrder;
 use App\Repositories\User\EcommerceOrderRepository;
+use App\Repositories\User\EcommerceSettingRepository;
 use App\Repositories\User\StorefrontCatalogRepository;
 use App\Services\Shared\ActivityLogService;
 
@@ -19,6 +20,7 @@ class StorefrontOrderPage
     public function __construct(
         protected StorefrontCatalogRepository $catalog,
         protected EcommerceOrderRepository $orders,
+        protected EcommerceSettingRepository $settings,
     ) {}
 
     public function show(string $code, string $key): EcommerceOrder
@@ -27,6 +29,11 @@ class StorefrontOrderPage
 
         ActivityLogService::skipForThisRequest();
 
-        return $this->orders->forCustomer($storefront, hash('sha256', $key)) ?? abort(404, 'There is no such order. Check the link you were sent.');
+        $order = $this->orders->forCustomer($storefront, hash('sha256', $key)) ?? abort(404, 'There is no such order. Check the link you were sent.');
+
+        // Phase G3b: whether its downloads need the customer signed in to their account.
+        $order->downloadsNeedAccount = (bool) $this->settings->forWorkspace($order->workspace)->downloads_need_account;
+
+        return $order;
     }
 }

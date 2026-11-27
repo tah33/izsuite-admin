@@ -222,7 +222,7 @@ class EcommerceOrderDeliveriesTest extends TestCase
         $this->act($waiting, 'Consultation', 'revoke', ['reason' => 'No.'])->assertStatus(409)->assertJsonPath('message', 'Consultation is a service: there is no access to revoke.');
         $this->getJson(self::STORE.'/orders/'.$this->keys[$waiting->id])->assertJsonPath('data.deliverables.0', [
             'title' => 'Consultation', 'options' => [], 'quantity' => 1, 'kind' => 'service', 'method' => null, 'state' => 'performed',
-            'license_keys' => [], 'note' => 'Two hours, by video.', 'instructions' => null, 'performed_on' => self::TODAY,
+            'license_keys' => [], 'note' => 'Two hours, by video.', 'instructions' => null, 'performed_on' => self::TODAY, 'download' => null,
         ]);
 
         // Paid after: completed.

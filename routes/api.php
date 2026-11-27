@@ -95,6 +95,7 @@ use App\Http\Controllers\Api\StoreAccountOrderController;
 use App\Http\Controllers\Api\StoreCartController;
 use App\Http\Controllers\Api\StoreCheckoutController;
 use App\Http\Controllers\Api\StoreOrderController;
+use App\Http\Controllers\Api\StoreOrderDownloadController;
 use App\Http\Controllers\Api\StorePaymentLinkController;
 use App\Http\Controllers\Api\StoreCatalogController;
 use App\Http\Controllers\Api\StorefrontPageController;
@@ -243,6 +244,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/sitemap', [StoreCatalogController::class, 'sitemap'])->name('api.stores.sitemap');
         // Phase D5: an order's own page, by its link's key.
         Route::get('/orders/{key}', [StoreOrderController::class, 'show'])->where('key', '[a-f0-9]{64}')->name('api.stores.orders.show');
+        // Phase G3b: a delivered digital product's file downloaded from the order's own page.
+        Route::post('/orders/{key}/downloads/{delivery}/{file}', [StoreOrderDownloadController::class, 'byKey'])->where('key', '[a-f0-9]{64}')->whereNumber(['delivery', 'file'])->name('api.stores.orders.downloads');
         // Phase F6a: a payment link's page, by the token it carries - and (Phase F6b) its customer saying they paid through it.
         Route::get('/pay/{token}', [StorePaymentLinkController::class, 'show'])->where('token', '[a-f0-9]{64}')->name('api.stores.pay.show');
         Route::post('/pay/{token}', [StorePaymentLinkController::class, 'report'])->where('token', '[a-f0-9]{64}')->name('api.stores.pay.report');
@@ -264,6 +267,8 @@ Route::prefix('v1')->group(function () {
             // Phase E2: the account's orders, and its saved addresses.
             Route::get('/account/orders', [StoreAccountOrderController::class, 'index'])->name('api.stores.account.orders.index');
             Route::get('/account/orders/{order}', [StoreAccountOrderController::class, 'show'])->whereNumber('order')->name('api.stores.account.orders.show');
+            // Phase G3b: a delivered digital product's file downloaded from the account's order page.
+            Route::post('/account/orders/{order}/downloads/{delivery}/{file}', [StoreOrderDownloadController::class, 'ofAccount'])->whereNumber(['order', 'delivery', 'file'])->name('api.stores.account.orders.downloads');
             Route::get('/account/addresses', [StoreAccountAddressController::class, 'index'])->name('api.stores.account.addresses.index');
             Route::post('/account/addresses', [StoreAccountAddressController::class, 'store'])->name('api.stores.account.addresses.store');
             Route::put('/account/addresses/{address}', [StoreAccountAddressController::class, 'update'])->whereNumber('address')->name('api.stores.account.addresses.update');
@@ -1306,6 +1311,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/{id}/lines/{line}/deliver', [EcommerceOrderDeliveryController::class, 'deliver'])->whereNumber(['id', 'line'])->middleware('idempotent')->name('api.ecommerce.orders.lines.deliver');
         Route::post('/{id}/lines/{line}/perform', [EcommerceOrderDeliveryController::class, 'perform'])->whereNumber(['id', 'line'])->middleware('idempotent')->name('api.ecommerce.orders.lines.perform');
         Route::post('/{id}/lines/{line}/revoke', [EcommerceOrderDeliveryController::class, 'revoke'])->whereNumber(['id', 'line'])->middleware('idempotent')->name('api.ecommerce.orders.lines.revoke');
+        // Phase G3b: a delivered download given more.
+        Route::post('/{id}/lines/{line}/renew', [EcommerceOrderDeliveryController::class, 'renew'])->whereNumber(['id', 'line'])->middleware('idempotent')->name('api.ecommerce.orders.lines.renew');
     });
 
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm')->group(function () {

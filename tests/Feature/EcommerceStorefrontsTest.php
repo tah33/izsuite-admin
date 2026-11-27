@@ -101,6 +101,8 @@ class EcommerceStorefrontsTest extends TestCase
             ->assertExactJson(['data' => [
                 'guest_checkout' => true, 'verify_customer_email' => true, 'price_display' => 'with_tax', 'order_prefix' => 'EC-', 'cookie_notice' => true, 'cookie_notice_text' => null, 'cart_days' => 30,
                 'checkout_phone' => 'required', 'checkout_notes' => true, 'review_above' => null, 'hold_for_review' => false, 'payment_link_days' => 7, 'partial_payments' => false,
+                // Phase G3b: downloads work 30 days, each file 5 times, without an account.
+                'download_days' => 30, 'download_limit' => 5, 'downloads_need_account' => false,
             ]]);
 
         $this->putJson(self::SETTINGS, ['guest_checkout' => false, 'verify_customer_email' => true, 'price_display' => 'without_tax', 'order_prefix' => ' web/ '])->assertOk()

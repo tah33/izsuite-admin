@@ -25,6 +25,12 @@ class EcommerceOrderDeliveryRepository
         ]);
     }
 
+    /** Phase G3b: $order's delivery $id, locked, so its downloads are counted once - none when it is not the order's. */
+    public function lockFor(EcommerceOrder $order, int $id): ?EcommerceOrderDelivery
+    {
+        return EcommerceOrderDelivery::query()->where('ecommerce_order_id', $order->id)->lockForUpdate()->find($id);
+    }
+
     /** All of $order's, keyed by their order line. */
     public function ofOrder(EcommerceOrder $order): Collection
     {

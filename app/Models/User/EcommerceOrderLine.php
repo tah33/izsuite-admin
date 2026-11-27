@@ -2,8 +2,10 @@
 
 namespace App\Models\User;
 
+use App\Enums\FileCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Collection;
 
 /**
  * A line of an online order (Doc 19 Phase D4): a product bought - its
@@ -93,6 +95,12 @@ class EcommerceOrderLine extends Model
     public function isService(): bool
     {
         return $this->item?->type === Item::TYPE_SERVICE;
+    }
+
+    /** Phase G3b: its item's Digital Files, from its item's files, loaded - in the order they were added. */
+    public function digitalFiles(): Collection
+    {
+        return ($this->item?->files ?? collect())->filter(fn (WorkspaceFile $file) => $file->collection === FileCollection::DigitalFiles)->sortBy('id')->values();
     }
 
     /** Phase G3a: how its item delivers it, as a digital product - by hand when the item says nothing. */

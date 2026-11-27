@@ -26,6 +26,11 @@ class EcommerceSettingsResource extends JsonResource
             // Phase F6a: how many days a payment link works, and whether one may ask less than an order owes.
             'payment_link_days'     => (int) $this->payment_link_days,
             'partial_payments'      => (bool) $this->partial_payments,
+            // Phase G3b: for how many days a delivered download works and how many times each file (null: no limit), and
+            // whether downloading needs the customer signed in to their account.
+            'download_days'          => $this->download_days,
+            'download_limit'         => $this->download_limit,
+            'downloads_need_account' => (bool) $this->downloads_need_account,
         ];
     }
 }

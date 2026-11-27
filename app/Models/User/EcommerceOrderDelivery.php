@@ -4,6 +4,7 @@ namespace App\Models\User;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * One of an online order's digital products delivered, or a service
@@ -12,7 +13,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * its item said when the order was paid - a download or an external link at
  * once, a license key or a delivery by hand once the business gives it, so
  * Waiting until then - and may be Revoked by hand, then given again. A
- * service is Performed on a day. The license keys are kept encrypted.
+ * service is Performed on a day. The license keys are kept encrypted. From
+ * Phase G3b a download keeps its terms - until when it works and how many
+ * times each file, as Settings → eCommerce said when it was delivered or
+ * given more - and its downloads.
  */
 class EcommerceOrderDelivery extends Model
 {
@@ -59,6 +63,10 @@ class EcommerceOrderDelivery extends Model
         'revoked_at',
         'revoked_by',
         'revoke_reason',
+        // Phase G3b: a download's terms - until when it works, how many times each file, and when its count starts.
+        'expires_at',
+        'download_limit',
+        'counted_from',
     ];
 
     protected $casts = [
@@ -70,6 +78,9 @@ class EcommerceOrderDelivery extends Model
         'delivered_by'            => 'integer',
         'revoked_at'              => 'datetime',
         'revoked_by'              => 'integer',
+        'expires_at'              => 'datetime',
+        'download_limit'          => 'integer',
+        'counted_from'            => 'datetime',
     ];
 
     /** Delivered, revoked after it was, or performed: it reached the customer. */
@@ -92,9 +103,28 @@ class EcommerceOrderDelivery extends Model
         };
     }
 
+    /** Phase G3b: how many times its file $fileId was downloaded since its count started - from its downloads, loaded. */
+    public function usedOf(int $fileId): int
+    {
+        return $this->downloads->filter(fn (EcommerceOrderDownload $download) => $download->workspace_file_id === $fileId
+            && ($this->counted_from === null || $download->downloaded_at->greaterThanOrEqualTo($this->counted_from)))->count();
+    }
+
+    /** Phase G3b: how many more times its file $fileId may be downloaded - null for no limit. */
+    public function leftOf(int $fileId): ?int
+    {
+        return $this->download_limit === null ? null : max(0, $this->download_limit - $this->usedOf($fileId));
+    }
+
     public function order(): BelongsTo
     {
         return $this->belongsTo(EcommerceOrder::class, 'ecommerce_order_id');
+    }
+
+    /** Phase G3b: its downloads, the latest first. */
+    public function downloads(): HasMany
+    {
+        return $this->hasMany(EcommerceOrderDownload::class)->orderByDesc('downloaded_at')->orderByDesc('id');
     }
 
     public function line(): BelongsTo

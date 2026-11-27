@@ -11,6 +11,7 @@ use App\Models\User\EcommerceOrderDelivery;
 use App\Repositories\User\EcommerceFulfilmentRepository;
 use App\Repositories\User\EcommerceOrderDeliveryRepository;
 use App\Repositories\User\EcommerceOrderRepository;
+use App\Repositories\User\EcommerceSettingRepository;
 use App\Services\Documents\DocumentFormat;
 use App\Services\Shared\BusinessCalendar;
 use App\Support\AddressFormat;
@@ -38,6 +39,7 @@ class StoreOrderMailer
         protected BusinessCalendar $calendar,
         protected EcommerceFulfilmentRepository $fulfilments,
         protected EcommerceOrderDeliveryRepository $deliveries,
+        protected EcommerceSettingRepository $settings,
     ) {}
 
     /**
@@ -243,6 +245,11 @@ class StoreOrderMailer
         $lines      = $order->lines->whereIn('id', $service ? [$details['line'] ?? 0] : ($details['lines'] ?? []))->values();
         $performed  = $service ? $deliveries->get($lines->first()?->id)?->performed_on : null;
         $day        = $performed ? $format->date($performed->toDateString()) : null;
+        // Phase G3b: a download's terms in words - signed in where the settings ask, until its last day, so many times a file.
+        $account    = $this->settings->forWorkspace($workspace)->downloads_need_account;
+        $terms      = fn (EcommerceOrderDelivery $delivery) => ($account ? ', signed in to your account' : '')
+            .($delivery->expires_at ? ' until '.$format->date($delivery->expires_at->copy()->setTimezone($this->calendar->timezone($workspace))->toDateString()) : '')
+            .($delivery->download_limit ? ', '.($delivery->download_limit === 1 ? 'once' : "{$delivery->download_limit} times").' for each file' : '');
 
         return [
             'lines'          => $lines->map(fn (EcommerceOrderLine $line) => [
@@ -256,14 +263,14 @@ class StoreOrderMailer
             'delivery_title' => $service ? "Performed on {$day}" : ($lines->count() > 1 ? 'How you get them' : 'How you get it'),
             'delivery'       => $service
                 ? (string) ($deliveries->get($lines->first()?->id)?->note ?? '')
-                : implode("\n\n", $lines->map(fn (EcommerceOrderLine $line) => $this->handedOver($line, $deliveries->get($line->id)))->all()),
+                : implode("\n\n", $lines->map(fn (EcommerceOrderLine $line) => $this->handedOver($line, $deliveries->get($line->id), $terms))->all()),
             'payment_shown'  => $service && $order->payment_status !== EcommerceOrder::PAID,
             'instructions'   => null,
         ];
     }
 
-    /** Phase G3a: what a delivered digital product gives its customer, in words - nothing once its access is revoked. */
-    private function handedOver(EcommerceOrderLine $line, ?EcommerceOrderDelivery $delivery): string
+    /** Phase G3a: what a delivered digital product gives its customer, in words - nothing once its access is revoked; (G3b) a download's $terms. */
+    private function handedOver(EcommerceOrderLine $line, ?EcommerceOrderDelivery $delivery, \Closure $terms): string
     {
         if ($delivery?->status !== EcommerceOrderDelivery::DELIVERED) {
             return "{$line->title}: no longer available.";
@@ -273,7 +280,7 @@ class StoreOrderMailer
 
         return implode("\n", array_filter([
             match ($delivery->method) {
-                EcommerceOrderDelivery::DOWNLOAD    => "{$line->title}: ready to download from your order's page.",
+                EcommerceOrderDelivery::DOWNLOAD    => "{$line->title}: ready to download from your order's page{$terms($delivery)}.",
                 EcommerceOrderDelivery::LICENSE_KEY => "{$line->title} - your license ".(count($keys) > 1 ? 'keys' : 'key').":\n".implode("\n", $keys),
                 default                             => "{$line->title}:",
             },

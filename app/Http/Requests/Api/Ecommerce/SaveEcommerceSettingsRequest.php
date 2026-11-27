@@ -10,7 +10,8 @@ use Illuminate\Validation\Rule;
  * Settings → eCommerce (Doc 19 Phase A1): guest checkout, whether a
  * customer's e-mail is verified first, prices shown with tax or without it,
  * and the prefix of the online orders' numbers - and, from Phase C6b, the
- * storefronts' cookie notice, kept as it is when not sent.
+ * storefronts' cookie notice, kept as it is when not sent. Phase G3b adds the
+ * downloads' days and count, each empty for no limit, and their account.
  */
 class SaveEcommerceSettingsRequest extends FormRequest
 {
@@ -39,6 +40,10 @@ class SaveEcommerceSettingsRequest extends FormRequest
             // Phase F6a: payment links.
             'payment_link_days'     => ['sometimes', 'integer', 'min:1', 'max:90'],
             'partial_payments'      => ['sometimes', 'boolean'],
+            // Phase G3b: downloads - their days and count, each empty for no limit, and whether an account is needed.
+            'download_days'          => ['sometimes', 'nullable', 'integer', 'min:1', 'max:3650'],
+            'download_limit'         => ['sometimes', 'nullable', 'integer', 'min:1', 'max:1000'],
+            'downloads_need_account' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -50,6 +55,10 @@ class SaveEcommerceSettingsRequest extends FormRequest
             'cookie_notice_text.max' => 'Keep the notice to 300 characters.',
             'cart_days.min'          => 'Keep carts for a day at least.',
             'cart_days.max'          => 'Keep carts for up to 365 days.',
+            'download_days.min'      => 'Let downloads work for a day at least - or leave it empty for no limit.',
+            'download_days.max'      => 'Let downloads work for up to 3650 days - or leave it empty for no limit.',
+            'download_limit.min'     => 'Allow each file once at least - or leave it empty for no limit.',
+            'download_limit.max'     => 'Allow each file up to 1000 times - or leave it empty for no limit.',
         ];
     }
 }

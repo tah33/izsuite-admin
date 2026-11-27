@@ -6,10 +6,12 @@ use App\Models\User\EcommerceFulfilment;
 use App\Models\User\EcommerceFulfilmentLine;
 use App\Models\User\EcommerceOrder;
 use App\Models\User\EcommerceOrderDelivery;
+use App\Models\User\EcommerceOrderDownload;
 use App\Models\User\EcommerceOrderEmail;
 use App\Models\User\EcommerceOrderLine;
 use App\Models\User\EcommercePaymentLink;
 use App\Models\User\SalesPayment;
+use App\Models\User\WorkspaceFile;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -172,6 +174,20 @@ class EcommerceOrderResource extends JsonResource
                     'revoked_at'    => $delivery?->revoked_at?->toIso8601String(),
                     'revoked_by'    => $delivery?->revoked_at ? ($delivery->revoker?->name ?? 'A former member') : null,
                     'revoke_reason' => $delivery?->revoke_reason,
+                    // Phase G3b: a download's terms, its files with how many times each was downloaded since its count
+                    // started, and its latest downloads - when, which file, from where, and whether signed in.
+                    'download'      => $delivery?->method === EcommerceOrderDelivery::DOWNLOAD && $delivery->status !== EcommerceOrderDelivery::WAITING ? [
+                        'until'  => $delivery->expires_at?->toIso8601String(),
+                        'limit'  => $delivery->download_limit,
+                        'files'  => $line->digitalFiles()->map(fn (WorkspaceFile $file) => ['name' => $file->name, 'used' => $delivery->usedOf($file->id)])->values(),
+                        'latest' => $delivery->downloads->take(10)->map(fn (EcommerceOrderDownload $download) => [
+                            'at'      => $download->downloaded_at->toIso8601String(),
+                            'file'    => $download->file_name,
+                            'ip'      => $download->ip_address,
+                            'account' => $download->storefront_customer_id !== null,
+                        ])->values(),
+                        'total'  => $delivery->downloads->count(),
+                    ] : null,
                 ];
             })->values(),
             // Phase F5b: the discount given - a percentage of its products, or an amount - and why.

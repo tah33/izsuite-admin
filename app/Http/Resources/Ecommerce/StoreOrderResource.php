@@ -7,6 +7,7 @@ use App\Models\User\EcommerceFulfilmentLine;
 use App\Models\User\EcommerceOrder;
 use App\Models\User\EcommerceOrderDelivery;
 use App\Models\User\EcommerceOrderLine;
+use App\Models\User\WorkspaceFile;
 use App\Services\Documents\DocumentLinks;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -107,6 +108,19 @@ class StoreOrderResource extends JsonResource
                     'note'         => $open || $state === EcommerceOrderDelivery::PERFORMED ? $delivery->note : null,
                     'instructions' => $open ? $line->item?->delivery_instructions : null,
                     'performed_on' => $delivery?->performed_on?->toDateString(),
+                    // Phase G3b: a delivered download's files, each with how many more times it may be downloaded (null: no
+                    // limit), until when, and whether the customer must be signed in to their account for it.
+                    'download'     => $open && $delivery->method === EcommerceOrderDelivery::DOWNLOAD ? [
+                        'id'            => $delivery->id,
+                        'until'         => $delivery->expires_at?->toIso8601String(),
+                        'needs_account' => $order->downloadsNeedAccount,
+                        'files'         => $line->digitalFiles()->map(fn (WorkspaceFile $file) => [
+                            'id'   => $file->id,
+                            'name' => $file->name,
+                            'size' => $file->size,
+                            'left' => $delivery->leftOf($file->id),
+                        ])->values(),
+                    ] : null,
                 ];
             })->values(),
         ];

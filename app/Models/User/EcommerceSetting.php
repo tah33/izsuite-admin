@@ -42,6 +42,11 @@ class EcommerceSetting extends Model
         // Phase F6a: how many days a payment link works (7 to start), and whether one may ask less than is owed (off).
         'payment_link_days',
         'partial_payments',
+        // Phase G3b: for how many days a delivered download works (30) and how many times each file (5) - null for no
+        // limit - and whether downloading needs the customer signed in to their account (off).
+        'download_days',
+        'download_limit',
+        'downloads_need_account',
     ];
 
     protected $casts = [
@@ -54,6 +59,9 @@ class EcommerceSetting extends Model
         'hold_for_review'       => 'boolean',
         'payment_link_days'     => 'integer',
         'partial_payments'      => 'boolean',
+        'download_days'         => 'integer',
+        'download_limit'        => 'integer',
+        'downloads_need_account' => 'boolean',
     ];
 
     // The columns' defaults, so settings never saved read as they would be.
@@ -69,6 +77,9 @@ class EcommerceSetting extends Model
         'hold_for_review'       => false,
         'payment_link_days'     => 7,
         'partial_payments'      => false,
+        'download_days'         => 30,
+        'download_limit'        => 5,
+        'downloads_need_account' => false,
     ];
 
     public function workspace(): BelongsTo

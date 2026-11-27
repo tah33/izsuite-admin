@@ -32,7 +32,7 @@ class EcommerceOrderRepository
     private const CUSTOMER_FULFILMENTS = ['fulfilments.lines'];
 
     /** Phase G3a: its digital products and services as its customer is shown them - each line's item, for how it is delivered, and its delivery. */
-    private const CUSTOMER_DELIVERIES = ['lines.item', 'deliveries'];
+    private const CUSTOMER_DELIVERIES = ['lines.item.files', 'deliveries.downloads'];
 
     /** Made through the storefront, so its business is never read from $data; its lines with it. */
     public function create(Storefront $storefront, array $data, array $lines): EcommerceOrder
@@ -171,7 +171,7 @@ class EcommerceOrderRepository
                 // Phase G1: its shipments or pickup, with what each holds, from where and by whom.
                 'fulfilments.lines', 'fulfilments.location:id,name', 'fulfilments.creator:id,first_name,last_name',
                 // Phase G3a: each line's item, for how it is delivered, and its digital products' and services' deliveries, by whom.
-                'lines.item', 'deliveries.deliverer:id,first_name,last_name', 'deliveries.revoker:id,first_name,last_name',
+                'lines.item.files', 'deliveries.downloads', 'deliveries.deliverer:id,first_name,last_name', 'deliveries.revoker:id,first_name,last_name',
             ])
             ->find($id);
     }

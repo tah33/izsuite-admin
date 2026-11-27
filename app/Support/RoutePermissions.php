@@ -524,6 +524,8 @@ final class RoutePermissions
             'api.ecommerce.orders.lines.deliver'         => 'ecommerce.fulfilment.manage',
             'api.ecommerce.orders.lines.perform'         => 'ecommerce.fulfilment.manage',
             'api.ecommerce.orders.lines.revoke'          => 'ecommerce.fulfilment.manage',
+            // Phase G3b: a delivered download given more.
+            'api.ecommerce.orders.lines.renew'           => 'ecommerce.fulfilment.manage',
             // Doc 18 Phase A2: POS registers.
             'api.pos.registers.index'   => 'pos.registers.view',
             'api.pos.registers.options' => 'pos.registers.manage',

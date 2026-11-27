@@ -10,6 +10,7 @@ use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\EcommerceOrderDeliveryRepository;
 use App\Repositories\User\EcommerceOrderRepository;
+use App\Repositories\User\EcommerceSettingRepository;
 use App\Services\Api\Sales\RefusesConflicts;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Shared\BusinessCalendar;
@@ -32,7 +33,11 @@ use Illuminate\Validation\ValidationException;
  * - perform(): a service performed on a day, with a note to the customer if
  *   wanted, once the order is confirmed - paid or not, as a shipment;
  * - revoke(): a delivered product's access withdrawn, with why, for the
- *   business alone; the customer is not e-mailed.
+ *   business alone; the customer is not e-mailed;
+ * - renew() (Phase G3b): a delivered download's days and count afresh.
+ *
+ * A download is delivered with its terms (Phase G3b): until when it works and
+ * how many times each file, as Settings → eCommerce says at the time.
  *
  * Each moves the order's fulfilment and status (EcommerceOrderProgress) and
  * is in its timeline. Nothing moves stock, and nothing is a sale of its own.
@@ -48,6 +53,7 @@ class EcommerceOrderDeliveries
         protected EcommerceOrderProgress $progress,
         protected StoreOrderMailer $mailer,
         protected BusinessCalendar $calendar,
+        protected EcommerceSettingRepository $settings,
     ) {}
 
     /**
@@ -78,6 +84,8 @@ class EcommerceOrderDeliveries
                 'method'       => $method,
                 'status'       => $atOnce ? EcommerceOrderDelivery::DELIVERED : EcommerceOrderDelivery::WAITING,
                 'delivered_at' => $atOnce ? now() : null,
+                // Phase G3b: a download's days and count, as the settings say now.
+                ...($method === EcommerceOrderDelivery::DOWNLOAD ? $this->downloadTerms($order) : []),
             ]);
 
             if ($atOnce) {
@@ -134,6 +142,8 @@ class EcommerceOrderDeliveries
                 'revoked_at'    => null,
                 'revoked_by'    => null,
                 'revoke_reason' => null,
+                // Phase G3b: a download given again starts afresh, as the settings say now.
+                ...($method === EcommerceOrderDelivery::DOWNLOAD ? $this->downloadTerms($order) : []),
             ];
 
             $delivery
@@ -225,6 +235,48 @@ class EcommerceOrderDeliveries
         });
 
         return $this->orderService->page($workspace, $id);
+    }
+
+    /**
+     * Phase G3b: a delivered download given more - its days and its count
+     * afresh, as Settings → eCommerce says now; the downloads before stay on
+     * record but no longer count. The customer is e-mailed it is ready again.
+     */
+    public function renew(Workspace $workspace, int $id, int $lineId): EcommerceOrder
+    {
+        $found = $this->orderService->find($workspace, $id);
+
+        DB::transaction(function () use ($found, $lineId) {
+            [$order, $line, $delivery] = $this->locked($found, $lineId);
+
+            if ($delivery?->method !== EcommerceOrderDelivery::DOWNLOAD || $delivery->status !== EcommerceOrderDelivery::DELIVERED) {
+                $this->refuse("{$line->title} of order {$order->number} is not a delivered download: there are no downloads to give.");
+            }
+
+            $this->deliveries->update($delivery, $this->downloadTerms($order));
+
+            $this->mailer->queue($order, EcommerceOrderEmail::DIGITAL_DELIVERED, null, ['lines' => [$line->id]]);
+
+            ActivityLogService::record('updated', "Gave more downloads of {$line->title} of {$this->describe($order)}", $order, ['source' => 'api']);
+        });
+
+        return $this->orderService->page($workspace, $id);
+    }
+
+    /**
+     * Phase G3b: a download's terms from now, as Settings → eCommerce says:
+     * it works to the end of its last day where the business is - none for no
+     * limit - each file so many times, its count starting now.
+     */
+    private function downloadTerms(EcommerceOrder $order): array
+    {
+        $settings = $this->settings->forWorkspace($order->workspace);
+
+        return [
+            'expires_at'     => $settings->download_days ? $this->calendar->today($order->workspace)->addDays($settings->download_days)->endOfDay()->setTimezone(config('app.timezone')) : null,
+            'download_limit' => $settings->download_limit,
+            'counted_from'   => now(),
+        ];
     }
 
     /** $order locked, its product $lineId that does not ship, and that product's delivery - the order neither cancelled nor on hold. */

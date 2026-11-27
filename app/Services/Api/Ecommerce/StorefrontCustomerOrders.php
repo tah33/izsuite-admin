@@ -5,6 +5,7 @@ namespace App\Services\Api\Ecommerce;
 use App\Models\User\EcommerceOrder;
 use App\Models\User\StorefrontCustomer;
 use App\Repositories\User\EcommerceOrderRepository;
+use App\Repositories\User\EcommerceSettingRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
@@ -20,6 +21,7 @@ class StorefrontCustomerOrders
 
     public function __construct(
         protected EcommerceOrderRepository $orders,
+        protected EcommerceSettingRepository $settings,
     ) {}
 
     public function page(StorefrontCustomer $customer): LengthAwarePaginator
@@ -29,6 +31,11 @@ class StorefrontCustomerOrders
 
     public function show(StorefrontCustomer $customer, int $id): EcommerceOrder
     {
-        return $this->orders->findOfAccount($customer, $id) ?? abort(404, 'There is no such order in your account.');
+        $order = $this->orders->findOfAccount($customer, $id) ?? abort(404, 'There is no such order in your account.');
+
+        // Phase G3b: whether its downloads need the customer signed in - as they are here.
+        $order->downloadsNeedAccount = (bool) $this->settings->forWorkspace($order->workspace)->downloads_need_account;
+
+        return $order;
     }
 }
