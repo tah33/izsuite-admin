@@ -80,6 +80,33 @@ class EcommerceDiscountsTest extends TestCase
             ->assertJsonPath('data.state', 'inactive');
     }
 
+    public function test_an_automatic_discount_has_no_code_and_each_a_priority_and_whether_it_goes_with_others(): void
+    {
+        // Phase H2a: given automatically, a code sent is not kept; a priority of 1 and alone to start.
+        $this->postJson(self::DISCOUNTS, $this->fields(['name' => 'Weekend Sale', 'automatic' => true]))->assertCreated()
+            ->assertJsonPath('message', 'Discount Weekend Sale added.')
+            ->assertJsonPath('data.code', null)
+            ->assertJsonPath('data.automatic', true)
+            ->assertJsonPath('data.priority', 1)
+            ->assertJsonPath('data.combines', false);
+        $this->postJson(self::DISCOUNTS, $this->fields(['name' => 'Members', 'automatic' => true, 'priority' => 2, 'combines' => true]))->assertCreated()
+            ->assertJsonPath('data.priority', 2)
+            ->assertJsonPath('data.combines', true);
+
+        // A code is still needed when it is not automatic; a priority from 1 to 99.
+        $this->postJson(self::DISCOUNTS, $this->fields(['code' => null]))->assertUnprocessable()->assertJsonPath('errors.code.0', 'Give its code: what customers type at checkout.');
+        $this->postJson(self::DISCOUNTS, $this->fields(['priority' => 0]))->assertUnprocessable()->assertJsonPath('errors.priority.0', 'Give a priority from 1 to 99: 1 is taken first.');
+
+        // Searched by its name; made a code, and back.
+        $weekend = EcommerceDiscount::where('name', 'Weekend Sale')->sole();
+        $this->getJson(self::DISCOUNTS.'?search=weekend')->assertOk()->assertJsonPath('data.*.name', ['Weekend Sale']);
+        $this->putJson(self::DISCOUNTS."/{$weekend->id}", $this->fields(['name' => 'Weekend Sale', 'code' => 'weekend']))->assertOk()->assertJsonPath('data.code', 'WEEKEND')->assertJsonPath('data.automatic', false);
+        $this->putJson(self::DISCOUNTS."/{$weekend->id}", $this->fields(['name' => 'Weekend Sale', 'automatic' => true]))->assertOk()
+            ->assertJsonPath('message', 'Discount Weekend Sale saved.')
+            ->assertJsonPath('data.code', null);
+        $this->assertDatabaseHas('activity_logs', ['description' => 'Changed the discount Weekend Sale (automatic)']);
+    }
+
     public function test_a_discount_is_deleted_until_used_then_deactivated(): void
     {
         $unused = $this->postJson(self::DISCOUNTS, $this->fields())->json('data.id');
@@ -91,7 +118,7 @@ class EcommerceDiscountsTest extends TestCase
         // A mug ($8) shipped by Standard ($5), 10% off its products: $12.20.
         $this->place($this->cartWith(['ceramic-mug' => 1]), $this->order('12.20', ['discount_code' => 'used']))->assertCreated();
         Sanctum::actingAs($this->user);
-        $this->assertSame($used, EcommerceOrder::sole()->ecommerce_discount_id);
+        $this->assertSame($used, EcommerceOrder::sole()->promotions()->value('ecommerce_discount_id'));
 
         $this->deleteJson(self::DISCOUNTS."/{$used}")->assertOk()->assertJsonPath('message', 'The discount was used on orders, so it is kept with them: it is deactivated instead.');
         $this->assertFalse(EcommerceDiscount::find($used)->is_active);

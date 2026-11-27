@@ -34,6 +34,10 @@ class EcommerceDiscountResource extends JsonResource
             'ends_on'            => $discount->ends_on?->toDateString(),
             'usage_limit'        => $discount->usage_limit,
             'per_customer_limit' => $discount->per_customer_limit,
+            // Phase H2a: given without a code; its priority (1 first) and whether it goes with other discounts.
+            'automatic'          => $discount->isAutomatic(),
+            'priority'           => $discount->priority,
+            'combines'           => $discount->combines,
             'is_active'          => $discount->is_active,
             'uses'               => (int) $discount->uses,
             'state'              => $discount->currentState,

@@ -141,8 +141,7 @@ class StoreOrderMailer
             'totals'         => array_filter([
                 'Products'                                                    => $money($order->subtotal),
                 'Delivery'                                                    => $order->delivery === EcommerceOrder::SHIPPING ? (($delivery['quoted'] ?? false) ? 'Quoted later' : $money($order->shipping_total)) : null,
-                // Phase F5b: a discount the business gave - never why. Phase H1: a discount code's, with its code.
-                ($order->discountCode() ? "Discount ({$order->discountCode()})" : 'Discount') => bccomp((string) $order->discount_total, '0', 2) > 0 ? '−'.$money($order->discount_total) : null,
+                ...$this->discountRows($order, $money),
                 ($order->prices_include_tax ? 'Of which tax' : 'Tax')         => $order->prices_include_tax === null ? null : $money($order->tax_total),
                 'Total'                                                       => $money($order->grand_total),
             ]),
@@ -300,6 +299,35 @@ class StoreOrderMailer
             $type === 'pay_on_pickup'                                                       => "You pay {$owed} when you collect it.",
             default                                                                         => "You pay {$owed} on delivery.",
         };
+    }
+
+    /**
+     * The totals' discount rows: Phase F5b's discount the business gave -
+     * never why - or (Phases H1 and H2a) each discount the order took, by its
+     * name, a code's with its code, while its discount is theirs.
+     *
+     * @return array<string, ?string>
+     */
+    private function discountRows(EcommerceOrder $order, \Closure $money): array
+    {
+        if (bccomp((string) $order->discount_total, '0', 2) <= 0) {
+            return [];
+        }
+
+        $rows = [];
+
+        foreach ($order->promotionsShown() as $promotion) {
+            $label = $promotion['name'].($promotion['code'] ? " ({$promotion['code']})" : '');
+
+            // Two of one name stay two rows.
+            while (array_key_exists($label, $rows)) {
+                $label .= ' ';
+            }
+
+            $rows[$label] = '−'.$money($promotion['off']);
+        }
+
+        return $rows ?: ['Discount' => '−'.$money($order->discount_total)];
     }
 
     /** An address on one line per part, as its country writes it. */

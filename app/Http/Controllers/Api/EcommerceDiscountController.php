@@ -40,7 +40,7 @@ class EcommerceDiscountController extends Controller
         try {
             $discount = $this->discounts->create($this->currentWorkspace($request), $request->user(), $request->validated());
 
-            return response()->json(['message' => "Discount {$discount->code} added.", 'data' => new EcommerceDiscountResource($discount)], 201);
+            return response()->json(['message' => 'Discount '.($discount->code ?? $discount->name).' added.', 'data' => new EcommerceDiscountResource($discount)], 201);
 
         } catch (\Throwable $e) {
             report($e);
@@ -53,7 +53,7 @@ class EcommerceDiscountController extends Controller
         try {
             $discount = $this->discounts->update($this->currentWorkspace($request), $id, $request->validated());
 
-            return response()->json(['message' => "Discount {$discount->code} saved.", 'data' => new EcommerceDiscountResource($discount)]);
+            return response()->json(['message' => 'Discount '.($discount->code ?? $discount->name).' saved.', 'data' => new EcommerceDiscountResource($discount)]);
 
         } catch (\Throwable $e) {
             report($e);

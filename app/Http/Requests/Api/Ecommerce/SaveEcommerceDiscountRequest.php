@@ -25,7 +25,9 @@ class SaveEcommerceDiscountRequest extends FormRequest
 
         return [
             'name'               => ['required', 'string', 'max:100'],
-            'code'               => ['required', 'string', 'max:40', 'regex:/^\s*[A-Za-z0-9-]+\s*$/'],
+            // Phase H2a: given automatically - without a code - or with one.
+            'automatic'          => ['sometimes', 'boolean'],
+            'code'               => ['exclude_if:automatic,true', 'required', 'string', 'max:40', 'regex:/^\s*[A-Za-z0-9-]+\s*$/'],
             'kind'               => ['required', Rule::in(EcommerceDiscount::KINDS)],
             'value'              => $kind === EcommerceDiscount::FREE_SHIPPING
                 ? ['nullable']
@@ -38,6 +40,9 @@ class SaveEcommerceDiscountRequest extends FormRequest
             'ends_on'            => ['nullable', 'date_format:Y-m-d', 'after_or_equal:starts_on'],
             'usage_limit'        => ['nullable', 'integer', 'min:1', 'max:1000000'],
             'per_customer_limit' => ['nullable', 'integer', 'min:1', 'max:1000000'],
+            // Phase H2a: taken in order of priority, 1 first; and whether it goes with other discounts.
+            'priority'           => ['sometimes', 'integer', 'min:1', 'max:99'],
+            'combines'           => ['sometimes', 'boolean'],
             'is_active'          => ['sometimes', 'boolean'],
         ];
     }
@@ -45,7 +50,10 @@ class SaveEcommerceDiscountRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'code.required'        => 'Give its code: what customers type at checkout.',
             'code.regex'           => 'Use letters, digits and dashes.',
+            'priority.min'         => 'Give a priority from 1 to 99: 1 is taken first.',
+            'priority.max'         => 'Give a priority from 1 to 99: 1 is taken first.',
             'value.required'       => 'Say what it takes off.',
             'value.gt'             => 'Take off more than nothing.',
             'value.max'            => $this->input('kind') === EcommerceDiscount::PERCENTAGE ? 'Take off 100% at most.' : 'Take off less.',

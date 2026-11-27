@@ -34,15 +34,19 @@ class EcommerceOrderRepository
     /** Phase G3a: its digital products and services as its customer is shown them - each line's item, for how it is delivered, and its delivery. */
     private const CUSTOMER_DELIVERIES = ['lines.item.files', 'deliveries.downloads'];
 
-    /** Made through the storefront, so its business is never read from $data; its lines with it. */
-    public function create(Storefront $storefront, array $data, array $lines): EcommerceOrder
+    /** Phases H1 and H2a: the discounts it took, each shown to its customer by its name while its discount is theirs. */
+    private const CUSTOMER_DISCOUNTS = ['promotions'];
+
+    /** Made through the storefront, so its business is never read from $data; its lines with it, and (Phases H1 and H2a) the discounts it took ($promotions). */
+    public function create(Storefront $storefront, array $data, array $lines, array $promotions = []): EcommerceOrder
     {
         $order = new EcommerceOrder(['storefront_id' => $storefront->id, ...$data]);
         $order->workspace_id = $storefront->workspace_id;
         $order->save();
         $order->lines()->createMany($lines);
+        $order->promotions()->createMany($promotions);
 
-        return $order->load('lines');
+        return $order->load(['lines', 'promotions']);
     }
 
     /** The order $cart became, if it did. */
@@ -93,7 +97,7 @@ class EcommerceOrderRepository
         return EcommerceOrder::query()
             ->where('storefront_id', $storefront->id)
             ->where('access_token_hash', $keyHash)
-            ->with(['lines', ...self::CUSTOMER_INVOICE, ...self::CUSTOMER_FULFILMENTS, ...self::CUSTOMER_DELIVERIES])
+            ->with(['lines', ...self::CUSTOMER_INVOICE, ...self::CUSTOMER_FULFILMENTS, ...self::CUSTOMER_DELIVERIES, ...self::CUSTOMER_DISCOUNTS])
             ->first();
     }
 
@@ -112,7 +116,7 @@ class EcommerceOrderRepository
     /** Phase E2: $customer's order $id, with its lines, and (Phase F2) its invoice's working link - or none. */
     public function findOfAccount(StorefrontCustomer $customer, int $id): ?EcommerceOrder
     {
-        return EcommerceOrder::query()->where('storefront_customer_id', $customer->id)->whereKey($id)->with(['lines', ...self::CUSTOMER_INVOICE, ...self::CUSTOMER_FULFILMENTS, ...self::CUSTOMER_DELIVERIES])->first();
+        return EcommerceOrder::query()->where('storefront_customer_id', $customer->id)->whereKey($id)->with(['lines', ...self::CUSTOMER_INVOICE, ...self::CUSTOMER_FULFILMENTS, ...self::CUSTOMER_DELIVERIES, ...self::CUSTOMER_DISCOUNTS])->first();
     }
 
     /** Phase E2: the orders of $customer's e-mail that are no account's - guest orders, or a closed account's - made its own. */
@@ -283,7 +287,8 @@ class EcommerceOrderRepository
 
     public function findEmail(int $id): ?EcommerceOrderEmail
     {
-        return EcommerceOrderEmail::query()->with(['order.lines', 'order.storefront', 'order.workspace', 'order.invoice:id,number'])->find($id);
+        // Phases H1 and H2a: the order's discounts, for its totals' rows.
+        return EcommerceOrderEmail::query()->with(['order.lines', 'order.storefront', 'order.workspace', 'order.invoice:id,number', 'order.promotions'])->find($id);
     }
 
     public function updateEmail(EcommerceOrderEmail $email, array $data): void

@@ -47,7 +47,7 @@ class EcommerceDiscountService
 
         $discount = DB::transaction(fn () => $this->discounts->create($workspace, [...$fields, 'created_by' => $user->id], $products));
 
-        ActivityLogService::record('created', "Added the discount {$discount->name} ({$discount->code})", $discount, ['source' => 'api']);
+        ActivityLogService::record('created', 'Added the discount '.$this->label($discount), $discount, ['source' => 'api']);
 
         return $this->find($workspace, $discount->id);
     }
@@ -59,7 +59,7 @@ class EcommerceDiscountService
 
         DB::transaction(fn () => $this->discounts->update($discount, $fields, $products));
 
-        ActivityLogService::record('updated', "Changed the discount {$discount->name} ({$discount->code})", $discount, ['source' => 'api']);
+        ActivityLogService::record('updated', 'Changed the discount '.$this->label($discount), $discount, ['source' => 'api']);
 
         return $this->find($workspace, $id);
     }
@@ -72,14 +72,14 @@ class EcommerceDiscountService
         if ($this->discounts->everUsed($discount)) {
             $this->discounts->update($discount, ['is_active' => false], $discount->products->pluck('id')->all());
 
-            ActivityLogService::record('updated', "Deactivated the discount {$discount->name} ({$discount->code}), used on orders", $discount, ['source' => 'api']);
+            ActivityLogService::record('updated', 'Deactivated the discount '.$this->label($discount).', used on orders', $discount, ['source' => 'api']);
 
             return false;
         }
 
         $this->discounts->delete($discount);
 
-        ActivityLogService::record('deleted', "Deleted the discount {$discount->name} ({$discount->code})", $discount, ['source' => 'api']);
+        ActivityLogService::record('deleted', 'Deleted the discount '.$this->label($discount), $discount, ['source' => 'api']);
 
         return true;
     }
@@ -107,9 +107,10 @@ class EcommerceDiscountService
      */
     private function fields(Workspace $workspace, array $data, ?int $except): array
     {
-        $code = mb_strtoupper(trim($data['code']));
+        // Phase H2a: an automatic discount has no code.
+        $code = ($data['automatic'] ?? false) ? null : mb_strtoupper(trim($data['code']));
 
-        if ($this->discounts->codeTaken($workspace, $code, $except)) {
+        if ($code !== null && $this->discounts->codeTaken($workspace, $code, $except)) {
             throw ValidationException::withMessages(['code' => 'Another of your discounts has this code: choose another.']);
         }
 
@@ -131,8 +132,16 @@ class EcommerceDiscountService
             'ends_on'            => $data['ends_on'] ?? null,
             'usage_limit'        => $data['usage_limit'] ?? null,
             'per_customer_limit' => $data['per_customer_limit'] ?? null,
+            'priority'           => (int) ($data['priority'] ?? 1),
+            'combines'           => (bool) ($data['combines'] ?? false),
             'is_active'          => (bool) ($data['is_active'] ?? true),
         ], $products];
+    }
+
+    /** How the Activity Log names $discount: its name, with its code - or "automatic". */
+    private function label(EcommerceDiscount $discount): string
+    {
+        return $discount->name.' ('.($discount->code ?? 'automatic').')';
     }
 
     private function today(Workspace $workspace): string

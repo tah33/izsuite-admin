@@ -87,12 +87,12 @@ class EcommerceDiscountCodesTest extends TestCase
             ->assertJsonPath('data.totals.grand_total', '22.10');
 
         $key = $this->place($this->freshCart(['ceramic-mug' => 2, 'tea-towel' => 1]), $this->order('22.10', ['discount_code' => 'save10']))->assertCreated()
-            ->assertJsonPath('data.discount_code', 'SAVE10')
+            ->assertJsonPath('data.discounts', [['name' => 'Summer Sale', 'code' => 'SAVE10', 'off' => '1.90']])
             ->assertJsonPath('data.totals.discount', '1.90')
             ->json('data.key');
         $order = EcommerceOrder::sole();
-        $this->assertSame(['name' => 'Summer Sale', 'code' => 'SAVE10', 'kind' => 'percentage', 'value' => '10.0000', 'off' => '1.90'], $order->promotion);
-        $this->assertSame([$id, '22.10', 'Discount code SAVE10 (Summer Sale)'], [$order->ecommerce_discount_id, (string) $order->grand_total, $order->discount_reason]);
+        $this->assertSame([['ecommerce_discount_id' => $id, 'name' => 'Summer Sale', 'code' => 'SAVE10', 'kind' => 'percentage', 'value' => '10.0000', 'off' => '1.90']], $this->promotionsOf($order));
+        $this->assertSame(['22.10', 'Discount code SAVE10 (Summer Sale)'], [(string) $order->grand_total, $order->discount_reason]);
         // Each line shows as it was before the discount.
         $this->assertSame(['16.00', '3.00', '5.00'], $order->lines->pluck('shown_amount')->map(fn ($amount) => (string) $amount)->all());
 
@@ -102,10 +102,19 @@ class EcommerceDiscountCodesTest extends TestCase
             ->assertJsonPath('data.totals.discount', '1.90');
         $this->getJson(self::ORDERS."/{$order->id}/activity")->assertJsonPath('data.0.description', 'Online order EC-00001 placed on Rahman Shop by Karim Rahman, with code SAVE10');
         // Its confirmation e-mail names the code, as its page does.
-        Mail::assertSent(StoreOrderMail::class, fn (StoreOrderMail $mail) => ($mail->order['totals']['Discount (SAVE10)'] ?? null) === '−'.$this->money('1.90'));
+        Mail::assertSent(StoreOrderMail::class, fn (StoreOrderMail $mail) => ($mail->order['totals']['Summer Sale (SAVE10)'] ?? null) === '−'.$this->money('1.90'));
         $this->postJson(self::ORDERS."/{$order->id}/confirm")->assertOk()->assertJsonPath('data.invoice.balance_due', '22.10');
         $this->getJson(self::DISCOUNTS)->assertJsonPath('data.0.uses', 1);
-        $this->getJson(self::STORE."/orders/{$key}")->assertJsonPath('data.discount_code', 'SAVE10');
+        $this->getJson(self::STORE."/orders/{$key}")->assertJsonPath('data.discounts.0.code', 'SAVE10');
+    }
+
+    /** $order's discounts as it keeps them. */
+    private function promotionsOf(EcommerceOrder $order): array
+    {
+        return $order->promotions()->get()->map(fn ($promotion) => [
+            'ecommerce_discount_id' => $promotion->ecommerce_discount_id, 'name' => $promotion->name, 'code' => $promotion->code,
+            'kind' => $promotion->kind, 'value' => $promotion->value === null ? null : (string) $promotion->value, 'off' => (string) $promotion->off,
+        ])->all();
     }
 
     public function test_a_discount_the_business_changes_no_longer_names_the_code(): void
@@ -118,9 +127,9 @@ class EcommerceDiscountCodesTest extends TestCase
         $this->putJson(self::ORDERS."/{$order->id}/discount", ['type' => 'amount', 'value' => 5, 'reason' => 'A late delivery'])->assertOk();
 
         // The code stays on record - and its use counted - but the order's discount is the business's now.
-        $this->assertSame('SAVE10', $order->fresh()->promotion['code']);
+        $this->assertSame('SAVE10', $order->promotions()->value('code'));
         $this->getJson(self::DISCOUNTS)->assertJsonPath('data.0.uses', 1);
-        $this->getJson(self::STORE."/orders/{$key}")->assertJsonPath('data.discount_code', null)->assertJsonPath('data.totals.discount', '5.00');
+        $this->getJson(self::STORE."/orders/{$key}")->assertJsonPath('data.discounts', [])->assertJsonPath('data.totals.discount', '5.00');
     }
 
     public function test_a_code_is_refused_saying_why(): void
@@ -147,7 +156,7 @@ class EcommerceDiscountCodesTest extends TestCase
 
     public function test_a_code_is_used_as_often_as_it_may_be_and_a_cancelled_order_gives_its_use_back(): void
     {
-        $this->discount(['usage_limit' => 1, 'per_customer_limit' => 1]);
+        $id = $this->discount(['usage_limit' => 1, 'per_customer_limit' => 1]);
         $this->place($this->freshCart(['ceramic-mug' => 1]), $this->order('12.20', ['discount_code' => 'SAVE10']))->assertCreated();
 
         $this->quoted('SAVE10', 'karim@example.test')->assertJsonPath('data.discount.problem', 'This code has been used as often as it may be.');
@@ -156,7 +165,7 @@ class EcommerceDiscountCodesTest extends TestCase
         Sanctum::actingAs($this->user);
         $this->postJson(self::ORDERS.'/'.EcommerceOrder::sole()->id.'/cancel', ['reason' => 'Asked to.'])->assertOk();
         $this->quoted('SAVE10', 'nadia@example.test')->assertJsonPath('data.discount.problem', null);
-        $this->putJson(self::DISCOUNTS.'/'.EcommerceOrder::sole()->ecommerce_discount_id, ['name' => 'Summer Sale', 'code' => 'SAVE10', 'kind' => 'percentage', 'value' => 10, 'applies_to' => 'order', 'per_customer_limit' => 1])->assertOk();
+        $this->putJson(self::DISCOUNTS."/{$id}", ['name' => 'Summer Sale', 'code' => 'SAVE10', 'kind' => 'percentage', 'value' => 10, 'applies_to' => 'order', 'per_customer_limit' => 1])->assertOk();
         $this->place($this->freshCart(['ceramic-mug' => 1]), $this->order('12.20', ['discount_code' => 'SAVE10']))->assertCreated();
         $this->quoted('SAVE10', 'KARIM@example.test')->assertJsonPath('data.discount.problem', 'You have used this code as often as it may be.');
         $this->quoted('SAVE10', 'nadia@example.test')->assertJsonPath('data.discount.problem', null);
@@ -175,6 +184,6 @@ class EcommerceDiscountCodesTest extends TestCase
         // Collected, there is no shipping to take off: the order keeps no code.
         $pickup = ['delivery' => 'pickup', 'shipping_method_id' => null, 'pickup_point_id' => $this->ids['Dhaka'], 'payment_method_id' => $this->ids['Pay at the Shop'], 'discount_code' => 'SHIPFREE'];
         $this->place($this->freshCart(['ceramic-mug' => 1]), $this->order('8.00', $pickup))->assertCreated()->assertJsonPath('data.totals.discount', '0.00');
-        $this->assertNull(EcommerceOrder::sole()->promotion);
+        $this->assertSame(0, EcommerceOrder::sole()->promotions()->count());
     }
 }

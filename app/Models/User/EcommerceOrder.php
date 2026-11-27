@@ -2,6 +2,7 @@
 
 namespace App\Models\User;
 
+use App\Support\Decimal;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -147,9 +148,6 @@ class EcommerceOrder extends Model
         'discount_type',
         'discount_value',
         'discount_reason',
-        // Phase H1: the discount code it was placed with, and as it was then - its name, code, what it takes off and took.
-        'ecommerce_discount_id',
-        'promotion',
     ];
 
     /**
@@ -201,8 +199,6 @@ class EcommerceOrder extends Model
         'confirmed_at'                => 'datetime',
         'confirmed_by'                => 'integer',
         'payment_failures'            => 'integer',
-        'ecommerce_discount_id'       => 'integer',
-        'promotion'                   => 'array',
     ];
 
     protected $hidden = ['access_token_hash'];
@@ -281,17 +277,31 @@ class EcommerceOrder extends Model
         return $this->hasMany(EcommerceOrderDelivery::class);
     }
 
-    /**
-     * Phase H1: the discount code it was placed with, while its discount is
-     * still the one the code took off - none once the business changed it
-     * (Phase F5b), the code staying on record in `promotion`.
-     */
-    public function discountCode(): ?string
+    /** Phases H1 and H2a: the discounts it took at checkout - a code's, automatic ones - in the order they were taken. */
+    public function promotions(): HasMany
     {
-        $promotion = $this->promotion;
+        return $this->hasMany(EcommerceOrderPromotion::class)->orderBy('id');
+    }
 
-        return $promotion !== null && $this->discount_type === self::AMOUNT && bccomp((string) $this->discount_value, (string) $promotion['off'], 2) === 0
-            ? $promotion['code']
-            : null;
+    /**
+     * Phases H1 and H2a: the discounts it took, each with its share of its
+     * discount as the store shows it - while its discount is still theirs;
+     * none once the business changed it (Phase F5b), the discounts staying on
+     * record, their uses counted.
+     *
+     * @return list<array{name: string, code: ?string, off: string}>
+     */
+    public function promotionsShown(): array
+    {
+        $promotions = $this->promotions;
+        $offs       = $promotions->map(fn (EcommerceOrderPromotion $promotion) => (string) $promotion->off)->all();
+
+        if ($offs === [] || $this->discount_type !== self::AMOUNT || bccomp((string) $this->discount_value, Decimal::sum($offs), 2) !== 0) {
+            return [];
+        }
+
+        $shares = Decimal::shares((string) $this->discount_total, $offs);
+
+        return $promotions->values()->map(fn (EcommerceOrderPromotion $promotion, int $at) => ['name' => $promotion->name, 'code' => $promotion->code, 'off' => $shares[$at]])->all();
     }
 }

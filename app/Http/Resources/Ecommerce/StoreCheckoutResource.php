@@ -18,7 +18,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * chosen among them; the totals; what checkout asks (guests, phone, note) -
  * and, from Phase E2, whether its customer is signed in, from Phase E3
  * whether they take marketing by e-mail already; and the store's terms and
- * privacy policy, when published. From Phase H1, the discount code given.
+ * privacy policy, when published. From Phase H1, the discount code given;
+ * from Phase H2a, each discount taken.
  */
 class StoreCheckoutResource extends JsonResource
 {
@@ -69,6 +70,9 @@ class StoreCheckoutResource extends JsonResource
                 'name'    => $quote['discount']['problem'] === null ? $quote['discount']['discount']->name : null,
                 'problem' => $quote['discount']['problem'],
             ],
+            // Phase H2a: the discounts taken - the code's and automatic ones - in the order taken, each by its name, a code's
+            // with its code, and its share of the totals' discount.
+            'discounts'        => array_map(fn (array $one) => ['name' => $one['discount']->name, 'code' => $one['discount']->code, 'off' => $one['shown']], $quote['discounts']),
             'checkout'         => [
                 'guests' => (bool) $settings->guest_checkout, 'signed_in' => $this->resource['signed_in'] ?? false, 'phone' => $settings->checkout_phone, 'notes' => (bool) $settings->checkout_notes, 'open' => $this->resource['open'],
                 'marketing' => $this->resource['marketing'] ?? null,

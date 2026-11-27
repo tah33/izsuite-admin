@@ -153,7 +153,8 @@ class StorefrontOrderPlacement
                 'prices_include_tax' => $quote['terms']['with_tax'],
                 'subtotal'           => $quote['shown']['subtotal'],
                 'shipping_total'     => $quote['shown']['shipping'],
-                'discount_total'     => $quote['totals']['discount_total'],
+                // As the store showed it, as an order's discount is kept (Phase F5b).
+                'discount_total'     => $quote['shown']['discount'],
                 'tax_total'          => $quote['totals']['tax_total'],
                 'grand_total'        => $quote['totals']['grand_total'],
                 'net_total'          => $quote['totals']['net_total'],
@@ -171,7 +172,7 @@ class StorefrontOrderPlacement
                 'user_agent'         => isset($meta['agent']) ? mb_substr($meta['agent'], 0, 255) : null,
                 'access_token_hash'  => hash('sha256', $key),
                 'placed_at'          => now(),
-            ], $this->lines($quote));
+            ], $this->lines($quote), $this->promotions($quote));
 
             $this->carts->update($cart, ['status' => EcommerceCart::CONVERTED, 'converted_at' => now()]);
 
@@ -184,7 +185,7 @@ class StorefrontOrderPlacement
             }
 
             ActivityLogService::recordCustomer($storefront->workspace, 'created', "Online order {$order->number} placed on {$storefront->name} by {$order->customer['name']}"
-                .($order->promotion ? ", with code {$order->promotion['code']}" : ''), $order);
+                .($quote['discounts'] === [] ? '' : ', with '.implode(', ', array_map(fn (array $one) => $one['discount']->code ? "code {$one['discount']->code}" : $one['discount']->name, $quote['discounts']))), $order);
 
             // Phase F4: held as it is placed, with Hold Orders for Review on, when something wants a look.
             $this->holds->holdAsPlaced($storefront->workspace, $order, $settings);
@@ -215,7 +216,7 @@ class StorefrontOrderPlacement
             'shipping_method_id' => $data['shipping_method_id'] ?? null,
             'pickup_point_id'    => $data['pickup_point_id'] ?? null,
             'payment_method_id'  => $data['payment_method_id'] ?? null,
-            // Phase H1: a discount code, checked with the customer's e-mail - locked, so its uses are counted once.
+            // Phases H1 and H2a: a discount code and the automatic discounts, checked with the customer's e-mail - locked, so their uses are counted once.
             'discount_code'      => $data['discount_code'] ?? null,
             'email'              => $data['customer']['email'] ?? null,
             'lock_discount'      => true,
@@ -223,33 +224,36 @@ class StorefrontOrderPlacement
     }
 
     /**
-     * Phase H1: the code the order is placed with - as it was, and what it
-     * took off - and the order's discount from it (F5b's way: an amount, its
-     * why the code); none when no code took anything off.
+     * Phases H1 and H2a: the order's discount from the discounts it takes
+     * (F5b's way: an amount, its why naming them); none when none took
+     * anything off.
      */
     private function promotion(array $quote): array
     {
-        $given = $quote['discount'];
-
-        if ($given === null || $given['problem'] !== null || $quote['off'] === null) {
+        if ($quote['discounts'] === []) {
             return [];
         }
 
-        $discount = $given['discount'];
+        $why = array_map(fn (array $one) => $one['discount']->code ? "Discount code {$one['discount']->code} ({$one['discount']->name})" : $one['discount']->name, $quote['discounts']);
 
         return [
-            'ecommerce_discount_id' => $discount->id,
-            'promotion'             => [
-                'name'  => $discount->name,
-                'code'  => $discount->code,
-                'kind'  => $discount->kind,
-                'value' => $discount->value === null ? null : (string) $discount->value,
-                'off'   => $quote['off'],
-            ],
-            'discount_type'         => EcommerceOrder::AMOUNT,
-            'discount_value'        => $quote['off'],
-            'discount_reason'       => "Discount code {$discount->code} ({$discount->name})",
+            'discount_type'   => EcommerceOrder::AMOUNT,
+            'discount_value'  => $quote['off'],
+            'discount_reason' => mb_substr(implode('; ', $why), 0, 500),
         ];
+    }
+
+    /** Phases H1 and H2a: each discount the order takes, as it is now - kept with it - and what it takes off. */
+    private function promotions(array $quote): array
+    {
+        return array_map(fn (array $one) => [
+            'ecommerce_discount_id' => $one['discount']->id,
+            'name'                  => $one['discount']->name,
+            'code'                  => $one['discount']->code,
+            'kind'                  => $one['discount']->kind,
+            'value'                 => $one['discount']->value === null ? null : (string) $one['discount']->value,
+            'off'                   => $one['off'],
+        ], $quote['discounts']);
     }
 
     /** What the order needs before it is placed (19.20), each refused under its field. */

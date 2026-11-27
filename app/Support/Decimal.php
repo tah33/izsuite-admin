@@ -56,4 +56,32 @@ final class Decimal
 
         return $total;
     }
+
+    /**
+     * $total shared out by $weights, to the cent - each its part, the last
+     * what is left, so the shares add up to $total: "10.00" by ["1", "2"] is
+     * ["3.33", "6.67"]. All "0.00" when the weights come to nothing.
+     *
+     * @param  list<string>  $weights
+     * @return list<string>
+     */
+    public static function shares(string $total, array $weights): array
+    {
+        $of   = self::sum($weights, 10);
+        $left = self::round($total);
+
+        if (self::isZero($of) || $weights === []) {
+            return array_fill(0, count($weights), '0.00');
+        }
+
+        $shares = [];
+
+        foreach (array_values($weights) as $at => $weight) {
+            $share    = $at === count($weights) - 1 ? $left : self::round(bcdiv(bcmul($total, (string) $weight, 10), $of, 10));
+            $shares[] = $share;
+            $left     = bcsub($left, $share, 2);
+        }
+
+        return $shares;
+    }
 }

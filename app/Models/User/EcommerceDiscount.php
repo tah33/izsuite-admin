@@ -16,6 +16,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * minimum (its products, in the base currency); between its first and last
  * days; used so many times in all and by one customer - none for no limit.
  * Its uses are its orders that are not cancelled.
+ *
+ * From Phase H2a a discount may be automatic - without a code, taken off
+ * every order it fits - and each has a priority (1 first) and whether it goes
+ * with other discounts: at checkout they are taken in order of priority, one
+ * that goes with none alone (StorefrontDiscounts).
  */
 class EcommerceDiscount extends Model
 {
@@ -43,6 +48,8 @@ class EcommerceDiscount extends Model
         'ends_on',
         'usage_limit',
         'per_customer_limit',
+        'priority',
+        'combines',
         'is_active',
         'created_by',
     ];
@@ -54,6 +61,8 @@ class EcommerceDiscount extends Model
         'ends_on'            => 'date:Y-m-d',
         'usage_limit'        => 'integer',
         'per_customer_limit' => 'integer',
+        'priority'           => 'integer',
+        'combines'           => 'boolean',
         'is_active'          => 'boolean',
         'created_by'         => 'integer',
     ];
@@ -67,6 +76,8 @@ class EcommerceDiscount extends Model
     // The column's defaults, so one just made reads as it was saved.
     protected $attributes = [
         'applies_to' => self::ORDER,
+        'priority'   => 1,
+        'combines'   => false,
         'is_active'  => true,
     ];
 
@@ -81,10 +92,16 @@ class EcommerceDiscount extends Model
         return $this->belongsToMany(CatalogProduct::class, 'ecommerce_discount_products');
     }
 
-    /** The orders placed with it - its uses, those not cancelled. */
-    public function orders(): HasMany
+    /** Phase H2a: the orders that took it, each as it was then - its uses, those whose order is not cancelled. */
+    public function promotions(): HasMany
     {
-        return $this->hasMany(EcommerceOrder::class);
+        return $this->hasMany(EcommerceOrderPromotion::class);
+    }
+
+    /** Phase H2a: whether it is taken off without a code, wherever it fits. */
+    public function isAutomatic(): bool
+    {
+        return $this->code === null;
     }
 
     /** Where it stands on $today (the business's): inactive, not started, ended, used up - or active. $uses: its uses so far. */

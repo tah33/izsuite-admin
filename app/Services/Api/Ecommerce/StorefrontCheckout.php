@@ -12,6 +12,7 @@ use App\Models\User\Workspace;
 use App\Repositories\User\ShippingRepository;
 use App\Services\Api\Sales\SalesLines;
 use App\Services\Sales\SalesCalculator;
+use App\Support\Decimal;
 use Illuminate\Support\Arr;
 
 /**
@@ -30,7 +31,8 @@ use Illuminate\Support\Arr;
  * - the payment methods for its currency, country, total and delivery
  *   (EcommercePaymentOptions), and the one chosen among them;
  * - its totals, as its invoice will be: its products and its shipping - less,
- *   from Phase H1, what a discount code takes off (StorefrontDiscounts).
+ *   from Phase H1, what a discount code takes off, and from Phase H2a the
+ *   automatic discounts that go with it (StorefrontDiscounts).
  *
  * A choice no longer offered is simply not chosen; placing the order
  * (StorefrontOrderPlacement) refuses it.
@@ -79,9 +81,10 @@ class StorefrontCheckout
             $rows[] = $this->shippingRow($workspace, $method, $terms);
         }
 
-        // Phase H1: a discount code, checked again each time - what it takes off shared over the order, as an invoice's discount.
-        $discount = $this->discounts->check($workspace, $choices['discount_code'] ?? null, $rows, $read, $terms, $parcel, $today, $choices['email'] ?? null, (bool) ($choices['lock_discount'] ?? false));
-        $off      = $discount !== null && $discount['problem'] === null && bccomp((string) $discount['off'], '0', 2) > 0 ? $discount['off'] : null;
+        // Phases H1 and H2a: the discounts it takes - the code given and the automatic ones - checked again
+        // each time; what they take off shared over the order, as an invoice's discount.
+        $discounts = $this->discounts->take($workspace, $choices['discount_code'] ?? null, $rows, $read, $terms, $parcel, $today, $choices['email'] ?? null, (bool) ($choices['lock_discount'] ?? false));
+        $off       = $discounts['off'];
 
         $totals  = $this->totals($workspace, $rows, $terms, $off);
         $billing = strtoupper(trim((string) ($choices['billing_country'] ?? '')));
@@ -108,10 +111,25 @@ class StorefrontCheckout
             'rows'           => $totals['rows'],
             'totals'         => $totals['totals'],
             'shown'          => $totals['shown'],
-            // Phase H1: the code given, what it takes off - or why it does not.
-            'discount'       => $discount,
+            // Phase H1: the code given - or why it does not apply. Phase H2a: the discounts taken, in the
+            // order taken, each with its share of the discount as the store shows it; and what they take off.
+            'discount'       => $discounts['code'],
+            'discounts'      => $this->shown($discounts['taken'], $totals['shown']['discount']),
             'off'            => $off,
         ];
+    }
+
+    /**
+     * Phase H2a: $taken, each with its share of $discount - what they take
+     * off as the store shows prices - by what it takes off.
+     *
+     * @return list<array{discount: \App\Models\User\EcommerceDiscount, off: string, shown: string}>
+     */
+    private function shown(array $taken, string $discount): array
+    {
+        $shares = Decimal::shares($discount, array_column($taken, 'off'));
+
+        return array_map(fn (array $one, string $share) => [...$one, 'shown' => $share], $taken, $shares);
     }
 
     /** Whether $item is delivered: a physical product or a combo - not a digital product or a service. */
