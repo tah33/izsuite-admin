@@ -77,7 +77,7 @@ class EcommerceOrderTotals
         $this->orders->update($order, [
             'subtotal'         => $products,
             'shipping_total'   => $shipping,
-            'discount_total'   => $this->shownDiscount($plain, $result, $shown),
+            'discount_total'   => $this->pricing->shownDiscount($plain, $result, $shown),
             'tax_total'        => $result['tax_total'],
             'grand_total'      => $result['grand_total'],
             'net_total'        => $result['net_total'],
@@ -86,20 +86,6 @@ class EcommerceOrderTotals
         ]);
 
         $order->unsetRelation('lines');
-    }
-
-    /**
-     * What the discount takes off as $shown shows prices: as the business
-     * keeps them - or, shown otherwise, with its tax put in (the total it
-     * takes off) or taken out (the total before tax it takes off).
-     */
-    private function shownDiscount(array $plain, array $result, array $shown): string
-    {
-        return match (true) {
-            $shown['with_tax'] === null, $shown['with_tax'] === $shown['inclusive'] => $result['discount_total'],
-            $shown['with_tax']                                                     => bcsub($plain['grand_total'], $result['grand_total'], 2),
-            default                                                                => bcsub($plain['net_total'], $result['net_total'], 2),
-        };
     }
 
     /**

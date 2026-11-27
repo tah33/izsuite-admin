@@ -162,6 +162,7 @@ class StorefrontOrderPlacement
                 ...$this->customer($data, $quote, $settings),
                 ...$this->delivery($quote),
                 ...$this->payment($quote['payment'], $data),
+                ...$this->promotion($quote),
                 'customer_note'      => $settings->checkout_notes ? (trim((string) ($data['note'] ?? '')) ?: null) : null,
                 'source'             => 'storefront',
                 'campaign'           => array_filter($data['campaign'] ?? []) ?: null,
@@ -182,7 +183,8 @@ class StorefrontOrderPlacement
                 $this->customers->recordConsent($storefront, $contact, $order);
             }
 
-            ActivityLogService::recordCustomer($storefront->workspace, 'created', "Online order {$order->number} placed on {$storefront->name} by {$order->customer['name']}", $order);
+            ActivityLogService::recordCustomer($storefront->workspace, 'created', "Online order {$order->number} placed on {$storefront->name} by {$order->customer['name']}"
+                .($order->promotion ? ", with code {$order->promotion['code']}" : ''), $order);
 
             // Phase F4: held as it is placed, with Hold Orders for Review on, when something wants a look.
             $this->holds->holdAsPlaced($storefront->workspace, $order, $settings);
@@ -213,6 +215,40 @@ class StorefrontOrderPlacement
             'shipping_method_id' => $data['shipping_method_id'] ?? null,
             'pickup_point_id'    => $data['pickup_point_id'] ?? null,
             'payment_method_id'  => $data['payment_method_id'] ?? null,
+            // Phase H1: a discount code, checked with the customer's e-mail - locked, so its uses are counted once.
+            'discount_code'      => $data['discount_code'] ?? null,
+            'email'              => $data['customer']['email'] ?? null,
+            'lock_discount'      => true,
+        ];
+    }
+
+    /**
+     * Phase H1: the code the order is placed with - as it was, and what it
+     * took off - and the order's discount from it (F5b's way: an amount, its
+     * why the code); none when no code took anything off.
+     */
+    private function promotion(array $quote): array
+    {
+        $given = $quote['discount'];
+
+        if ($given === null || $given['problem'] !== null || $quote['off'] === null) {
+            return [];
+        }
+
+        $discount = $given['discount'];
+
+        return [
+            'ecommerce_discount_id' => $discount->id,
+            'promotion'             => [
+                'name'  => $discount->name,
+                'code'  => $discount->code,
+                'kind'  => $discount->kind,
+                'value' => $discount->value === null ? null : (string) $discount->value,
+                'off'   => $quote['off'],
+            ],
+            'discount_type'         => EcommerceOrder::AMOUNT,
+            'discount_value'        => $quote['off'],
+            'discount_reason'       => "Discount code {$discount->code} ({$discount->name})",
         ];
     }
 
@@ -221,6 +257,11 @@ class StorefrontOrderPlacement
     {
         if (! $quote['read']['ready']) {
             $this->refuse('Your cart has changed: review it, then check out again.');
+        }
+
+        // Phase H1: a code given is applied, or refused under its field.
+        if ($quote['discount'] !== null && $quote['discount']['problem'] !== null) {
+            throw ValidationException::withMessages(['discount_code' => $quote['discount']['problem']]);
         }
 
         if ($settings->checkout_phone === 'required' && trim((string) ($data['customer']['phone'] ?? '')) === '') {
@@ -328,7 +369,8 @@ class StorefrontOrderPlacement
         return array_map(function (array $row, int $at) use ($byLine, $quote) {
             $shipping = ($row['kind'] ?? 'product') === 'shipping';
             $line     = $shipping ? null : $byLine[$at];
-            $shown    = $this->pricing->shownAmount($row, $quote['terms']);
+            // As it shows before any discount (Phase H1): the amount itself carries its share of the discount.
+            $shown    = $row['shown'] ?? $this->pricing->shownAmount($row, $quote['terms']);
 
             return [
                 'kind'                       => $shipping ? EcommerceOrderLine::SHIPPING : EcommerceOrderLine::PRODUCT,

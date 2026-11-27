@@ -526,6 +526,12 @@ final class RoutePermissions
             'api.ecommerce.orders.lines.revoke'          => 'ecommerce.fulfilment.manage',
             // Phase G3b: a delivered download given more.
             'api.ecommerce.orders.lines.renew'           => 'ecommerce.fulfilment.manage',
+            // Phase H1: the Discounts page.
+            'api.ecommerce.discounts.index'              => 'ecommerce.discounts.manage',
+            'api.ecommerce.discounts.products'           => 'ecommerce.discounts.manage',
+            'api.ecommerce.discounts.store'              => 'ecommerce.discounts.manage',
+            'api.ecommerce.discounts.update'             => 'ecommerce.discounts.manage',
+            'api.ecommerce.discounts.destroy'            => 'ecommerce.discounts.manage',
             // Doc 18 Phase A2: POS registers.
             'api.pos.registers.index'   => 'pos.registers.view',
             'api.pos.registers.options' => 'pos.registers.manage',

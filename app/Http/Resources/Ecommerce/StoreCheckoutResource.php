@@ -18,7 +18,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * chosen among them; the totals; what checkout asks (guests, phone, note) -
  * and, from Phase E2, whether its customer is signed in, from Phase E3
  * whether they take marketing by e-mail already; and the store's terms and
- * privacy policy, when published.
+ * privacy policy, when published. From Phase H1, the discount code given.
  */
 class StoreCheckoutResource extends JsonResource
 {
@@ -63,6 +63,12 @@ class StoreCheckoutResource extends JsonResource
                 'payment_method_id'  => $quote['payment']?->id,
             ],
             'totals'           => [...$quote['shown'], 'currency' => $terms['currency'], 'prices_include_tax' => $terms['with_tax'], 'quoted_shipping' => $quote['method'] !== null && $quote['method']['price'] === null],
+            // Phase H1: the discount code given - its name once it applies (what it takes off is the totals' discount) - or why it does not.
+            'discount'         => $quote['discount'] === null ? null : [
+                'code'    => $quote['discount']['code'],
+                'name'    => $quote['discount']['problem'] === null ? $quote['discount']['discount']->name : null,
+                'problem' => $quote['discount']['problem'],
+            ],
             'checkout'         => [
                 'guests' => (bool) $settings->guest_checkout, 'signed_in' => $this->resource['signed_in'] ?? false, 'phone' => $settings->checkout_phone, 'notes' => (bool) $settings->checkout_notes, 'open' => $this->resource['open'],
                 'marketing' => $this->resource['marketing'] ?? null,

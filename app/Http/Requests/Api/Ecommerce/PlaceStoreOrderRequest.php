@@ -42,6 +42,8 @@ class PlaceStoreOrderRequest extends FormRequest
             'note'                  => ['nullable', 'string', 'max:1000'],
             'accept_terms'          => ['accepted'],
             'marketing'             => ['sometimes', 'boolean'],
+            // Phase H1: a discount code, checked again as the order is placed.
+            'discount_code'         => ['nullable', 'string', 'max:40'],
             'expected_total'        => ['required', 'numeric'],
             'campaign'              => ['sometimes', 'nullable', 'array'],
             'campaign.source'       => ['nullable', 'string', 'max:100'],

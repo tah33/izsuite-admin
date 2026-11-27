@@ -30,6 +30,9 @@ class QuoteStoreCheckoutRequest extends FormRequest
             'shipping_method_id'  => ['nullable', 'integer'],
             'pickup_point_id'     => ['nullable', 'integer'],
             'payment_method_id'   => ['nullable', 'integer'],
+            // Phase H1: a discount code, and the e-mail typed so far - for a code's uses by one customer.
+            'discount_code'       => ['nullable', 'string', 'max:40'],
+            'email'               => ['nullable', 'string', 'max:255'],
         ];
     }
 }

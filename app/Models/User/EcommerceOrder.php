@@ -147,6 +147,9 @@ class EcommerceOrder extends Model
         'discount_type',
         'discount_value',
         'discount_reason',
+        // Phase H1: the discount code it was placed with, and as it was then - its name, code, what it takes off and took.
+        'ecommerce_discount_id',
+        'promotion',
     ];
 
     /**
@@ -198,6 +201,8 @@ class EcommerceOrder extends Model
         'confirmed_at'                => 'datetime',
         'confirmed_by'                => 'integer',
         'payment_failures'            => 'integer',
+        'ecommerce_discount_id'       => 'integer',
+        'promotion'                   => 'array',
     ];
 
     protected $hidden = ['access_token_hash'];
@@ -274,5 +279,19 @@ class EcommerceOrder extends Model
     public function deliveries(): HasMany
     {
         return $this->hasMany(EcommerceOrderDelivery::class);
+    }
+
+    /**
+     * Phase H1: the discount code it was placed with, while its discount is
+     * still the one the code took off - none once the business changed it
+     * (Phase F5b), the code staying on record in `promotion`.
+     */
+    public function discountCode(): ?string
+    {
+        $promotion = $this->promotion;
+
+        return $promotion !== null && $this->discount_type === self::AMOUNT && bccomp((string) $this->discount_value, (string) $promotion['off'], 2) === 0
+            ? $promotion['code']
+            : null;
     }
 }

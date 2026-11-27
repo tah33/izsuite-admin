@@ -149,6 +149,22 @@ class StorefrontPricing
     }
 
     /**
+     * What an order's discount takes off as $terms show prices, from its
+     * totals without it ($plain) and with it ($result) - SalesCalculator's: as
+     * the business keeps prices, or, shown otherwise, with its tax put in (the
+     * total it takes off) or taken out (the total before tax it takes off).
+     * An order's discount edited (Phase F5b) and a code at checkout (Phase H1).
+     */
+    public function shownDiscount(array $plain, array $result, array $terms): string
+    {
+        return match (true) {
+            $terms['with_tax'] === null, $terms['with_tax'] === $terms['inclusive'] => $result['discount_total'],
+            $terms['with_tax']                                                     => bcsub($plain['grand_total'], $result['grand_total'], 2),
+            default                                                                => bcsub($plain['net_total'], $result['net_total'], 2),
+        };
+    }
+
+    /**
      * Phase D4: $price, kept in the base currency as the business keeps
      * prices, with the tax $taxId, as $terms show prices - its tax in or out,
      * in the store's currency, to the cent.

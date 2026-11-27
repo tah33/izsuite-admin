@@ -169,6 +169,8 @@ final class Permissions
         'ecommerce.orders'   => ['Orders', 'ecommerce', ['view' => 'View Orders', 'edit' => 'Edit Orders', 'confirm' => 'Confirm Orders', 'hold' => 'Place Orders On Hold', 'cancel' => 'Cancel Orders']],
         // Phase G1: an order's shipments and its readiness for pickup.
         'ecommerce.fulfilment' => ['Fulfilment', 'ecommerce', ['manage' => 'Manage Fulfilment']],
+        // Phase H1: the Discounts page - discount codes.
+        'ecommerce.discounts' => ['Discounts', 'ecommerce', ['manage' => 'Manage Discounts']],
         'ecommerce.settings' => ['eCommerce Settings', 'ecommerce', self::APP_SETTINGS],
     ];
 
@@ -277,6 +279,8 @@ final class Permissions
         'ecommerce.orders.view'      => ['ecommerce.store.view'],
         // Phase G1: an order's shipments are on its page.
         'ecommerce.fulfilment.manage' => ['ecommerce.orders.view'],
+        // Phase H1: the Discounts page sits in eCommerce.
+        'ecommerce.discounts.manage' => ['ecommerce.store.view'],
         'purchases.purchases.create' => ['contacts.view', 'items.view'],
         'purchases.payments.record'  => ['purchases.purchases.view', 'payment_accounts.view'],
         'purchases.payments.reverse' => ['payment_accounts.view'],

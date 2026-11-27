@@ -66,6 +66,8 @@ class StoreOrderResource extends JsonResource
                 'unit_price' => $line->shown_unit_price,
                 'amount'     => $line->shown_amount,
             ])->values(),
+            // Phase H1: the discount code it was placed with, while its discount is the code's.
+            'discount_code'      => $order->discountCode(),
             'totals'             => [
                 'subtotal'    => $order->subtotal,
                 'shipping'    => $order->shipping_total,

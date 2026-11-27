@@ -106,6 +106,7 @@ use App\Http\Controllers\Api\EcommerceSettingController;
 use App\Http\Controllers\Api\EcommerceShippingController;
 use App\Http\Controllers\Api\EcommercePaymentMethodController;
 use App\Http\Controllers\Api\EcommerceOrderController;
+use App\Http\Controllers\Api\EcommerceDiscountController;
 use App\Http\Controllers\Api\EcommerceOrderDeliveryController;
 use App\Http\Controllers\Api\EcommerceOrderEditController;
 use App\Http\Controllers\Api\EcommerceOrderFulfilmentController;
@@ -1268,6 +1269,15 @@ Route::prefix('v1')->group(function () {
         Route::delete('/collections/{id}', [CatalogCollectionController::class, 'destroy'])->whereNumber('id')->name('api.ecommerce.collections.destroy');
         Route::post('/collections/{id}/image', [CatalogCollectionController::class, 'storeImage'])->whereNumber('id')->name('api.ecommerce.collections.image.store');
         Route::delete('/collections/{id}/image', [CatalogCollectionController::class, 'destroyImage'])->whereNumber('id')->name('api.ecommerce.collections.image.destroy');
+    });
+
+    // Phase H1: the business's discount codes - the Discounts page - and the products one may be for.
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:ecommerce', 'access'])->prefix('ecommerce/discounts')->group(function () {
+        Route::get('/', [EcommerceDiscountController::class, 'index'])->name('api.ecommerce.discounts.index');
+        Route::get('/products', [EcommerceDiscountController::class, 'products'])->name('api.ecommerce.discounts.products');
+        Route::post('/', [EcommerceDiscountController::class, 'store'])->middleware('idempotent')->name('api.ecommerce.discounts.store');
+        Route::put('/{id}', [EcommerceDiscountController::class, 'update'])->whereNumber('id')->name('api.ecommerce.discounts.update');
+        Route::delete('/{id}', [EcommerceDiscountController::class, 'destroy'])->whereNumber('id')->name('api.ecommerce.discounts.destroy');
     });
 
     // Phase F1: the business's online orders - the Orders page, one order, and its timeline.

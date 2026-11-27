@@ -29,7 +29,8 @@ use Illuminate\Support\Arr;
  *   its tax, none while quoted after the order - or a pickup point offered;
  * - the payment methods for its currency, country, total and delivery
  *   (EcommercePaymentOptions), and the one chosen among them;
- * - its totals, as its invoice will be: its products and its shipping.
+ * - its totals, as its invoice will be: its products and its shipping - less,
+ *   from Phase H1, what a discount code takes off (StorefrontDiscounts).
  *
  * A choice no longer offered is simply not chosen; placing the order
  * (StorefrontOrderPlacement) refuses it.
@@ -46,6 +47,7 @@ class StorefrontCheckout
         protected EcommercePaymentOptions $paymentOptions,
         protected SalesLines $salesLines,
         protected SalesCalculator $calculator,
+        protected StorefrontDiscounts $discounts,
     ) {}
 
     /**
@@ -77,7 +79,11 @@ class StorefrontCheckout
             $rows[] = $this->shippingRow($workspace, $method, $terms);
         }
 
-        $totals  = $this->totals($workspace, $rows, $terms);
+        // Phase H1: a discount code, checked again each time - what it takes off shared over the order, as an invoice's discount.
+        $discount = $this->discounts->check($workspace, $choices['discount_code'] ?? null, $rows, $read, $terms, $parcel, $today, $choices['email'] ?? null, (bool) ($choices['lock_discount'] ?? false));
+        $off      = $discount !== null && $discount['problem'] === null && bccomp((string) $discount['off'], '0', 2) > 0 ? $discount['off'] : null;
+
+        $totals  = $this->totals($workspace, $rows, $terms, $off);
         $billing = strtoupper(trim((string) ($choices['billing_country'] ?? '')));
         $paying  = $this->paymentOptions->for($workspace, $terms['currency'], $delivery === EcommerceOrder::SHIPPING ? $country : ($billing ?: $country), $totals['totals']['grand_total'], match ($delivery) {
             EcommerceOrder::SHIPPING => 'shipped',
@@ -102,6 +108,9 @@ class StorefrontCheckout
             'rows'           => $totals['rows'],
             'totals'         => $totals['totals'],
             'shown'          => $totals['shown'],
+            // Phase H1: the code given, what it takes off - or why it does not.
+            'discount'       => $discount,
+            'off'            => $off,
         ];
     }
 
@@ -164,19 +173,24 @@ class StorefrontCheckout
     }
 
     /**
-     * $rows totalled as the invoice will be, each with its amounts, and the
-     * totals as the store shows them: its products, its shipping, the tax
-     * and the total.
+     * $rows totalled as the invoice will be - less $off, a discount's amount
+     * shared over them as Sales shares an invoice's (Phase H1) - each with its
+     * amounts and what it shows; and the totals as the store shows them: its
+     * products, its shipping, the discount, the tax and the total. Each row
+     * shows as it is before the discount, so a discount never changes what a
+     * line shows (as an order's, Phase F5b).
      */
-    private function totals(Workspace $workspace, array $rows, array $terms): array
+    private function totals(Workspace $workspace, array $rows, array $terms, ?string $off = null): array
     {
-        $result   = $this->calculator->calculate(array_map(fn (array $row) => $this->salesLines->forCalculation($row), $rows), null, null, $workspace->price_tax_mode, $workspace->tax_rounding, $terms['rate']);
+        $lines    = array_map(fn (array $row) => $this->salesLines->forCalculation($row), $rows);
+        $plain    = $this->calculator->calculate($lines, null, null, $workspace->price_tax_mode, $workspace->tax_rounding, $terms['rate']);
+        $result   = $off === null ? $plain : $this->calculator->calculate($lines, EcommerceOrder::AMOUNT, $off, $workspace->price_tax_mode, $workspace->tax_rounding, $terms['rate']);
         $products = '0.00';
         $shipping = '0.00';
 
         foreach ($rows as $key => $row) {
-            $rows[$key] = [...$row, ...$result['lines'][$key]];
-            $shown      = $this->pricing->shownAmount($result['lines'][$key], $terms);
+            $shown      = $this->pricing->shownAmount($plain['lines'][$key], $terms);
+            $rows[$key] = [...$row, ...$result['lines'][$key], 'shown' => $shown];
 
             if (($row['kind'] ?? 'product') === 'shipping') {
                 $shipping = bcadd($shipping, $shown, 2);
@@ -188,7 +202,13 @@ class StorefrontCheckout
         return [
             'rows'   => $rows,
             'totals' => Arr::only($result, self::TOTALS),
-            'shown'  => ['subtotal' => $products, 'shipping' => $shipping, 'tax_total' => $result['tax_total'], 'grand_total' => $result['grand_total']],
+            'shown'  => [
+                'subtotal'    => $products,
+                'shipping'    => $shipping,
+                'discount'    => $off === null ? '0.00' : $this->pricing->shownDiscount($plain, $result, $terms),
+                'tax_total'   => $result['tax_total'],
+                'grand_total' => $result['grand_total'],
+            ],
         ];
     }
 }
