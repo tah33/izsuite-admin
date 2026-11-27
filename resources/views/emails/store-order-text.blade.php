@@ -18,12 +18,21 @@ Your order {!! $order['number'] !!}, placed on {!! $order['placed_on'] !!}, is c
 @case ('payment_link')
 You can pay {!! $order['asked'] !!} for your order {!! $order['number'] !!}, placed on {!! $order['placed_on'] !!}, through the link below until {!! $order['until'] !!}. Here is your order:
 @break
+@case ('order_shipped')
+{!! $order['rest'] ? 'Part of your order' : 'Your order' !!} {!! $order['number'] !!} is on its way{!! $order['rest'] ? ' - the rest follows' : '' !!}. Here is what was sent:
+@break
+@case ('order_ready')
+Your order {!! $order['number'] !!} is ready to collect at {!! $order['place'] !!}. Here is what you ordered:
+@break
+@case ('order_delivered')
+{!! $order['delivery_title'] === 'Collected' ? 'You collected your order' : 'Your order' !!} {!! $order['number'] !!}{!! $order['delivery_title'] === 'Collected' ? '' : ' was delivered' !!} on {!! $order['completed_on'] !!}. Thank you for shopping with us! Here is what {!! $order['delivery_title'] === 'Collected' ? 'you collected' : 'was delivered' !!}:
+@break
 @default
 Thank you for your order {!! $order['number'] !!}, placed on {!! $order['placed_on'] !!}. Here is what we have:
 @endswitch
 
 @foreach ($order['lines'] as $line)
-- {!! $line['quantity'] !!} × {!! $line['title'] !!}{!! $line['options'] ? ' ('.$line['options'].')' : '' !!}: {!! $line['amount'] !!}
+- {!! $line['quantity'] !!} × {!! $line['title'] !!}{!! $line['options'] ? ' ('.$line['options'].')' : '' !!}{!! $line['amount'] !== '' ? ': '.$line['amount'] : '' !!}
 @endforeach
 
 @foreach ($order['totals'] as $label => $amount)
@@ -32,16 +41,18 @@ Thank you for your order {!! $order['number'] !!}, placed on {!! $order['placed_
 
 {!! $order['delivery_title'] !!}
 {!! $order['delivery'] !!}
+@if ($order['payment_shown'] ?? true)
 
 Payment: {!! $order['payment'] !!}
 {!! $order['payment_note'] !!}
+@endif
 @if ($order['instructions'])
 
 {!! $order['instructions'] !!}
 @endif
 @if ($order['link'])
 
-{!! ['order_received' => 'See your order', 'payment_link' => 'Pay for your order'][$order['kind']] ?? 'See your invoice' !!}: {!! $order['link'] !!}
+{!! ['order_received' => 'See your order', 'payment_link' => 'Pay for your order', 'order_shipped' => 'Track your parcel'][$order['kind']] ?? 'See your invoice' !!}: {!! $order['link'] !!}
 @endif
 
 Questions? Reply to this e-mail{!! $supportPhone ? ' or call '.$supportPhone : '' !!}.

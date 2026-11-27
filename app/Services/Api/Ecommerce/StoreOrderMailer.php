@@ -7,6 +7,7 @@ use App\Mail\StoreOrderMail;
 use App\Models\User\EcommerceOrder;
 use App\Models\User\EcommerceOrderEmail;
 use App\Models\User\EcommerceOrderLine;
+use App\Repositories\User\EcommerceFulfilmentRepository;
 use App\Repositories\User\EcommerceOrderRepository;
 use App\Services\Documents\DocumentFormat;
 use App\Services\Shared\BusinessCalendar;
@@ -23,14 +24,16 @@ use Illuminate\Support\Facades\Mail;
  * own page; F2 Order Confirmed, with its invoice's secure link; F3 Payment
  * Received and Payment Failed, with the invoice's link once it has one; F4
  * Order Cancelled, with none, and never why; F6a a Payment Link, with the
- * link's own page. The order's later news come with the phases that make it
- * (G and I).
+ * link's own page; G1 a shipment On Its Way, with its tracking link, Ready to
+ * Collect, and Delivered (or collected). The order's later news come with the
+ * phases that make it (G3 and I).
  */
 class StoreOrderMailer
 {
     public function __construct(
         protected EcommerceOrderRepository $orders,
         protected BusinessCalendar $calendar,
+        protected EcommerceFulfilmentRepository $fulfilments,
     ) {}
 
     /**
@@ -70,12 +73,15 @@ class StoreOrderMailer
                 EcommerceOrderEmail::PAYMENT_FAILED   => "Your payment for {$about} was not received",
                 EcommerceOrderEmail::ORDER_CANCELLED  => "Your {$about} is cancelled",
                 EcommerceOrderEmail::PAYMENT_LINK     => "Pay for your {$about}",
+                EcommerceOrderEmail::ORDER_SHIPPED    => "Your {$about} is on its way",
+                EcommerceOrderEmail::ORDER_READY      => "Your {$about} is ready to collect",
+                EcommerceOrderEmail::ORDER_DELIVERED  => $order->delivery === EcommerceOrder::PICKUP ? "You collected your {$about}" : "Your {$about} was delivered",
                 default                               => "Your {$about}",
             },
             $storefront->name,
             $storefront->support_email,
             $storefront->support_phone,
-            [...$this->shown($order, $link, $email->kind, $details), 'kind' => $email->kind, 'invoice' => $order->invoice?->number],
+            [...$this->shown($order, $link, $email->kind, $details), ...$this->fulfilled($order, $email->kind, $details), 'kind' => $email->kind, 'invoice' => $order->invoice?->number],
         ));
 
         $this->orders->updateEmail($email, ['status' => EcommerceOrderEmail::SENT, 'sent_at' => now(), 'error' => null]);
@@ -156,6 +162,53 @@ class StoreOrderMailer
             },
             'instructions'   => $settled || $cancelled || $linked ? null : ($payment['instructions'] ?? null),
             'link'           => $link,
+        ];
+    }
+
+    /**
+     * Phase G1: what a shipment's, readiness's or delivery's e-mail shows
+     * over the order's - the shipment's own products, without prices; its
+     * carrier and tracking; where to collect it; the day it arrived - and its
+     * payment only while the order owes it before it reaches them (cash on
+     * delivery, paying on pickup). Nothing for other e-mails.
+     */
+    private function fulfilled(EcommerceOrder $order, string $kind, array $details): array
+    {
+        if (! in_array($kind, [EcommerceOrderEmail::ORDER_SHIPPED, EcommerceOrderEmail::ORDER_READY, EcommerceOrderEmail::ORDER_DELIVERED], true)) {
+            return [];
+        }
+
+        $workspace  = $order->workspace;
+        $format     = new DocumentFormat($workspace->date_format ?? 'd M Y', $workspace->number_format ?? 'comma_dot');
+        $fulfilment = isset($details['fulfilment']) ? $this->fulfilments->find((int) $details['fulfilment']) : null;
+        $place      = $order->delivery_snapshot['name'] ?? $fulfilment?->location?->name ?? 'the shop';
+        $owing      = $kind !== EcommerceOrderEmail::ORDER_DELIVERED && $order->payment_status !== EcommerceOrder::PAID;
+
+        return [
+            'rest'           => (bool) ($details['rest'] ?? false),
+            'place'          => $place,
+            'completed_on'   => $fulfilment?->completed_on ? $format->date($fulfilment->completed_on->toDateString()) : null,
+            ...($fulfilment ? [
+                'lines'  => $fulfilment->lines->map(fn ($line) => [
+                    'quantity' => $format->quantity((string) $line->quantity),
+                    'title'    => $line->orderLine?->title,
+                    'options'  => implode(', ', array_column($line->orderLine?->options ?? [], 'value')),
+                    'amount'   => '',
+                ])->values()->all(),
+                'totals' => [],
+            ] : []),
+            'delivery_title' => match ($kind) {
+                EcommerceOrderEmail::ORDER_SHIPPED => ucfirst($fulfilment?->label() ?? 'shipment').($fulfilment?->carrier ? ", by {$fulfilment->carrier}" : ''),
+                EcommerceOrderEmail::ORDER_READY   => "Collect it at {$place}",
+                default                            => $order->delivery === EcommerceOrder::PICKUP ? 'Collected' : 'Delivered',
+            },
+            'delivery'       => match ($kind) {
+                EcommerceOrderEmail::ORDER_SHIPPED => implode("\n", array_filter([$fulfilment?->tracking_number ? "Tracking number: {$fulfilment->tracking_number}" : null, $this->address($order->shipping_address)])),
+                EcommerceOrderEmail::ORDER_READY   => implode("\n", array_filter(['It is ready now.', $order->delivery_snapshot['instructions'] ?? null])),
+                default                            => $fulfilment?->completed_on ? 'On '.$format->date($fulfilment->completed_on->toDateString()).'.' : '',
+            },
+            'payment_shown'  => $owing,
+            'instructions'   => null,
         ];
     }
 

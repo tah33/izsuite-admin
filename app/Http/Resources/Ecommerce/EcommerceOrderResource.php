@@ -2,6 +2,8 @@
 
 namespace App\Http\Resources\Ecommerce;
 
+use App\Models\User\EcommerceFulfilment;
+use App\Models\User\EcommerceFulfilmentLine;
 use App\Models\User\EcommerceOrder;
 use App\Models\User\EcommerceOrderEmail;
 use App\Models\User\EcommerceOrderLine;
@@ -126,6 +128,27 @@ class EcommerceOrderResource extends JsonResource
                     'reference' => $link->reported_reference,
                 ] : null,
             ])->values(),
+            // Phase G1: its shipments, or its pickup - each with what it holds, from where, when, by whom, its tracking and the
+            // business's notes, delivered or collected when, and why one was cancelled.
+            'fulfilments'        => $order->fulfilments->map(fn (EcommerceFulfilment $fulfilment) => [
+                'id'              => $fulfilment->id,
+                'sequence'        => $fulfilment->sequence,
+                'kind'            => $fulfilment->kind,
+                'status'          => $fulfilment->status,
+                'location'        => $fulfilment->location?->name,
+                'fulfilled_on'    => $fulfilment->fulfilled_on?->toDateString(),
+                'completed_on'    => $fulfilment->completed_on?->toDateString(),
+                'carrier'         => $fulfilment->carrier,
+                'tracking_number' => $fulfilment->tracking_number,
+                'tracking_url'    => $fulfilment->tracking_url,
+                'notes'           => $fulfilment->notes,
+                'cancel_reason'   => $fulfilment->cancel_reason,
+                'by'              => $fulfilment->creator?->name ?? 'A former member',
+                'lines'           => $fulfilment->lines->map(fn (EcommerceFulfilmentLine $line) => [
+                    'title'    => $this->titleOf($order, $line->ecommerce_order_line_id),
+                    'quantity' => (string) $line->quantity,
+                ])->values(),
+            ])->values(),
             // Phase F5b: the discount given - a percentage of its products, or an amount - and why.
             'discount'           => $order->discount_type ? [
                 'type'   => $order->discount_type,
@@ -140,5 +163,13 @@ class EcommerceOrderResource extends JsonResource
                 'error'   => $email->status === EcommerceOrderEmail::FAILED ? $email->error : null,
             ])->values(),
         ];
+    }
+
+    /** Phase G1: the order's product $lineId as a fulfilment names it - its title, and its options. */
+    private function titleOf(EcommerceOrder $order, int $lineId): string
+    {
+        $line = $order->lines->firstWhere('id', $lineId);
+
+        return $line ? $line->title.(($line->options ?? []) !== [] ? ' ('.implode(', ', array_column($line->options, 'value')).')' : '') : 'A product since removed';
     }
 }

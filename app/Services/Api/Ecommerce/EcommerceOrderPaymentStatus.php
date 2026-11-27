@@ -15,7 +15,9 @@ use App\Repositories\User\EcommercePaymentLinkRepository;
  * invoice is. Owing all of it again - its payments reversed - it is Unpaid;
  * while nothing was paid, a payment waiting to be confirmed (Pending) or
  * marked failed stays so. Paid in full, its payment links still active are
- * Paid too (Phase F6a): they have nothing left to ask.
+ * Paid too (Phase F6a): they have nothing left to ask. Its status follows
+ * as well (Phase G1, EcommerceOrderProgress): delivered and now paid, it is
+ * Completed; completed and owing again, Processing.
  */
 class EcommerceOrderPaymentStatus
 {
@@ -24,6 +26,7 @@ class EcommerceOrderPaymentStatus
     public function __construct(
         protected EcommerceOrderRepository $orders,
         protected EcommercePaymentLinkRepository $links,
+        protected EcommerceOrderProgress $progress,
     ) {}
 
     public function follow(SalesDocument $invoice): void
@@ -48,5 +51,8 @@ class EcommerceOrderPaymentStatus
         if ($status === EcommerceOrder::PAID) {
             $this->links->markActivePaid($order);
         }
+
+        // Phase G1: delivered and paid, it is completed - or no longer, owing again.
+        $this->progress->follow($order);
     }
 }

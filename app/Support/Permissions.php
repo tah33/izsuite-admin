@@ -167,6 +167,8 @@ final class Permissions
         // Phase F1: the business's online orders - the Orders page and each order's page; F2: confirming one, its invoice issued;
         // F4: holding one for review and releasing it, and cancelling one; F5: editing one before payment.
         'ecommerce.orders'   => ['Orders', 'ecommerce', ['view' => 'View Orders', 'edit' => 'Edit Orders', 'confirm' => 'Confirm Orders', 'hold' => 'Place Orders On Hold', 'cancel' => 'Cancel Orders']],
+        // Phase G1: an order's shipments and its readiness for pickup.
+        'ecommerce.fulfilment' => ['Fulfilment', 'ecommerce', ['manage' => 'Manage Fulfilment']],
         'ecommerce.settings' => ['eCommerce Settings', 'ecommerce', self::APP_SETTINGS],
     ];
 
@@ -273,6 +275,8 @@ final class Permissions
         'ecommerce.payments.manage'  => ['settings.view', 'ecommerce.store.view'],
         // Phase F1: the Orders page filters by storefront.
         'ecommerce.orders.view'      => ['ecommerce.store.view'],
+        // Phase G1: an order's shipments are on its page.
+        'ecommerce.fulfilment.manage' => ['ecommerce.orders.view'],
         'purchases.purchases.create' => ['contacts.view', 'items.view'],
         'purchases.payments.record'  => ['purchases.purchases.view', 'payment_accounts.view'],
         'purchases.payments.reverse' => ['payment_accounts.view'],

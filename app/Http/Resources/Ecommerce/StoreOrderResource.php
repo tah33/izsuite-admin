@@ -2,6 +2,8 @@
 
 namespace App\Http\Resources\Ecommerce;
 
+use App\Models\User\EcommerceFulfilment;
+use App\Models\User\EcommerceFulfilmentLine;
 use App\Models\User\EcommerceOrder;
 use App\Models\User\EcommerceOrderLine;
 use App\Services\Documents\DocumentLinks;
@@ -16,7 +18,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * and paid (the method's instructions, and the reference given), its
  * products as the store showed them, and its totals. Its own link's key
  * comes only once, when it is placed. From Phase F2, its invoice once the
- * order is confirmed - its number and secure link, while the link works.
+ * order is confirmed - its number and secure link, while the link works;
+ * from Phase G1, its shipments with their tracking, or its pickup.
  *
  * @property EcommerceOrder $resource
  */
@@ -68,6 +71,21 @@ class StoreOrderResource extends JsonResource
                 'tax_total'   => $order->tax_total,
                 'grand_total' => $order->grand_total,
             ],
+            // Phase G1: its shipments, or its pickup, as they stand - never one cancelled, nor the business's notes.
+            'fulfilments'        => $order->fulfilments->where('status', '!=', EcommerceFulfilment::CANCELLED)->map(fn (EcommerceFulfilment $fulfilment) => [
+                'kind'            => $fulfilment->kind,
+                'sequence'        => $fulfilment->sequence,
+                'status'          => $fulfilment->status,
+                'fulfilled_on'    => $fulfilment->fulfilled_on?->toDateString(),
+                'completed_on'    => $fulfilment->completed_on?->toDateString(),
+                'carrier'         => $fulfilment->carrier,
+                'tracking_number' => $fulfilment->tracking_number,
+                'tracking_url'    => $fulfilment->tracking_url,
+                'lines'           => $fulfilment->lines->map(fn (EcommerceFulfilmentLine $line) => [
+                    'title'    => $order->lines->firstWhere('id', $line->ecommerce_order_line_id)?->title,
+                    'quantity' => (int) $line->quantity,
+                ])->values(),
+            ])->values(),
         ];
     }
 }
