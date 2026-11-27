@@ -88,4 +88,18 @@ class EcommerceOrderLine extends Model
     {
         return $this->belongsTo(Item::class);
     }
+
+    /** Phase G3a: a product that does not ship is a service, by its item - else a digital product. */
+    public function isService(): bool
+    {
+        return $this->item?->type === Item::TYPE_SERVICE;
+    }
+
+    /** Phase G3a: how its item delivers it, as a digital product - by hand when the item says nothing. */
+    public function deliveryMethod(): string
+    {
+        $method = $this->item?->delivery_method;
+
+        return in_array($method, Item::DELIVERY_METHODS, true) ? $method : EcommerceOrderDelivery::MANUAL;
+    }
 }

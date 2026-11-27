@@ -28,6 +28,18 @@ class EcommerceOrderEmail extends Model
     /** Phase F6a: a payment link - what it asks, until when, and its page. */
     public const PAYMENT_LINK = 'payment_link';
 
+    /** Phase G1: a shipment on its way, with its tracking; the order ready to collect; a shipment delivered, or the order collected. */
+    public const ORDER_SHIPPED = 'order_shipped';
+
+    public const ORDER_READY = 'order_ready';
+
+    public const ORDER_DELIVERED = 'order_delivered';
+
+    /** Phase G3a: digital products delivered - their keys, links or note - and a service performed. */
+    public const DIGITAL_DELIVERED = 'digital_delivered';
+
+    public const SERVICE_PERFORMED = 'service_performed';
+
     public const QUEUED = 'queued';
 
     public const SENT = 'sent';

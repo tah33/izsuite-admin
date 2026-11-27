@@ -22,7 +22,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * Placed, it is Pending, its payment Unpaid (Pending once the customer gives
  * a payment's reference) and its fulfilment Unfulfilled - Not Required when
  * nothing is delivered. It is not a sale: its invoice is issued when it is
- * confirmed (Phase F2), and then it counts once.
+ * confirmed (Phase F2), and then it counts once. From Phase G1 its
+ * shipments, or its readiness for pickup, move its fulfilment and make it
+ * Processing, then Completed once delivered and paid (EcommerceOrderProgress).
  */
 class EcommerceOrder extends Model
 {
@@ -34,6 +36,11 @@ class EcommerceOrder extends Model
     public const ON_HOLD = 'on_hold';
 
     public const CANCELLED = 'cancelled';
+
+    /** Phase G1: being fulfilled - from its first shipment, or ready for pickup - and completed once delivered and paid. */
+    public const PROCESSING = 'processing';
+
+    public const COMPLETED = 'completed';
 
     public const STATUSES = ['pending', 'confirmed', 'on_hold', 'processing', 'completed', 'cancelled'];
 
@@ -53,6 +60,17 @@ class EcommerceOrder extends Model
     public const NOT_REQUIRED = 'not_required';
 
     public const UNFULFILLED = 'unfulfilled';
+
+    /** Phase G1: as its shipments go out and arrive - or it is made ready, then collected. */
+    public const PARTIALLY_FULFILLED = 'partially_fulfilled';
+
+    public const READY_FOR_PICKUP = 'ready_for_pickup';
+
+    public const FULFILLED = 'fulfilled';
+
+    public const SHIPPED = 'shipped';
+
+    public const DELIVERED = 'delivered';
 
     public const FULFILMENT_STATUSES = ['not_required', 'unfulfilled', 'partially_fulfilled', 'ready_for_pickup', 'fulfilled', 'shipped', 'delivered', 'partially_returned', 'returned'];
 
@@ -237,5 +255,17 @@ class EcommerceOrder extends Model
     public function paymentLinks(): HasMany
     {
         return $this->hasMany(EcommercePaymentLink::class)->orderByDesc('id');
+    }
+
+    /** Phase G1: its shipments, or its readiness for pickup, in the order they were made. */
+    public function fulfilments(): HasMany
+    {
+        return $this->hasMany(EcommerceFulfilment::class)->orderBy('sequence');
+    }
+
+    /** Phase G3a: its digital products delivered and its services performed - one for each line that does not ship, once it is. */
+    public function deliveries(): HasMany
+    {
+        return $this->hasMany(EcommerceOrderDelivery::class);
     }
 }

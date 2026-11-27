@@ -84,12 +84,13 @@ class EcommerceOrdersTest extends TestCase
             ->assertJsonPath('data.1.payment_status', 'pending')
             ->assertJsonPath('data.1.fulfilment_status', 'unfulfilled')
             ->assertJsonPath('data.0.payment_status', 'unpaid')
-            ->assertJsonPath('data.0.fulfilment_status', 'not_required')
+            ->assertJsonPath('data.0.fulfilment_status', 'unfulfilled')
             ->assertJsonPath('pagination.total', 2);
 
-        // Each filter, and a number, name or e-mail searched for.
+        // Each filter, and a number, name or e-mail searched for. From Phase G3a, an order with nothing to ship is still to be fulfilled.
         $this->getJson(self::ORDERS.'?payment_status=unpaid')->assertJsonPath('data.*.number', ['EC-00002']);
-        $this->getJson(self::ORDERS.'?fulfilment_status=unfulfilled')->assertJsonPath('data.*.number', ['EC-00001']);
+        $this->getJson(self::ORDERS.'?fulfilment_status=unfulfilled')->assertJsonPath('data.*.number', ['EC-00002', 'EC-00001']);
+        $this->getJson(self::ORDERS.'?fulfilment_status=not_required')->assertJsonPath('data', []);
         $this->getJson(self::ORDERS.'?status=pending&storefront_id='.$this->store->id)->assertJsonPath('pagination.total', 2);
         $this->getJson(self::ORDERS.'?storefront_id=999')->assertJsonPath('data', []);
         $this->getJson(self::ORDERS.'?search=00001')->assertJsonPath('data.*.number', ['EC-00001']);

@@ -10,6 +10,7 @@ use App\Models\User\EcommercePaymentLink;
 use App\Models\User\User;
 use App\Models\User\Workspace;
 use App\Repositories\User\CatalogProductRepository;
+use App\Repositories\User\EcommerceFulfilmentRepository;
 use App\Repositories\User\EcommerceOrderRepository;
 use App\Repositories\User\EcommercePaymentLinkRepository;
 use App\Services\Api\Sales\RefusesConflicts;
@@ -30,13 +31,16 @@ use Illuminate\Support\Facades\DB;
  *   and variants still Limited, and its invoice is voided as Sales voids one
  *   (its secure links stop working with it);
  * - the order is Cancelled, and its customer e-mailed that it is - never why;
- * - its payment links still active are revoked (Phase F6a).
+ * - its payment links still active are revoked (Phase F6a);
+ * - from Phase G1 a processing order is cancelled too while it is only ready
+ *   for pickup: its readiness is cancelled with it.
  */
 class EcommerceOrderCancellation
 {
     use RefusesConflicts;
 
-    private const CANCELLABLE = [EcommerceOrder::PENDING, EcommerceOrder::CONFIRMED, EcommerceOrder::ON_HOLD];
+    /** Phase G1: a processing order too, while it is only ready for pickup (NOT_SENT). */
+    private const CANCELLABLE = [EcommerceOrder::PENDING, EcommerceOrder::CONFIRMED, EcommerceOrder::ON_HOLD, EcommerceOrder::PROCESSING];
 
     /** Fulfilment statuses of an order not yet shipped or collected. */
     private const NOT_SENT = [EcommerceOrder::UNFULFILLED, EcommerceOrder::NOT_REQUIRED, 'ready_for_pickup'];
@@ -49,6 +53,7 @@ class EcommerceOrderCancellation
         protected SalesDocumentFlow $salesFlow,
         protected StoreOrderMailer $mailer,
         protected EcommercePaymentLinkRepository $paymentLinks,
+        protected EcommerceFulfilmentRepository $fulfilments,
     ) {}
 
     public function cancel(Workspace $workspace, User $user, int $id, string $reason): EcommerceOrder
@@ -62,7 +67,7 @@ class EcommerceOrderCancellation
             if (! in_array($order->status, self::CANCELLABLE, true)) {
                 $this->refuse($order->status === EcommerceOrder::CANCELLED
                     ? "Order {$order->number} is cancelled already."
-                    : "Only a pending, confirmed or held order is cancelled: {$order->number} is ".str_replace('_', ' ', $order->status).'.');
+                    : "Only an order not yet completed is cancelled: {$order->number} is ".str_replace('_', ' ', $order->status).'.');
             }
 
             if (! in_array($order->fulfilment_status, self::NOT_SENT, true)) {
@@ -87,7 +92,16 @@ class EcommerceOrderCancellation
             // Phase F6a: its payment links still active ask no more.
             $this->paymentLinks->revokeActive($order, $user->id, EcommercePaymentLink::CANCELLED);
 
-            $this->orders->update($order, ['status' => EcommerceOrder::CANCELLED, 'held_status' => null, 'status_reason' => $reason]);
+            // Phase G1: ready for pickup, it is not collected now.
+            $this->fulfilments->cancelReady($order, "The order was cancelled: {$reason}");
+
+            $this->orders->update($order, [
+                'status'        => EcommerceOrder::CANCELLED,
+                'held_status'   => null,
+                'status_reason' => $reason,
+                // Phase G1: its readiness for pickup gone with it.
+                ...($order->fulfilment_status === EcommerceOrder::READY_FOR_PICKUP ? ['fulfilment_status' => EcommerceOrder::UNFULFILLED] : []),
+            ]);
 
             $this->mailer->queue($order, EcommerceOrderEmail::ORDER_CANCELLED, null);
 

@@ -2,7 +2,10 @@
 
 namespace App\Http\Resources\Ecommerce;
 
+use App\Models\User\EcommerceFulfilment;
+use App\Models\User\EcommerceFulfilmentLine;
 use App\Models\User\EcommerceOrder;
+use App\Models\User\EcommerceOrderDelivery;
 use App\Models\User\EcommerceOrderEmail;
 use App\Models\User\EcommerceOrderLine;
 use App\Models\User\EcommercePaymentLink;
@@ -22,7 +25,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * invoice once it is confirmed, and when and by whom it was; from Phase F3,
  * what the invoice still owes, its payments, and its payment's failures;
  * from Phase F4, why it is on hold or cancelled, the status a hold goes back
- * to, and - on its page - what may want a look (never its customer's).
+ * to, and - on its page - what may want a look (never its customer's). From
+ * Phase G1 its shipments or pickup; from Phase G3a its digital products and
+ * services, and their deliveries.
  *
  * @property EcommerceOrder $resource
  */
@@ -126,6 +131,49 @@ class EcommerceOrderResource extends JsonResource
                     'reference' => $link->reported_reference,
                 ] : null,
             ])->values(),
+            // Phase G1: its shipments, or its pickup - each with what it holds, from where, when, by whom, its tracking and the
+            // business's notes, delivered or collected when, and why one was cancelled.
+            'fulfilments'        => $order->fulfilments->map(fn (EcommerceFulfilment $fulfilment) => [
+                'id'              => $fulfilment->id,
+                'sequence'        => $fulfilment->sequence,
+                'kind'            => $fulfilment->kind,
+                'status'          => $fulfilment->status,
+                'location'        => $fulfilment->location?->name,
+                'fulfilled_on'    => $fulfilment->fulfilled_on?->toDateString(),
+                'completed_on'    => $fulfilment->completed_on?->toDateString(),
+                'carrier'         => $fulfilment->carrier,
+                'tracking_number' => $fulfilment->tracking_number,
+                'tracking_url'    => $fulfilment->tracking_url,
+                'notes'           => $fulfilment->notes,
+                'cancel_reason'   => $fulfilment->cancel_reason,
+                'by'              => $fulfilment->creator?->name ?? 'A former member',
+                'lines'           => $fulfilment->lines->map(fn (EcommerceFulfilmentLine $line) => [
+                    'title'    => $this->titleOf($order, $line->ecommerce_order_line_id),
+                    'quantity' => (string) $line->quantity,
+                ])->values(),
+            ])->values(),
+            // Phase G3a: its digital products and services - each as its item delivers it and where it stands, with its
+            // delivery's license keys, the note to the customer, when and by whom, and when, by whom and why it was revoked.
+            'deliverables'       => $order->lines->where('kind', EcommerceOrderLine::PRODUCT)->where('shipped', false)->map(function (EcommerceOrderLine $line) use ($order) {
+                $delivery = $order->deliveries->firstWhere('ecommerce_order_line_id', $line->id);
+
+                return [
+                    'line_id'       => $line->id,
+                    'title'         => $this->titleOf($order, $line->id),
+                    'quantity'      => (string) $line->quantity,
+                    'kind'          => $line->isService() ? EcommerceOrderDelivery::SERVICE : EcommerceOrderDelivery::DIGITAL,
+                    'method'        => $line->isService() ? null : ($delivery?->method ?? $line->deliveryMethod()),
+                    'state'         => EcommerceOrderDelivery::stateOf($order, $line, $delivery),
+                    'license_keys'  => $delivery?->license_keys ?? [],
+                    'note'          => $delivery?->note,
+                    'delivered_at'  => $delivery?->delivered_at?->toIso8601String(),
+                    'performed_on'  => $delivery?->performed_on?->toDateString(),
+                    'by'            => $delivery?->delivered_by ? ($delivery->deliverer?->name ?? 'A former member') : null,
+                    'revoked_at'    => $delivery?->revoked_at?->toIso8601String(),
+                    'revoked_by'    => $delivery?->revoked_at ? ($delivery->revoker?->name ?? 'A former member') : null,
+                    'revoke_reason' => $delivery?->revoke_reason,
+                ];
+            })->values(),
             // Phase F5b: the discount given - a percentage of its products, or an amount - and why.
             'discount'           => $order->discount_type ? [
                 'type'   => $order->discount_type,
@@ -140,5 +188,13 @@ class EcommerceOrderResource extends JsonResource
                 'error'   => $email->status === EcommerceOrderEmail::FAILED ? $email->error : null,
             ])->values(),
         ];
+    }
+
+    /** Phase G1: the order's product $lineId as a fulfilment names it - its title, and its options. */
+    private function titleOf(EcommerceOrder $order, int $lineId): string
+    {
+        $line = $order->lines->firstWhere('id', $lineId);
+
+        return $line ? $line->title.(($line->options ?? []) !== [] ? ' ('.implode(', ', array_column($line->options, 'value')).')' : '') : 'A product since removed';
     }
 }

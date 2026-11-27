@@ -511,6 +511,19 @@ final class RoutePermissions
             'api.ecommerce.orders.payment-link'         => 'ecommerce.orders.confirm',
             'api.ecommerce.orders.payment-links.store'  => 'ecommerce.orders.confirm',
             'api.ecommerce.orders.payment-links.revoke' => 'ecommerce.orders.confirm',
+            // Phase G1: shipments and pickup, under Manage Fulfilment.
+            'api.ecommerce.orders.fulfilment'            => 'ecommerce.fulfilment.manage',
+            'api.ecommerce.orders.shipments.store'       => 'ecommerce.fulfilment.manage',
+            'api.ecommerce.orders.pickup'                => 'ecommerce.fulfilment.manage',
+            'api.ecommerce.orders.fulfilments.update'    => 'ecommerce.fulfilment.manage',
+            'api.ecommerce.orders.fulfilments.complete'  => 'ecommerce.fulfilment.manage',
+            'api.ecommerce.orders.fulfilments.cancel'    => 'ecommerce.fulfilment.manage',
+            // Phase G2: a shipment's packing slip, for whoever may view the order.
+            'api.ecommerce.orders.fulfilments.pdf'       => 'ecommerce.orders.view',
+            // Phase G3a: digital products delivered or revoked, and services performed, under Manage Fulfilment.
+            'api.ecommerce.orders.lines.deliver'         => 'ecommerce.fulfilment.manage',
+            'api.ecommerce.orders.lines.perform'         => 'ecommerce.fulfilment.manage',
+            'api.ecommerce.orders.lines.revoke'          => 'ecommerce.fulfilment.manage',
             // Doc 18 Phase A2: POS registers.
             'api.pos.registers.index'   => 'pos.registers.view',
             'api.pos.registers.options' => 'pos.registers.manage',

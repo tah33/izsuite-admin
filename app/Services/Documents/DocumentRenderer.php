@@ -6,6 +6,8 @@ use App\Enums\DocumentType;
 use App\Enums\ExpenseStatus;
 use App\Enums\PurchaseStatus;
 use App\Enums\SalesDocumentStatus;
+use App\Models\User\EcommerceFulfilment;
+use App\Models\User\EcommerceOrder;
 use App\Models\User\Expense;
 use App\Models\User\ExpensePayment;
 use App\Models\User\PosDevice;
@@ -30,7 +32,8 @@ use App\Support\Decimal;
  * document, a payment receipt, a purchase's or an expense's record or a
  * supplier or expense payment voucher drawn up as HTML - for its PDF, its print and its
  * secure link alike - in its template's colour, font, layout and formats. And
- * a POS sale's receipt, for a receipt printer's roll (Doc 18 Phase C4).
+ * a POS sale's receipt, for a receipt printer's roll (Doc 18 Phase C4), and an
+ * online order's shipment's packing slip (Doc 19 Phase G2).
  *
  * A numbered document is drawn from what it kept: the business, the customer,
  * supplier or payee and the template as they were (Doc 06 section 15). A draft
@@ -47,6 +50,7 @@ class DocumentRenderer
         protected ExpenseSheet $expenseSheet,
         protected PosReceiptSheet $posReceiptSheet,
         protected PosSessionReportSheet $posSessionReportSheet,
+        protected PackingSlipSheet $packingSlipSheet,
         protected SalesSnapshots $salesSnapshots,
         protected WorkspaceFileRepository $workspaceFileRepository,
         protected FileStorage $fileStorage,
@@ -158,6 +162,47 @@ class DocumentRenderer
             $this->footer($template, $business),
             $template['paper_size'],
             $this->filename('Delivery-Note', $delivery->number, $delivery->id),
+        );
+    }
+
+    /**
+     * An online order's shipment's packing slip (Doc 19 Phase G2), in the
+     * template of the invoice its confirmation issued, with the business as
+     * that invoice kept it - or as it is now, without one. It goes in the
+     * parcel: no prices, and never the business's own notes. A cancelled
+     * shipment's says so across it. Expects the order with its lines,
+     * location and invoice whole, and the shipment with its lines.
+     */
+    public function packingSlip(Workspace $workspace, EcommerceOrder $order, EcommerceFulfilment $shipment): RenderedDocument
+    {
+        $invoice  = $order->invoice;
+        $template = $this->documentTemplates->settingsFor($workspace, DocumentType::Invoice, $invoice?->template_snapshot);
+        $format   = DocumentFormat::of($template);
+        $business = $invoice?->business_snapshot ?? $this->salesSnapshots->business($workspace, $order->location);
+        $name     = "{$order->number} Shipment {$shipment->sequence}";
+
+        $data = [
+            'title'      => "Packing Slip {$name}",
+            'number'     => $order->number,
+            'stamp'      => $shipment->status === EcommerceFulfilment::CANCELLED ? 'Cancelled' : null,
+            'label'      => 'Packing Slip',
+            'template'   => $template,
+            'business'   => $business,
+            'logo'       => $this->image($workspace, $template['show_logo'] ? ($business['logo_file_id'] ?? null) : null),
+            'customer'   => $this->packingSlipSheet->customer($order),
+            'partyLabel' => 'Customer',
+            'shipTo'     => $this->packingSlipSheet->shipTo($order),
+            'facts'      => $this->packingSlipSheet->facts($workspace, $order, $shipment, $format),
+            ...$this->packingSlipSheet->lines($order, $shipment, $format),
+            'part'       => $this->packingSlipSheet->part($order, $shipment),
+            'lang'       => $template['language'],
+        ];
+
+        return new RenderedDocument(
+            view('documents.packing-slip', $data)->render(),
+            $this->footer($template, $business),
+            $template['paper_size'],
+            $this->filename('Packing-Slip', $name, $shipment->id),
         );
     }
 
