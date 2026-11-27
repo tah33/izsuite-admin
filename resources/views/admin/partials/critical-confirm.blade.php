@@ -2,14 +2,22 @@
     A critical action's confirmation (Doc 15 section 15.25): what the change
     affects, then the admin's password again and the reason, which the audit
     log keeps. CriticalActionService checks them. Expects $impact; $id makes
-    the fields' ids unique when a page has more than one.
+    the fields' ids unique when a page has more than one; $action, a view,
+    is drawn at the top right (the page's submit button).
 --}}
 @php($id = $id ?? 'critical')
 <div class="rounded-lg border border-[var(--warning)] bg-[var(--warning-light)] p-4 text-start {{ $class ?? '' }}">
-    <p class="text-sm font-semibold text-[var(--text-primary)] mb-1 flex items-center gap-2">
-        <i data-lucide="shield-alert" class="w-4 h-4"></i>{{ __('A critical change') }}
-    </p>
-    <p class="text-sm text-[var(--text-secondary)] mb-3">{{ $impact }} {{ __('Confirm it with your password and the reason, which the audit log keeps.') }}</p>
+    <div class="flex flex-wrap items-start gap-3 mb-3">
+        <div class="flex-1 min-w-[240px]">
+            <p class="text-sm font-semibold text-[var(--text-primary)] mb-1 flex items-center gap-2">
+                <i data-lucide="shield-alert" class="w-4 h-4"></i>{{ __('A critical change') }}
+            </p>
+            <p class="text-sm text-[var(--text-secondary)]">{{ $impact }} {{ __('Confirm it with your password and the reason, which the audit log keeps.') }}</p>
+        </div>
+        @isset($action)
+            @include($action)
+        @endisset
+    </div>
 
     <div class="grid grid-cols-1 {{ ($compact ?? false) ? '' : 'md:grid-cols-2' }} gap-3">
         <div class="form-group flex flex-col gap-1.5">

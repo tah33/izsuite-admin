@@ -3,8 +3,8 @@
 
 @section('content')
     {{-- Breadcrumb --}}
-    <div class="mb-6">
-        <div class="flex items-center gap-2 text-sm mb-2 text-[var(--text-muted)]">
+    <div class="mb-4">
+        <div class="flex items-center gap-2 text-sm mb-1 text-[var(--text-muted)]">
             <a href="{{ route('admin.apps.index') }}" class="text-[var(--primary)]">{{ __('Apps') }}</a>
             <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
             <span>{{ $app->name }}</span>
@@ -102,7 +102,7 @@
             </button>
         </form>
         <p class="text-xs mt-3 text-[var(--text-muted)]">
-            {{ __('Refused if it is the app\'s own family, if it would go round in a circle, or if the required app is only in a higher plan than this one.') }}
+            {{ __('Refused if it is the app\'s own family, if it would go round in a circle, or if a plan this app is in does not have the required app.') }}
         </p>
     </div>
 

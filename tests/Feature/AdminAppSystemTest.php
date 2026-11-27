@@ -94,19 +94,20 @@ class AdminAppSystemTest extends TestCase
         }
     }
 
-    public function test_package_access_keeps_an_app_in_every_plan_above_its_lowest(): void
+    public function test_package_access_saves_each_plan_exactly_as_ticked(): void
     {
-        $crm = $this->app('crm', 'crm', 'full', 'premium');
+        $crm   = $this->app('crm', 'crm', 'full', 'premium');
+        $sales = $this->app('sales', 'sales', 'full', 'premium');
         $this->actingAs($this->admin);
 
-        // Only Standard ticked: Premium follows. Every plan's apps change, so the password and a reason (Doc 15 section 15.25).
+        // Each plan has its own apps: only Standard for CRM, Starter and Premium for Sales. Every plan's apps change, so the password and a reason (Doc 15 section 15.25).
         $this->putJson(route('admin.package-access.update'), [
-            'access'           => [$crm->id => [$this->packages['standard']->id]],
+            'access'           => [$crm->id => [$this->packages['standard']->id], $sales->id => [$this->packages['starter']->id, $this->packages['premium']->id]],
             'confirm_password' => 'password',
-            'reason'           => 'CRM moves to Standard',
+            'reason'           => 'Plans set one by one',
         ])->assertOk();
 
-        $this->assertSame(['crm' => ['standard', 'premium']], $this->access());
+        $this->assertEquals(['crm' => ['standard'], 'sales' => ['starter', 'premium']], $this->access());
     }
 
     public function test_package_access_refuses_a_plan_without_what_its_apps_need(): void
@@ -121,7 +122,7 @@ class AdminAppSystemTest extends TestCase
             $purchases->id => [$this->packages['premium']->id],
         ]])
             ->assertStatus(422)
-            ->assertJsonPath('message', 'Inventory is in Standard, but needs Purchases, which is only in Premium.');
+            ->assertJsonPath('message', 'Inventory is in Standard, but needs Purchases, which is not in that plan.');
 
         // Nothing changed.
         $this->assertSame(['purchases' => ['premium'], 'inventory' => ['premium']], $this->access());
@@ -233,5 +234,54 @@ class AdminAppSystemTest extends TestCase
         $this->putJson(route('admin.apps.update', $sales->id), [
             'name' => 'Sales', 'category_id' => $this->category->id, 'status' => 'available', 'sort_order' => 5, 'support_url' => 'not a link',
         ])->assertJsonValidationErrors('support_url');
+    }
+
+    public function test_an_apps_plans_are_chosen_in_its_form(): void
+    {
+        $this->actingAs($this->admin);
+        $form = ['category_id' => $this->category->id, 'status' => 'available', 'sort_order' => 0, 'is_active' => true];
+
+        // Billing Starter only: no other plan gets it.
+        $this->postJson(route('admin.apps.store'), [...$form, 'name' => 'Crm', 'package_ids' => [$this->packages['starter']->id]])->assertOk();
+        $crm = Application::where('app_key', 'crm')->firstOrFail();
+        $this->assertSame(['crm' => ['starter']], $this->access());
+
+        $this->putJson(route('admin.apps.update', $crm->id), [...$form, 'name' => 'Crm', 'package_ids' => [$this->packages['premium']->id, $this->packages['starter']->id]])->assertOk();
+        $this->assertSame(['crm' => ['starter', 'premium']], $this->access());
+
+        // Not sent: its plans stay. Sent empty: it is in no plan.
+        $this->putJson(route('admin.apps.update', $crm->id), [...$form, 'name' => 'CRM'])->assertOk();
+        $this->assertSame(['crm' => ['starter', 'premium']], $this->access());
+
+        $this->putJson(route('admin.apps.update', $crm->id), [...$form, 'name' => 'CRM', 'package_ids' => null])->assertOk();
+        $this->assertSame([], $this->access());
+    }
+
+    public function test_an_apps_form_refuses_a_plan_that_leaves_an_app_without_what_it_needs(): void
+    {
+        $purchases = $this->app('purchases', 'purchases', 'full', 'standard');
+        $inventory = $this->app('inventory', 'inventory', 'full', 'standard');
+        AppDependency::create(['app_id' => $inventory->id, 'requires_family' => 'purchases', 'min_edition' => 'lite']);
+        $this->actingAs($this->admin);
+
+        $this->putJson(route('admin.apps.update', $purchases->id), [
+            'name' => 'Purchases', 'category_id' => $this->category->id, 'status' => 'available', 'sort_order' => 0,
+            'package_ids' => [$this->packages['premium']->id],
+        ])->assertJsonValidationErrors('package_ids');
+
+        $this->assertSame(['purchases' => ['standard', 'premium'], 'inventory' => ['standard', 'premium']], $this->access());
+    }
+
+    public function test_a_requirement_must_be_in_every_plan_the_app_is_in(): void
+    {
+        $purchases = $this->app('purchases', 'purchases', 'full', 'premium');
+        $inventory = $this->app('inventory', 'inventory', 'full', 'premium');
+        DB::table('package_apps')->insert(['package_id' => $this->packages['starter']->id, 'app_id' => $inventory->id]);
+        $this->actingAs($this->admin);
+
+        // Inventory is in Billing Starter, which does not have Purchases.
+        $this->postJson(route('admin.apps.dependencies.store', $inventory->id), ['requires_family' => 'purchases', 'min_edition' => 'lite'])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Inventory is in Billing Starter, but Purchases is not in that plan. Change Package Access first.');
     }
 }

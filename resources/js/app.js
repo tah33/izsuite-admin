@@ -356,6 +356,7 @@ import './bootstrap';
     //   back to it - so a placeholder is only used when the <select> asks for
     //   one with data-placeholder.
     // - class="select-sm" draws the compact control.
+    // - data-search shows the search box on a short list too.
     //
     // Select2 reports a pick with a jQuery 'change', not a native DOM event: a
     // page script listens with $(select).on('change', …) - a listener added
@@ -376,7 +377,8 @@ import './bootstrap';
             var options = {
                 width: '100%',
                 dropdownParent: $(document.body),
-                minimumResultsForSearch: SELECT2_SEARCH_FROM,
+                // data-search shows the search box however short the list.
+                minimumResultsForSearch: $select.is('[data-search]') ? 0 : SELECT2_SEARCH_FROM,
                 selectionCssClass: $select.hasClass('select-sm') ? 's2-sm' : '',
                 language: {
                     noResults: function () {

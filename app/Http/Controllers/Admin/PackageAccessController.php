@@ -9,9 +9,9 @@ use App\Services\Admin\PackageAccessService;
 /**
  * Which plan includes which app, as one matrix (Doc 01 section 3).
  *
- * A higher plan includes everything a lower one does, so only an app's lowest
- * ticked plan counts: saving ticks every plan above it as well. Saving is
- * refused while a plan would hold an app without what that app needs.
+ * Each plan has its own apps: an app can be in one plan, several or all,
+ * exactly as ticked. Saving is refused while a plan would hold an app
+ * without what that app needs.
  *
  * Access is not activation. Businesses that already have an app on keep it
  * when it leaves their plan; their apps are brought within the plan when the

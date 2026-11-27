@@ -72,6 +72,9 @@ class StoreAppRequest extends FormRequest
             'price'       => ['nullable', 'numeric', 'min:0'],
             'image'       => ['nullable', 'image', 'mimes:jpg,jpeg,png,svg,webp', 'max:2048'],
             'category_id' => ['required', 'integer', Rule::exists('app_categories', 'id')],
+            // The plans it is in, each on its own. None chosen: it is in no plan.
+            'package_ids'   => ['nullable', 'array'],
+            'package_ids.*' => ['integer', Rule::exists('packages', 'id')],
             'icon'        => ['nullable', 'string', 'max:100', 'regex:/^[a-z0-9-]+$/'],
             // Retired only by Retire (Doc 15 Phase E2), which turns it off everywhere; a retired one may keep it.
             'status'      => ['required', Rule::in(array_diff(array_keys(Application::STATUSES), $this->isRetired() ? [] : [Application::RETIRED]))],
@@ -105,6 +108,8 @@ class StoreAppRequest extends FormRequest
     {
         return [
             'category_id'      => 'category',
+            'package_ids'      => 'plans',
+            'package_ids.*'    => 'plan',
             'long_description' => 'full description',
             'features.*'       => 'feature',
             'support_url'      => 'support link',

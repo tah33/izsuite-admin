@@ -71,12 +71,8 @@
                                 @endif
                             </td>
                             <td>
-                                {{-- Its lowest plan is what matters: every plan above it includes it too. --}}
-                                @php
-                                    $lowest = $app->packages->sortBy('rank')->first();
-                                @endphp
-                                @if($lowest)
-                                    <span class="text-sm">{{ $lowest->name }}{{ $app->packages->count() > 1 ? ' +' : '' }}</span>
+                                @if($app->packages->isNotEmpty())
+                                    <span class="text-sm">{{ $app->packages->sortBy('rank')->pluck('name')->implode(', ') }}</span>
                                 @else
                                     <span class="text-xs text-[var(--text-muted)]">{{ __('No plan') }}</span>
                                 @endif

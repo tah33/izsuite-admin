@@ -4,7 +4,7 @@
 @section('content')
     <div class="flex flex-wrap items-center gap-3 mb-4">
         <p class="text-sm flex-1 min-w-[240px] text-[var(--text-secondary)]">
-            {{ __('The plans a business can be on. A higher plan includes everything a lower one does. Which apps each plan includes is set in Package Access; a business turns them on itself, in the Apps Center.') }}
+            {{ __('The plans a business can be on. Which apps each plan includes is set in Package Access, plan by plan; a business turns them on itself, in the Apps Center.') }}
         </p>
         <a href="{{ route('admin.package-access.index') }}" class="btn btn-primary">
             <i data-lucide="grid-3x3" class="w-4 h-4"></i> {{ __('Package Access') }}

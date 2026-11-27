@@ -4,20 +4,14 @@
 @php($columns = 2 + $packages->count())
 
 @section('content')
-    <div class="flex flex-wrap items-center gap-3 mb-4">
-        <p class="text-sm flex-1 min-w-[240px] text-[var(--text-secondary)]">
-            {{ __('Tick the lowest plan that includes each app: every plan above it includes it too. Saving is refused while a plan would hold an app without what that app needs. Businesses that already have an app on keep it until their own plan changes.') }}
-        </p>
-        <button type="submit" form="package-access-form" class="btn btn-primary">
-            <i data-lucide="save" class="w-4 h-4"></i> {{ __('Save Access') }}
-        </button>
-    </div>
-
     <form id="package-access-form" action="{{ route('admin.package-access.update') }}" method="POST">
         @csrf
         @method('PUT')
 
-        @include('admin.partials.critical-confirm', ['impact' => __('Saving changes which apps every plan includes, for every business on it.'), 'class' => 'mb-4'])
+        {{-- Stays in view under the topbar while the matrix scrolls; the page's background behind it hides the rows going under. --}}
+        <div class="sticky top-[var(--topbar-height)] z-20 -mt-6 pt-6 pb-4 bg-[var(--content-bg)]">
+            @include('admin.partials.critical-confirm', ['impact' => __('Saving changes which apps every plan includes, for every business on it.'), 'action' => 'admin.package-access._save'])
+        </div>
 
         <div class="card overflow-hidden">
             <div class="overflow-x-auto">
@@ -77,32 +71,3 @@
         </div>
     </form>
 @endsection
-
-@push('scripts')
-<script>
-    // A higher plan includes everything a lower one does: ticking a plan ticks
-    // the ones above it, and unticking one unticks the ones below it.
-    document.querySelectorAll('#access-matrix tr[data-app-row]').forEach(function (row) {
-        row.addEventListener('change', function (event) {
-            var box = event.target;
-            if (! box.matches('input[type="checkbox"]')) {
-                return;
-            }
-
-            var rank = Number(box.dataset.rank);
-
-            row.querySelectorAll('input[type="checkbox"]').forEach(function (other) {
-                var otherRank = Number(other.dataset.rank);
-
-                if (box.checked && otherRank > rank) {
-                    other.checked = true;
-                }
-
-                if (! box.checked && otherRank < rank) {
-                    other.checked = false;
-                }
-            });
-        });
-    });
-</script>
-@endpush

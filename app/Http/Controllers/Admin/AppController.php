@@ -49,7 +49,7 @@ class AppController extends Controller
         try {
             $app = $this->appService->newApp($request->integer('full_of') ?: null);
 
-            return view('admin.apps.create', ['app' => $app, 'categories' => $this->appService->categoryNames(), 'families' => $this->appService->catalogFamilyNames()]);
+            return view('admin.apps.create', ['app' => $app, 'categories' => $this->appService->categoryNames(), 'plans' => $this->appService->planNames(), 'families' => $this->appService->catalogFamilyNames()]);
 
         } catch (\Throwable $e) {
             report($e);
@@ -92,6 +92,7 @@ class AppController extends Controller
             return view('admin.apps.edit', [
                 'app'        => $this->appService->withRequirements($app),
                 'categories' => $this->appService->categoryNames(),
+                'plans'      => $this->appService->planNames(),
                 // Every other family, by its Full name (else Lite), for "Requires".
                 'families'   => $this->appService->otherFamilyNames($app),
             ]);

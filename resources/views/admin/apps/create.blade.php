@@ -3,8 +3,8 @@
 
 @section('content')
     {{-- Breadcrumb --}}
-    <div class="mb-6">
-        <div class="flex items-center gap-2 text-sm mb-2 text-[var(--text-muted)]">
+    <div class="mb-4">
+        <div class="flex items-center gap-2 text-sm mb-1 text-[var(--text-muted)]">
             <a href="{{ route('admin.apps.index') }}" class="text-[var(--primary)]">{{ __('Apps') }}</a>
             <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
             <span>{{ __('Add App') }}</span>

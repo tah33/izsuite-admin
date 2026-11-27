@@ -7,6 +7,7 @@
     $existingName = $logoUrl ? basename($logoUrl) : null;
 
     $edition = old('edition', $app->edition?->value ?? 'full');
+    $planIds = array_map('intval', (array) old('package_ids', $isEdit ? $app->packages->pluck('id')->all() : []));
 @endphp
 
 {{-- Name --}}
@@ -18,7 +19,7 @@
     @enderror
 </div>
 
-<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
     {{-- Category --}}
     <div>
         <label class="form-label" for="category_id">{{ __('Category') }}</label>
@@ -30,6 +31,22 @@
         </select>
         <p class="text-xs mt-1 text-[var(--text-muted)]">{{ __('The Apps Center group it is listed under.') }}</p>
         @error('category_id')
+            <p class="text-xs mt-1 text-[var(--danger)]">{{ $message }}</p>
+        @enderror
+    </div>
+
+    {{-- Plan --}}
+    <div>
+        <label class="form-label" for="package_ids">{{ __('Select Plan') }}</label>
+        {{-- Sent even with none chosen, so clearing every plan takes the app out of them. --}}
+        <input type="hidden" name="package_ids" value="">
+        <select id="package_ids" name="package_ids[]" class="form-input" multiple data-placeholder="{{ __('No plan') }}">
+            @foreach($plans as $planOptionId => $planName)
+                <option value="{{ $planOptionId }}" @selected(in_array((int) $planOptionId, $planIds, true))>{{ $planName }}</option>
+            @endforeach
+        </select>
+        <p class="text-xs mt-1 text-[var(--text-muted)]">{{ __('The plans it is in. Choose one, several or all.') }}</p>
+        @error('package_ids')
             <p class="text-xs mt-1 text-[var(--danger)]">{{ $message }}</p>
         @enderror
     </div>
@@ -102,7 +119,7 @@
     <div>
         <label class="form-label" for="price">{{ __('Price') }}</label>
         <input type="number" id="price" name="price" step="0.01" min="0" value="{{ old('price', $app->price ?? 0) }}" class="form-input" placeholder="0.00">
-        <p class="text-xs mt-1 text-[var(--text-muted)]">{{ __('Shown on the website. Which plan includes the app is set in Package Access.') }}</p>
+        <p class="text-xs mt-1 text-[var(--text-muted)]">{{ __('Shown on the website.') }}</p>
         @error('price')
             <p class="text-xs mt-1 text-[var(--danger)]">{{ $message }}</p>
         @enderror

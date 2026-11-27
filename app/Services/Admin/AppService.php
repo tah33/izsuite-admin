@@ -8,14 +8,17 @@ use App\Models\Frontend\Application;
 use App\Models\User\User;
 use App\Repositories\Admin\AppCategoryRepository;
 use App\Repositories\Admin\AppRepository;
+use App\Repositories\Billing\PackageRepository;
 use App\Repositories\User\WorkspaceAppRepository;
 use App\Services\Shared\ActivityLogService;
 use App\Services\Support\ImageService;
+use App\Services\User\Apps\CatalogVersion;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class AppService
 {
@@ -26,6 +29,7 @@ class AppService
         protected AppCatalogRules $rules,
         protected WorkspaceAppRepository $workspaceApps,
         protected CriticalActionService $critical,
+        protected PackageRepository $packageRepository,
     ) {}
 
     /**
@@ -86,15 +90,22 @@ class AppService
      */
     public function create(array $data): Application
     {
-        $data  = $this->catalogueFields([...$data, 'countries' => $data['countries'] ?? null, 'conflicts' => $data['conflicts'] ?? null]);
-        $image = $data['image'] ?? null;
-        unset($data['image']);
+        $data    = $this->catalogueFields([...$data, 'countries' => $data['countries'] ?? null, 'conflicts' => $data['conflicts'] ?? null]);
+        $image   = $data['image'] ?? null;
+        $plans   = $this->planIds($data['package_ids'] ?? []);
+        unset($data['image'], $data['package_ids']);
 
         if ($image instanceof UploadedFile && $image->isValid()) {
             $data['logo_url'] = $this->imageService->storePublic($image, 'apps');
         }
 
-        $app = $this->shareFamilyOrder($this->appRepository->create($data));
+        // A new app needs nothing and nothing needs it yet, so any plans are allowed.
+        $app = DB::transaction(function () use ($data, $plans) {
+            $app = $this->shareFamilyOrder($this->appRepository->create($data));
+            $this->setPlans($app, $plans);
+
+            return $app;
+        });
 
         ActivityLogService::record('created', "Created app \"{$app->name}\"", $app);
 
@@ -106,19 +117,89 @@ class AppService
      */
     public function update(Application $app, array $data): Application
     {
-        $data  = $this->catalogueFields([...$data, 'countries' => $data['countries'] ?? null, 'conflicts' => $data['conflicts'] ?? null]);
-        $image = $data['image'] ?? null;
-        unset($data['image']);
+        $data    = $this->catalogueFields([...$data, 'countries' => $data['countries'] ?? null, 'conflicts' => $data['conflicts'] ?? null]);
+        $image   = $data['image'] ?? null;
+        // Plans change only when the form sends the field: none chosen means no plan.
+        $setPlans = array_key_exists('package_ids', $data);
+        $plans    = $this->planIds($data['package_ids'] ?? []);
+        unset($data['image'], $data['package_ids']);
+
+        if ($setPlans) {
+            $this->checkPlans($app, $plans);
+        }
 
         if ($image instanceof UploadedFile && $image->isValid()) {
             $data['logo_url'] = $this->imageService->storePublic($image, 'apps', $app->logo_url);
         }
 
-        $updated = $this->shareFamilyOrder($this->appRepository->update($app, $data));
+        $updated = DB::transaction(function () use ($app, $data, $plans, $setPlans) {
+            $updated = $this->shareFamilyOrder($this->appRepository->update($app, $data));
+
+            if ($setPlans) {
+                $this->setPlans($updated, $plans);
+            }
+
+            return $updated;
+        });
 
         ActivityLogService::record('updated', "Updated app \"{$app->name}\"", $app);
 
         return $updated;
+    }
+
+    /** Every plan, lowest first, for the form's Plan list: id => name. */
+    public function planNames(): Collection
+    {
+        return $this->packageRepository->namesByRank();
+    }
+
+    /** @return list<int> the chosen package ids, each once, in order */
+    private function planIds(?array $ids): array
+    {
+        return collect($ids ?? [])->map(fn ($id) => (int) $id)->unique()->sort()->values()->all();
+    }
+
+    /**
+     * Refuses putting $app in exactly the plans $packageIds when a plan would
+     * then hold $app, or an app that needs it, without what it needs - the
+     * same rule as Package Access.
+     *
+     * @param  list<int>  $packageIds
+     */
+    private function checkPlans(Application $app, array $packageIds): void
+    {
+        $access = $this->rules->access();
+        unset($access[$app->id]);
+
+        if ($packageIds) {
+            $access[$app->id] = $packageIds;
+        }
+
+        if ($problems = $this->rules->accessProblems($access)) {
+            throw ValidationException::withMessages(['package_ids' => $problems]);
+        }
+    }
+
+    /**
+     * Puts $app in exactly the plans $packageIds - none for an empty list.
+     * Does nothing when it is there already.
+     *
+     * @param  list<int>  $packageIds
+     */
+    private function setPlans(Application $app, array $packageIds): void
+    {
+        $current = $this->rules->access()[$app->id] ?? [];
+        sort($current);
+
+        if ($packageIds === $current) {
+            return;
+        }
+
+        $this->packageRepository->setAppAccess($app->id, $packageIds);
+        CatalogVersion::bump();
+
+        $names = $this->packageRepository->namesByRank()->only($packageIds)->implode(', ');
+        ActivityLogService::record('updated', "Put app \"{$app->name}\" in ".($names ?: 'no plan'), $app);
     }
 
     /**

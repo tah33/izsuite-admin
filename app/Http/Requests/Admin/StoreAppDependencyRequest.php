@@ -8,7 +8,7 @@ use Illuminate\Validation\Rule;
 
 /**
  * One requirement for an app: a family, at least at min_edition. The rules that
- * need the app itself - not its own family, no loops, no plan above it - are
+ * need the app itself - not its own family, no loops, every plan of the app holding it - are
  * checked by the controller, which has it.
  */
 class StoreAppDependencyRequest extends FormRequest

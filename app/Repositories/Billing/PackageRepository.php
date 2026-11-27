@@ -34,6 +34,12 @@ class PackageRepository
             ->get();
     }
 
+    /** @return SupportCollection<int, string> every plan, lowest first: id => name */
+    public function namesByRank(): SupportCollection
+    {
+        return Package::orderBy('rank')->pluck('name', 'id');
+    }
+
     public function findOrFail(int $id): Package
     {
         return Package::findOrFail($id);
@@ -126,5 +132,17 @@ class PackageRepository
         foreach (array_chunk($rows, 500) as $chunk) {
             DB::table('package_apps')->insert($chunk);
         }
+    }
+
+    /**
+     * Puts one app in $packageIds and in no other plan.
+     *
+     * @param  list<int>  $packageIds
+     */
+    public function setAppAccess(int $appId, array $packageIds): void
+    {
+        DB::table('package_apps')->where('app_id', $appId)->delete();
+
+        DB::table('package_apps')->insert(array_map(fn ($id) => ['package_id' => $id, 'app_id' => $appId], $packageIds));
     }
 }
