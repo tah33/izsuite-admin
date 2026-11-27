@@ -136,7 +136,7 @@ class EcommercePaymentLinksTest extends TestCase
             ->assertJsonPath('message', 'A payment link for order EC-00001 is on its way to Karim@Example.test.')
             ->assertJsonPath('data.payment_links', [[
                 'id' => EcommercePaymentLink::sole()->id, 'amount' => '21.00', 'currency' => 'USD', 'methods' => ['Bank Transfer', 'bKash'], 'sent_to' => 'Karim@Example.test',
-                'sent_by' => $this->user->name, 'sent_at' => '2026-11-24T10:00:00+00:00', 'expires_at' => '2026-12-01T17:59:59+00:00', 'state' => 'active', 'revoked_why' => null,
+                'sent_by' => $this->user->name, 'sent_at' => '2026-11-24T10:00:00+00:00', 'expires_at' => '2026-12-01T17:59:59+00:00', 'state' => 'active', 'revoked_why' => null, 'reported' => null,
             ]]);
 
         // Its token is kept only hashed; its page is on the store, e-mailed to the customer.
@@ -192,9 +192,10 @@ class EcommercePaymentLinksTest extends TestCase
             'number' => 'EC-00001', 'state' => 'active', 'amount' => '21.00', 'currency' => 'USD', 'total' => '21.00', 'expires_on' => '2026-12-01',
             'lines'   => [['title' => 'Ceramic Mug', 'options' => [], 'quantity' => 2]],
             'methods' => [
-                ['id' => $this->ids['Bank Transfer'], 'name' => 'Bank Transfer', 'instructions' => 'Pay into City Bank 0123456789.'],
-                ['id' => $this->ids['bKash'], 'name' => 'bKash', 'instructions' => 'Send to 01700000000.'],
+                ['id' => $this->ids['Bank Transfer'], 'name' => 'Bank Transfer', 'instructions' => 'Pay into City Bank 0123456789.', 'reference' => 'optional'],
+                ['id' => $this->ids['bKash'], 'name' => 'bKash', 'instructions' => 'Send to 01700000000.', 'reference' => 'required'],
             ],
+            'reported' => null,
         ]]);
 
         // A method the store no longer takes is not offered.

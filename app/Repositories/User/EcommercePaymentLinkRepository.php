@@ -10,7 +10,8 @@ use Illuminate\Database\Eloquent\Builder;
 /**
  * Online orders' payment links (Doc 19 section 19.23 - Phase F6a): made for
  * an order, one of an order's by id, an order's links still active revoked
- * or marked paid, and a link by its token's hash on its order's store.
+ * or marked paid, and a link by its token's hash on its order's store - and
+ * (Phase F6b) the order's link its customer reported paying through.
  */
 class EcommercePaymentLinkRepository
 {
@@ -44,6 +45,16 @@ class EcommercePaymentLinkRepository
             'revoked_why' => $why,
             'updated_at'  => now(),
         ]);
+    }
+
+    /**
+     * Phase F6b: $order's link still active that its customer reported
+     * paying through - one at most, as one link is active at a time - locked
+     * when $lock.
+     */
+    public function reportedFor(EcommerceOrder $order, bool $lock): ?EcommercePaymentLink
+    {
+        return $this->active($order)->whereNotNull('reported_at')->when($lock, fn (Builder $query) => $query->lockForUpdate())->latest('id')->first();
     }
 
     /** $order's links still active marked paid: the order owes nothing more. How many were. */

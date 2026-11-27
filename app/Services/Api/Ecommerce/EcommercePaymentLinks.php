@@ -37,6 +37,10 @@ use Illuminate\Validation\ValidationException;
  *   its total (EcommerceOrderEdits::retotal()); paying it in full marks them
  *   Paid (EcommerceOrderPaymentStatus).
  *
+ * Phase F6b: a link its customer reported paying through is neither revoked
+ * nor replaced - the business records their payment, or marks it not
+ * received, first (EcommerceOrderPayments).
+ *
  * A link may offer the methods paid from afar - bank transfer and mobile
  * money - as checkout offers them for this order. It is never a sale of its
  * own: what it brings in is the order's payment, recorded as F3 records one.
@@ -68,6 +72,7 @@ class EcommercePaymentLinks
         $settings = $this->settings->forWorkspace($workspace);
 
         $this->payments->checkPayable($order);
+        $this->checkNotReported($order, false);
 
         return [
             'order'   => $order,
@@ -90,6 +95,7 @@ class EcommercePaymentLinks
             $order = $this->orders->forConfirming($found, true);
 
             $this->payments->checkPayable($order);
+            $this->checkNotReported($order, true);
 
             $owed   = $this->payments->owed($order);
             $amount = bcadd((string) $data['amount'], '0', 2);
@@ -145,9 +151,11 @@ class EcommercePaymentLinks
             $order = $this->orders->forConfirming($found, true);
             $link  = $this->links->findFor($order, $linkId) ?? abort(404, 'There is no such payment link.');
 
-            if ($link->state() !== EcommercePaymentLink::ACTIVE) {
-                $this->refuse("The payment link of {$link->currency} {$link->amount} is {$link->state()} already.");
-            }
+            match ($link->state()) {
+                EcommercePaymentLink::ACTIVE   => null,
+                EcommercePaymentLink::REPORTED => $this->refuse($this->reportedWords($order, $link)),
+                default                        => $this->refuse("The payment link of {$link->currency} {$link->amount} is {$link->state()} already."),
+            };
 
             $this->links->update($link, ['status' => EcommercePaymentLink::REVOKED, 'revoked_at' => now(), 'revoked_by' => $user->id, 'revoked_why' => EcommercePaymentLink::BY_HAND]);
 
@@ -155,6 +163,21 @@ class EcommercePaymentLinks
         });
 
         return $this->orderService->page($workspace, $id);
+    }
+
+    /** Phase F6b: refused while $order's customer reported paying through its link - the report is the business's to settle first. */
+    private function checkNotReported(EcommerceOrder $order, bool $lock): void
+    {
+        $reported = $this->links->reportedFor($order, $lock);
+
+        if ($reported) {
+            $this->refuse($this->reportedWords($order, $reported));
+        }
+    }
+
+    private function reportedWords(EcommerceOrder $order, EcommercePaymentLink $link): string
+    {
+        return "The customer reported paying through the link of {$link->currency} {$link->amount} for order {$order->number}: record their payment, or mark it not received, first.";
     }
 
     /**

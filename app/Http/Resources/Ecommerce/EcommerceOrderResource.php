@@ -107,7 +107,8 @@ class EcommerceOrderResource extends JsonResource
                 'taxes'       => array_map(fn (array $tax) => ['name' => $tax['name'] ?? null, 'rate' => isset($tax['rate']) ? (string) $tax['rate'] : null, 'amount' => (string) ($tax['tax_amount'] ?? '0')], $order->taxes ?? []),
             ],
             // Phase F6a: its payment links, the newest first - what each asks, the methods it offers, to whom and by whom it
-            // was sent, until when, and whether active, expired, revoked (and why) or paid.
+            // was sent, until when, and whether active, expired, revoked (and why) or paid - and (Phase F6b) what its customer
+            // reported paying by, kept on a link revoked or paid since too.
             'payment_links'      => $order->paymentLinks->map(fn (EcommercePaymentLink $link) => [
                 'id'          => $link->id,
                 'amount'      => (string) $link->amount,
@@ -119,6 +120,11 @@ class EcommerceOrderResource extends JsonResource
                 'expires_at'  => $link->expires_at->toIso8601String(),
                 'state'       => $link->state(),
                 'revoked_why' => $link->revoked_why,
+                'reported'    => $link->reported_at ? [
+                    'at'        => $link->reported_at->toIso8601String(),
+                    'method'    => $link->reported_method['name'] ?? null,
+                    'reference' => $link->reported_reference,
+                ] : null,
             ])->values(),
             // Phase F5b: the discount given - a percentage of its products, or an amount - and why.
             'discount'           => $order->discount_type ? [

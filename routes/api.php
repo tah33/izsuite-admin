@@ -241,8 +241,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/sitemap', [StoreCatalogController::class, 'sitemap'])->name('api.stores.sitemap');
         // Phase D5: an order's own page, by its link's key.
         Route::get('/orders/{key}', [StoreOrderController::class, 'show'])->where('key', '[a-f0-9]{64}')->name('api.stores.orders.show');
-        // Phase F6a: a payment link's page, by the token it carries.
+        // Phase F6a: a payment link's page, by the token it carries - and (Phase F6b) its customer saying they paid through it.
         Route::get('/pay/{token}', [StorePaymentLinkController::class, 'show'])->where('token', '[a-f0-9]{64}')->name('api.stores.pay.show');
+        Route::post('/pay/{token}', [StorePaymentLinkController::class, 'report'])->where('token', '[a-f0-9]{64}')->name('api.stores.pay.report');
         // Phase E1: a customer's account - signing up, verifying the e-mail, signing in and a forgotten password -
         // and, signed in by its own token (X-Customer-Token), the account itself. What sends an e-mail is held to
         // ten a minute from one address, on a key of its own (the prefix), apart from the group's.

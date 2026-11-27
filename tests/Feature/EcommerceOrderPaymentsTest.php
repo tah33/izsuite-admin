@@ -93,8 +93,8 @@ class EcommerceOrderPaymentsTest extends TestCase
 
         $this->getJson(self::ORDERS."/{$order->id}/payment")->assertOk()
             ->assertJsonPath('data', [
-                'ready' => true, 'problems' => [], 'balance' => '21.00', 'currency' => 'USD', 'account' => 'City Bank', 'method' => 'Bank Transfer',
-                'reference' => 'TRX-1001', 'today' => self::TODAY, 'from' => self::TODAY, 'confirmation' => null,
+                'ready' => true, 'problems' => [], 'balance' => '21.00', 'amount' => '21.00', 'currency' => 'USD', 'account' => 'City Bank', 'method' => 'Bank Transfer',
+                'reference' => 'TRX-1001', 'report' => null, 'today' => self::TODAY, 'from' => self::TODAY, 'confirmation' => null,
             ]);
 
         // Not before its invoice, nor more than it owes.

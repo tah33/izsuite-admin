@@ -20,7 +20,8 @@ use Illuminate\Validation\ValidationException;
  * Editing an online order before payment (Doc 19 section 19.21 - Phase F5),
  * under Edit Orders: an order pending, confirmed or held, nothing of it paid
  * - its invoice, once issued, settled by nothing - and nothing of it
- * fulfilled. Each change is in its timeline with what it was before.
+ * fulfilled, nor (Phase F6b) a payment reported through its link waiting to
+ * be settled. Each change is in its timeline with what it was before.
  *
  * - customer(): the customer's details as given (Phase F5a) - its contact
  *   stays the order's, changed in Contacts if at all;
@@ -73,6 +74,11 @@ class EcommerceOrderEdits
 
         if ($why !== null) {
             $this->refuse("Order {$order->number} can no longer be edited: {$why}.");
+        }
+
+        // Phase F6b: its customer said they paid through its link - settled first, so the report is not revoked by a new total.
+        if ($this->paymentLinks->reportedFor($order, false)) {
+            $this->refuse("The customer of order {$order->number} reported paying through its payment link: record their payment, or mark it not received, before editing the order.");
         }
     }
 
