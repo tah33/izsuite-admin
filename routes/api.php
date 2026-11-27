@@ -1299,6 +1299,8 @@ Route::prefix('v1')->group(function () {
         Route::put('/{id}/fulfilments/{fulfilment}', [EcommerceOrderFulfilmentController::class, 'update'])->whereNumber(['id', 'fulfilment'])->name('api.ecommerce.orders.fulfilments.update');
         Route::post('/{id}/fulfilments/{fulfilment}/complete', [EcommerceOrderFulfilmentController::class, 'complete'])->whereNumber(['id', 'fulfilment'])->middleware('idempotent')->name('api.ecommerce.orders.fulfilments.complete');
         Route::post('/{id}/fulfilments/{fulfilment}/cancel', [EcommerceOrderFulfilmentController::class, 'cancel'])->whereNumber(['id', 'fulfilment'])->middleware('idempotent')->name('api.ecommerce.orders.fulfilments.cancel');
+        // Phase G2: a shipment's packing slip.
+        Route::get('/{id}/fulfilments/{fulfilment}/pdf', [EcommerceOrderFulfilmentController::class, 'packingSlip'])->whereNumber(['id', 'fulfilment'])->name('api.ecommerce.orders.fulfilments.pdf');
     });
 
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm')->group(function () {

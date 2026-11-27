@@ -518,6 +518,8 @@ final class RoutePermissions
             'api.ecommerce.orders.fulfilments.update'    => 'ecommerce.fulfilment.manage',
             'api.ecommerce.orders.fulfilments.complete'  => 'ecommerce.fulfilment.manage',
             'api.ecommerce.orders.fulfilments.cancel'    => 'ecommerce.fulfilment.manage',
+            // Phase G2: a shipment's packing slip, for whoever may view the order.
+            'api.ecommerce.orders.fulfilments.pdf'       => 'ecommerce.orders.view',
             // Doc 18 Phase A2: POS registers.
             'api.pos.registers.index'   => 'pos.registers.view',
             'api.pos.registers.options' => 'pos.registers.manage',

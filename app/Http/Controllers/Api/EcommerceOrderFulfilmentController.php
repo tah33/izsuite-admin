@@ -12,19 +12,23 @@ use App\Http\Resources\Ecommerce\EcommerceOrderFulfilmentReviewResource;
 use App\Http\Resources\Ecommerce\EcommerceOrderResource;
 use App\Models\User\EcommerceOrder;
 use App\Services\Api\Ecommerce\EcommerceOrderFulfilments;
+use App\Services\Api\Ecommerce\EcommercePackingSlips;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 /**
  * An online order's shipments and pickup (Doc 19 Phase G1), under Manage
  * Fulfilment: what fulfilling it would do, a shipment, readiness for pickup,
  * a shipment's details corrected, one delivered or collected, and one
- * cancelled. Each answers with the order as its page shows it.
+ * cancelled. Each answers with the order as its page shows it. And (Phase
+ * G2) a shipment's packing slip, under View Orders.
  */
 class EcommerceOrderFulfilmentController extends Controller
 {
     public function __construct(
         protected EcommerceOrderFulfilments $fulfilments,
+        protected EcommercePackingSlips $packingSlips,
     ) {}
 
     public function review(Request $request, int $id): JsonResponse
@@ -101,6 +105,20 @@ class EcommerceOrderFulfilmentController extends Controller
             $order = $this->fulfilments->cancel($this->currentWorkspace($request), $id, $fulfilment, trim($request->validated('reason')));
 
             return response()->json(['message' => ucfirst($this->labelOf($order, $fulfilment))." of order {$order->number} is cancelled.", 'data' => new EcommerceOrderResource($order)]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** Phase G2: a shipment's packing slip, to preview, print or, with ?download=1, save. */
+    public function packingSlip(Request $request, int $id, int $fulfilment): Response
+    {
+        try {
+            [$filename, $pdf] = $this->packingSlips->pdf($this->currentWorkspace($request), $id, $fulfilment);
+
+            return $this->pdfResponse($filename, $pdf, $request->boolean('download'));
 
         } catch (\Throwable $e) {
             report($e);

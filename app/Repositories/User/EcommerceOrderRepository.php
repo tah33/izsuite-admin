@@ -185,6 +185,16 @@ class EcommerceOrderRepository
             ->firstOrFail();
     }
 
+    /**
+     * Phase G2: $order read again for a shipment's packing slip - its lines,
+     * its location, and its invoice whole, as the slip takes that invoice's
+     * template and business (findFor() reads only a few of its columns).
+     */
+    public function forPackingSlip(EcommerceOrder $order): EcommerceOrder
+    {
+        return EcommerceOrder::query()->whereKey($order->id)->with(['lines', 'location', 'invoice'])->firstOrFail();
+    }
+
     /** Phase F4: how many orders of the business $email placed from $from to $to, both included. */
     public function placedFromEmail(Workspace $workspace, string $email, \DateTimeInterface $from, \DateTimeInterface $to): int
     {

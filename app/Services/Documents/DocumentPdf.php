@@ -2,6 +2,8 @@
 
 namespace App\Services\Documents;
 
+use App\Models\User\EcommerceFulfilment;
+use App\Models\User\EcommerceOrder;
 use App\Models\User\Expense;
 use App\Models\User\ExpensePayment;
 use App\Models\User\PosDevice;
@@ -40,6 +42,12 @@ class DocumentPdf
     public function delivery(Workspace $workspace, SalesDelivery $delivery): array
     {
         return $this->made($this->documentRenderer->delivery($workspace, $delivery));
+    }
+
+    /** @return array{0: string, 1: string} an online order's shipment's packing slip (Doc 19 Phase G2) */
+    public function packingSlip(Workspace $workspace, EcommerceOrder $order, EcommerceFulfilment $shipment): array
+    {
+        return $this->made($this->documentRenderer->packingSlip($workspace, $order, $shipment));
     }
 
     /** @return array{0: string, 1: string} */

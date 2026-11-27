@@ -9,8 +9,9 @@ use Illuminate\Support\Collection;
 /**
  * Online orders' shipments and pickups (Doc 19 section 19.27 - Phase G1):
  * made for an order with its lines - numbered after its last - one of an
- * order's by id, locked, all of an order's with their lines, and one by id
- * for the e-mail that tells its customer.
+ * order's by id, locked, all of an order's with their lines, one by id for
+ * the e-mail that tells its customer, and (Phase G2) an order's shipment for
+ * its packing slip.
  */
 class EcommerceFulfilmentRepository
 {
@@ -40,6 +41,12 @@ class EcommerceFulfilmentRepository
     public function ofOrder(EcommerceOrder $order): Collection
     {
         return EcommerceFulfilment::query()->where('ecommerce_order_id', $order->id)->with('lines')->orderBy('sequence')->get();
+    }
+
+    /** Phase G2: $order's shipment $id with its lines, cancelled or not - for its packing slip. None when it is no shipment of the order's. */
+    public function shipmentOf(EcommerceOrder $order, int $id): ?EcommerceFulfilment
+    {
+        return EcommerceFulfilment::query()->where('ecommerce_order_id', $order->id)->where('kind', EcommerceFulfilment::SHIPMENT)->with('lines')->find($id);
     }
 
     /** Fulfilment $id with its lines' products and where it came from - for its e-mail. */
