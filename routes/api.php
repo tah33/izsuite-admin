@@ -105,6 +105,7 @@ use App\Http\Controllers\Api\EcommerceSettingController;
 use App\Http\Controllers\Api\EcommerceShippingController;
 use App\Http\Controllers\Api\EcommercePaymentMethodController;
 use App\Http\Controllers\Api\EcommerceOrderController;
+use App\Http\Controllers\Api\EcommerceOrderDeliveryController;
 use App\Http\Controllers\Api\EcommerceOrderEditController;
 use App\Http\Controllers\Api\EcommerceOrderFulfilmentController;
 use App\Http\Controllers\Api\EcommerceOrderPaymentController;
@@ -1301,6 +1302,10 @@ Route::prefix('v1')->group(function () {
         Route::post('/{id}/fulfilments/{fulfilment}/cancel', [EcommerceOrderFulfilmentController::class, 'cancel'])->whereNumber(['id', 'fulfilment'])->middleware('idempotent')->name('api.ecommerce.orders.fulfilments.cancel');
         // Phase G2: a shipment's packing slip.
         Route::get('/{id}/fulfilments/{fulfilment}/pdf', [EcommerceOrderFulfilmentController::class, 'packingSlip'])->whereNumber(['id', 'fulfilment'])->name('api.ecommerce.orders.fulfilments.pdf');
+        // Phase G3a: a digital product delivered or its access revoked, and a service performed.
+        Route::post('/{id}/lines/{line}/deliver', [EcommerceOrderDeliveryController::class, 'deliver'])->whereNumber(['id', 'line'])->middleware('idempotent')->name('api.ecommerce.orders.lines.deliver');
+        Route::post('/{id}/lines/{line}/perform', [EcommerceOrderDeliveryController::class, 'perform'])->whereNumber(['id', 'line'])->middleware('idempotent')->name('api.ecommerce.orders.lines.perform');
+        Route::post('/{id}/lines/{line}/revoke', [EcommerceOrderDeliveryController::class, 'revoke'])->whereNumber(['id', 'line'])->middleware('idempotent')->name('api.ecommerce.orders.lines.revoke');
     });
 
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:crm', 'access'])->prefix('crm')->group(function () {

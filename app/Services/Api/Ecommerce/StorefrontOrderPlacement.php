@@ -144,7 +144,8 @@ class StorefrontOrderPlacement
                 'location_id'        => $storefront->location_id,
                 'status'             => EcommerceOrder::PENDING,
                 'payment_status'     => trim((string) ($data['payment_reference'] ?? '')) !== '' ? EcommerceOrder::PAYMENT_PENDING : EcommerceOrder::UNPAID,
-                'fulfilment_status'  => $quote['needs_delivery'] ? EcommerceOrder::UNFULFILLED : EcommerceOrder::NOT_REQUIRED,
+                // Phase G3a: its digital products and services are delivered too, so even an order with nothing to ship is to be fulfilled.
+                'fulfilment_status'  => EcommerceOrder::UNFULFILLED,
                 'currency'           => $quote['terms']['currency'],
                 'exchange_rate'      => $quote['terms']['rate'],
                 'price_tax_mode'     => $storefront->workspace->price_tax_mode,

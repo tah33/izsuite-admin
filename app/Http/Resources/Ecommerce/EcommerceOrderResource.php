@@ -5,6 +5,7 @@ namespace App\Http\Resources\Ecommerce;
 use App\Models\User\EcommerceFulfilment;
 use App\Models\User\EcommerceFulfilmentLine;
 use App\Models\User\EcommerceOrder;
+use App\Models\User\EcommerceOrderDelivery;
 use App\Models\User\EcommerceOrderEmail;
 use App\Models\User\EcommerceOrderLine;
 use App\Models\User\EcommercePaymentLink;
@@ -24,7 +25,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * invoice once it is confirmed, and when and by whom it was; from Phase F3,
  * what the invoice still owes, its payments, and its payment's failures;
  * from Phase F4, why it is on hold or cancelled, the status a hold goes back
- * to, and - on its page - what may want a look (never its customer's).
+ * to, and - on its page - what may want a look (never its customer's). From
+ * Phase G1 its shipments or pickup; from Phase G3a its digital products and
+ * services, and their deliveries.
  *
  * @property EcommerceOrder $resource
  */
@@ -149,6 +152,28 @@ class EcommerceOrderResource extends JsonResource
                     'quantity' => (string) $line->quantity,
                 ])->values(),
             ])->values(),
+            // Phase G3a: its digital products and services - each as its item delivers it and where it stands, with its
+            // delivery's license keys, the note to the customer, when and by whom, and when, by whom and why it was revoked.
+            'deliverables'       => $order->lines->where('kind', EcommerceOrderLine::PRODUCT)->where('shipped', false)->map(function (EcommerceOrderLine $line) use ($order) {
+                $delivery = $order->deliveries->firstWhere('ecommerce_order_line_id', $line->id);
+
+                return [
+                    'line_id'       => $line->id,
+                    'title'         => $this->titleOf($order, $line->id),
+                    'quantity'      => (string) $line->quantity,
+                    'kind'          => $line->isService() ? EcommerceOrderDelivery::SERVICE : EcommerceOrderDelivery::DIGITAL,
+                    'method'        => $line->isService() ? null : ($delivery?->method ?? $line->deliveryMethod()),
+                    'state'         => EcommerceOrderDelivery::stateOf($order, $line, $delivery),
+                    'license_keys'  => $delivery?->license_keys ?? [],
+                    'note'          => $delivery?->note,
+                    'delivered_at'  => $delivery?->delivered_at?->toIso8601String(),
+                    'performed_on'  => $delivery?->performed_on?->toDateString(),
+                    'by'            => $delivery?->delivered_by ? ($delivery->deliverer?->name ?? 'A former member') : null,
+                    'revoked_at'    => $delivery?->revoked_at?->toIso8601String(),
+                    'revoked_by'    => $delivery?->revoked_at ? ($delivery->revoker?->name ?? 'A former member') : null,
+                    'revoke_reason' => $delivery?->revoke_reason,
+                ];
+            })->values(),
             // Phase F5b: the discount given - a percentage of its products, or an amount - and why.
             'discount'           => $order->discount_type ? [
                 'type'   => $order->discount_type,

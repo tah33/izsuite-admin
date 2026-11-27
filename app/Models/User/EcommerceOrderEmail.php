@@ -35,6 +35,11 @@ class EcommerceOrderEmail extends Model
 
     public const ORDER_DELIVERED = 'order_delivered';
 
+    /** Phase G3a: digital products delivered - their keys, links or note - and a service performed. */
+    public const DIGITAL_DELIVERED = 'digital_delivered';
+
+    public const SERVICE_PERFORMED = 'service_performed';
+
     public const QUEUED = 'queued';
 
     public const SENT = 'sent';

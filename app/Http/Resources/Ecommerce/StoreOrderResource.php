@@ -5,6 +5,7 @@ namespace App\Http\Resources\Ecommerce;
 use App\Models\User\EcommerceFulfilment;
 use App\Models\User\EcommerceFulfilmentLine;
 use App\Models\User\EcommerceOrder;
+use App\Models\User\EcommerceOrderDelivery;
 use App\Models\User\EcommerceOrderLine;
 use App\Services\Documents\DocumentLinks;
 use Illuminate\Http\Request;
@@ -19,7 +20,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * products as the store showed them, and its totals. Its own link's key
  * comes only once, when it is placed. From Phase F2, its invoice once the
  * order is confirmed - its number and secure link, while the link works;
- * from Phase G1, its shipments with their tracking, or its pickup.
+ * from Phase G1, its shipments with their tracking, or its pickup; from
+ * Phase G3a, its digital products and services, and what each delivered.
  *
  * @property EcommerceOrder $resource
  */
@@ -86,6 +88,27 @@ class StoreOrderResource extends JsonResource
                     'quantity' => (int) $line->quantity,
                 ])->values(),
             ])->values(),
+            // Phase G3a: its digital products and services, as they stand - a product's keys, the note and its item's
+            // instructions only while it is delivered (19.28: nothing protected before it is paid, or once revoked), a
+            // service's day and note once performed; never why access was revoked.
+            'deliverables'       => $order->lines->where('kind', EcommerceOrderLine::PRODUCT)->where('shipped', false)->map(function (EcommerceOrderLine $line) use ($order) {
+                $delivery = $order->deliveries->firstWhere('ecommerce_order_line_id', $line->id);
+                $state    = EcommerceOrderDelivery::stateOf($order, $line, $delivery);
+                $open     = $state === EcommerceOrderDelivery::DELIVERED;
+
+                return [
+                    'title'        => $line->title,
+                    'options'      => array_column($line->options ?? [], 'value'),
+                    'quantity'     => (int) $line->quantity,
+                    'kind'         => $line->isService() ? EcommerceOrderDelivery::SERVICE : EcommerceOrderDelivery::DIGITAL,
+                    'method'       => $line->isService() ? null : ($delivery?->method ?? $line->deliveryMethod()),
+                    'state'        => $state,
+                    'license_keys' => $open ? ($delivery->license_keys ?? []) : [],
+                    'note'         => $open || $state === EcommerceOrderDelivery::PERFORMED ? $delivery->note : null,
+                    'instructions' => $open ? $line->item?->delivery_instructions : null,
+                    'performed_on' => $delivery?->performed_on?->toDateString(),
+                ];
+            })->values(),
         ];
     }
 }

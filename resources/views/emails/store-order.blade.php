@@ -5,7 +5,9 @@
      or not (Phase F3), with the invoice's once it has one; cancelled (Phase
      F4); a payment link (Phase F6a), with the link's own page; a shipment on
      its way with its tracking link, ready to collect, delivered or collected
-     (Phase G1) - their payment only while it is owed before it arrives. --}}
+     (Phase G1) - their payment only while it is owed before it arrives;
+     digital products delivered, with their keys, links and notes, and a
+     service performed (Phase G3a). --}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -48,6 +50,12 @@
                                     @break
                                 @case ('order_delivered')
                                     <p style="margin:0 0 12px;">{{ $order['delivery_title'] === 'Collected' ? 'You collected your order' : 'Your order' }} <strong>{{ $order['number'] }}</strong>{{ $order['delivery_title'] === 'Collected' ? '' : ' was delivered' }} on {{ $order['completed_on'] }}. Thank you for shopping with us! Here is what {{ $order['delivery_title'] === 'Collected' ? 'you collected' : 'was delivered' }}:</p>
+                                    @break
+                                @case ('digital_delivered')
+                                    <p style="margin:0 0 12px;">Here is what we delivered from your order <strong>{{ $order['number'] }}</strong>:</p>
+                                    @break
+                                @case ('service_performed')
+                                    <p style="margin:0 0 12px;">This service from your order <strong>{{ $order['number'] }}</strong> was performed on {{ $order['performed_on'] }}:</p>
                                     @break
                                 @default
                                     <p style="margin:0 0 12px;">Thank you for your order <strong>{{ $order['number'] }}</strong>, placed on {{ $order['placed_on'] }}. Here is what we have:</p>

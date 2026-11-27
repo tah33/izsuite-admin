@@ -262,4 +262,10 @@ class EcommerceOrder extends Model
     {
         return $this->hasMany(EcommerceFulfilment::class)->orderBy('sequence');
     }
+
+    /** Phase G3a: its digital products delivered and its services performed - one for each line that does not ship, once it is. */
+    public function deliveries(): HasMany
+    {
+        return $this->hasMany(EcommerceOrderDelivery::class);
+    }
 }

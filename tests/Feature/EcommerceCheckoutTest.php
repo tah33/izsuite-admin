@@ -141,11 +141,11 @@ class EcommerceCheckoutTest extends TestCase
             ->assertJsonPath('data.delivery.instructions', 'Ask at the front desk.')
             ->assertJsonPath('data.totals.shipping', '0.00');
 
-        // A digital product alone: nothing to deliver, and only the methods for either delivery.
+        // A digital product alone: nothing to ship, and only the methods for either delivery - still to be fulfilled, once paid (Phase G3a).
         $ebook = $this->cartWith(['e-book' => 1]);
         $this->quote($ebook)->assertJsonPath('data.needs_delivery', false)->assertJsonPath('data.pickup_points', [])->assertJsonPath('data.payment_methods.*.name', ['Bank Transfer', 'bKash']);
         $this->place($ebook, $this->order('4.00', ['delivery' => null, 'shipping_method_id' => null]))->assertCreated()
-            ->assertJsonPath('data.fulfilment_status', 'not_required')
+            ->assertJsonPath('data.fulfilment_status', 'unfulfilled')
             ->assertJsonPath('data.delivery', ['kind' => 'none'])
             ->assertJsonPath('data.shipping_address', null);
     }

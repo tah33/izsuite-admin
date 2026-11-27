@@ -27,6 +27,12 @@ Your order {!! $order['number'] !!} is ready to collect at {!! $order['place'] !
 @case ('order_delivered')
 {!! $order['delivery_title'] === 'Collected' ? 'You collected your order' : 'Your order' !!} {!! $order['number'] !!}{!! $order['delivery_title'] === 'Collected' ? '' : ' was delivered' !!} on {!! $order['completed_on'] !!}. Thank you for shopping with us! Here is what {!! $order['delivery_title'] === 'Collected' ? 'you collected' : 'was delivered' !!}:
 @break
+@case ('digital_delivered')
+Here is what we delivered from your order {!! $order['number'] !!}:
+@break
+@case ('service_performed')
+This service from your order {!! $order['number'] !!} was performed on {!! $order['performed_on'] !!}:
+@break
 @default
 Thank you for your order {!! $order['number'] !!}, placed on {!! $order['placed_on'] !!}. Here is what we have:
 @endswitch

@@ -31,6 +31,9 @@ class EcommerceOrderRepository
     /** Phase G1: its shipments or pickup as its customer is shown them, with what each holds. */
     private const CUSTOMER_FULFILMENTS = ['fulfilments.lines'];
 
+    /** Phase G3a: its digital products and services as its customer is shown them - each line's item, for how it is delivered, and its delivery. */
+    private const CUSTOMER_DELIVERIES = ['lines.item', 'deliveries'];
+
     /** Made through the storefront, so its business is never read from $data; its lines with it. */
     public function create(Storefront $storefront, array $data, array $lines): EcommerceOrder
     {
@@ -90,7 +93,7 @@ class EcommerceOrderRepository
         return EcommerceOrder::query()
             ->where('storefront_id', $storefront->id)
             ->where('access_token_hash', $keyHash)
-            ->with(['lines', ...self::CUSTOMER_INVOICE, ...self::CUSTOMER_FULFILMENTS])
+            ->with(['lines', ...self::CUSTOMER_INVOICE, ...self::CUSTOMER_FULFILMENTS, ...self::CUSTOMER_DELIVERIES])
             ->first();
     }
 
@@ -109,7 +112,7 @@ class EcommerceOrderRepository
     /** Phase E2: $customer's order $id, with its lines, and (Phase F2) its invoice's working link - or none. */
     public function findOfAccount(StorefrontCustomer $customer, int $id): ?EcommerceOrder
     {
-        return EcommerceOrder::query()->where('storefront_customer_id', $customer->id)->whereKey($id)->with(['lines', ...self::CUSTOMER_INVOICE, ...self::CUSTOMER_FULFILMENTS])->first();
+        return EcommerceOrder::query()->where('storefront_customer_id', $customer->id)->whereKey($id)->with(['lines', ...self::CUSTOMER_INVOICE, ...self::CUSTOMER_FULFILMENTS, ...self::CUSTOMER_DELIVERIES])->first();
     }
 
     /** Phase E2: the orders of $customer's e-mail that are no account's - guest orders, or a closed account's - made its own. */
@@ -167,6 +170,8 @@ class EcommerceOrderRepository
                 'paymentLinks.creator:id,first_name,last_name',
                 // Phase G1: its shipments or pickup, with what each holds, from where and by whom.
                 'fulfilments.lines', 'fulfilments.location:id,name', 'fulfilments.creator:id,first_name,last_name',
+                // Phase G3a: each line's item, for how it is delivered, and its digital products' and services' deliveries, by whom.
+                'lines.item', 'deliveries.deliverer:id,first_name,last_name', 'deliveries.revoker:id,first_name,last_name',
             ])
             ->find($id);
     }
@@ -174,14 +179,15 @@ class EcommerceOrderRepository
     /**
      * Phase G1: $order read again to be fulfilled - locked, when $lock, so its
      * quantities are sent once - with its storefront and location whole, its
-     * lines and its fulfilments with theirs.
+     * lines and its fulfilments with theirs. From Phase G3a, each line's item
+     * - how a digital product is delivered - and the order's deliveries.
      */
     public function forFulfilling(EcommerceOrder $order, bool $lock): EcommerceOrder
     {
         return EcommerceOrder::query()
             ->whereKey($order->id)
             ->when($lock, fn (Builder $query) => $query->lockForUpdate())
-            ->with(['storefront', 'location', 'lines', 'fulfilments.lines'])
+            ->with(['storefront', 'location', 'lines.item', 'fulfilments.lines', 'deliveries'])
             ->firstOrFail();
     }
 

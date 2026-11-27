@@ -7,7 +7,9 @@ use App\Mail\StoreOrderMail;
 use App\Models\User\EcommerceOrder;
 use App\Models\User\EcommerceOrderEmail;
 use App\Models\User\EcommerceOrderLine;
+use App\Models\User\EcommerceOrderDelivery;
 use App\Repositories\User\EcommerceFulfilmentRepository;
+use App\Repositories\User\EcommerceOrderDeliveryRepository;
 use App\Repositories\User\EcommerceOrderRepository;
 use App\Services\Documents\DocumentFormat;
 use App\Services\Shared\BusinessCalendar;
@@ -25,8 +27,9 @@ use Illuminate\Support\Facades\Mail;
  * Received and Payment Failed, with the invoice's link once it has one; F4
  * Order Cancelled, with none, and never why; F6a a Payment Link, with the
  * link's own page; G1 a shipment On Its Way, with its tracking link, Ready to
- * Collect, and Delivered (or collected). The order's later news come with the
- * phases that make it (G3 and I).
+ * Collect, and Delivered (or collected); G3a Digital Products Delivered, with
+ * their keys, links and notes, and a Service Performed. The order's later
+ * news come with the phases that make it (I).
  */
 class StoreOrderMailer
 {
@@ -34,6 +37,7 @@ class StoreOrderMailer
         protected EcommerceOrderRepository $orders,
         protected BusinessCalendar $calendar,
         protected EcommerceFulfilmentRepository $fulfilments,
+        protected EcommerceOrderDeliveryRepository $deliveries,
     ) {}
 
     /**
@@ -76,12 +80,17 @@ class StoreOrderMailer
                 EcommerceOrderEmail::ORDER_SHIPPED    => "Your {$about} is on its way",
                 EcommerceOrderEmail::ORDER_READY      => "Your {$about} is ready to collect",
                 EcommerceOrderEmail::ORDER_DELIVERED  => $order->delivery === EcommerceOrder::PICKUP ? "You collected your {$about}" : "Your {$about} was delivered",
+                // Phase G3a: one product by its title, several together.
+                EcommerceOrderEmail::DIGITAL_DELIVERED => count($details['lines'] ?? []) === 1
+                    ? ($order->lines->firstWhere('id', $details['lines'][0])?->title ?? 'Your digital product')." from your {$about} is ready"
+                    : "Your digital products from {$about} are ready",
+                EcommerceOrderEmail::SERVICE_PERFORMED => ($order->lines->firstWhere('id', $details['line'] ?? 0)?->title ?? 'Your service')." from your {$about} is done",
                 default                               => "Your {$about}",
             },
             $storefront->name,
             $storefront->support_email,
             $storefront->support_phone,
-            [...$this->shown($order, $link, $email->kind, $details), ...$this->fulfilled($order, $email->kind, $details), 'kind' => $email->kind, 'invoice' => $order->invoice?->number],
+            [...$this->shown($order, $link, $email->kind, $details), ...$this->fulfilled($order, $email->kind, $details), ...$this->delivered($order, $email->kind, $details), 'kind' => $email->kind, 'invoice' => $order->invoice?->number],
         ));
 
         $this->orders->updateEmail($email, ['status' => EcommerceOrderEmail::SENT, 'sent_at' => now(), 'error' => null]);
@@ -210,6 +219,67 @@ class StoreOrderMailer
             'payment_shown'  => $owing,
             'instructions'   => null,
         ];
+    }
+
+    /**
+     * Phase G3a: what a digital delivery's or a performed service's e-mail
+     * shows over the order's - the products delivered, without prices, each
+     * with what reaches the customer (a download waiting on their order page,
+     * its license keys, the note, its item's instructions - an external
+     * link's address among them); or the service, its day and the note - and,
+     * for a service, its payment while the order owes it. Nothing for other
+     * e-mails.
+     */
+    private function delivered(EcommerceOrder $order, string $kind, array $details): array
+    {
+        if (! in_array($kind, [EcommerceOrderEmail::DIGITAL_DELIVERED, EcommerceOrderEmail::SERVICE_PERFORMED], true)) {
+            return [];
+        }
+
+        $workspace  = $order->workspace;
+        $format     = new DocumentFormat($workspace->date_format ?? 'd M Y', $workspace->number_format ?? 'comma_dot');
+        $deliveries = $this->deliveries->ofOrder($order);
+        $service    = $kind === EcommerceOrderEmail::SERVICE_PERFORMED;
+        $lines      = $order->lines->whereIn('id', $service ? [$details['line'] ?? 0] : ($details['lines'] ?? []))->values();
+        $performed  = $service ? $deliveries->get($lines->first()?->id)?->performed_on : null;
+        $day        = $performed ? $format->date($performed->toDateString()) : null;
+
+        return [
+            'lines'          => $lines->map(fn (EcommerceOrderLine $line) => [
+                'quantity' => $format->quantity((string) $line->quantity),
+                'title'    => $line->title,
+                'options'  => implode(', ', array_column($line->options ?? [], 'value')),
+                'amount'   => '',
+            ])->all(),
+            'totals'         => [],
+            'performed_on'   => $day,
+            'delivery_title' => $service ? "Performed on {$day}" : ($lines->count() > 1 ? 'How you get them' : 'How you get it'),
+            'delivery'       => $service
+                ? (string) ($deliveries->get($lines->first()?->id)?->note ?? '')
+                : implode("\n\n", $lines->map(fn (EcommerceOrderLine $line) => $this->handedOver($line, $deliveries->get($line->id)))->all()),
+            'payment_shown'  => $service && $order->payment_status !== EcommerceOrder::PAID,
+            'instructions'   => null,
+        ];
+    }
+
+    /** Phase G3a: what a delivered digital product gives its customer, in words - nothing once its access is revoked. */
+    private function handedOver(EcommerceOrderLine $line, ?EcommerceOrderDelivery $delivery): string
+    {
+        if ($delivery?->status !== EcommerceOrderDelivery::DELIVERED) {
+            return "{$line->title}: no longer available.";
+        }
+
+        $keys = $delivery->license_keys ?? [];
+
+        return implode("\n", array_filter([
+            match ($delivery->method) {
+                EcommerceOrderDelivery::DOWNLOAD    => "{$line->title}: ready to download from your order's page.",
+                EcommerceOrderDelivery::LICENSE_KEY => "{$line->title} - your license ".(count($keys) > 1 ? 'keys' : 'key').":\n".implode("\n", $keys),
+                default                             => "{$line->title}:",
+            },
+            $delivery->note,
+            $line->item?->delivery_instructions,
+        ]));
     }
 
     /** How the order is paid: matched by $reference when the customer gave one, else $owed paid ahead, on pickup or on delivery. */
