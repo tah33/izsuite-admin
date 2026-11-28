@@ -33,8 +33,8 @@ use Illuminate\Validation\ValidationException;
  *   down to the customer.
  *
  * It is the business's sales enquiry, never an order, a sale or a
- * receivable. What it may also become - a CRM lead, a draft quotation - is
- * Phase H4b's.
+ * receivable. From Phase H4b, while Settings → eCommerce says so and CRM is
+ * on, it also becomes a lead, made with it (QuoteRequestLeads).
  */
 class StorefrontQuoteRequests
 {
@@ -43,6 +43,7 @@ class StorefrontQuoteRequests
         protected StorefrontCatalogRepository $catalog,
         protected EcommerceQuoteRequestRepository $requests,
         protected WorkspaceSequence $sequence,
+        protected QuoteRequestLeads $leads,
     ) {}
 
     /** $data as SubmitStoreQuoteRequestRequest takes it; $account: the customer signed in, if they are. */
@@ -56,22 +57,37 @@ class StorefrontQuoteRequests
 
         $items = array_map(fn (array $item, int $at) => $this->item($storefront, $item, $today, $at), $data['items'], array_keys($data['items']));
 
-        $request = DB::transaction(fn () => $this->requests->create($storefront, [
-            'storefront_customer_id' => $account?->id,
-            'number'                 => $this->number($storefront),
-            'customer_name'          => $account ? $account->name : trim($data['name']),
-            'customer_email'         => $account ? $account->email : mb_strtolower(trim($data['email'])),
-            'customer_phone'         => trim((string) ($data['phone'] ?? '')) ?: $account?->phone,
-            'company'                => trim((string) ($data['company'] ?? '')) ?: null,
-            'delivery_country'       => mb_strtoupper($data['delivery']['country']),
-            'delivery_city'          => trim((string) ($data['delivery']['city'] ?? '')) ?: null,
-            'delivery_address'       => trim((string) ($data['delivery']['address'] ?? '')) ?: null,
-            'required_on'            => $data['required_on'] ?? null,
-            'message'                => trim((string) ($data['message'] ?? '')) ?: null,
-        ], $items));
+        [$request, $lead] = DB::transaction(function () use ($storefront, $data, $account, $items) {
+            $request = $this->requests->create($storefront, [
+                'storefront_customer_id' => $account?->id,
+                'number'                 => $this->number($storefront),
+                'customer_name'          => $account ? $account->name : trim($data['name']),
+                'customer_email'         => $account ? $account->email : mb_strtolower(trim($data['email'])),
+                'customer_phone'         => trim((string) ($data['phone'] ?? '')) ?: $account?->phone,
+                'company'                => trim((string) ($data['company'] ?? '')) ?: null,
+                'delivery_country'       => mb_strtoupper($data['delivery']['country']),
+                'delivery_city'          => trim((string) ($data['delivery']['city'] ?? '')) ?: null,
+                'delivery_address'       => trim((string) ($data['delivery']['address'] ?? '')) ?: null,
+                'required_on'            => $data['required_on'] ?? null,
+                'message'                => trim((string) ($data['message'] ?? '')) ?: null,
+            ], $items);
+
+            // Phase H4b: while Settings → eCommerce says so and CRM is on, a lead with it.
+            $lead = $this->leads->make($storefront, $request);
+
+            if ($lead) {
+                $this->requests->update($request, ['crm_lead_id' => $lead->id]);
+            }
+
+            return [$request, $lead];
+        });
 
         SendStoreQuoteRequestEmail::dispatch($request->id)->afterCommit();
         ActivityLogService::recordCustomer($storefront->workspace, 'created', "{$request->customer_name} asked for a quotation on {$storefront->name}: {$request->number}", $request);
+
+        if ($lead) {
+            $this->leads->made($storefront, $request, $lead);
+        }
 
         return $request;
     }

@@ -48,6 +48,12 @@ class CrmOptionRepository
         return $workspace->crmOptions()->find($id);
     }
 
+    /** Doc 19 Phase H4b: $workspace's option of $kind with izSuite's $key (a starter one) - or none. */
+    public function findByKey(Workspace $workspace, string $kind, string $key): ?CrmOption
+    {
+        return $workspace->crmOptions()->where('kind', $kind)->where('key', $key)->first();
+    }
+
     /** Added at the end of its list. */
     public function create(Workspace $workspace, array $data): CrmOption
     {

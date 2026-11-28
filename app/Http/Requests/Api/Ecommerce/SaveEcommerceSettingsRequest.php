@@ -33,6 +33,8 @@ class SaveEcommerceSettingsRequest extends FormRequest
             'cart_days'             => ['sometimes', 'integer', 'min:1', 'max:365'],
             // Phase H3a: how many hours a cart whose customer is known goes unused before it is Abandoned.
             'abandoned_hours'       => ['sometimes', 'integer', 'min:1', 'max:720'],
+            // Phase H4b: whether, while CRM is on, a request for a quotation also becomes a lead.
+            'quote_requests_to_leads' => ['sometimes', 'boolean'],
             // Phase D4: whether checkout asks for a phone number, and for a note.
             'checkout_phone'        => ['sometimes', Rule::in(EcommerceSetting::PHONE_FIELDS)],
             'checkout_notes'        => ['sometimes', 'boolean'],

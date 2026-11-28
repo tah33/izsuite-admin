@@ -20,7 +20,7 @@ class EcommerceQuoteRequestController extends Controller
     public function index(ListEcommerceQuoteRequestsRequest $request): JsonResponse
     {
         try {
-            $page = $this->requests->list($this->currentWorkspace($request), $request->validated(), requested_per_page());
+            $page = $this->requests->list($this->currentWorkspace($request), $request->user(), $request->validated(), requested_per_page());
 
             return response()->json(['data' => EcommerceQuoteRequestListResource::collection($page->items()), 'pagination' => slim_pagination($page)]);
 
@@ -33,7 +33,7 @@ class EcommerceQuoteRequestController extends Controller
     public function show(Request $request, int $id): JsonResponse
     {
         try {
-            return response()->json(['data' => new EcommerceQuoteRequestResource($this->requests->find($this->currentWorkspace($request), $id))]);
+            return response()->json(['data' => new EcommerceQuoteRequestResource($this->requests->find($this->currentWorkspace($request), $request->user(), $id))]);
 
         } catch (\Throwable $e) {
             report($e);

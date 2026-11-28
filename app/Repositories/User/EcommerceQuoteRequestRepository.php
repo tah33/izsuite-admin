@@ -30,7 +30,13 @@ class EcommerceQuoteRequestRepository
             $request->items()->create([...$item, 'position' => $position]);
         }
 
-        return $request;
+        return $request->load('items');
+    }
+
+    /** Phase H4b: its lead, once made. */
+    public function update(EcommerceQuoteRequest $request, array $data): void
+    {
+        $request->update($data);
     }
 
     public function numberTaken(Workspace $workspace, string $number): bool

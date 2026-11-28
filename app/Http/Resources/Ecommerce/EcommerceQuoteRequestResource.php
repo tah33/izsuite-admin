@@ -38,6 +38,8 @@ class EcommerceQuoteRequestResource extends JsonResource
             'delivery'    => implode(', ', array_filter([$quote->delivery_address, $quote->delivery_city, Countries::name($quote->delivery_country)])),
             'required_on' => $quote->required_on?->toDateString(),
             'message'     => $quote->message,
+            // Phase H4b: the CRM lead it became, if it did and the user may open it (EcommerceQuoteRequestService).
+            'lead_id'     => $quote->getAttribute('shown_lead_id'),
         ];
     }
 }

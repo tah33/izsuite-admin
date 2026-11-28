@@ -13,7 +13,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * its online orders' numbers. From Phase C6b, whether its storefronts show a
  * cookie notice, and its words (none: izSuite's own). From Phase H3a, how
  * many hours a cart whose customer is known goes unused before it is
- * Abandoned.
+ * Abandoned; from Phase H4b, whether a request for a quotation also becomes
+ * a CRM lead while CRM is on.
  */
 class EcommerceSetting extends Model
 {
@@ -35,6 +36,8 @@ class EcommerceSetting extends Model
         'cart_days',
         // Phase H3a: how many hours a cart whose customer is known goes unused before it is Abandoned.
         'abandoned_hours',
+        // Phase H4b: whether, while CRM is on, a request for a quotation also becomes a lead.
+        'quote_requests_to_leads',
         // Phase D4: whether checkout asks for a phone number - required, optional or hidden - and a note.
         'checkout_phone',
         'checkout_notes',
@@ -59,6 +62,7 @@ class EcommerceSetting extends Model
         'cookie_notice'         => 'boolean',
         'cart_days'             => 'integer',
         'abandoned_hours'       => 'integer',
+        'quote_requests_to_leads' => 'boolean',
         'checkout_notes'        => 'boolean',
         'review_above'          => 'decimal:2',
         'hold_for_review'       => 'boolean',
@@ -77,6 +81,7 @@ class EcommerceSetting extends Model
         'order_prefix'          => 'EC-',
         'cart_days'             => 30,
         'abandoned_hours'       => 24,
+        'quote_requests_to_leads' => true,
         'checkout_phone'        => 'required',
         'checkout_notes'        => true,
         'cookie_notice'         => true,

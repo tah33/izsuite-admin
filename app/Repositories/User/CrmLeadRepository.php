@@ -102,7 +102,7 @@ class CrmLeadRepository
             ->get(['id', 'name', 'business_name', 'status', 'owner_id', 'match_email', 'match_phone', 'match_business']);
     }
 
-    /** Of $ids, the leads $scope sees, by id: those a decision names that no longer match. */
+    /** Of $ids, the leads $scope sees, by id: those a decision names that no longer match, and those requests for a quotation became (Doc 19 Phase H4b). */
     public function visibleAmong(Workspace $workspace, array $scope, array $ids): \Illuminate\Database\Eloquent\Collection
     {
         return $ids === [] ? new \Illuminate\Database\Eloquent\Collection : $this->visible($workspace, $scope)

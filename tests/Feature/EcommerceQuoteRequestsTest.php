@@ -157,6 +157,8 @@ class EcommerceQuoteRequestsTest extends TestCase
                 'id' => EcommerceQuoteRequest::where('number', 'QR-00001')->value('id'), 'number' => 'QR-00001', 'received_at' => '2026-11-28T10:00:00+00:00', 'storefront' => 'Rahman Shop',
                 'customer' => ['name' => 'Karim Rahman', 'email' => 'karim@example.test', 'account' => false],
                 'items' => [['title' => 'Custom Shelf', 'quantity' => '4']], 'lines' => 1, 'delivery' => 'Dhaka, Bangladesh', 'required_on' => '2026-12-10',
+                // Phase H4b: no lead, CRM being off.
+                'lead_id' => null,
             ]);
         $this->getJson(self::REQUESTS.'?search=nadia')->assertJsonCount(1, 'data');
         $this->getJson(self::REQUESTS.'?search=QR-00001')->assertJsonCount(1, 'data');

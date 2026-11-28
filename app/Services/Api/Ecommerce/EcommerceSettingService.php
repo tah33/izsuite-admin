@@ -31,7 +31,7 @@ class EcommerceSettingService
     /** What the settings form saves. */
     private const SAVED = [
         'guest_checkout', 'verify_customer_email', 'price_display', 'order_prefix', 'cookie_notice', 'cookie_notice_text', 'cart_days', 'abandoned_hours', 'checkout_phone', 'checkout_notes',
-        'review_above', 'hold_for_review', 'payment_link_days', 'partial_payments', 'download_days', 'download_limit', 'downloads_need_account',
+        'review_above', 'hold_for_review', 'payment_link_days', 'partial_payments', 'download_days', 'download_limit', 'downloads_need_account', 'quote_requests_to_leads',
     ];
 
     public function __construct(

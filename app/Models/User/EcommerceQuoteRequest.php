@@ -11,7 +11,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * - Phase H4a), numbered QR-00001: who asked - and the account they were
  * signed in to - the products they asked about, where they are to be
  * delivered, the date wanted and their message. It is the business's sales
- * enquiry, never an order, a sale or a receivable.
+ * enquiry, never an order, a sale or a receivable. From Phase H4b, while CRM
+ * is on, it also becomes a lead.
  */
 class EcommerceQuoteRequest extends Model
 {
@@ -26,6 +27,8 @@ class EcommerceQuoteRequest extends Model
     protected $fillable = [
         'storefront_id',
         'storefront_customer_id',
+        // Phase H4b: the CRM lead it became.
+        'crm_lead_id',
         'number',
         'customer_name',
         'customer_email',
@@ -41,6 +44,7 @@ class EcommerceQuoteRequest extends Model
     protected $casts = [
         'storefront_id'          => 'integer',
         'storefront_customer_id' => 'integer',
+        'crm_lead_id'            => 'integer',
         'required_on'            => 'date',
     ];
 
