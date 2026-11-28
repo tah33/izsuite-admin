@@ -484,6 +484,8 @@ final class RoutePermissions
             'api.ecommerce.collections.destroy'       => 'ecommerce.catalog.manage',
             'api.ecommerce.collections.image.store'   => 'ecommerce.catalog.manage',
             'api.ecommerce.collections.image.destroy' => 'ecommerce.catalog.manage',
+            // Phase H3a: the business's abandoned carts, with its orders.
+            'api.ecommerce.abandoned-carts.index'     => 'ecommerce.orders.view',
             // Phase F1: the business's online orders.
             'api.ecommerce.orders.index'              => 'ecommerce.orders.view',
             'api.ecommerce.orders.show'               => 'ecommerce.orders.view',

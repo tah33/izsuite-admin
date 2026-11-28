@@ -5,17 +5,24 @@ namespace App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * A visitor's cart on a storefront (Doc 19 section 19.14 - Phase D3), known
  * by a token their browser keeps - only its hash is kept here. Active while
  * it is used; Expired after Settings → eCommerce's days without activity;
- * Converted once its order is placed (Phase D4); Abandoned is Phase H's.
+ * Converted once its order is placed (Phase D4).
+ *
+ * From Phase H3a (19.32) it knows its customer once checkout does - the
+ * account signed in, or the name and e-mail typed - and whether they agreed
+ * to marketing by e-mail. Such a cart unused for Settings → eCommerce's hours
+ * is Abandoned, and Active again once used; when it was last found abandoned
+ * stays with it. An expired cart's customer is cleared.
  *
  * It is not an order or a sale, and reserves nothing. Its currency and
  * totals are as it was last priced, the way the store shows prices - for
- * the business's lists of carts later (Phase H): what it shows its visitor
- * is always priced again.
+ * the business's lists of carts: what it shows its visitor is always priced
+ * again.
  */
 class EcommerceCart extends Model
 {
@@ -26,6 +33,11 @@ class EcommerceCart extends Model
     public const ABANDONED = 'abandoned';
 
     public const EXPIRED = 'expired';
+
+    public const STATUSES = [self::ACTIVE, self::ABANDONED, self::CONVERTED, self::EXPIRED];
+
+    /** The statuses of a cart its visitor may still use: an abandoned one is theirs still. */
+    public const OPEN = [self::ACTIVE, self::ABANDONED];
 
     /** How many lines a cart takes, and how many of one product a line. */
     public const MAX_LINES = 50;
@@ -44,21 +56,31 @@ class EcommerceCart extends Model
         'expires_at',
         // Phase D4: when its order was placed.
         'converted_at',
+        // Phase H3a: its customer, as checkout learns them, and when it was last found abandoned.
+        'storefront_customer_id',
+        'customer_name',
+        'customer_email',
+        'marketing',
+        'abandoned_at',
     ];
 
     protected $casts = [
-        'storefront_id'    => 'integer',
-        'subtotal'         => 'decimal:2',
-        'tax_total'        => 'decimal:2',
-        'grand_total'      => 'decimal:2',
-        'last_activity_at' => 'datetime',
-        'expires_at'       => 'datetime',
-        'converted_at'     => 'datetime',
+        'storefront_id'          => 'integer',
+        'storefront_customer_id' => 'integer',
+        'subtotal'               => 'decimal:2',
+        'tax_total'              => 'decimal:2',
+        'grand_total'            => 'decimal:2',
+        'marketing'              => 'boolean',
+        'last_activity_at'       => 'datetime',
+        'abandoned_at'           => 'datetime',
+        'expires_at'             => 'datetime',
+        'converted_at'           => 'datetime',
     ];
 
-    // The column's default, so one just made reads as it was saved.
+    // The columns' defaults, so one just made reads as it was saved.
     protected $attributes = [
-        'status' => self::ACTIVE,
+        'status'    => self::ACTIVE,
+        'marketing' => false,
     ];
 
     public function workspace(): BelongsTo
@@ -75,5 +97,17 @@ class EcommerceCart extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(EcommerceCartLine::class)->orderBy('id');
+    }
+
+    /** Phase H3a: the account its customer was signed in to at checkout, if they were. */
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(StorefrontCustomer::class, 'storefront_customer_id');
+    }
+
+    /** Phase H3a: the order it became, once converted. */
+    public function order(): HasOne
+    {
+        return $this->hasOne(EcommerceOrder::class);
     }
 }

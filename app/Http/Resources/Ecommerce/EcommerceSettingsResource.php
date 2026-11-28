@@ -31,6 +31,8 @@ class EcommerceSettingsResource extends JsonResource
             'download_days'          => $this->download_days,
             'download_limit'         => $this->download_limit,
             'downloads_need_account' => (bool) $this->downloads_need_account,
+            // Phase H3a: how many hours a cart whose customer is known goes unused before it is Abandoned.
+            'abandoned_hours'        => (int) $this->abandoned_hours,
         ];
     }
 }

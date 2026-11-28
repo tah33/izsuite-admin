@@ -52,3 +52,6 @@ Schedule::command('pos:expire-held-orders')->hourly()->withoutOverlapping();
 
 // Storefront carts unused past Settings → eCommerce's days, expired (Doc 19 Phase D3).
 Schedule::command('ecommerce:expire-carts')->hourly()->withoutOverlapping();
+
+// Storefront carts whose customer is known, unused past Settings → eCommerce's hours, abandoned (Doc 19 Phase H3a).
+Schedule::command('ecommerce:abandon-carts')->hourly()->withoutOverlapping();

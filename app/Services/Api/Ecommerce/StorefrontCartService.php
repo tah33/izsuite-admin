@@ -30,6 +30,11 @@ use Illuminate\Validation\ValidationException;
  * Every answer reads the cart again as the store sells it now
  * (StorefrontCartLines), and keeps its prices and totals as shown. A cart is
  * not an order or a sale, and reserves nothing.
+ *
+ * From Phase H3a (19.32) an abandoned cart is its visitor's still, and Active
+ * again once used - opened, changed or at checkout, where it learns its
+ * customer (atCheckout()). One whose customer is known, unused for Settings →
+ * eCommerce's hours, is abandoned (abandon(), hourly).
  */
 class StorefrontCartService
 {
@@ -121,16 +126,42 @@ class StorefrontCartService
         return $this->answer($storefront, $cart, $today, null);
     }
 
-    /** The carts whose days are over, expired: how many (the scheduler's, hourly). */
+    /** The carts whose days are over, expired - (Phase H3a) their customer's details cleared: how many (the scheduler's, hourly). */
     public function expire(): int
     {
         return $this->carts->expire(now());
     }
 
     /**
+     * Phase H3a: the active carts whose customer is known, unused for their
+     * business's hours, abandoned: how many (the scheduler's, hourly). No
+     * business's hours are fewer than one, so only those with a cart unused
+     * for an hour are looked at.
+     */
+    public function abandon(): int
+    {
+        $now        = now();
+        $businesses = $this->carts->idleBusinesses($now->copy()->subHour());
+        $hours      = $this->settings->abandonedHoursOf($businesses);
+
+        return array_sum(array_map(fn (int $id) => $this->carts->abandon($id, $now->copy()->subHours($hours[$id]), $now), $businesses));
+    }
+
+    /**
+     * Phase H3a: $cart at checkout - used now, so active again and its days
+     * counted from now - with its customer as checkout knows them:
+     * $customer holds the cart's fields learnt (StorefrontOrderPlacement).
+     */
+    public function atCheckout(Storefront $storefront, EcommerceCart $cart, array $customer): void
+    {
+        $this->carts->update($cart, ['status' => EcommerceCart::ACTIVE, ...$this->kept($storefront), ...$customer]);
+    }
+
+    /**
      * The cart read as the store sells it now - its days counted again from
-     * now, and its prices and totals kept as shown. A cart's changes are no
-     * business activity: none is logged, even for its team previewing.
+     * now, (Phase H3a) active again if it was abandoned, and its prices and
+     * totals kept as shown. A cart's changes are no business activity: none
+     * is logged, even for its team previewing.
      */
     private function answer(Storefront $storefront, ?EcommerceCart $cart, string $today, ?string $created): array
     {
@@ -146,6 +177,7 @@ class StorefrontCartService
 
         $this->carts->savePrices($cart, collect($read['lines'])->mapWithKeys(fn (array $line) => [$line['line']->id => $line['unit']])->all());
         $this->carts->update($cart, [
+            'status'      => EcommerceCart::ACTIVE,
             'currency'    => $terms['currency'],
             'subtotal'    => $read['shown']['subtotal'],
             'tax_total'   => $read['shown']['tax_total'],

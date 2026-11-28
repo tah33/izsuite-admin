@@ -19,4 +19,20 @@ class EcommerceSettingRepository
     {
         return $workspace->ecommerceSetting()->updateOrCreate([], $data);
     }
+
+    /**
+     * Phase H3a: how many hours a cart whose customer is known goes unused
+     * before it is Abandoned, for each of $workspaceIds - the default where a
+     * business never saved its settings.
+     *
+     * @param  list<int>  $workspaceIds
+     * @return array<int, int>
+     */
+    public function abandonedHoursOf(array $workspaceIds): array
+    {
+        $saved   = EcommerceSetting::query()->whereIn('workspace_id', $workspaceIds)->pluck('abandoned_hours', 'workspace_id');
+        $default = (int) (new EcommerceSetting)->abandoned_hours;
+
+        return collect($workspaceIds)->mapWithKeys(fn (int $id) => [$id => (int) ($saved[$id] ?? $default)])->all();
+    }
 }

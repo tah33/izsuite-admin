@@ -11,7 +11,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * a customer's account waits for their e-mail to be verified (19.16),
  * whether prices are shown with tax or without it (19.13), and the prefix of
  * its online orders' numbers. From Phase C6b, whether its storefronts show a
- * cookie notice, and its words (none: izSuite's own).
+ * cookie notice, and its words (none: izSuite's own). From Phase H3a, how
+ * many hours a cart whose customer is known goes unused before it is
+ * Abandoned.
  */
 class EcommerceSetting extends Model
 {
@@ -31,6 +33,8 @@ class EcommerceSetting extends Model
         'order_prefix',
         // Phase D3: how many days a cart is kept without activity.
         'cart_days',
+        // Phase H3a: how many hours a cart whose customer is known goes unused before it is Abandoned.
+        'abandoned_hours',
         // Phase D4: whether checkout asks for a phone number - required, optional or hidden - and a note.
         'checkout_phone',
         'checkout_notes',
@@ -54,6 +58,7 @@ class EcommerceSetting extends Model
         'verify_customer_email' => 'boolean',
         'cookie_notice'         => 'boolean',
         'cart_days'             => 'integer',
+        'abandoned_hours'       => 'integer',
         'checkout_notes'        => 'boolean',
         'review_above'          => 'decimal:2',
         'hold_for_review'       => 'boolean',
@@ -71,6 +76,7 @@ class EcommerceSetting extends Model
         'price_display'         => self::WITH_TAX,
         'order_prefix'          => 'EC-',
         'cart_days'             => 30,
+        'abandoned_hours'       => 24,
         'checkout_phone'        => 'required',
         'checkout_notes'        => true,
         'cookie_notice'         => true,

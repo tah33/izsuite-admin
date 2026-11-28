@@ -31,6 +31,8 @@ class SaveEcommerceSettingsRequest extends FormRequest
             'cookie_notice_text'    => ['sometimes', 'nullable', 'string', 'max:300'],
             // Phase D3: how many days a cart is kept without activity.
             'cart_days'             => ['sometimes', 'integer', 'min:1', 'max:365'],
+            // Phase H3a: how many hours a cart whose customer is known goes unused before it is Abandoned.
+            'abandoned_hours'       => ['sometimes', 'integer', 'min:1', 'max:720'],
             // Phase D4: whether checkout asks for a phone number, and for a note.
             'checkout_phone'        => ['sometimes', Rule::in(EcommerceSetting::PHONE_FIELDS)],
             'checkout_notes'        => ['sometimes', 'boolean'],
@@ -55,6 +57,8 @@ class SaveEcommerceSettingsRequest extends FormRequest
             'cookie_notice_text.max' => 'Keep the notice to 300 characters.',
             'cart_days.min'          => 'Keep carts for a day at least.',
             'cart_days.max'          => 'Keep carts for up to 365 days.',
+            'abandoned_hours.min'    => 'Give an hour at least.',
+            'abandoned_hours.max'    => 'Give up to 720 hours (30 days).',
             'download_days.min'      => 'Let downloads work for a day at least - or leave it empty for no limit.',
             'download_days.max'      => 'Let downloads work for up to 3650 days - or leave it empty for no limit.',
             'download_limit.min'     => 'Allow each file once at least - or leave it empty for no limit.',

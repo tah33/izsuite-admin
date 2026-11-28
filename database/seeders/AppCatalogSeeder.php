@@ -229,6 +229,8 @@ class AppCatalogSeeder extends Seeder
         ['apps', 'ecommerce', 'Catalog', 'library', '/ecommerce/catalog', 'lite', null],
         // Phase F1: its orders.
         ['apps', 'ecommerce', 'Orders', 'receipt', '/ecommerce/orders', 'lite', null],
+        // Phase H3a: its abandoned carts, after its orders (19.3).
+        ['apps', 'ecommerce', 'Abandoned Carts', 'shopping-cart', '/ecommerce/abandoned-carts', 'lite', null],
         // Phase H1: its discounts.
         ['apps', 'ecommerce', 'Discounts', 'tag', '/ecommerce/discounts', 'lite', null],
         ['apps', 'inventory', 'Stock', 'boxes', '/inventory/stock', 'lite', null],
@@ -274,6 +276,7 @@ class AppCatalogSeeder extends Seeder
         '/ecommerce/storefronts' => 'ecommerce.store.view',
         '/ecommerce/catalog'     => 'ecommerce.catalog.view',
         '/ecommerce/orders'      => 'ecommerce.orders.view',
+        '/ecommerce/abandoned-carts' => 'ecommerce.orders.view',
         '/ecommerce/discounts'   => 'ecommerce.discounts.manage',
         '/purchases'          => 'purchases.purchases.view',
         '/purchases/payments' => 'purchases.payments.view',

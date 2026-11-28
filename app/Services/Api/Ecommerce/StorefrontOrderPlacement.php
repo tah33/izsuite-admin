@@ -59,6 +59,7 @@ class StorefrontOrderPlacement
         protected StoreOrderMailer $mailer,
         protected StorefrontCustomerAddresses $addresses,
         protected EcommerceOrderHolds $holds,
+        protected StorefrontCartService $cartService,
     ) {}
 
     /**
@@ -67,7 +68,8 @@ class StorefrontOrderPlacement
      * takes orders now: its team previewing it may try the checkout before it
      * is Live, but not place an order. From Phase E3, whether its signed-in
      * customer takes marketing by e-mail already (null for a guest, or while
-     * their e-mail is not verified).
+     * their e-mail is not verified). From Phase H3a the cart, used now, learns
+     * its customer: the account, or the name and e-mail typed (customerOf()).
      *
      * @return array{quote: array, storefront: Storefront, settings: EcommerceSetting, policies: array, open: bool, signed_in: bool, marketing: ?bool}
      */
@@ -78,6 +80,9 @@ class StorefrontOrderPlacement
 
         ActivityLogService::skipForThisRequest();
 
+        $marketing = $account ? $this->customers->marketingOf($storefront, $account) : null;
+        $this->cartService->atCheckout($storefront, $cart, $this->customerOf($account, $choices, $marketing));
+
         return [
             // Phase H2b: with the account its customer is signed in to - its e-mail theirs, as the order's is - for the discounts.
             'quote'      => $this->checkout->quote($storefront, $cart, [...$choices, 'account' => $account, ...($account ? ['email' => $account->email] : [])], $today),
@@ -87,7 +92,7 @@ class StorefrontOrderPlacement
             'open'       => $open,
             // Phase E2: whether its customer is signed in, so a store without guest checkout takes their order.
             'signed_in'  => $account !== null,
-            'marketing'  => $account ? $this->customers->marketingOf($storefront, $account) : null,
+            'marketing'  => $marketing,
         ];
     }
 
@@ -122,7 +127,8 @@ class StorefrontOrderPlacement
                 return ['order' => $this->orders->ofCart($cart) ?? abort(404, 'Your cart has expired. Add the products again.'), 'key' => $key, 'created' => false];
             }
 
-            if ($cart->status !== EcommerceCart::ACTIVE || $cart->expires_at?->isPast()) {
+            // Phase H3a: an abandoned cart is placed as an active one is.
+            if (! in_array($cart->status, EcommerceCart::OPEN, true) || $cart->expires_at?->isPast()) {
                 abort(404, 'Your cart has expired. Add the products again.');
             }
 
@@ -202,6 +208,32 @@ class StorefrontOrderPlacement
     public static function linkOf(Storefront $storefront, string $key): string
     {
         return rtrim((string) config('app.frontend_url'), '/').'/store/'.$storefront->code.'/orders/'.$key;
+    }
+
+    /**
+     * Phase H3a: who checks the cart out, as far as checkout knows - its
+     * fields to keep. Signed in, the account: its name and e-mail, and
+     * whether they agreed to marketing by e-mail - $standing, their
+     * contact's, or the box ticked now. Else the name and a whole e-mail
+     * typed, the box going with the e-mail: a field left empty keeps what the
+     * cart knew.
+     */
+    private function customerOf(?StorefrontCustomer $account, array $choices, ?bool $standing): array
+    {
+        $ticked = (bool) ($choices['marketing'] ?? false);
+
+        if ($account) {
+            return ['storefront_customer_id' => $account->id, 'customer_name' => $account->name, 'customer_email' => $account->email, 'marketing' => $standing === true || $ticked];
+        }
+
+        $name  = mb_substr(trim((string) ($choices['name'] ?? '')), 0, 255);
+        $email = mb_strtolower(trim((string) ($choices['email'] ?? '')));
+        $whole = mb_strlen($email) <= 255 && filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+
+        return [
+            ...($name !== '' ? ['customer_name' => $name] : []),
+            ...($whole ? ['storefront_customer_id' => null, 'customer_email' => $email, 'marketing' => $ticked] : []),
+        ];
     }
 
     /**

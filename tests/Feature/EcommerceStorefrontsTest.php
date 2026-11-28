@@ -103,6 +103,8 @@ class EcommerceStorefrontsTest extends TestCase
                 'checkout_phone' => 'required', 'checkout_notes' => true, 'review_above' => null, 'hold_for_review' => false, 'payment_link_days' => 7, 'partial_payments' => false,
                 // Phase G3b: downloads work 30 days, each file 5 times, without an account.
                 'download_days' => 30, 'download_limit' => 5, 'downloads_need_account' => false,
+                // Phase H3a: a cart whose customer is known is abandoned after 24 hours unused.
+                'abandoned_hours' => 24,
             ]]);
 
         $this->putJson(self::SETTINGS, ['guest_checkout' => false, 'verify_customer_email' => true, 'price_display' => 'without_tax', 'order_prefix' => ' web/ '])->assertOk()

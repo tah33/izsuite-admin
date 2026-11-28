@@ -107,6 +107,7 @@ use App\Http\Controllers\Api\EcommerceShippingController;
 use App\Http\Controllers\Api\EcommercePaymentMethodController;
 use App\Http\Controllers\Api\EcommerceOrderController;
 use App\Http\Controllers\Api\EcommerceDiscountController;
+use App\Http\Controllers\Api\EcommerceAbandonedCartController;
 use App\Http\Controllers\Api\EcommerceOrderDeliveryController;
 use App\Http\Controllers\Api\EcommerceOrderEditController;
 use App\Http\Controllers\Api\EcommerceOrderFulfilmentController;
@@ -1280,6 +1281,11 @@ Route::prefix('v1')->group(function () {
         Route::post('/', [EcommerceDiscountController::class, 'store'])->middleware('idempotent')->name('api.ecommerce.discounts.store');
         Route::put('/{id}', [EcommerceDiscountController::class, 'update'])->whereNumber('id')->name('api.ecommerce.discounts.update');
         Route::delete('/{id}', [EcommerceDiscountController::class, 'destroy'])->whereNumber('id')->name('api.ecommerce.discounts.destroy');
+    });
+
+    // Phase H3a: the business's abandoned carts - the Abandoned Carts page.
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:ecommerce', 'access'])->prefix('ecommerce/abandoned-carts')->group(function () {
+        Route::get('/', [EcommerceAbandonedCartController::class, 'index'])->name('api.ecommerce.abandoned-carts.index');
     });
 
     // Phase F1: the business's online orders - the Orders page, one order, and its timeline.

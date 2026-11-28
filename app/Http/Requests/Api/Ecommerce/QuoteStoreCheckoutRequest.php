@@ -33,6 +33,9 @@ class QuoteStoreCheckoutRequest extends FormRequest
             // Phase H1: a discount code, and the e-mail typed so far - for a code's uses by one customer.
             'discount_code'       => ['nullable', 'string', 'max:40'],
             'email'               => ['nullable', 'string', 'max:255'],
+            // Phase H3a: the name typed so far, and whether the customer ticked marketing by e-mail - for the cart's customer.
+            'name'                => ['nullable', 'string', 'max:255'],
+            'marketing'           => ['nullable', 'boolean'],
         ];
     }
 }
