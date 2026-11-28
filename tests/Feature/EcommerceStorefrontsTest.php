@@ -107,6 +107,8 @@ class EcommerceStorefrontsTest extends TestCase
                 'abandoned_hours' => 24,
                 // Phase H4b, a choice from H4c: a request for a quotation also becomes a lead while CRM is on.
                 'quote_requests_become' => 'lead',
+                // Phase H4d: no files with a request, to start.
+                'quote_request_files' => false,
             ]]);
 
         $this->putJson(self::SETTINGS, ['guest_checkout' => false, 'verify_customer_email' => true, 'price_display' => 'without_tax', 'order_prefix' => ' web/ '])->assertOk()

@@ -4,6 +4,7 @@ namespace App\Http\Resources\Ecommerce;
 
 use App\Models\User\EcommerceQuoteRequest;
 use App\Models\User\EcommerceQuoteRequestItem;
+use App\Models\User\WorkspaceFile;
 use App\Support\Countries;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -12,7 +13,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * A request for a quotation, whole (Doc 19 Phase H4a): its number and when
  * it came, its storefront, the customer - with their phone and company -
  * every product with how many, the delivery location, the date wanted and
- * the message.
+ * the message - and (Phase H4d) the files that came with it.
  *
  * @property EcommerceQuoteRequest $resource
  */
@@ -42,6 +43,8 @@ class EcommerceQuoteRequestResource extends JsonResource
             'lead_id'     => $quote->getAttribute('shown_lead_id'),
             // Phase H4c: the quotation it became - {id, number}, none while a draft - if it did and the user may open it.
             'quotation'   => $quote->getAttribute('shown_quotation'),
+            // Phase H4d: the files that came with it, to download through their links.
+            'files'       => $quote->files->map(fn (WorkspaceFile $file) => ['id' => $file->id, 'name' => $file->name, 'size' => (int) $file->size])->values(),
         ];
     }
 }

@@ -53,6 +53,8 @@ class StoreResource extends JsonResource
             'brands'             => $this->resource['brands']?->map(fn (ItemBrand $brand) => ['id' => $brand->id, 'name' => $brand->name])->values(),
             'pages'              => $this->resource['pages']->map(fn (StorefrontPage $page) => ['title' => $page->title, 'slug' => $page->slug])->values(),
             'cookie_notice'      => $this->resource['settings']->cookie_notice ? ['text' => $this->resource['settings']->cookie_notice_text, 'privacy_policy' => $this->resource['privacy']] : null,
+            // Phase H4d: whether a request for a quotation may come with files.
+            'quote_files'        => (bool) $this->resource['settings']->quote_request_files,
         ];
     }
 }

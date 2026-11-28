@@ -2,6 +2,7 @@
 
 namespace App\Services\Api\Ecommerce;
 
+use App\Enums\FileCollection;
 use App\Jobs\SendStoreQuoteRequestEmail;
 use App\Mail\StoreQuoteRequestMail;
 use App\Models\User\CatalogProduct;
@@ -14,9 +15,12 @@ use App\Repositories\User\EcommerceQuoteRequestRepository;
 use App\Repositories\User\EcommerceSettingRepository;
 use App\Repositories\User\StorefrontCatalogRepository;
 use App\Services\Documents\DocumentFormat;
+use App\Services\Files\FileStorage;
+use App\Services\Files\StorageUsage;
 use App\Services\Shared\ActivityLogService;
 use App\Services\User\Workspaces\WorkspaceSequence;
 use App\Support\Countries;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
@@ -32,7 +36,9 @@ use Illuminate\Validation\ValidationException;
  *   business is) and a message;
  * - numbered QR-00001 from the business's own sequence, the customer
  *   e-mailed it arrived (through the queue), and in the Activity Log, put
- *   down to the customer.
+ *   down to the customer;
+ * - from Phase H4d, up to three files where Settings → eCommerce takes them
+ *   and the business has room, kept as its attachments.
  *
  * It is the business's sales enquiry, never an order, a sale or a
  * receivable. As Settings → eCommerce chooses, it also becomes - made with it
@@ -49,9 +55,11 @@ class StorefrontQuoteRequests
         protected WorkspaceSequence $sequence,
         protected QuoteRequestLeads $leads,
         protected QuoteRequestQuotations $quotations,
+        protected FileStorage $files,
+        protected StorageUsage $usage,
     ) {}
 
-    /** $data as SubmitStoreQuoteRequestRequest takes it; $account: the customer signed in, if they are. */
+    /** $data as SubmitStoreQuoteRequestRequest takes it - its files among it; $account: the customer signed in, if they are. */
     public function submit(string $code, array $data, ?StorefrontCustomer $account = null): EcommerceQuoteRequest
     {
         ['storefront' => $storefront, 'today' => $today] = $this->stores->openStore($code);
@@ -60,10 +68,15 @@ class StorefrontQuoteRequests
             throw ValidationException::withMessages(['required_on' => 'Choose today or a later day.']);
         }
 
-        $items   = array_map(fn (array $item, int $at) => $this->item($storefront, $item, $today, $at), $data['items'], array_keys($data['items']));
-        $becomes = $this->settings->forWorkspace($storefront->workspace)->quote_requests_become;
+        $items    = array_map(fn (array $item, int $at) => $this->item($storefront, $item, $today, $at), $data['items'], array_keys($data['items']));
+        $settings = $this->settings->forWorkspace($storefront->workspace);
+        $becomes  = $settings->quote_requests_become;
+        $uploads  = array_values($data['files'] ?? []);
+        $this->checkFiles($storefront, $settings, $uploads);
+        // Phase H4d: named in the lead's or the draft quotation's notes, which take no copies.
+        $names = array_map(fn (UploadedFile $upload) => $upload->getClientOriginalName(), $uploads);
 
-        [$request, $lead, $quotation] = DB::transaction(function () use ($storefront, $data, $account, $items, $becomes) {
+        [$request, $lead, $quotation] = DB::transaction(function () use ($storefront, $data, $account, $items, $becomes, $uploads, $names) {
             $request = $this->requests->create($storefront, [
                 'storefront_customer_id' => $account?->id,
                 'number'                 => $this->number($storefront),
@@ -79,18 +92,29 @@ class StorefrontQuoteRequests
             ], $items);
 
             // What Settings → eCommerce says it also becomes: a lead (Phase H4b) or a draft quotation (Phase H4c).
-            $lead      = $becomes === EcommerceSetting::BECOME_LEAD ? $this->leads->make($storefront, $request) : null;
-            $quotation = $becomes === EcommerceSetting::BECOME_QUOTATION ? $this->quotations->make($storefront, $request, $account) : null;
+            $lead      = $becomes === EcommerceSetting::BECOME_LEAD ? $this->leads->make($storefront, $request, $names) : null;
+            $quotation = $becomes === EcommerceSetting::BECOME_QUOTATION ? $this->quotations->make($storefront, $request, $account, $names) : null;
 
             if ($lead || $quotation) {
                 $this->requests->update($request, ['crm_lead_id' => $lead?->id, 'sales_document_id' => $quotation?->id]);
             }
 
+            // Phase H4d: its files as its attachments - last, so nothing after them can fail.
+            if ($uploads !== []) {
+                $this->files->store($storefront->workspace, $request, FileCollection::Attachments, $uploads, 'files', byMember: false);
+            }
+
             return [$request, $lead, $quotation];
         });
 
+        $with = match (count($uploads)) {
+            0       => '',
+            1       => ', with a file',
+            default => ', with '.count($uploads).' files',
+        };
+
         SendStoreQuoteRequestEmail::dispatch($request->id)->afterCommit();
-        ActivityLogService::recordCustomer($storefront->workspace, 'created', "{$request->customer_name} asked for a quotation on {$storefront->name}: {$request->number}", $request);
+        ActivityLogService::recordCustomer($storefront->workspace, 'created', "{$request->customer_name} asked for a quotation on {$storefront->name}: {$request->number}{$with}", $request);
 
         if ($lead) {
             $this->leads->made($storefront, $request, $lead);
@@ -158,6 +182,28 @@ class StorefrontQuoteRequests
             'title'                      => mb_substr($product->title.($variant ? ' ('.implode(', ', (array) $variant->option_values).')' : ''), 0, 255),
             'quantity'                   => (string) $item['quantity'],
         ];
+    }
+
+    /**
+     * Phase H4d: $uploads only where Settings → eCommerce takes files with a
+     * request, and only while the business has room for them - each refusal
+     * said as its customer may read it.
+     *
+     * @param  list<UploadedFile>  $uploads
+     */
+    private function checkFiles(Storefront $storefront, EcommerceSetting $settings, array $uploads): void
+    {
+        if ($uploads === []) {
+            return;
+        }
+
+        if (! $settings->quote_request_files) {
+            throw ValidationException::withMessages(['files' => 'This store does not take files with a request.']);
+        }
+
+        if (! $this->usage->hasRoomFor($storefront->workspace, array_sum(array_map(fn (UploadedFile $upload) => (int) $upload->getSize(), $uploads)))) {
+            throw ValidationException::withMessages(['files' => 'This store cannot take files just now: send your request without them.']);
+        }
     }
 
     /** The next number of the business's requests, QR-00001 on - one taken already skipped. */

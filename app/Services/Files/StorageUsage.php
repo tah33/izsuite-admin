@@ -63,6 +63,14 @@ class StorageUsage
      * $field that says how much is used and left. $freed is what the upload
      * replaces (an item's previous image), which is let go of once it is in.
      */
+    /** Whether $bytes more fit in the business's storage - asked where the refusal is not a member's to read (Doc 19 Phase H4d: a store's customer). */
+    public function hasRoomFor(Workspace $workspace, int $bytes): bool
+    {
+        $limit = $this->limitBytes($workspace);
+
+        return $limit === null || $this->usedBytes($workspace) + $bytes <= $limit;
+    }
+
     public function ensureRoomFor(Workspace $workspace, int $bytes, int $freed, string $field): void
     {
         $limit = $this->limitBytes($workspace);

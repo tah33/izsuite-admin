@@ -14,7 +14,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * cookie notice, and its words (none: izSuite's own). From Phase H3a, how
  * many hours a cart whose customer is known goes unused before it is
  * Abandoned; from Phase H4b, what a request for a quotation also becomes -
- * nothing more, a CRM lead while CRM is on, or (Phase H4c) a draft quotation.
+ * nothing more, a CRM lead while CRM is on, or (Phase H4c) a draft quotation;
+ * from Phase H4d, whether a customer may attach files to one.
  */
 class EcommerceSetting extends Model
 {
@@ -47,6 +48,8 @@ class EcommerceSetting extends Model
         'abandoned_hours',
         // Phase H4b, a choice from H4c: what a request for a quotation also becomes (QUOTE_REQUESTS_BECOME).
         'quote_requests_become',
+        // Phase H4d: whether a customer may attach files to a request for a quotation.
+        'quote_request_files',
         // Phase D4: whether checkout asks for a phone number - required, optional or hidden - and a note.
         'checkout_phone',
         'checkout_notes',
@@ -71,6 +74,7 @@ class EcommerceSetting extends Model
         'cookie_notice'         => 'boolean',
         'cart_days'             => 'integer',
         'abandoned_hours'       => 'integer',
+        'quote_request_files'   => 'boolean',
         'checkout_notes'        => 'boolean',
         'review_above'          => 'decimal:2',
         'hold_for_review'       => 'boolean',
@@ -90,6 +94,7 @@ class EcommerceSetting extends Model
         'cart_days'             => 30,
         'abandoned_hours'       => 24,
         'quote_requests_become' => self::BECOME_LEAD,
+        'quote_request_files'   => false,
         'checkout_phone'        => 'required',
         'checkout_notes'        => true,
         'cookie_notice'         => true,

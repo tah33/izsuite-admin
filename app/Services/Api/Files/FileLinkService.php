@@ -5,6 +5,7 @@ namespace App\Services\Api\Files;
 use App\Models\User\Contact;
 use App\Models\User\CrmLead;
 use App\Models\User\CrmOpportunity;
+use App\Models\User\EcommerceQuoteRequest;
 use App\Models\User\Expense;
 use App\Models\User\ExpensePayment;
 use App\Models\User\Item;
@@ -16,6 +17,7 @@ use App\Models\User\SalesReturn;
 use App\Models\User\SupplierPayment;
 use App\Models\User\Workspace;
 use App\Models\User\WorkspaceFile;
+use App\Repositories\User\EcommerceQuoteRequestRepository;
 use App\Repositories\User\WorkspaceFileRepository;
 use App\Services\Crm\LeadVisibility;
 use App\Services\Crm\OpportunityVisibility;
@@ -46,6 +48,8 @@ class FileLinkService
         // The full Sales app's (Doc 16).
         SalesDelivery::class   => 'sales.deliveries.view',
         SalesReturn::class     => 'sales.returns.view',
+        // A request for a quotation's files (Doc 19 Phase H4d), with the request.
+        EcommerceQuoteRequest::class => 'ecommerce.orders.view',
     ];
 
     /** The record kinds that are at a location (see LocationAccess), by the record's class. */
@@ -69,6 +73,7 @@ class FileLinkService
         protected LocationAccess $locationAccess,
         protected LeadVisibility $leadVisibility,
         protected OpportunityVisibility $opportunityVisibility,
+        protected EcommerceQuoteRequestRepository $quoteRequests,
     ) {}
 
     /**
@@ -99,6 +104,11 @@ class FileLinkService
             $lead = $this->workspaceFileRepository->attachableOf($file);
 
             abort_unless($lead && $this->leadVisibility->sees($workspace, app(Request::class)->user(), $lead), 404, 'File not found.');
+        }
+
+        // A request for a quotation's, only if it is at a location the user may use - by its storefront's (Doc 19 Phase H4d).
+        if ($file->attachable_type === EcommerceQuoteRequest::class) {
+            abort_unless($this->quoteRequests->reachable($workspace, (int) $file->attachable_id, $this->access->locations()), 404, 'File not found.');
         }
 
         if ($file->attachable_type === CrmOpportunity::class) {

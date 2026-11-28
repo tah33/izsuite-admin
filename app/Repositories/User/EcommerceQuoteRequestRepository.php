@@ -65,10 +65,16 @@ class EcommerceQuoteRequestRepository
             ->paginate($perPage);
     }
 
-    /** $workspace's request $id at $locationIds (any, when null), with its storefront and products - or none. */
+    /** $workspace's request $id at $locationIds (any, when null), with its storefront, products, quotation and (Phase H4d) files - or none. */
     public function findFor(Workspace $workspace, int $id, ?array $locationIds): ?EcommerceQuoteRequest
     {
-        return $this->at($workspace, $locationIds)->with(['storefront:id,name', 'items', 'quotation:id,number,location_id'])->find($id);
+        return $this->at($workspace, $locationIds)->with(['storefront:id,name', 'items', 'quotation:id,number,location_id', 'files'])->find($id);
+    }
+
+    /** Phase H4d: whether $workspace's request $id is at $locationIds (any, when null) - for its files' links. */
+    public function reachable(Workspace $workspace, int $id, ?array $locationIds): bool
+    {
+        return $this->at($workspace, $locationIds)->whereKey($id)->exists();
     }
 
     /** The request $id, with what its e-mail shows - or none. */

@@ -49,8 +49,8 @@ class QuoteRequestLeads
         protected Notifier $notifier,
     ) {}
 
-    /** $request's lead, while CRM is on - or none: Settings → eCommerce's choice is StorefrontQuoteRequests'. Made inside the request's own transaction. */
-    public function make(Storefront $storefront, EcommerceQuoteRequest $request): ?CrmLead
+    /** $request's lead, while CRM is on - or none: Settings → eCommerce's choice is StorefrontQuoteRequests'. $files: the names of the files the request keeps (Phase H4d). Made inside the request's own transaction. */
+    public function make(Storefront $storefront, EcommerceQuoteRequest $request, array $files = []): ?CrmLead
     {
         $workspace = $storefront->workspace;
 
@@ -76,7 +76,8 @@ class QuoteRequestLeads
             'address_line1'          => $request->delivery_address,
             'address_city'           => $request->delivery_city,
             'address_country'        => $request->delivery_country,
-            'notes'                  => $request->message,
+            // Phase H4d: the request's files named - it keeps them, so storage is not spent twice.
+            'notes'                  => implode("\n\n", array_filter([$request->message, $files ? "Files with the request {$request->number}: ".implode(', ', $files) : null])) ?: null,
             'custom_fields'          => [],
         ]);
 

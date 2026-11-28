@@ -35,6 +35,8 @@ class EcommerceSettingsResource extends JsonResource
             'abandoned_hours'        => (int) $this->abandoned_hours,
             // Phase H4b, a choice from H4c: what a request for a quotation also becomes - nothing, lead or quotation.
             'quote_requests_become'  => $this->quote_requests_become,
+            // Phase H4d: whether a customer may attach files to a request for a quotation.
+            'quote_request_files'    => (bool) $this->quote_request_files,
         ];
     }
 }

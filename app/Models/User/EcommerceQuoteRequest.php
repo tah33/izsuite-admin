@@ -2,6 +2,7 @@
 
 namespace App\Models\User;
 
+use App\Models\Concerns\HasFiles;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,10 +14,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * delivered, the date wanted and their message. It is the business's sales
  * enquiry, never an order, a sale or a receivable. From Phase H4b, as
  * Settings → eCommerce chooses, it also becomes a CRM lead (while CRM is on)
- * or, from Phase H4c, a draft quotation.
+ * or, from Phase H4c, a draft quotation. From Phase H4d it may come with
+ * files, kept as its attachments (HasFiles).
  */
 class EcommerceQuoteRequest extends Model
 {
+    use HasFiles;
+
     /** The business's sequence its numbers come from (WorkspaceSequence). */
     public const NUMBER_SEQUENCE = 'ecommerce_quote_request';
 
@@ -24,6 +28,9 @@ class EcommerceQuoteRequest extends Model
 
     /** How many products one request may ask about. */
     public const MAX_ITEMS = 20;
+
+    /** Phase H4d: how many files a customer may attach to one, while Settings → eCommerce lets them. */
+    public const MAX_FILES = 3;
 
     protected $fillable = [
         'storefront_id',

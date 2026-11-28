@@ -50,12 +50,13 @@ class FileStorage
      * Stores $uploads as $owner's files in $collection - all of them or none.
      * The business needs room for them together (Doc 13 section 13.14), or a
      * 422 on $field says so. A collection that holds one file (an image, the
-     * logo) gives up the file it had.
+     * logo) gives up the file it had. Uploaded by the signed-in member - or,
+     * $byMember false, by nobody: a store's customer's (Doc 19 Phase H4d).
      *
      * @param  list<UploadedFile>  $uploads
      * @return Collection<int, WorkspaceFile>
      */
-    public function store(Workspace $workspace, Model $owner, FileCollection $collection, array $uploads, string $field): Collection
+    public function store(Workspace $workspace, Model $owner, FileCollection $collection, array $uploads, string $field, bool $byMember = true): Collection
     {
         $replaced = $collection->isSingle() ? $this->files->inCollection($owner, $collection) : new Collection;
 
@@ -72,12 +73,12 @@ class FileStorage
         try {
             $rows = array_map(fn (UploadedFile $upload) => $this->put($workspace, $collection, $upload, $written), $uploads);
 
-            return DB::transaction(function () use ($workspace, $owner, $collection, $rows, $replaced) {
+            return DB::transaction(function () use ($workspace, $owner, $collection, $rows, $replaced, $byMember) {
                 $files = new Collection(array_map(fn (array $row) => $this->files->createFor($owner, [
                     ...$row,
                     'workspace_id' => $workspace->id,
                     'collection'   => $collection,
-                    'uploaded_by'  => auth()->id(),
+                    'uploaded_by'  => $byMember ? auth()->id() : null,
                 ]), $rows));
 
                 $this->delete($replaced);

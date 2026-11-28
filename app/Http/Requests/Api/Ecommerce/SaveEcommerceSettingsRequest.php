@@ -35,6 +35,8 @@ class SaveEcommerceSettingsRequest extends FormRequest
             'abandoned_hours'       => ['sometimes', 'integer', 'min:1', 'max:720'],
             // Phase H4b, a choice from H4c: what a request for a quotation also becomes - nothing more, a CRM lead or a draft quotation.
             'quote_requests_become' => ['sometimes', Rule::in(EcommerceSetting::QUOTE_REQUESTS_BECOME)],
+            // Phase H4d: whether a customer may attach files to a request for a quotation.
+            'quote_request_files'   => ['sometimes', 'boolean'],
             // Phase D4: whether checkout asks for a phone number, and for a note.
             'checkout_phone'        => ['sometimes', Rule::in(EcommerceSetting::PHONE_FIELDS)],
             'checkout_notes'        => ['sometimes', 'boolean'],

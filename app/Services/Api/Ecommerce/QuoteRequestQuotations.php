@@ -60,8 +60,8 @@ class QuoteRequestQuotations
         protected TaxRateRepository $taxRates,
     ) {}
 
-    /** $request's draft quotation, $account the customer signed in, if they were - or none while Sales is off. Made inside the request's own transaction. */
-    public function make(Storefront $storefront, EcommerceQuoteRequest $request, ?StorefrontCustomer $account): ?SalesDocument
+    /** $request's draft quotation, $account the customer signed in, if they were - or none while Sales is off. $files: the names of the files the request keeps (Phase H4d). Made inside the request's own transaction. */
+    public function make(Storefront $storefront, EcommerceQuoteRequest $request, ?StorefrontCustomer $account, array $files = []): ?SalesDocument
     {
         $workspace = $storefront->workspace;
 
@@ -84,7 +84,7 @@ class QuoteRequestQuotations
             'tax_rounding'       => $start['tax_rounding'],
             'customer_reference' => $request->number,
             'notes'              => $start['notes'],
-            'internal_notes'     => $this->internalNotes($storefront, $request),
+            'internal_notes'     => $this->internalNotes($storefront, $request, $files),
             'terms'              => $start['terms'],
             // The full Sales app's shipping terms, as a new quotation starts with them.
             ...($start['shipping_terms'] ?? null ? ['shipping_terms' => $start['shipping_terms']] : []),
@@ -154,7 +154,7 @@ class QuoteRequestQuotations
     }
 
     /** The request, for whoever prices it: who asked, where and when it goes, and their message. */
-    private function internalNotes(Storefront $storefront, EcommerceQuoteRequest $request): string
+    private function internalNotes(Storefront $storefront, EcommerceQuoteRequest $request, array $files): string
     {
         return implode("\n", array_filter([
             "From the request for a quotation {$request->number} on {$storefront->name}:",
@@ -163,6 +163,8 @@ class QuoteRequestQuotations
             'Delivered to: '.implode(', ', array_filter([$request->delivery_address, $request->delivery_city, Countries::name($request->delivery_country)])),
             $request->required_on ? 'Wanted by: '.$request->required_on->toDateString() : null,
             $request->message ? "Message: {$request->message}" : null,
+            // Phase H4d: its files, which the request keeps.
+            $files ? 'Files with the request: '.implode(', ', $files) : null,
         ]));
     }
 }
