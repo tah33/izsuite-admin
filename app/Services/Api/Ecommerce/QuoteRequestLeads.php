@@ -10,7 +10,6 @@ use App\Models\User\Storefront;
 use App\Models\User\Workspace;
 use App\Repositories\User\CrmLeadRepository;
 use App\Repositories\User\CrmOptionRepository;
-use App\Repositories\User\EcommerceSettingRepository;
 use App\Services\Crm\LeadInterests;
 use App\Services\Crm\LeadRouting;
 use App\Services\Crm\LeadScoring;
@@ -42,7 +41,6 @@ class QuoteRequestLeads
     private const SOURCE = 'website';
 
     public function __construct(
-        protected EcommerceSettingRepository $settings,
         protected CrmLeadRepository $leads,
         protected CrmOptionRepository $options,
         protected LeadInterests $interests,
@@ -51,12 +49,12 @@ class QuoteRequestLeads
         protected Notifier $notifier,
     ) {}
 
-    /** $request's lead, while Settings → eCommerce says so and CRM is on - or none. Made inside the request's own transaction. */
+    /** $request's lead, while CRM is on - or none: Settings → eCommerce's choice is StorefrontQuoteRequests'. Made inside the request's own transaction. */
     public function make(Storefront $storefront, EcommerceQuoteRequest $request): ?CrmLead
     {
         $workspace = $storefront->workspace;
 
-        if (! $this->settings->forWorkspace($workspace)->quote_requests_to_leads || ! WorkspaceApps::for($workspace)->has('crm')) {
+        if (! WorkspaceApps::for($workspace)->has('crm')) {
             return null;
         }
 

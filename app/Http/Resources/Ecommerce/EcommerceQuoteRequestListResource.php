@@ -34,6 +34,8 @@ class EcommerceQuoteRequestListResource extends JsonResource
             'required_on' => $quote->required_on?->toDateString(),
             // Phase H4b: the CRM lead it became, if it did and the user may open it (EcommerceQuoteRequestService).
             'lead_id'     => $quote->getAttribute('shown_lead_id'),
+            // Phase H4c: the quotation it became - {id, number}, none while a draft - if it did and the user may open it.
+            'quotation'   => $quote->getAttribute('shown_quotation'),
         ];
     }
 }

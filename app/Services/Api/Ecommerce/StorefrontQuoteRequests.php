@@ -7,9 +7,11 @@ use App\Mail\StoreQuoteRequestMail;
 use App\Models\User\CatalogProduct;
 use App\Models\User\EcommerceQuoteRequest;
 use App\Models\User\EcommerceQuoteRequestItem;
+use App\Models\User\EcommerceSetting;
 use App\Models\User\Storefront;
 use App\Models\User\StorefrontCustomer;
 use App\Repositories\User\EcommerceQuoteRequestRepository;
+use App\Repositories\User\EcommerceSettingRepository;
 use App\Repositories\User\StorefrontCatalogRepository;
 use App\Services\Documents\DocumentFormat;
 use App\Services\Shared\ActivityLogService;
@@ -33,8 +35,9 @@ use Illuminate\Validation\ValidationException;
  *   down to the customer.
  *
  * It is the business's sales enquiry, never an order, a sale or a
- * receivable. From Phase H4b, while Settings → eCommerce says so and CRM is
- * on, it also becomes a lead, made with it (QuoteRequestLeads).
+ * receivable. As Settings → eCommerce chooses, it also becomes - made with it
+ * - a CRM lead while CRM is on (Phase H4b, QuoteRequestLeads) or a draft
+ * quotation while Sales is on (Phase H4c, QuoteRequestQuotations).
  */
 class StorefrontQuoteRequests
 {
@@ -42,8 +45,10 @@ class StorefrontQuoteRequests
         protected StorefrontCatalogService $stores,
         protected StorefrontCatalogRepository $catalog,
         protected EcommerceQuoteRequestRepository $requests,
+        protected EcommerceSettingRepository $settings,
         protected WorkspaceSequence $sequence,
         protected QuoteRequestLeads $leads,
+        protected QuoteRequestQuotations $quotations,
     ) {}
 
     /** $data as SubmitStoreQuoteRequestRequest takes it; $account: the customer signed in, if they are. */
@@ -55,9 +60,10 @@ class StorefrontQuoteRequests
             throw ValidationException::withMessages(['required_on' => 'Choose today or a later day.']);
         }
 
-        $items = array_map(fn (array $item, int $at) => $this->item($storefront, $item, $today, $at), $data['items'], array_keys($data['items']));
+        $items   = array_map(fn (array $item, int $at) => $this->item($storefront, $item, $today, $at), $data['items'], array_keys($data['items']));
+        $becomes = $this->settings->forWorkspace($storefront->workspace)->quote_requests_become;
 
-        [$request, $lead] = DB::transaction(function () use ($storefront, $data, $account, $items) {
+        [$request, $lead, $quotation] = DB::transaction(function () use ($storefront, $data, $account, $items, $becomes) {
             $request = $this->requests->create($storefront, [
                 'storefront_customer_id' => $account?->id,
                 'number'                 => $this->number($storefront),
@@ -72,14 +78,15 @@ class StorefrontQuoteRequests
                 'message'                => trim((string) ($data['message'] ?? '')) ?: null,
             ], $items);
 
-            // Phase H4b: while Settings → eCommerce says so and CRM is on, a lead with it.
-            $lead = $this->leads->make($storefront, $request);
+            // What Settings → eCommerce says it also becomes: a lead (Phase H4b) or a draft quotation (Phase H4c).
+            $lead      = $becomes === EcommerceSetting::BECOME_LEAD ? $this->leads->make($storefront, $request) : null;
+            $quotation = $becomes === EcommerceSetting::BECOME_QUOTATION ? $this->quotations->make($storefront, $request, $account) : null;
 
-            if ($lead) {
-                $this->requests->update($request, ['crm_lead_id' => $lead->id]);
+            if ($lead || $quotation) {
+                $this->requests->update($request, ['crm_lead_id' => $lead?->id, 'sales_document_id' => $quotation?->id]);
             }
 
-            return [$request, $lead];
+            return [$request, $lead, $quotation];
         });
 
         SendStoreQuoteRequestEmail::dispatch($request->id)->afterCommit();
@@ -87,6 +94,10 @@ class StorefrontQuoteRequests
 
         if ($lead) {
             $this->leads->made($storefront, $request, $lead);
+        }
+
+        if ($quotation) {
+            $this->quotations->made($storefront, $request, $quotation);
         }
 
         return $request;

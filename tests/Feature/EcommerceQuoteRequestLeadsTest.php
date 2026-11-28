@@ -101,9 +101,9 @@ class EcommerceQuoteRequestLeadsTest extends TestCase
         $this->getJson("/api/v1/crm/leads/{$lead->id}")->assertOk()->assertJsonPath('data.name', 'Karim Rahman');
 
         // Settings → eCommerce switches it off.
-        $this->getJson(self::SETTINGS)->assertJsonPath('data.quote_requests_to_leads', true);
-        $this->putJson(self::SETTINGS, ['guest_checkout' => true, 'verify_customer_email' => true, 'price_display' => 'with_tax', 'order_prefix' => 'EC-', 'quote_requests_to_leads' => false])
-            ->assertOk()->assertJsonPath('data.quote_requests_to_leads', false);
+        $this->getJson(self::SETTINGS)->assertJsonPath('data.quote_requests_become', 'lead');
+        $this->putJson(self::SETTINGS, ['guest_checkout' => true, 'verify_customer_email' => true, 'price_display' => 'with_tax', 'order_prefix' => 'EC-', 'quote_requests_become' => 'nothing'])
+            ->assertOk()->assertJsonPath('data.quote_requests_become', 'nothing');
         $this->ask()->assertCreated();
         $this->assertDatabaseCount('crm_leads', 1);
     }

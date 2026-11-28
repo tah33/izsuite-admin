@@ -59,7 +59,7 @@ class EcommerceQuoteRequestRepository
                 ->where('number', 'like', "%{$search}%")
                 ->orWhere('customer_name', 'like', "%{$search}%")
                 ->orWhere('customer_email', 'like', '%'.mb_strtolower($search).'%')))
-            ->with(['storefront:id,name', 'items:id,ecommerce_quote_request_id,title,quantity,position'])
+            ->with(['storefront:id,name', 'items:id,ecommerce_quote_request_id,title,quantity,position', 'quotation:id,number,location_id'])
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate($perPage);
@@ -68,7 +68,7 @@ class EcommerceQuoteRequestRepository
     /** $workspace's request $id at $locationIds (any, when null), with its storefront and products - or none. */
     public function findFor(Workspace $workspace, int $id, ?array $locationIds): ?EcommerceQuoteRequest
     {
-        return $this->at($workspace, $locationIds)->with(['storefront:id,name', 'items'])->find($id);
+        return $this->at($workspace, $locationIds)->with(['storefront:id,name', 'items', 'quotation:id,number,location_id'])->find($id);
     }
 
     /** The request $id, with what its e-mail shows - or none. */

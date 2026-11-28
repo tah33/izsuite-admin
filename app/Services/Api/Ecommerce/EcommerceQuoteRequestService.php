@@ -17,7 +17,9 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
  * H4a), under View Orders: the Quote Requests page, and one request whole. A
  * request is seen where its storefront's location may be used, as an order
  * is, and to anyone else it is not found. From Phase H4b each names the CRM
- * lead it became only to a user who may open that lead (showLeads()).
+ * lead it became only to a user who may open that lead (showLeads()), and
+ * from Phase H4c its draft quotation only to one who may open that
+ * (showQuotations()).
  */
 class EcommerceQuoteRequestService
 {
@@ -33,6 +35,7 @@ class EcommerceQuoteRequestService
     {
         $page = $this->requests->paginateFor($workspace, $this->access->locations(), $filters, $perPage);
         $this->showLeads($workspace, $user, $page->items());
+        $this->showQuotations($workspace, $user, $page->items());
 
         return $page;
     }
@@ -41,8 +44,30 @@ class EcommerceQuoteRequestService
     {
         $quote = $this->requests->findFor($workspace, $id, $this->access->locations()) ?? abort(404, 'There is no such request.');
         $this->showLeads($workspace, $user, [$quote]);
+        $this->showQuotations($workspace, $user, [$quote]);
 
         return $quote;
+    }
+
+    /**
+     * Phase H4c: on each of $quotes, the quotation it became as $user may
+     * open it - `shown_quotation`, its id and number (none while a draft) -
+     * none otherwise: Sales on, View Quotations theirs, and the quotation at
+     * a location they may use.
+     *
+     * @param  list<EcommerceQuoteRequest>  $quotes
+     */
+    private function showQuotations(Workspace $workspace, User $user, array $quotes): void
+    {
+        $may       = WorkspaceApps::for($workspace)->has('sales') && $this->access->allows($user, $workspace, 'sales.quotations.view');
+        $locations = $this->access->locations();
+
+        foreach ($quotes as $quote) {
+            $quotation = $may ? $quote->quotation : null;
+            $seen      = $quotation && ($locations === null || $quotation->location_id === null || in_array($quotation->location_id, $locations, true));
+
+            $quote->setAttribute('shown_quotation', $seen ? ['id' => $quotation->id, 'number' => $quotation->number] : null);
+        }
     }
 
     /**

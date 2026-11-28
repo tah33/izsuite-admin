@@ -105,8 +105,8 @@ class EcommerceStorefrontsTest extends TestCase
                 'download_days' => 30, 'download_limit' => 5, 'downloads_need_account' => false,
                 // Phase H3a: a cart whose customer is known is abandoned after 24 hours unused.
                 'abandoned_hours' => 24,
-                // Phase H4b: a request for a quotation also becomes a lead while CRM is on.
-                'quote_requests_to_leads' => true,
+                // Phase H4b, a choice from H4c: a request for a quotation also becomes a lead while CRM is on.
+                'quote_requests_become' => 'lead',
             ]]);
 
         $this->putJson(self::SETTINGS, ['guest_checkout' => false, 'verify_customer_email' => true, 'price_display' => 'without_tax', 'order_prefix' => ' web/ '])->assertOk()

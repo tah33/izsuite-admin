@@ -33,8 +33,8 @@ class EcommerceSettingsResource extends JsonResource
             'downloads_need_account' => (bool) $this->downloads_need_account,
             // Phase H3a: how many hours a cart whose customer is known goes unused before it is Abandoned.
             'abandoned_hours'        => (int) $this->abandoned_hours,
-            // Phase H4b: whether, while CRM is on, a request for a quotation also becomes a lead.
-            'quote_requests_to_leads' => (bool) $this->quote_requests_to_leads,
+            // Phase H4b, a choice from H4c: what a request for a quotation also becomes - nothing, lead or quotation.
+            'quote_requests_become'  => $this->quote_requests_become,
         ];
     }
 }

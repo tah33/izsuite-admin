@@ -11,8 +11,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * - Phase H4a), numbered QR-00001: who asked - and the account they were
  * signed in to - the products they asked about, where they are to be
  * delivered, the date wanted and their message. It is the business's sales
- * enquiry, never an order, a sale or a receivable. From Phase H4b, while CRM
- * is on, it also becomes a lead.
+ * enquiry, never an order, a sale or a receivable. From Phase H4b, as
+ * Settings → eCommerce chooses, it also becomes a CRM lead (while CRM is on)
+ * or, from Phase H4c, a draft quotation.
  */
 class EcommerceQuoteRequest extends Model
 {
@@ -29,6 +30,8 @@ class EcommerceQuoteRequest extends Model
         'storefront_customer_id',
         // Phase H4b: the CRM lead it became.
         'crm_lead_id',
+        // Phase H4c: the draft quotation it became.
+        'sales_document_id',
         'number',
         'customer_name',
         'customer_email',
@@ -45,6 +48,7 @@ class EcommerceQuoteRequest extends Model
         'storefront_id'          => 'integer',
         'storefront_customer_id' => 'integer',
         'crm_lead_id'            => 'integer',
+        'sales_document_id'      => 'integer',
         'required_on'            => 'date',
     ];
 
@@ -62,5 +66,11 @@ class EcommerceQuoteRequest extends Model
     public function items(): HasMany
     {
         return $this->hasMany(EcommerceQuoteRequestItem::class)->orderBy('position')->orderBy('id');
+    }
+
+    /** Phase H4c: the draft quotation it became, as Sales has it now. */
+    public function quotation(): BelongsTo
+    {
+        return $this->belongsTo(SalesDocument::class, 'sales_document_id');
     }
 }
