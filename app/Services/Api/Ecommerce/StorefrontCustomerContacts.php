@@ -197,6 +197,21 @@ class StorefrontCustomerContacts
     }
 
     /**
+     * Phase H3b: whether $customer's contact said no to marketing by e-mail -
+     * Promotions and Offers refused or withdrawn - after $since: their latest
+     * word, over a box ticked at a checkout before it.
+     */
+    public function refusedSince(Storefront $storefront, StorefrontCustomer $customer, \Carbon\CarbonInterface $since): bool
+    {
+        $contact  = $customer->contact_id ? $this->contacts->findCurrent($storefront->workspace, $customer->contact_id) : null;
+        $purpose  = $contact ? $this->purposeOf($storefront->workspace, false) : null;
+        $standing = $purpose ? $this->consents->standing($storefront->workspace, 'contact_id', $contact->id, $purpose->id, 'email') : null;
+        $said     = $standing?->withdrawn_at ?? $standing?->recorded_at;
+
+        return $standing !== null && $standing->status !== MarketingConsent::GIVEN && $said !== null && $said->gt($since);
+    }
+
+    /**
      * Phase E3: marketing by e-mail given - or withdrawn - by $customer from
      * their account, as their contact's: Promotions and Offers, from the
      * website form. Nothing is recorded when it stands as asked already.

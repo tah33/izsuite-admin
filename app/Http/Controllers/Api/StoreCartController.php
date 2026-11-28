@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Ecommerce\AddStoreCartLineRequest;
+use App\Http\Requests\Api\Ecommerce\RecoverStoreCartRequest;
 use App\Http\Requests\Api\Ecommerce\UpdateStoreCartLineRequest;
 use App\Http\Resources\Ecommerce\StoreCartResource;
 use App\Models\User\User;
@@ -67,6 +68,20 @@ class StoreCartController extends Controller
             $cart = $this->cartService->remove($code, $this->token($request), $line, $this->previewer($request));
 
             return response()->json(['message' => 'Removed from your cart.', 'data' => new StoreCartResource($cart)]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** Phase H3b: the cart its recovery e-mail's link names, opened in this browser - its new token given once. */
+    public function recover(RecoverStoreCartRequest $request, string $code): JsonResponse
+    {
+        try {
+            $cart = $this->cartService->recover($code, $request->validated('token'), $this->previewer($request));
+
+            return response()->json(['message' => 'Your cart is as you left it.', 'data' => new StoreCartResource($cart)]);
 
         } catch (\Throwable $e) {
             report($e);

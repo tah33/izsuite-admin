@@ -486,6 +486,8 @@ final class RoutePermissions
             'api.ecommerce.collections.image.destroy' => 'ecommerce.catalog.manage',
             // Phase H3a: the business's abandoned carts, with its orders.
             'api.ecommerce.abandoned-carts.index'     => 'ecommerce.orders.view',
+            // Phase H3b: a cart's recovery e-mail, as a payment link is sent.
+            'api.ecommerce.abandoned-carts.recovery'  => 'ecommerce.orders.confirm',
             // Phase F1: the business's online orders.
             'api.ecommerce.orders.index'              => 'ecommerce.orders.view',
             'api.ecommerce.orders.show'               => 'ecommerce.orders.view',

@@ -148,6 +148,33 @@ class StorefrontCartService
     }
 
     /**
+     * Phase H3b: the cart its recovery e-mail's link names by $token, opened
+     * in this browser. While its visitor may use it and its days are not
+     * over, it is given a new token - this browser's from now on, the old
+     * one no longer working - and is used now, so Active again. Converted or
+     * expired, it says so.
+     */
+    public function recover(string $code, string $token, ?User $previewer = null): array
+    {
+        ['storefront' => $storefront, 'today' => $today] = $this->stores->openStore($code, $previewer);
+        $cart = $this->carts->findByRecovery($storefront, $this->hash($token)) ?? abort(404, 'This link is not for a cart of this store. Add the products again.');
+
+        if ($cart->status === EcommerceCart::CONVERTED) {
+            abort(404, 'This cart became an order already: its e-mail has the order.');
+        }
+
+        if (! in_array($cart->status, EcommerceCart::OPEN, true) || $cart->expires_at?->isPast()) {
+            abort(404, 'This cart has expired. Add the products again.');
+        }
+
+        $fresh = Str::random(48);
+        $this->carts->update($cart, ['token_hash' => $this->hash($fresh), 'recovery_opened_at' => now()]);
+        $cart->load(['lines', 'lines.product:id,title,slug,options', 'lines.variant:id,option_values', 'lines.item:id,name']);
+
+        return $this->answer($storefront, $cart, $today, $fresh);
+    }
+
+    /**
      * Phase H3a: $cart at checkout - used now, so active again and its days
      * counted from now - with its customer as checkout knows them:
      * $customer holds the cart's fields learnt (StorefrontOrderPlacement).

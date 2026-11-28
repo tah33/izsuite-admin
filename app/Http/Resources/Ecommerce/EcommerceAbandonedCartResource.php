@@ -12,7 +12,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * customer - their name and e-mail, and whether it was an account's - its
  * storefront, its first two products and how many it holds, its value as
  * last priced, its last activity, whether its customer agreed to marketing by
- * e-mail, its status and, once converted, its order.
+ * e-mail, its status and, once converted, its order. From Phase H3b, when its
+ * recovery e-mail was sent and its link opened, and whether it was converted
+ * after it - Recovered.
  *
  * @property EcommerceCart $resource
  */
@@ -34,6 +36,9 @@ class EcommerceAbandonedCartResource extends JsonResource
             'marketing'        => (bool) $cart->marketing,
             'status'           => $cart->status,
             'order'            => $cart->order ? ['id' => $cart->order->id, 'number' => $cart->order->number] : null,
+            // Phase H3b: its recovery e-mail, and whether it was converted after it.
+            'recovery'         => $cart->recovery_sent_at ? ['sent_at' => $cart->recovery_sent_at->toIso8601String(), 'opened_at' => $cart->recovery_opened_at?->toIso8601String()] : null,
+            'recovered'        => $cart->isRecovered(),
         ];
     }
 }

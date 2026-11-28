@@ -235,6 +235,8 @@ Route::prefix('v1')->group(function () {
             Route::post('/cart/lines', [StoreCartController::class, 'addLine'])->name('api.stores.cart.lines.store');
             Route::put('/cart/lines/{line}', [StoreCartController::class, 'updateLine'])->whereNumber('line')->name('api.stores.cart.lines.update');
             Route::delete('/cart/lines/{line}', [StoreCartController::class, 'removeLine'])->whereNumber('line')->name('api.stores.cart.lines.destroy');
+            // Phase H3b: an abandoned cart opened by its recovery e-mail's link - a few tries a minute, against guessing.
+            Route::post('/cart/recover', [StoreCartController::class, 'recover'])->middleware('throttle:10,1,store-cart-recover')->name('api.stores.cart.recover');
             // Phase D4: checkout - what the cart comes to with the choices made so far, and the order placed. From
             // Phase E2 a signed-in customer's is their account's.
             Route::post('/checkout/quote', [StoreCheckoutController::class, 'quote'])->name('api.stores.checkout.quote');
@@ -1286,6 +1288,8 @@ Route::prefix('v1')->group(function () {
     // Phase H3a: the business's abandoned carts - the Abandoned Carts page.
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:ecommerce', 'access'])->prefix('ecommerce/abandoned-carts')->group(function () {
         Route::get('/', [EcommerceAbandonedCartController::class, 'index'])->name('api.ecommerce.abandoned-carts.index');
+        // Phase H3b: a cart's recovery e-mail, sent by hand.
+        Route::post('/{id}/recovery', [EcommerceAbandonedCartController::class, 'recovery'])->whereNumber('id')->middleware('idempotent')->name('api.ecommerce.abandoned-carts.recovery');
     });
 
     // Phase F1: the business's online orders - the Orders page, one order, and its timeline.

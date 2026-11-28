@@ -15,7 +15,8 @@ use Illuminate\Support\Carbon;
  * hash, its lines, and the carts whose days are over expired. From Phase H3a
  * (19.32): an abandoned cart is its visitor's still; the carts whose
  * customer is known left unused abandoned; an expired cart's customer
- * cleared; and the business's abandoned carts, a page at a time.
+ * cleared; and the business's abandoned carts, a page at a time. From Phase
+ * H3b, one of them for its recovery e-mail, and a cart by its recovery link.
  */
 class EcommerceCartRepository
 {
@@ -126,10 +127,10 @@ class EcommerceCartRepository
         $search = trim((string) ($filters['search'] ?? ''));
 
         return EcommerceCart::query()
-            ->select(['id', 'storefront_id', 'storefront_customer_id', 'customer_name', 'customer_email', 'marketing', 'status', 'currency', 'grand_total', 'last_activity_at'])
+            ->select(['id', 'storefront_id', 'storefront_customer_id', 'customer_name', 'customer_email', 'marketing', 'status', 'currency', 'grand_total', 'last_activity_at', 'converted_at', 'recovery_sent_at', 'recovery_opened_at'])
             ->where('workspace_id', $workspace->id)
             ->whereNotNull('abandoned_at')
-            ->when($locationIds !== null, fn (Builder $query) => $query->whereIn('storefront_id', Storefront::query()->select('id')->where('workspace_id', $workspace->id)->whereIn('location_id', $locationIds)))
+            ->when($locationIds !== null, fn (Builder $query) => $query->whereIn('storefront_id', $this->storefrontsAt($workspace, $locationIds)))
             ->when($filters['storefront_id'] ?? null, fn (Builder $query, int|string $id) => $query->where('storefront_id', (int) $id))
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
             ->when($search !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
@@ -141,9 +142,44 @@ class EcommerceCartRepository
             ->paginate($perPage);
     }
 
+    /**
+     * Phase H3b: $workspace's cart $id that was abandoned, at $locationIds
+     * (any, when null), with what its recovery e-mail and the page show - its
+     * storefront, account, lines' products and order - or none.
+     */
+    public function findAbandonedFor(Workspace $workspace, int $id, ?array $locationIds): ?EcommerceCart
+    {
+        return EcommerceCart::query()
+            ->where('workspace_id', $workspace->id)
+            ->whereNotNull('abandoned_at')
+            ->when($locationIds !== null, fn (Builder $query) => $query->whereIn('storefront_id', $this->storefrontsAt($workspace, $locationIds)))
+            ->with(['storefront', 'account', 'lines:id,ecommerce_cart_id,catalog_product_id,quantity,unit_price', 'lines.product:id,title', 'order:id,ecommerce_cart_id,number'])
+            ->find($id);
+    }
+
+    /** Phase H3b: the cart $id, with what its recovery e-mail shows - or none. */
+    public function findForRecoveryEmail(int $id): ?EcommerceCart
+    {
+        return EcommerceCart::query()
+            ->with(['storefront', 'storefront.workspace', 'lines:id,ecommerce_cart_id,catalog_product_id,quantity,unit_price', 'lines.product:id,title'])
+            ->find($id);
+    }
+
+    /** Phase H3b: $storefront's cart whose recovery link's token has $tokenHash, whatever its status - or none. */
+    public function findByRecovery(Storefront $storefront, string $tokenHash): ?EcommerceCart
+    {
+        return EcommerceCart::query()->where('storefront_id', $storefront->id)->where('recovery_token_hash', $tokenHash)->first();
+    }
+
     /** Of $query, the active carts whose customer is known, unused since $since. */
     private function idle(Builder $query, Carbon $since): Builder
     {
         return $query->where('status', EcommerceCart::ACTIVE)->whereNotNull('customer_email')->where('last_activity_at', '<=', $since);
+    }
+
+    /** $workspace's storefronts at $locationIds, as a subquery of their ids. */
+    private function storefrontsAt(Workspace $workspace, array $locationIds): Builder
+    {
+        return Storefront::query()->select('id')->where('workspace_id', $workspace->id)->whereIn('location_id', $locationIds);
     }
 }
