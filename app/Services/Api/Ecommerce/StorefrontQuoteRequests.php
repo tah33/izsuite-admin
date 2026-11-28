@@ -127,7 +127,50 @@ class StorefrontQuoteRequests
         return $request;
     }
 
-    /** Sends the request $id's e-mail to its customer, saying it arrived - the queue job's work. */
+    /**
+     * Phase H4e: a message from the store's contact page - $data as
+     * SubmitStoreMessageRequest takes it; $account: the customer signed in,
+     * if they are, whose name and e-mail it carries. Kept as the business's
+     * enquiry, numbered EN-00001; a CRM lead too where Settings → eCommerce
+     * makes requests leads (never a draft quotation, having no product); its
+     * customer e-mailed it arrived, and in the Activity Log.
+     */
+    public function message(string $code, array $data, ?StorefrontCustomer $account = null): EcommerceQuoteRequest
+    {
+        ['storefront' => $storefront] = $this->stores->openStore($code);
+        $becomes = $this->settings->forWorkspace($storefront->workspace)->quote_requests_become;
+
+        [$message, $lead] = DB::transaction(function () use ($storefront, $data, $account, $becomes) {
+            $message = $this->requests->create($storefront, [
+                'kind'                   => EcommerceQuoteRequest::KIND_MESSAGE,
+                'storefront_customer_id' => $account?->id,
+                'number'                 => $this->number($storefront, EcommerceQuoteRequest::KIND_MESSAGE),
+                'customer_name'          => $account ? $account->name : trim($data['name']),
+                'customer_email'         => $account ? $account->email : mb_strtolower(trim($data['email'])),
+                'customer_phone'         => trim((string) ($data['phone'] ?? '')) ?: $account?->phone,
+                'message'                => trim($data['message']),
+            ], []);
+
+            $lead = $becomes === EcommerceSetting::BECOME_LEAD ? $this->leads->make($storefront, $message) : null;
+
+            if ($lead) {
+                $this->requests->update($message, ['crm_lead_id' => $lead->id]);
+            }
+
+            return [$message, $lead];
+        });
+
+        SendStoreQuoteRequestEmail::dispatch($message->id)->afterCommit();
+        ActivityLogService::recordCustomer($storefront->workspace, 'created', "{$message->customer_name} wrote to {$storefront->name}: {$message->number}", $message);
+
+        if ($lead) {
+            $this->leads->made($storefront, $message, $lead);
+        }
+
+        return $message;
+    }
+
+    /** Sends the request $id's e-mail to its customer, saying it arrived - the queue job's work. From Phase H4e a message's too. */
     public function deliver(int $id): void
     {
         $request = $this->requests->findForEmail($id);
@@ -141,10 +184,11 @@ class StorefrontQuoteRequests
         $format     = new DocumentFormat($workspace->date_format ?? 'd M Y', $workspace->number_format ?? 'comma_dot');
 
         Mail::to($request->customer_email)->send(new StoreQuoteRequestMail(
-            "We have your request for a quotation, {$request->number}",
+            $request->kind === EcommerceQuoteRequest::KIND_MESSAGE ? "We have your message, {$request->number}" : "We have your request for a quotation, {$request->number}",
             $storefront->name,
             $storefront->support_email,
             [
+                'kind'        => $request->kind,
                 'name'        => $request->customer_name,
                 'number'      => $request->number,
                 'items'       => $request->items->map(fn (EcommerceQuoteRequestItem $item) => ['title' => $item->title, 'quantity' => rtrim(rtrim((string) $item->quantity, '0'), '.')])->all(),
@@ -206,11 +250,15 @@ class StorefrontQuoteRequests
         }
     }
 
-    /** The next number of the business's requests, QR-00001 on - one taken already skipped. */
-    private function number(Storefront $storefront): string
+    /** The next number of the business's requests, QR-00001 on - or (Phase H4e) of its messages, EN-00001 on, from their own sequence - one taken already skipped. */
+    private function number(Storefront $storefront, string $kind = EcommerceQuoteRequest::KIND_QUOTE): string
     {
+        [$prefix, $sequence] = $kind === EcommerceQuoteRequest::KIND_MESSAGE
+            ? [EcommerceQuoteRequest::MESSAGE_PREFIX, EcommerceQuoteRequest::MESSAGE_SEQUENCE]
+            : [EcommerceQuoteRequest::NUMBER_PREFIX, EcommerceQuoteRequest::NUMBER_SEQUENCE];
+
         do {
-            $number = EcommerceQuoteRequest::NUMBER_PREFIX.sprintf('%05d', $this->sequence->next($storefront->workspace_id, EcommerceQuoteRequest::NUMBER_SEQUENCE));
+            $number = $prefix.sprintf('%05d', $this->sequence->next($storefront->workspace_id, $sequence));
         } while ($this->requests->numberTaken($storefront->workspace, $number));
 
         return $number;

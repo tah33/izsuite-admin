@@ -16,15 +16,29 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * Settings → eCommerce chooses, it also becomes a CRM lead (while CRM is on)
  * or, from Phase H4c, a draft quotation. From Phase H4d it may come with
  * files, kept as its attachments (HasFiles).
+ *
+ * From Phase H4e a message from a storefront's contact page is kept here
+ * too, as an enquiry of its own kind: numbered EN-00001, with the customer
+ * and their message alone - no products, delivery or files.
  */
 class EcommerceQuoteRequest extends Model
 {
     use HasFiles;
 
+    /** Phase H4e: a request for a quotation, or a message from the contact page. */
+    public const KIND_QUOTE = 'quote';
+
+    public const KIND_MESSAGE = 'message';
+
     /** The business's sequence its numbers come from (WorkspaceSequence). */
     public const NUMBER_SEQUENCE = 'ecommerce_quote_request';
 
     public const NUMBER_PREFIX = 'QR-';
+
+    /** Phase H4e: a message's own. */
+    public const MESSAGE_SEQUENCE = 'ecommerce_message';
+
+    public const MESSAGE_PREFIX = 'EN-';
 
     /** How many products one request may ask about. */
     public const MAX_ITEMS = 20;
@@ -35,6 +49,8 @@ class EcommerceQuoteRequest extends Model
     protected $fillable = [
         'storefront_id',
         'storefront_customer_id',
+        // Phase H4e: KIND_QUOTE or KIND_MESSAGE.
+        'kind',
         // Phase H4b: the CRM lead it became.
         'crm_lead_id',
         // Phase H4c: the draft quotation it became.
@@ -58,6 +74,16 @@ class EcommerceQuoteRequest extends Model
         'sales_document_id'      => 'integer',
         'required_on'            => 'date',
     ];
+
+    protected $attributes = [
+        'kind' => self::KIND_QUOTE,
+    ];
+
+    /** Phase H4e: what it is called in words - "the request for a quotation QR-00001", "the message EN-00001". */
+    public function noun(): string
+    {
+        return $this->kind === self::KIND_MESSAGE ? 'message' : 'request for a quotation';
+    }
 
     public function workspace(): BelongsTo
     {

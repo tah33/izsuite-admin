@@ -34,6 +34,9 @@ use App\Services\User\Apps\WorkspaceApps;
  * - the business's custom fields left empty, required ones too - a member
  *   fills them as they edit it - scored as any lead is, and in the Activity
  *   Log, put down to the customer.
+ *
+ * From Phase H4e a message from the contact page too: with no items, its
+ * message its notes.
  */
 class QuoteRequestLeads
 {
@@ -99,7 +102,7 @@ class QuoteRequestLeads
         $workspace = $storefront->workspace;
 
         $this->scoring->rescore($workspace, $lead->id);
-        ActivityLogService::recordCustomer($workspace, 'created', "Added the lead {$lead->name} from the request for a quotation {$request->number} on {$storefront->name}", $lead);
+        ActivityLogService::recordCustomer($workspace, 'created', "Added the lead {$lead->name} from the {$request->noun()} {$request->number} on {$storefront->name}", $lead);
 
         $lead = $this->leads->loadShown($lead);
 
@@ -108,7 +111,7 @@ class QuoteRequestLeads
                 trigger: 'leads.assigned',
                 key: "leads.assigned:{$lead->id}:{$lead->owner->id}:".$lead->assigned_at?->getTimestamp(),
                 title: "A lead from {$storefront->name}: {$lead->name}",
-                body: "Its request for a quotation, {$request->number}",
+                body: "Its {$request->noun()}, {$request->number}",
                 link: "/crm/leads/{$lead->id}",
                 subject: $lead,
                 email: true,

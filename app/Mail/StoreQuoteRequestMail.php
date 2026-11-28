@@ -12,7 +12,8 @@ use Illuminate\Mail\Mailables\Envelope;
  * 19 section 19.30 - Phase H4a): from the platform's address under the
  * store's name, with replies to the store's support e-mail. Its request
  * comes ready to show - its number, products, delivery, the date wanted and
- * the message (StorefrontQuoteRequests).
+ * the message (StorefrontQuoteRequests) - or (Phase H4e) that a message
+ * from the contact page arrived, with its number and the message.
  *
  * Sent from SendStoreQuoteRequestEmail's queue job, so not queued itself.
  */

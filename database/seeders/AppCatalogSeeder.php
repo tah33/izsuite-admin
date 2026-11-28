@@ -233,6 +233,8 @@ class AppCatalogSeeder extends Seeder
         ['apps', 'ecommerce', 'Abandoned Carts', 'shopping-cart', '/ecommerce/abandoned-carts', 'lite', null],
         // Phase H4a: the requests for a quotation.
         ['apps', 'ecommerce', 'Quote Requests', 'message-square-quote', '/ecommerce/quote-requests', 'lite', null],
+        // Phase H4e: the messages from the storefronts' contact pages.
+        ['apps', 'ecommerce', 'Messages', 'mail', '/ecommerce/messages', 'lite', null],
         // Phase H1: its discounts.
         ['apps', 'ecommerce', 'Discounts', 'tag', '/ecommerce/discounts', 'lite', null],
         ['apps', 'inventory', 'Stock', 'boxes', '/inventory/stock', 'lite', null],
@@ -280,6 +282,7 @@ class AppCatalogSeeder extends Seeder
         '/ecommerce/orders'      => 'ecommerce.orders.view',
         '/ecommerce/abandoned-carts' => 'ecommerce.orders.view',
         '/ecommerce/quote-requests' => 'ecommerce.orders.view',
+        '/ecommerce/messages'       => 'ecommerce.orders.view',
         '/ecommerce/discounts'   => 'ecommerce.discounts.manage',
         '/purchases'          => 'purchases.purchases.view',
         '/purchases/payments' => 'purchases.payments.view',

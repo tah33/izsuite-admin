@@ -26,6 +26,8 @@ class EcommerceQuoteRequestResource extends JsonResource
         return [
             'id'          => $quote->id,
             'number'      => $quote->number,
+            // Phase H4e: a request for a quotation, or a message from the contact page - its products, delivery and files none.
+            'kind'        => $quote->kind,
             'received_at' => $quote->created_at?->toIso8601String(),
             'storefront'  => $quote->storefront?->name,
             'customer'    => [

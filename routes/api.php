@@ -241,6 +241,8 @@ Route::prefix('v1')->group(function () {
             Route::post('/cart/recover', [StoreCartController::class, 'recover'])->middleware('throttle:10,1,store-cart-recover')->name('api.stores.cart.recover');
             // Phase H4a: a request for a quotation - a few a minute from one address, as it e-mails.
             Route::post('/quote-requests', [StoreQuoteRequestController::class, 'store'])->middleware('throttle:10,1,store-quote-request')->name('api.stores.quote-requests.store');
+            // Phase H4e: a message from the contact page - as few a minute, as it e-mails too.
+            Route::post('/messages', [StoreQuoteRequestController::class, 'message'])->middleware('throttle:10,1,store-message')->name('api.stores.messages.store');
             // Phase D4: checkout - what the cart comes to with the choices made so far, and the order placed. From
             // Phase E2 a signed-in customer's is their account's.
             Route::post('/checkout/quote', [StoreCheckoutController::class, 'quote'])->name('api.stores.checkout.quote');

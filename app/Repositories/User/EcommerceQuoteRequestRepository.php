@@ -47,13 +47,15 @@ class EcommerceQuoteRequestRepository
     /**
      * A page of $workspace's requests at $locationIds (any, when null), the
      * newest first - narrowed by storefront, searched by number, name or
-     * e-mail - each with its storefront and products.
+     * e-mail - each with its storefront and products. Of one kind (Phase H4e):
+     * $filters' kind, requests for a quotation unless it says messages.
      */
     public function paginateFor(Workspace $workspace, ?array $locationIds, array $filters, int $perPage): LengthAwarePaginator
     {
         $search = trim((string) ($filters['search'] ?? ''));
 
         return $this->at($workspace, $locationIds)
+            ->where('kind', $filters['kind'] ?? EcommerceQuoteRequest::KIND_QUOTE)
             ->when($filters['storefront_id'] ?? null, fn (Builder $query, int|string $id) => $query->where('storefront_id', (int) $id))
             ->when($search !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
                 ->where('number', 'like', "%{$search}%")

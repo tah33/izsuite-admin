@@ -3,12 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Ecommerce\SubmitStoreMessageRequest;
 use App\Http\Requests\Api\Ecommerce\SubmitStoreQuoteRequestRequest;
 use App\Http\Resources\Ecommerce\StoreQuoteRequestResource;
 use App\Services\Api\Ecommerce\StorefrontQuoteRequests;
 use Illuminate\Http\JsonResponse;
 
-/** A storefront's Request a Quote (Doc 19 Phase H4a): a request for a quotation sent, by a guest or a signed-in customer. */
+/** A storefront's Request a Quote (Doc 19 Phase H4a): a request for a quotation sent, by a guest or a signed-in customer - and (Phase H4e) a message from its contact page. */
 class StoreQuoteRequestController extends Controller
 {
     public function __construct(
@@ -21,6 +22,20 @@ class StoreQuoteRequestController extends Controller
             $quote = $this->requests->submit($code, $request->validated(), $request->attributes->get('storeCustomer'));
 
             return response()->json(['message' => "Your request is sent: we will reply to {$quote->customer_email}.", 'data' => new StoreQuoteRequestResource($quote)], 201);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** Phase H4e: a message from the store's contact page. */
+    public function message(SubmitStoreMessageRequest $request, string $code): JsonResponse
+    {
+        try {
+            $message = $this->requests->message($code, $request->validated(), $request->attributes->get('storeCustomer'));
+
+            return response()->json(['message' => "Your message is sent: we will reply to {$message->customer_email}.", 'data' => new StoreQuoteRequestResource($message)], 201);
 
         } catch (\Throwable $e) {
             report($e);
