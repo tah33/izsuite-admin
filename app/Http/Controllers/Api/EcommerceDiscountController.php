@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Ecommerce\ListEcommerceDiscountsRequest;
 use App\Http\Requests\Api\Ecommerce\SaveEcommerceDiscountRequest;
+use App\Http\Resources\Ecommerce\EcommerceDiscountCategoryResource;
+use App\Http\Resources\Ecommerce\EcommerceDiscountContactResource;
 use App\Http\Resources\Ecommerce\EcommerceDiscountProductResource;
 use App\Http\Resources\Ecommerce\EcommerceDiscountResource;
 use App\Services\Api\Ecommerce\EcommerceDiscountService;
@@ -14,7 +16,8 @@ use Illuminate\Http\Request;
 /**
  * The Discounts page (Doc 19 Phase H1), under Manage Discounts: a page of
  * the business's discount codes, one added, changed or deleted - deactivated
- * once used - and the products a discount may be for.
+ * once used - and the products a discount may be for; from Phase H2b the
+ * categories and customers too.
  */
 class EcommerceDiscountController extends Controller
 {
@@ -78,6 +81,30 @@ class EcommerceDiscountController extends Controller
     {
         try {
             return response()->json(['data' => EcommerceDiscountProductResource::collection($this->discounts->productChoices($this->currentWorkspace($request), $request->validated('search')))]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** Phase H2b: the item categories a discount may be for, by name. */
+    public function categories(ListEcommerceDiscountsRequest $request): JsonResponse
+    {
+        try {
+            return response()->json(['data' => EcommerceDiscountCategoryResource::collection($this->discounts->categoryChoices($this->currentWorkspace($request), $request->validated('search')))]);
+
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
+        }
+    }
+
+    /** Phase H2b: the customers a discount may be for, by name or e-mail. */
+    public function contacts(ListEcommerceDiscountsRequest $request): JsonResponse
+    {
+        try {
+            return response()->json(['data' => EcommerceDiscountContactResource::collection($this->discounts->contactChoices($this->currentWorkspace($request), $request->validated('search')))]);
 
         } catch (\Throwable $e) {
             report($e);

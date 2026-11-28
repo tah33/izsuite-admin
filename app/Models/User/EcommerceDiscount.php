@@ -21,6 +21,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * every order it fits - and each has a priority (1 first) and whether it goes
  * with other discounts: at checkout they are taken in order of priority, one
  * that goes with none alone (StorefrontDiscounts).
+ *
+ * From Phase H2b a discount may be for chosen categories - the Items'
+ * categories, a product in one by its listing's item - and for everyone,
+ * the customers signed in to their account on the store, or chosen contacts
+ * signed in to theirs.
  */
 class EcommerceDiscount extends Model
 {
@@ -32,10 +37,23 @@ class EcommerceDiscount extends Model
 
     public const KINDS = [self::PERCENTAGE, self::AMOUNT, self::FREE_SHIPPING];
 
-    /** What it is for: the whole order, or chosen products. */
+    /** What it is for: the whole order, chosen products, or (Phase H2b) chosen categories. */
     public const ORDER = 'order';
 
     public const PRODUCTS = 'products';
+
+    public const CATEGORIES = 'categories';
+
+    public const APPLIES_TO = [self::ORDER, self::PRODUCTS, self::CATEGORIES];
+
+    /** Phase H2b: who it is for - everyone, those signed in to their account, or chosen contacts signed in to theirs. */
+    public const EVERYONE = 'everyone';
+
+    public const SIGNED_IN = 'signed_in';
+
+    public const CONTACTS = 'contacts';
+
+    public const CUSTOMERS = [self::EVERYONE, self::SIGNED_IN, self::CONTACTS];
 
     protected $fillable = [
         'name',
@@ -43,6 +61,7 @@ class EcommerceDiscount extends Model
         'kind',
         'value',
         'applies_to',
+        'customers',
         'minimum',
         'starts_on',
         'ends_on',
@@ -76,6 +95,7 @@ class EcommerceDiscount extends Model
     // The column's defaults, so one just made reads as it was saved.
     protected $attributes = [
         'applies_to' => self::ORDER,
+        'customers'  => self::EVERYONE,
         'priority'   => 1,
         'combines'   => false,
         'is_active'  => true,
@@ -90,6 +110,18 @@ class EcommerceDiscount extends Model
     public function products(): BelongsToMany
     {
         return $this->belongsToMany(CatalogProduct::class, 'ecommerce_discount_products');
+    }
+
+    /** Phase H2b: the Items' categories it is for, when it is for chosen categories. */
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(ItemCategory::class, 'ecommerce_discount_categories');
+    }
+
+    /** Phase H2b: the contacts it is for, when it is for chosen contacts. */
+    public function contacts(): BelongsToMany
+    {
+        return $this->belongsToMany(Contact::class, 'ecommerce_discount_contacts');
     }
 
     /** Phase H2a: the orders that took it, each as it was then - its uses, those whose order is not cancelled. */

@@ -529,6 +529,8 @@ final class RoutePermissions
             // Phase H1: the Discounts page.
             'api.ecommerce.discounts.index'              => 'ecommerce.discounts.manage',
             'api.ecommerce.discounts.products'           => 'ecommerce.discounts.manage',
+            'api.ecommerce.discounts.categories'         => 'ecommerce.discounts.manage',
+            'api.ecommerce.discounts.contacts'           => 'ecommerce.discounts.manage',
             'api.ecommerce.discounts.store'              => 'ecommerce.discounts.manage',
             'api.ecommerce.discounts.update'             => 'ecommerce.discounts.manage',
             'api.ecommerce.discounts.destroy'            => 'ecommerce.discounts.manage',

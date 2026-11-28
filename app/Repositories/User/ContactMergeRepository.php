@@ -13,8 +13,9 @@ use Illuminate\Support\Facades\DB;
 /**
  * The queries of merging one contact into another (Doc 17 Phase C3): the
  * records that move with it - its leads, opportunities, attachments, price
- * lists and the decisions about it as a possible duplicate - and the
- * financial records that stay with it.
+ * lists, (Doc 19 Phase H2b) the online discounts chosen for it, and the
+ * decisions about it as a possible duplicate - and the financial records
+ * that stay with it.
  */
 class ContactMergeRepository
 {
@@ -60,6 +61,8 @@ class ContactMergeRepository
             'consents'            => DB::table('marketing_consents')->where('contact_id', $from->id)->count(),
             'attachments'         => $this->files($from)->count(),
             'price_lists'         => $this->priceLists($from, $to)->count(),
+            // Doc 19 Phase H2b: the online discounts chosen for it.
+            'discounts'           => $this->discounts($from, $to)->count(),
             'duplicate_decisions' => $this->decisions($from, $to)->count(),
         ];
     }
@@ -80,6 +83,9 @@ class ContactMergeRepository
 
         $this->priceLists($from, $to)->update(['contact_id' => $to->id]);
         DB::table('price_list_contacts')->where('contact_id', $from->id)->delete();
+
+        $this->discounts($from, $to)->update(['contact_id' => $to->id]);
+        DB::table('ecommerce_discount_contacts')->where('contact_id', $from->id)->delete();
 
         $this->decisions($from, $to)->update(['other_id' => $to->id]);
         $this->reviewsOf($from)->delete();
@@ -110,6 +116,14 @@ class ContactMergeRepository
         return DB::table('price_list_contacts')
             ->where('contact_id', $from->id)
             ->whereNotIn('price_list_id', DB::table('price_list_contacts')->where('contact_id', $to->id)->pluck('price_list_id')->all());
+    }
+
+    /** Doc 19 Phase H2b: the discounts $from is chosen for that $to is not - read first, as above. */
+    private function discounts(Contact $from, Contact $to): Builder
+    {
+        return DB::table('ecommerce_discount_contacts')
+            ->where('contact_id', $from->id)
+            ->whereNotIn('ecommerce_discount_id', DB::table('ecommerce_discount_contacts')->where('contact_id', $to->id)->pluck('ecommerce_discount_id')->all());
     }
 
     /** The decisions about $from as a lead's possible duplicate, of leads with none about $to - read first, as above. */

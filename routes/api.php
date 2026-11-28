@@ -1275,6 +1275,8 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'workspace:required', 'app:ecommerce', 'access'])->prefix('ecommerce/discounts')->group(function () {
         Route::get('/', [EcommerceDiscountController::class, 'index'])->name('api.ecommerce.discounts.index');
         Route::get('/products', [EcommerceDiscountController::class, 'products'])->name('api.ecommerce.discounts.products');
+        Route::get('/categories', [EcommerceDiscountController::class, 'categories'])->name('api.ecommerce.discounts.categories');
+        Route::get('/contacts', [EcommerceDiscountController::class, 'contacts'])->name('api.ecommerce.discounts.contacts');
         Route::post('/', [EcommerceDiscountController::class, 'store'])->middleware('idempotent')->name('api.ecommerce.discounts.store');
         Route::put('/{id}', [EcommerceDiscountController::class, 'update'])->whereNumber('id')->name('api.ecommerce.discounts.update');
         Route::delete('/{id}', [EcommerceDiscountController::class, 'destroy'])->whereNumber('id')->name('api.ecommerce.discounts.destroy');

@@ -79,7 +79,8 @@ class StorefrontOrderPlacement
         ActivityLogService::skipForThisRequest();
 
         return [
-            'quote'      => $this->checkout->quote($storefront, $cart, $choices, $today),
+            // Phase H2b: with the account its customer is signed in to - its e-mail theirs, as the order's is - for the discounts.
+            'quote'      => $this->checkout->quote($storefront, $cart, [...$choices, 'account' => $account, ...($account ? ['email' => $account->email] : [])], $today),
             'storefront' => $storefront,
             'settings'   => $this->settings->forWorkspace($storefront->workspace),
             'policies'   => $this->stores->policiesOf($storefront),
@@ -126,7 +127,7 @@ class StorefrontOrderPlacement
             }
 
             $cart->load(['lines', 'lines.product:id,title,slug,options', 'lines.variant:id,option_values', 'lines.item:id,name']);
-            $quote = $this->checkout->quote($storefront, $cart, $this->choices($data), $today);
+            $quote = $this->checkout->quote($storefront, $cart, $this->choices($data, $account), $today);
 
             $this->check($storefront, $settings, $quote, $data);
 
@@ -203,8 +204,12 @@ class StorefrontOrderPlacement
         return rtrim((string) config('app.frontend_url'), '/').'/store/'.$storefront->code.'/orders/'.$key;
     }
 
-    /** What the checkout is asked to work out from $data: the address it delivers to, the delivery and the payment chosen. */
-    private function choices(array $data): array
+    /**
+     * What the checkout is asked to work out from $data: the address it
+     * delivers to, the delivery and the payment chosen - and the discounts,
+     * with (Phase H2b) $account, the one its customer is signed in to.
+     */
+    private function choices(array $data, ?StorefrontCustomer $account): array
     {
         $delivery = $data['delivery'] ?? null;
         $address  = $delivery === EcommerceOrder::SHIPPING && ! ($data['shipping_same'] ?? true) ? ($data['shipping'] ?? []) : ($data['billing'] ?? []);
@@ -219,6 +224,7 @@ class StorefrontOrderPlacement
             // Phases H1 and H2a: a discount code and the automatic discounts, checked with the customer's e-mail - locked, so their uses are counted once.
             'discount_code'      => $data['discount_code'] ?? null,
             'email'              => $data['customer']['email'] ?? null,
+            'account'            => $account,
             'lock_discount'      => true,
         ];
     }

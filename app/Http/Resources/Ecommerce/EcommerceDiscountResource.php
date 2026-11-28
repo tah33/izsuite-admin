@@ -3,7 +3,9 @@
 namespace App\Http\Resources\Ecommerce;
 
 use App\Models\User\CatalogProduct;
+use App\Models\User\Contact;
 use App\Models\User\EcommerceDiscount;
+use App\Models\User\ItemCategory;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -11,7 +13,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * A discount code as the Discounts page shows and its form edits it (Doc 19
  * Phase H1): its name and code, what it takes off and on what - the products
  * it is for - its minimum, days and limits, whether it is active, its uses
- * (its orders not cancelled) and where it stands today.
+ * (its orders not cancelled) and where it stands today. From Phase H2b the
+ * categories it is for, and whom: everyone, those signed in, or contacts.
  *
  * @property EcommerceDiscount $resource
  */
@@ -29,6 +32,10 @@ class EcommerceDiscountResource extends JsonResource
             'value'              => $discount->value === null ? null : rtrim(rtrim((string) $discount->value, '0'), '.'),
             'applies_to'         => $discount->applies_to,
             'products'           => $discount->products->map(fn (CatalogProduct $product) => ['id' => $product->id, 'title' => $product->title])->values(),
+            // Phase H2b: the categories it is for; and whom - everyone, those signed in, or the contacts chosen.
+            'categories'         => $discount->categories->map(fn (ItemCategory $category) => ['id' => $category->id, 'name' => $category->name])->values(),
+            'customers'          => $discount->customers,
+            'contacts'           => $discount->contacts->map(fn (Contact $contact) => ['id' => $contact->id, 'name' => $contact->name])->values(),
             'minimum'            => $discount->minimum === null ? null : (string) $discount->minimum,
             'starts_on'          => $discount->starts_on?->toDateString(),
             'ends_on'            => $discount->ends_on?->toDateString(),

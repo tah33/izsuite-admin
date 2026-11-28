@@ -3,22 +3,28 @@
 namespace App\Services\Api\Ecommerce;
 
 use App\Models\User\EcommerceDiscount;
+use App\Models\User\StorefrontCustomer;
 use App\Models\User\Workspace;
+use App\Repositories\User\ContactRepository;
 use App\Repositories\User\EcommerceDiscountRepository;
 use App\Services\Documents\DocumentFormat;
 use App\Support\Decimal;
+use Illuminate\Support\Collection;
 
 /**
  * The discounts an order takes at checkout (Doc 19 section 19.31 - Phases H1
- * and H2a), worked out by the backend at each quote and again as the order is
+ * to H2b), worked out by the backend at each quote and again as the order is
  * placed: the code the customer gives, and the business's automatic
  * discounts - each checked by its rules:
  *
  * - its business's, active, within its days (where the business is);
+ * - (Phase H2b) whom it is for: everyone, those signed in to their account,
+ *   or chosen contacts signed in to theirs, its e-mail verified;
  * - the order's products meeting its minimum (in the base currency, as the
  *   shipping rates weigh them);
  * - uses left in all and by the customer's e-mail;
- * - products in the cart it is for.
+ * - products in the cart it is for: any, chosen ones, or (Phase H2b) those
+ *   of chosen categories - a product in one by its listing's item.
  *
  * A code that fails says why; an automatic discount that fails is simply not
  * taken. Each takes off, as the business keeps prices in the store's
@@ -37,14 +43,16 @@ class StorefrontDiscounts
     public function __construct(
         protected EcommerceDiscountRepository $discounts,
         protected StorefrontPricing $pricing,
+        protected ContactRepository $contacts,
     ) {}
 
     /**
      * What $code and the automatic discounts take off the cart: $rows its
      * products then its shipping, $read StorefrontCartLines' (the products'
-     * listings), $parcel what the shipping rates weigh. Locked when $lock - as
-     * the order is placed, inside its transaction - so their uses are counted
-     * once.
+     * listings), $parcel what the shipping rates weigh; $email the customer's,
+     * and (Phase H2b) $account the one they are signed in to, if they are.
+     * Locked when $lock - as the order is placed, inside its transaction - so
+     * their uses are counted once.
      *
      * @return array{
      *     code: array{discount: ?EcommerceDiscount, code: string, problem: ?string}|null,
@@ -52,15 +60,16 @@ class StorefrontDiscounts
      *     off: ?string
      * }
      */
-    public function take(Workspace $workspace, ?string $code, array $rows, array $read, array $terms, array $parcel, string $today, ?string $email, bool $lock = false): array
+    public function take(Workspace $workspace, ?string $code, array $rows, array $read, array $terms, array $parcel, string $today, ?string $email, ?StorefrontCustomer $account = null, bool $lock = false): array
     {
         $code      = mb_strtoupper(trim((string) $code));
         $given     = $code === '' ? null : $this->discounts->findByCode($workspace, $code, $lock);
         $automatic = $this->discounts->automaticFor($workspace, $today, $lock);
         $uses      = $this->discounts->usesOf(array_values(array_filter([...$automatic->pluck('id')->all(), $given?->id])), $email, $lock);
+        $who       = $this->who($workspace, $account, $automatic->concat(array_filter([$given])));
         $cart      = $this->cart($rows, $read);
         $format    = new DocumentFormat($workspace->date_format ?? 'd M Y', $workspace->number_format ?? 'comma_dot');
-        $check     = fn (EcommerceDiscount $discount) => $this->fit($discount, $cart, $terms, $parcel, $today, $email, $uses[$discount->id] ?? ['all' => 0, 'customer' => 0], $format);
+        $check     = fn (EcommerceDiscount $discount) => $this->fit($discount, $cart, $terms, $parcel, $today, $email, $who, $uses[$discount->id] ?? ['all' => 0, 'customer' => 0], $format);
         $problem   = null;
         $fits      = [];
 
@@ -100,10 +109,11 @@ class StorefrontDiscounts
      * Whether $discount fits the cart - else why not, as a code says it - and
      * what it takes off by itself: never more than the products come to.
      *
+     * @param  array{signed_in: bool, verified: bool, contact: ?int}  $who
      * @param  array{all: int, customer: int}  $uses
      * @return array{problem: ?string, off: ?string}
      */
-    private function fit(EcommerceDiscount $discount, array $cart, array $terms, array $parcel, string $today, ?string $email, array $uses, DocumentFormat $format): array
+    private function fit(EcommerceDiscount $discount, array $cart, array $terms, array $parcel, string $today, ?string $email, array $who, array $uses, DocumentFormat $format): array
     {
         $refuse = fn (string $problem) => ['problem' => $problem, 'off' => null];
 
@@ -119,6 +129,19 @@ class StorefrontDiscounts
             return $refuse('This code ended on '.$format->date($discount->ends_on->toDateString()).'.');
         }
 
+        // Phase H2b: whom it is for - those signed in to their account, or chosen contacts signed in to theirs, its e-mail verified.
+        if ($discount->customers !== EcommerceDiscount::EVERYONE && ! $who['signed_in']) {
+            return $refuse('Sign in to your account to use this code.');
+        }
+
+        if ($discount->customers === EcommerceDiscount::CONTACTS && ! $who['verified']) {
+            return $refuse("Verify your account's e-mail to use this code.");
+        }
+
+        if ($discount->customers === EcommerceDiscount::CONTACTS && ! in_array($who['contact'], $discount->contacts->pluck('id')->all(), true)) {
+            return $refuse('This code is not for your account.');
+        }
+
         if ($discount->minimum !== null && bccomp($parcel['subtotal'], (string) $discount->minimum, 2) < 0) {
             return $refuse('This code is for orders of '.$format->money($this->pricing->inCurrency((string) $discount->minimum, $terms), $terms['currency']).' or more.');
         }
@@ -131,10 +154,12 @@ class StorefrontDiscounts
             return $refuse('You have used this code as often as it may be.');
         }
 
-        $chosen   = $discount->products->pluck('id')->all();
-        $eligible = $discount->applies_to === EcommerceDiscount::PRODUCTS
-            ? array_values(array_filter($cart['products'], fn (array $product) => in_array($product['listing'], $chosen, true)))
-            : $cart['products'];
+        // The products it is for: any, the listings chosen, or (Phase H2b) those in the categories chosen.
+        $eligible = match ($discount->applies_to) {
+            EcommerceDiscount::PRODUCTS   => $this->among($cart['products'], 'listing', $discount->products->pluck('id')->all()),
+            EcommerceDiscount::CATEGORIES => $this->among($cart['products'], 'category', $discount->categories->pluck('id')->all()),
+            default                       => $cart['products'],
+        };
 
         if ($eligible === []) {
             return $refuse('This code is for products not in your cart.');
@@ -212,23 +237,61 @@ class StorefrontDiscounts
     }
 
     /**
-     * The cart as discounts weigh it: each product row's listing and its
-     * price by its quantity - as the business keeps prices, to the cent - what
-     * the products come to, and the shipping's.
+     * The cart as discounts weigh it: each product row's listing, (Phase H2b)
+     * its category - its listing's item's, as the store's category pages list
+     * it - and its price by its quantity, as the business keeps prices, to the
+     * cent; what the products come to, and the shipping's.
      *
-     * @return array{products: list<array{listing: ?int, base: string}>, all: string, shipping: string}
+     * @return array{products: list<array{listing: ?int, category: ?int, base: string}>, all: string, shipping: string}
      */
     private function cart(array $rows, array $read): array
     {
         $listings = array_values(array_filter($read['lines'], fn (array $line) => $line['problem'] === null));
         $products = array_values(array_filter($rows, fn (array $row) => ($row['kind'] ?? 'product') !== 'shipping'));
         $shipped  = array_filter($rows, fn (array $row) => ($row['kind'] ?? 'product') === 'shipping');
-        $weighed  = array_map(fn (array $row, int $at) => ['listing' => $listings[$at]['product']->id ?? null, 'base' => $this->base($row)], $products, array_keys($products));
+        $weighed  = array_map(fn (array $row, int $at) => [
+            'listing'  => $listings[$at]['product']->id ?? null,
+            'category' => ($listings[$at]['product'] ?? null)?->item?->category_id,
+            'base'     => $this->base($row),
+        ], $products, array_keys($products));
 
         return [
             'products' => $weighed,
             'all'      => Decimal::sum(array_column($weighed, 'base')),
             'shipping' => Decimal::sum(array_map(fn (array $row) => $this->base($row), $shipped)),
+        ];
+    }
+
+    /**
+     * Of the cart's $products, those whose $by - listing or category - is
+     * among $ids.
+     *
+     * @return list<array{listing: ?int, category: ?int, base: string}>
+     */
+    private function among(array $products, string $by, array $ids): array
+    {
+        return array_values(array_filter($products, fn (array $product) => in_array($product[$by], $ids, true)));
+    }
+
+    /**
+     * Phase H2b: who is checking out, as the discounts weigh it: whether they
+     * are signed in to their account, its e-mail verified, and - read only when
+     * one of $discounts is for chosen contacts - the contact it is linked to,
+     * as it stands after any merge (none once inactive).
+     *
+     * @param  Collection<int, EcommerceDiscount>  $discounts
+     * @return array{signed_in: bool, verified: bool, contact: ?int}
+     */
+    private function who(Workspace $workspace, ?StorefrontCustomer $account, Collection $discounts): array
+    {
+        $verified = (bool) $account?->isVerified();
+        $needed   = $verified && $account->contact_id !== null
+            && $discounts->contains(fn (EcommerceDiscount $discount) => $discount->customers === EcommerceDiscount::CONTACTS);
+
+        return [
+            'signed_in' => $account !== null,
+            'verified'  => $verified,
+            'contact'   => $needed ? $this->contacts->findCurrent($workspace, $account->contact_id)?->id : null,
         ];
     }
 

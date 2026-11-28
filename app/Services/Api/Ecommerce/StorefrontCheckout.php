@@ -55,7 +55,9 @@ class StorefrontCheckout
     /**
      * $choices: the address it is delivered to - country, region, city,
      * postal_code - the billing country, the delivery (shipping or pickup),
-     * shipping_method_id, pickup_point_id and payment_method_id.
+     * shipping_method_id, pickup_point_id and payment_method_id; for the
+     * discounts (Phases H1 to H2b) discount_code, email, account - the
+     * StorefrontCustomer signed in, if any - and lock_discount.
      */
     public function quote(Storefront $storefront, EcommerceCart $cart, array $choices, string $today): array
     {
@@ -83,7 +85,8 @@ class StorefrontCheckout
 
         // Phases H1 and H2a: the discounts it takes - the code given and the automatic ones - checked again
         // each time; what they take off shared over the order, as an invoice's discount.
-        $discounts = $this->discounts->take($workspace, $choices['discount_code'] ?? null, $rows, $read, $terms, $parcel, $today, $choices['email'] ?? null, (bool) ($choices['lock_discount'] ?? false));
+        // Phase H2b: and the account its customer is signed in to, for the discounts of those signed in or of chosen contacts.
+        $discounts = $this->discounts->take($workspace, $choices['discount_code'] ?? null, $rows, $read, $terms, $parcel, $today, $choices['email'] ?? null, $choices['account'] ?? null, (bool) ($choices['lock_discount'] ?? false));
         $off       = $discounts['off'];
 
         $totals  = $this->totals($workspace, $rows, $terms, $off);
