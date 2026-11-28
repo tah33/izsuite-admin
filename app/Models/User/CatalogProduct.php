@@ -52,8 +52,11 @@ class CatalogProduct extends Model
 
     public const FIXED_PRICE = 'fixed_price';
 
+    /** Doc 19 Phase H4a: sold by a request for a quotation (Request a Quote). */
+    public const QUOTATION = 'quotation';
+
     /** Sold at its price; by a request for a quotation; by asking for the price; not sold online. */
-    public const SALES_METHODS = [self::FIXED_PRICE, 'quotation', 'contact', 'not_online'];
+    public const SALES_METHODS = [self::FIXED_PRICE, self::QUOTATION, 'contact', 'not_online'];
 
     public const AVAILABLE = 'available';
 

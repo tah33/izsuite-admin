@@ -108,6 +108,8 @@ use App\Http\Controllers\Api\EcommercePaymentMethodController;
 use App\Http\Controllers\Api\EcommerceOrderController;
 use App\Http\Controllers\Api\EcommerceDiscountController;
 use App\Http\Controllers\Api\EcommerceAbandonedCartController;
+use App\Http\Controllers\Api\EcommerceQuoteRequestController;
+use App\Http\Controllers\Api\StoreQuoteRequestController;
 use App\Http\Controllers\Api\EcommerceOrderDeliveryController;
 use App\Http\Controllers\Api\EcommerceOrderEditController;
 use App\Http\Controllers\Api\EcommerceOrderFulfilmentController;
@@ -237,6 +239,8 @@ Route::prefix('v1')->group(function () {
             Route::delete('/cart/lines/{line}', [StoreCartController::class, 'removeLine'])->whereNumber('line')->name('api.stores.cart.lines.destroy');
             // Phase H3b: an abandoned cart opened by its recovery e-mail's link - a few tries a minute, against guessing.
             Route::post('/cart/recover', [StoreCartController::class, 'recover'])->middleware('throttle:10,1,store-cart-recover')->name('api.stores.cart.recover');
+            // Phase H4a: a request for a quotation - a few a minute from one address, as it e-mails.
+            Route::post('/quote-requests', [StoreQuoteRequestController::class, 'store'])->middleware('throttle:10,1,store-quote-request')->name('api.stores.quote-requests.store');
             // Phase D4: checkout - what the cart comes to with the choices made so far, and the order placed. From
             // Phase E2 a signed-in customer's is their account's.
             Route::post('/checkout/quote', [StoreCheckoutController::class, 'quote'])->name('api.stores.checkout.quote');
@@ -1290,6 +1294,12 @@ Route::prefix('v1')->group(function () {
         Route::get('/', [EcommerceAbandonedCartController::class, 'index'])->name('api.ecommerce.abandoned-carts.index');
         // Phase H3b: a cart's recovery e-mail, sent by hand.
         Route::post('/{id}/recovery', [EcommerceAbandonedCartController::class, 'recovery'])->whereNumber('id')->middleware('idempotent')->name('api.ecommerce.abandoned-carts.recovery');
+    });
+
+    // Phase H4a: the business's requests for a quotation - the Quote Requests page, and one request.
+    Route::middleware(['auth:sanctum', 'workspace:required', 'app:ecommerce', 'access'])->prefix('ecommerce/quote-requests')->group(function () {
+        Route::get('/', [EcommerceQuoteRequestController::class, 'index'])->name('api.ecommerce.quote-requests.index');
+        Route::get('/{id}', [EcommerceQuoteRequestController::class, 'show'])->whereNumber('id')->name('api.ecommerce.quote-requests.show');
     });
 
     // Phase F1: the business's online orders - the Orders page, one order, and its timeline.
